@@ -26,3 +26,25 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
+  deploy-dev:
+    name: Deploy to dev.checklyra.com
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build project
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          vercel alias set $URL dev.checklyra.com --token=${{ secrets.VERCEL_TOKEN }}
