@@ -1,13 +1,10 @@
 name: Deploy to Development
-
 on:
   push:
     branches: [develop]
-
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   lint-and-test:
     name: Lint & Unit Tests
@@ -25,31 +22,7 @@ jobs:
         run: npm run lint
       - name: Run type check
         run: npm run type-check
-      - name: Run unit tests        run: npm run test:unit
+      - name: Run unit tests
+        run: npm run test:unit
         env:
           CI: true
-
-  deploy-dev:
-    name: Deploy to dev.checklyra.com
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    environment: development
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Build project
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Deploy to Vercel (dev)
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "deploy_url=$URL" >> $GITHUB_OUTPUT
-          vercel alias set $URL dev.checklyra.com --token=${{ secrets.VERCEL_TOKEN }}
