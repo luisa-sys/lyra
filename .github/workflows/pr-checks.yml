@@ -22,6 +22,6 @@ jobs:
       - name: Run type check
         run: npm run type-check
       - name: Run unit tests
-        run: npm run test:unit -- --coverage
+        run: npm run test:unit
         env:
           CI: true
