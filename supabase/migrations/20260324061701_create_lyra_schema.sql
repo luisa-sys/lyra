@@ -9,6 +9,7 @@ create extension if not exists "uuid-ossp" with schema extensions;
 -- ============================================================
 create table public.profiles (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
   display_name text not null,
   slug text unique not null,
   headline text,
@@ -47,7 +48,7 @@ create type public.visibility_level as enum (
 );
 
 create table public.profile_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   profile_id uuid references public.profiles(id) on delete cascade not null,
   category item_category not null,
   title text not null,
@@ -72,7 +73,7 @@ create type public.link_type as enum (
 );
 
 create table public.external_links (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   profile_id uuid references public.profiles(id) on delete cascade not null,
   title text not null,
   url text not null,
@@ -95,7 +96,7 @@ create type public.school_relationship as enum (
 );
 
 create table public.school_affiliations (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   profile_id uuid references public.profiles(id) on delete cascade not null,
   school_name text not null,
   school_location text,
@@ -185,7 +186,8 @@ create trigger on_profile_updated
 
 -- ============================================================
 -- AUTO-CREATE PROFILE ON SIGNUP
--- ============================================================create or replace function public.handle_new_user()
+-- ============================================================
+create or replace function public.handle_new_user()
 returns trigger as $$
 begin
   insert into public.profiles (user_id, display_name, slug)
