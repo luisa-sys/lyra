@@ -78,9 +78,9 @@ export default async function SignUpPage({
               name="password"
               type="password"
               required
-              minLength={8}
+              minLength={6}
               className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="At least 8 characters"
+              placeholder="At least 6 characters"
             />
           </div>
 
