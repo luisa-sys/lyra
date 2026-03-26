@@ -3,12 +3,20 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
-  const isProtectedEnv =
-    hostname.includes('dev.checklyra.com') ||
-    hostname.includes('stage.checklyra.com') ||
+
+  const isProtectedHost =
+    hostname.startsWith('dev.') ||
+    hostname.startsWith('stage.') ||
     hostname.includes('.vercel.app');
 
-  if (!isProtectedEnv) {
+  if (!isProtectedHost) {
+    return NextResponse.next();
+  }
+
+  const validUser = process.env.BASIC_AUTH_USER || 'lyra';
+  const validPass = process.env.BASIC_AUTH_PASSWORD;
+
+  if (!validPass) {
     return NextResponse.next();
   }
 
@@ -19,10 +27,7 @@ export function middleware(request: NextRequest) {
     if (scheme === 'Basic' && encoded) {
       const decoded = atob(encoded);
       const [user, pass] = decoded.split(':');
-      const validUser = process.env.BASIC_AUTH_USER || 'lyra';
-      const validPass = process.env.BASIC_AUTH_PASSWORD || '';
-
-      if (validPass && user === validUser && pass === validPass) {
+      if (user === validUser && pass === validPass) {
         return NextResponse.next();
       }
     }
