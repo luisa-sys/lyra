@@ -3,39 +3,30 @@
  * KAN-7: Authentication & User Management
  */
 
+const fs = require('fs');
+const path = require('path');
+
+const root = path.join(__dirname, '../..');
+
 describe('Auth pages', () => {
   test('signup page file exists', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const signupPath = path.join(__dirname, '../../src/app/(auth)/signup/page.tsx');
-    expect(fs.existsSync(signupPath)).toBe(true);
+    expect(fs.existsSync(path.join(root, 'src/app/(auth)/signup/page.tsx'))).toBe(true);
   });
 
   test('login page file exists', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const loginPath = path.join(__dirname, '../../src/app/(auth)/login/page.tsx');
-    expect(fs.existsSync(loginPath)).toBe(true);
+    expect(fs.existsSync(path.join(root, 'src/app/(auth)/login/page.tsx'))).toBe(true);
   });
 
   test('auth callback route exists', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const callbackPath = path.join(__dirname, '../../src/app/auth/callback/route.ts');
-    expect(fs.existsSync(callbackPath)).toBe(true);
+    expect(fs.existsSync(path.join(root, 'src/app/auth/callback/route.ts'))).toBe(true);
   });
 
   test('dashboard page exists', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const dashboardPath = path.join(__dirname, '../../src/app/dashboard/page.tsx');
-    expect(fs.existsSync(dashboardPath)).toBe(true);
+    expect(fs.existsSync(path.join(root, 'src/app/dashboard/page.tsx'))).toBe(true);
   });
 
   test('middleware exists and handles auth routes', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const middlewarePath = path.join(__dirname, '../../src/middleware.ts');
+    const middlewarePath = path.join(root, 'src/middleware.ts');
     expect(fs.existsSync(middlewarePath)).toBe(true);
     const content = fs.readFileSync(middlewarePath, 'utf8');
     expect(content).toContain('/dashboard');
@@ -44,9 +35,7 @@ describe('Auth pages', () => {
   });
 
   test('server actions file exists with signUp, signIn, signOut', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const actionsPath = path.join(__dirname, '../../src/app/(auth)/actions.ts');
+    const actionsPath = path.join(root, 'src/app/(auth)/actions.ts');
     expect(fs.existsSync(actionsPath)).toBe(true);
     const content = fs.readFileSync(actionsPath, 'utf8');
     expect(content).toContain('export async function signUp');
