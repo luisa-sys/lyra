@@ -11,6 +11,11 @@
     --color-lyra-ink: #2C2C2A;
     --color-lyra-muted: #7A7A75;
     --color-lyra-cloud: #FAF9F7;
+
+    /* Shorthand aliases used across dashboard, auth, and wizard */
+    --color-sage: #8B9E7E;
+    --color-ink: #2C2C2A;
+    --color-muted: #7A7A75;
   }
 
   html {
