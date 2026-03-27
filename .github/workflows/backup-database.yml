@@ -2,7 +2,6 @@ name: Weekly Database Backup
 
 on:
   schedule:
-    # Every Sunday at 02:00 UTC
     - cron: '0 2 * * 0'
   workflow_dispatch:
 
@@ -15,16 +14,27 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Run backup
+      - name: Run pg_dump backup
+        id: pgdump
+        continue-on-error: true
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "SUPABASE_DB_URL secret not set - skipping backup"
-            exit 0
+            echo "SUPABASE_DB_URL not set - skipping pg_dump"
+            exit 1
           fi
           chmod +x scripts/backup-database.sh
           ./scripts/backup-database.sh ./backups
+
+      - name: Fallback to REST API backup
+        if: steps.pgdump.outcome == 'failure'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          chmod +x scripts/backup-database-api.sh
+          ./scripts/backup-database-api.sh ./backups
 
       - name: Upload backup artifact
         if: success()
