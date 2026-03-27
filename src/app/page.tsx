@@ -211,8 +211,25 @@ function Footer() {
 }
 
 export default function Home() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Lyra',
+    url: 'https://checklyra.com',
+    description: 'A calm, structured public profile platform where users share preferences, gift ideas, and boundaries so people in their lives never have to guess.',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://checklyra.com/{slug}',
+      'query-input': 'required name=slug',
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Nav />
       <main>
         <Hero />

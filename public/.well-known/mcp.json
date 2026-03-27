@@ -1,0 +1,23 @@
+{
+  "name": "Lyra",
+  "description": "A calm, structured public profile platform where users share preferences, gift ideas, and boundaries. AI companions interact via MCP.",
+  "url": "https://checklyra.com",
+  "mcp": {
+    "transport": "streamable-http",
+    "endpoint": "https://mcp.checklyra.com/mcp",
+    "repository": "https://github.com/luisa-sys/lyra-mcp-server",
+    "tools": [
+      "lyra_search_profiles",
+      "lyra_get_profile",
+      "lyra_get_section",
+      "lyra_recommend_gifts",
+      "lyra_get_insights",
+      "lyra_list_schools"
+    ]
+  },
+  "documentation": {
+    "llms_txt": "https://checklyra.com/llms.txt",
+    "privacy": "https://checklyra.com/privacy",
+    "terms": "https://checklyra.com/terms"
+  }
+}

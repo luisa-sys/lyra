@@ -138,8 +138,39 @@ export default async function PublicProfilePage({ params }: Props) {
   // Display order for categories
   const categoryOrder = ['likes', 'dislikes', 'gift_ideas', 'gifts_to_avoid', 'helpful_to_know', 'boundaries'];
 
+  // JSON-LD structured data for AI consumption (Schema.org Person)
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: typedProfile.display_name,
+    url: `https://checklyra.com/${typedProfile.slug}`,
+    ...(typedProfile.headline && { jobTitle: typedProfile.headline }),
+    ...(typedProfile.bio_short && { description: typedProfile.bio_short }),
+    ...(typedProfile.city && {
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: typedProfile.city,
+        addressCountry: typedProfile.country || 'GB',
+      },
+    }),
+    ...(typedSchools.length > 0 && {
+      alumniOf: typedSchools
+        .filter((s) => s.relationship === 'alumni')
+        .map((s) => ({
+          '@type': 'EducationalOrganization',
+          name: s.school_name,
+          ...(s.school_location && { address: { '@type': 'PostalAddress', addressLocality: s.school_location } }),
+        })),
+    }),
+  };
+
   return (
-    <main className="min-h-screen bg-stone-50">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <main className="min-h-screen bg-stone-50">
       {/* Nav */}
       <nav className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -258,5 +289,6 @@ export default async function PublicProfilePage({ params }: Props) {
         </p>
       </div>
     </main>
+    </>
   );
 }

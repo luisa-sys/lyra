@@ -1,0 +1,37 @@
+# Lyra
+
+> Lyra is a calm, structured public profile platform where users share preferences, gift ideas, personal boundaries, and other details so people in their lives never have to guess. AI companions can interact with Lyra profiles via the Model Context Protocol (MCP).
+
+## Key Information
+
+- Lyra profiles are public pages at checklyra.com/{slug} containing a person's preferences, gift ideas, likes, dislikes, boundaries, school affiliations, and links.
+- Lyra is designed for AI-first interaction — the MCP server is the primary interface for AI companions.
+- Only published profiles are publicly visible. Users control what they share.
+
+## MCP Server
+
+Lyra provides an MCP (Model Context Protocol) server for AI companions to read profile data programmatically.
+
+- [MCP Server Repository](https://github.com/luisa-sys/lyra-mcp-server): TypeScript MCP server with 6 read-only tools
+- Transport: Streamable HTTP (stateless, JSON-RPC 2.0)
+- Authentication: Public read access to published profiles (no API key required)
+
+### Available MCP Tools
+
+- `lyra_search_profiles`: Search published profiles by name, location, or keyword
+- `lyra_get_profile`: Get a complete published profile by slug or name
+- `lyra_get_section`: Get a specific category of items (gift_ideas, likes, dislikes, boundaries, hobbies, allergies)
+- `lyra_recommend_gifts`: Get gift ideas with contextual likes, dislikes, and boundaries
+- `lyra_get_insights`: Get a summary of a person's preferences and personality signals
+- `lyra_list_schools`: Search school affiliations across published profiles
+
+## Website Pages
+
+- [Home](https://checklyra.com/): Landing page and signup
+- [Privacy Policy](https://checklyra.com/privacy): How Lyra handles personal data (UK GDPR compliant)
+- [Terms of Service](https://checklyra.com/terms): Terms governing use of the platform
+
+## For Developers
+
+- [GitHub: Lyra Web App](https://github.com/luisa-sys/lyra): Next.js web application (Supabase, Vercel)
+- [GitHub: MCP Server](https://github.com/luisa-sys/lyra-mcp-server): TypeScript MCP server
