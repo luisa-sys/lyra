@@ -200,7 +200,11 @@ function Footer() {
     <footer className="py-12 px-6 border-t border-stone-200">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="font-[family-name:var(--font-serif)] text-lg text-stone-400">lyra</p>
-        <p className="text-sm text-stone-400">&copy; {new Date().getFullYear()} Lyra. Made with care.</p>
+        <div className="flex items-center gap-4 text-sm text-stone-400">
+          <Link href="/privacy" className="hover:text-stone-600 transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-stone-600 transition-colors">Terms</Link>
+          <span>&copy; {new Date().getFullYear()} Lyra</span>
+        </div>
       </div>
     </footer>
   );

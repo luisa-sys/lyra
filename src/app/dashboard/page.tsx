@@ -34,6 +34,9 @@ export default async function DashboardPage() {
             <span className="text-sm text-[var(--color-muted)]">
               {user.email}
             </span>
+            <Link href="/dashboard/settings" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
+              Settings
+            </Link>
             <form>
               <button
                 formAction={signOut}

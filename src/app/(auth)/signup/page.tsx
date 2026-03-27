@@ -84,6 +84,19 @@ export default async function SignUpPage({
             />
           </div>
 
+          <div className="flex items-start gap-2">
+            <input
+              id="consent"
+              name="consent"
+              type="checkbox"
+              required
+              className="mt-1 h-4 w-4 rounded border-stone-300 text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
+            />
+            <label htmlFor="consent" className="text-xs text-[var(--color-muted)]">
+              I agree to the <Link href="/privacy" className="text-[var(--color-sage)] hover:underline">Privacy Policy</Link> and <Link href="/terms" className="text-[var(--color-sage)] hover:underline">Terms of Service</Link>
+            </label>
+          </div>
+
           <button
             type="submit"
             formAction={signUp}
