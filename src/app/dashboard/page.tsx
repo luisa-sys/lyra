@@ -89,6 +89,11 @@ export default async function DashboardPage() {
               Complete your profile
             </Link>
           )}
+          {profile?.onboarding_complete && (
+            <Link href="/dashboard/profile" className="mt-6 block w-full py-2.5 rounded-lg bg-stone-100 text-[var(--color-ink)] text-sm font-medium hover:bg-stone-200 transition-colors text-center">
+              Edit your profile
+            </Link>
+          )}
         </div>
       </div>
     </main>

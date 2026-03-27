@@ -64,10 +64,11 @@ export default async function LoginPage({
           </div>
 
           <button
+            type="submit"
             formAction={signIn}
-            className="w-full py-2.5 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            className="w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity cursor-pointer"
           >
-            Sign in
+            Sign in →
           </button>
         </form>
 

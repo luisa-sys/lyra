@@ -213,7 +213,7 @@ export function ProfileWizard({
       </div>
 
       {/* Navigation buttons */}
-      <div className="max-w-3xl mx-auto px-4 pb-8 flex justify-between">
+      <div className="max-w-3xl mx-auto px-4 pb-8 flex justify-between items-center">
         <button
           onClick={prev}
           disabled={step === 0}
@@ -224,9 +224,9 @@ export function ProfileWizard({
         {step < STEPS.length - 1 && (
           <button
             onClick={next}
-            className="px-5 py-2 rounded-lg bg-stone-200 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-300 transition-colors"
+            className="px-4 py-2 text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
           >
-            Skip →
+            Skip this step
           </button>
         )}
       </div>
