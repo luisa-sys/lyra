@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
 
 function getSiteUrl() {
   // Use explicit env var if set, otherwise derive from headers

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { signOut } from '../(auth)/actions';
 
 export const metadata = {
@@ -84,9 +85,9 @@ export default async function DashboardPage() {
           </div>
 
           {!profile?.onboarding_complete && (
-            <button className="mt-6 w-full py-2.5 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
+            <Link href="/dashboard/profile" className="mt-6 block w-full py-2.5 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity text-center">
               Complete your profile
-            </button>
+            </Link>
           )}
         </div>
       </div>
