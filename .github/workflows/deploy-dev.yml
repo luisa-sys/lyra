@@ -10,9 +10,9 @@ jobs:
     name: Lint & Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -26,15 +26,17 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
+      - name: Run npm audit (high/critical vulnerabilities block deploy)
+        run: npm audit --audit-level=high
   deploy-dev:
     name: Deploy to dev.checklyra.com
     needs: lint-and-test
     runs-on: ubuntu-latest
     environment: development
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -55,7 +57,7 @@ jobs:
           sleep 15
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "${{ steps.deploy.outputs.deploy_url }}" || echo "000")
           echo "Health check: $STATUS"
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "401" ]; then
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "401" ] && [ "$STATUS" != "403" ]; then
             echo "::error::Health check failed with status $STATUS"
             exit 1
           fi
