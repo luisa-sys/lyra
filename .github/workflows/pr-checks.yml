@@ -25,6 +25,31 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
+      - name: Run npm audit (high/critical vulnerabilities block PR)
+        run: npm audit --audit-level=high
+      - name: Check for lint/type bypasses without Jira reference
+        run: |
+          echo "Scanning for eslint-disable, ts-ignore, ts-nocheck, ts-expect-error..."
+          VIOLATIONS=""
+          while IFS= read -r line; do
+            file=$(echo "$line" | cut -d: -f1)
+            linenum=$(echo "$line" | cut -d: -f2)
+            content=$(echo "$line" | cut -d: -f3-)
+            # Check if the line contains a KAN- reference (tracked tech debt)
+            if ! echo "$content" | grep -q "KAN-"; then
+              VIOLATIONS="$VIOLATIONS\n  $file:$linenum:$content"
+            fi
+          done < <(grep -rn "eslint-disable\|@ts-ignore\|@ts-nocheck\|@ts-expect-error" src/ --include="*.ts" --include="*.tsx" || true)
+          
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Found lint/type bypasses without Jira ticket reference:"
+            echo -e "$VIOLATIONS"
+            echo ""
+            echo "Each bypass must include a KAN-XX reference (e.g. // eslint-disable-next-line -- KAN-99: reason)"
+            exit 1
+          else
+            echo "No untracked lint/type bypasses found."
+          fi
       - name: Check architecture doc freshness
         run: |
           # Get list of changed files in this PR
