@@ -585,7 +585,7 @@ function PreviewStep({ profile, items, schools, links, onPublish, isPending }: {
         </button>
       </div>
       <p className="text-xs text-center text-[var(--color-muted)]">
-        Your profile will be visible at checklyra.com/{profile.slug}
+        Your profile will be visible at {process.env.NEXT_PUBLIC_SITE_URL?.replace('https://', '') || 'checklyra.com'}/{profile.slug}
       </p>
     </div>
   );

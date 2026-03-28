@@ -2,36 +2,60 @@
 
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 
-export async function updateProfile(formData: FormData) {
+async function getAuthenticatedUser() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!user) return { user: null, supabase, error: 'Not authenticated' as const };
+  return { user, supabase, error: null };
+}
+
+async function getUserProfile(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+  return profile;
+}
+
+export async function updateProfile(formData: FormData): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
   const field = formData.get('field') as string;
-  const value = formData.get('value') as string;
+  const rawValue = formData.get('value') as string;
+  const value = sanitiseText(rawValue);
 
   const { error } = await supabase
     .from('profiles')
     .update({ [field]: value })
-    .eq('user_id', user.id);
+    .eq('user_id', user!.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
-export async function updateProfileFields(data: Record<string, string | boolean | number | null>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function updateProfileFields(data: Record<string, string | boolean | number | null>): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // Sanitise string values
+  const sanitised: Record<string, string | boolean | number | null> = {};
+  for (const [key, val] of Object.entries(data)) {
+    sanitised[key] = typeof val === 'string' ? sanitiseText(val) : val;
+  }
 
   const { error } = await supabase
     .from('profiles')
-    .update(data)
-    .eq('user_id', user.id);
+    .update(sanitised)
+    .eq('user_id', user!.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
 export async function addProfileItem(data: {
@@ -39,146 +63,134 @@ export async function addProfileItem(data: {
   title: string;
   description?: string;
   visibility?: string;
-}) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+}): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!profile) throw new Error('Profile not found');
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
   const { error } = await supabase
     .from('profile_items')
     .insert({
       profile_id: profile.id,
-      category: data.category,
-      title: data.title,
-      description: data.description || null,
+      category: sanitiseText(data.category, 50),
+      title: sanitiseText(data.title, 200),
+      description: data.description ? sanitiseText(data.description, 1000) : null,
       visibility: data.visibility || 'public',
     });
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
-export async function removeProfileItem(itemId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function removeProfileItem(itemId: string): Promise<ActionResult> {
+  const { supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
   const { error } = await supabase
     .from('profile_items')
     .delete()
     .eq('id', itemId);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
 export async function addSchoolAffiliation(data: {
   school_name: string;
   school_location?: string;
   relationship?: string;
-}) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+}): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!profile) throw new Error('Profile not found');
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
   const { error } = await supabase
     .from('school_affiliations')
     .insert({
       profile_id: profile.id,
-      school_name: data.school_name,
-      school_location: data.school_location || null,
+      school_name: sanitiseText(data.school_name, 200),
+      school_location: data.school_location ? sanitiseText(data.school_location, 200) : null,
       relationship: data.relationship || 'parent',
     });
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
-export async function removeSchoolAffiliation(affiliationId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function removeSchoolAffiliation(affiliationId: string): Promise<ActionResult> {
+  const { supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
   const { error } = await supabase
     .from('school_affiliations')
     .delete()
     .eq('id', affiliationId);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
 export async function addExternalLink(data: {
   title: string;
   url: string;
   link_type?: string;
-}) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+}): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
-  if (!profile) throw new Error('Profile not found');
+  const sanitisedUrl = sanitiseUrl(data.url);
+  if (!sanitisedUrl) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
 
   const { error } = await supabase
     .from('external_links')
     .insert({
       profile_id: profile.id,
-      title: data.title,
-      url: data.url,
+      title: sanitiseText(data.title, 200),
+      url: sanitisedUrl,
       link_type: data.link_type || 'general',
     });
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
-export async function removeExternalLink(linkId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function removeExternalLink(linkId: string): Promise<ActionResult> {
+  const { supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
   const { error } = await supabase
     .from('external_links')
     .delete()
     .eq('id', linkId);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
 }
 
-export async function publishProfile() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+export async function publishProfile(): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
 
   const { error } = await supabase
     .from('profiles')
     .update({ is_published: true, onboarding_complete: true })
-    .eq('user_id', user.id);
+    .eq('user_id', user!.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
   revalidatePath('/dashboard');
+  return { success: true };
 }
