@@ -3,12 +3,10 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 
+import { env } from '@/lib/env';
+
 function getSiteUrl() {
-  // Use explicit env var if set, otherwise derive from headers
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-  return 'https://dev.checklyra.com';
+  return env.siteUrl();
 }
 
 export async function signUp(formData: FormData) {
