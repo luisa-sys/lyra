@@ -22,8 +22,8 @@ jobs:
         run: npm run lint
       - name: Run type check
         run: npm run type-check
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npx jest --testPathPatterns="tests/unit" --coverage
         env:
           CI: true
       - name: Run npm audit (high/critical vulnerabilities block deploy)
