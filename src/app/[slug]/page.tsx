@@ -183,7 +183,7 @@ export default async function PublicProfilePage({ params }: Props) {
       />
       <main className="min-h-screen bg-stone-50">
       {/* Nav */}
-      <nav className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
+      <nav aria-label="Profile navigation" className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">
             lyra
