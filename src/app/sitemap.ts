@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { MetadataRoute } from 'next';
+import { env } from '@/lib/env';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://checklyra.com';
+  const baseUrl = env.siteUrl();
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
@@ -15,8 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let profilePages: MetadataRoute.Sitemap = [];
   try {
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      env.supabaseUrl(),
+      env.supabaseServiceRoleKey()
     );
 
     const { data: profiles } = await supabase

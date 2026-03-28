@@ -49,7 +49,17 @@ fi
 echo -e "${GREEN}✓ develop is clean and up to date${NC}"
 echo ""
 
-# 3. Record the current staging HEAD for rollback
+# 3. Verify the LAST dev pipeline passed — refuse to promote failing code
+echo "Checking last dev pipeline result..."
+LAST_DEV_STATUS=$(gh run list --repo "$REPO" --branch develop --workflow deploy-dev.yml --limit 1 --json conclusion -q '.[0].conclusion' 2>/dev/null || echo "unknown")
+if [ "$LAST_DEV_STATUS" != "success" ]; then
+  echo -e "${RED}ERROR: Last dev pipeline did not pass (status: $LAST_DEV_STATUS)${NC}"
+  echo "Fix the failing pipeline before promoting."
+  exit 1
+fi
+echo -e "${GREEN}✓ Last dev pipeline passed${NC}"
+
+# 4. Record the current staging HEAD for rollback
 PREV_STAGING=$(git rev-parse origin/staging 2>/dev/null || echo "none")
 echo "Previous staging HEAD: $PREV_STAGING"
 

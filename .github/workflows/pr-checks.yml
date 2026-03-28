@@ -25,3 +25,22 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
+      - name: Check architecture doc freshness
+        run: |
+          # Get list of changed files in this PR
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "")
+          
+          # Check if any key files changed
+          KEY_CHANGE=false
+          echo "$CHANGED" | grep -qE "^(src/app/|src/middleware|supabase/migrations/|\.github/workflows/|public/\.well-known/|scripts/)" && KEY_CHANGE=true
+          
+          # If key files changed, check if ARCHITECTURE.md was also updated
+          if [ "$KEY_CHANGE" = true ]; then
+            if ! echo "$CHANGED" | grep -q "docs/ARCHITECTURE.md"; then
+              echo "::warning::Key source files changed without updating docs/ARCHITECTURE.md. Please review if the architecture document needs updating."
+            else
+              echo "Architecture doc updated alongside source changes — good."
+            fi
+          else
+            echo "No key architectural files changed — skipping check."
+          fi

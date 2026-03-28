@@ -47,6 +47,16 @@ fi
 echo "Fetching latest from origin..."
 git fetch origin
 
+# 2a. Verify the LAST staging pipeline passed — refuse to promote failing code
+echo "Checking last staging pipeline result..."
+LAST_STAGING_STATUS=$(gh run list --repo "$REPO" --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion' 2>/dev/null || echo "unknown")
+if [ "$LAST_STAGING_STATUS" != "success" ]; then
+  echo -e "${RED}ERROR: Last staging pipeline did not pass (status: $LAST_STAGING_STATUS)${NC}"
+  echo "Fix the failing staging pipeline before promoting to production."
+  exit 1
+fi
+echo -e "${GREEN}✓ Last staging pipeline passed${NC}"
+
 # 3. Record the current production HEAD for rollback
 PREV_MAIN=$(git rev-parse origin/main 2>/dev/null || echo "none")
 echo "Previous production HEAD: $PREV_MAIN"

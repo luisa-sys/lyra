@@ -21,7 +21,7 @@ describe('SEO Optimisation', () => {
   test('dynamic sitemap.ts exists and queries published profiles', () => {
     const sitemap = fs.readFileSync(path.join(root, 'src/app/sitemap.ts'), 'utf8');
     expect(sitemap).toContain('is_published');
-    expect(sitemap).toContain('checklyra.com');
+    expect(sitemap).toContain('env.siteUrl()');
     expect(sitemap).toContain('changeFrequency');
     expect(sitemap).toContain('priority');
   });

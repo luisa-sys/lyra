@@ -2,12 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { env } from '@/lib/env';
 
-// Use service role to read published profiles (no auth needed for public pages)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Create client per-request, not at module scope
+function getSupabase() {
+  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+}
 
 interface ProfileData {
   id: string;
@@ -48,7 +48,7 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await getSupabase()
     .from('profiles')
     .select('display_name, headline, bio_short')
     .eq('slug', slug)
@@ -61,16 +61,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = profile.bio_short || profile.headline || `${profile.display_name}'s Lyra profile`;
 
+  const siteUrl = env.siteUrl();
+
   return {
     title: `${profile.display_name} — Lyra`,
     description,
     alternates: {
-      canonical: `https://checklyra.com/${slug}`,
+      canonical: `${siteUrl}/${slug}`,
     },
     openGraph: {
       title: `${profile.display_name} — Lyra`,
       description,
-      url: `https://checklyra.com/${slug}`,
+      url: `${siteUrl}/${slug}`,
       siteName: 'Lyra',
       type: 'profile',
       locale: 'en_GB',
@@ -86,7 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicProfilePage({ params }: Props) {
   const { slug } = await params;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await getSupabase()
     .from('profiles')
     .select('*')
     .eq('slug', slug)
@@ -99,19 +101,19 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const typedProfile = profile as ProfileData;
 
-  const { data: items } = await supabase
+  const { data: items } = await getSupabase()
     .from('profile_items')
     .select('*')
     .eq('profile_id', typedProfile.id)
     .eq('visibility', 'public')
     .order('created_at', { ascending: true });
 
-  const { data: schools } = await supabase
+  const { data: schools } = await getSupabase()
     .from('school_affiliations')
     .select('*')
     .eq('profile_id', typedProfile.id);
 
-  const { data: links } = await supabase
+  const { data: links } = await getSupabase()
     .from('external_links')
     .select('*')
     .eq('profile_id', typedProfile.id);
@@ -152,7 +154,7 @@ export default async function PublicProfilePage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'Person',
     name: typedProfile.display_name,
-    url: `https://checklyra.com/${typedProfile.slug}`,
+    url: `${env.siteUrl()}/${typedProfile.slug}`,
     ...(typedProfile.headline && { jobTitle: typedProfile.headline }),
     ...(typedProfile.bio_short && { description: typedProfile.bio_short }),
     ...(typedProfile.city && {
