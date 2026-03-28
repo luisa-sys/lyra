@@ -105,13 +105,13 @@ jobs:
         run: |
           FAIL=0
           for ENDPOINT in \
-            "https://checklyra.com|200,403|Landing" \
-            "https://checklyra.com/privacy|200,403|Privacy" \
-            "https://checklyra.com/terms|200,403|Terms" \
-            "https://checklyra.com/sitemap.xml|200,403|Sitemap" \
-            "https://checklyra.com/robots.txt|200,403|Robots" \
-            "https://checklyra.com/llms.txt|200,403|LLMs" \
-            "https://checklyra.com/.well-known/mcp.json|200,403|MCP discovery" \
+            "https://checklyra.com|200|Landing" \
+            "https://checklyra.com/privacy|200|Privacy" \
+            "https://checklyra.com/terms|200|Terms" \
+            "https://checklyra.com/sitemap.xml|200|Sitemap" \
+            "https://checklyra.com/robots.txt|200|Robots" \
+            "https://checklyra.com/llms.txt|200|LLMs" \
+            "https://checklyra.com/.well-known/mcp.json|200|MCP discovery" \
             "https://mcp.checklyra.com/health|200,403|MCP health"; do
             IFS='|' read -r URL EXPECTED LABEL <<< "$ENDPOINT"
             ACTUAL=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "$URL" || echo "000")
@@ -152,3 +152,44 @@ jobs:
           echo "- Production: https://checklyra.com" >> $GITHUB_STEP_SUMMARY
           echo "- MCP server: https://mcp.checklyra.com/health" >> $GITHUB_STEP_SUMMARY
           echo "- All 9 smoke tests passed" >> $GITHUB_STEP_SUMMARY
+
+  auto-rollback:
+    name: Auto-rollback on failure
+    needs: smoke-tests
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Rollback to previous deployment
+        run: |
+          echo "::warning::Smoke tests FAILED — initiating automatic rollback"
+          # List recent production deployments and rollback to the previous one
+          DEPLOYMENTS=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} 2>/dev/null | head -5)
+          echo "Recent deployments:"
+          echo "$DEPLOYMENTS"
+          # Vercel automatically keeps previous deployments — promote the previous one
+          PREV_URL=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --json 2>/dev/null | python3 -c "
+          import json, sys
+          try:
+            data = json.load(sys.stdin)
+            # Find the second most recent production deployment
+            prod_deploys = [d for d in data if d.get('target') == 'production']
+            if len(prod_deploys) >= 2:
+              print(prod_deploys[1]['url'])
+            else:
+              print('NONE')
+          except:
+            print('NONE')
+          " 2>/dev/null || echo "NONE")
+          if [ "$PREV_URL" != "NONE" ] && [ -n "$PREV_URL" ]; then
+            echo "Rolling back to: $PREV_URL"
+            vercel promote "$PREV_URL" --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes 2>&1 || echo "::warning::Vercel promote failed — manual rollback may be needed"
+            echo "## ⚠️ Auto-Rollback Executed" >> $GITHUB_STEP_SUMMARY
+            echo "Smoke tests failed. Rolled back to previous deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::error::Could not find previous deployment for rollback"
+            echo "## ❌ Auto-Rollback Failed" >> $GITHUB_STEP_SUMMARY
+            echo "No previous deployment found. Manual intervention required." >> $GITHUB_STEP_SUMMARY
+            echo "Run: vercel rollback --token=\$VERCEL_TOKEN" >> $GITHUB_STEP_SUMMARY
+          fi
