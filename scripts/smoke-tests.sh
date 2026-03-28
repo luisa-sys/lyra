@@ -38,6 +38,7 @@ run_production() {
   check "https://checklyra.com/robots.txt" "200" "robots.txt"
   check "https://checklyra.com/llms.txt" "200" "llms.txt"
   check "https://checklyra.com/.well-known/mcp.json" "200" "MCP discovery"
+  check "https://checklyra.com/.well-known/security.txt" "200" "security.txt"
 }
 
 run_staging() {
