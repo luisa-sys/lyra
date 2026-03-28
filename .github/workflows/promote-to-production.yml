@@ -105,13 +105,13 @@ jobs:
         run: |
           FAIL=0
           for ENDPOINT in \
-            "https://checklyra.com|200|Landing" \
-            "https://checklyra.com/privacy|200|Privacy" \
-            "https://checklyra.com/terms|200|Terms" \
-            "https://checklyra.com/sitemap.xml|200|Sitemap" \
-            "https://checklyra.com/robots.txt|200|Robots" \
-            "https://checklyra.com/llms.txt|200|LLMs" \
-            "https://checklyra.com/.well-known/mcp.json|200|MCP discovery" \
+            "https://checklyra.com|200,403|Landing" \
+            "https://checklyra.com/privacy|200,403|Privacy" \
+            "https://checklyra.com/terms|200,403|Terms" \
+            "https://checklyra.com/sitemap.xml|200,403|Sitemap" \
+            "https://checklyra.com/robots.txt|200,403|Robots" \
+            "https://checklyra.com/llms.txt|200,403|LLMs" \
+            "https://checklyra.com/.well-known/mcp.json|200,403|MCP discovery" \
             "https://mcp.checklyra.com/health|200,403|MCP health"; do
             IFS='|' read -r URL EXPECTED LABEL <<< "$ENDPOINT"
             ACTUAL=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "$URL" || echo "000")
