@@ -13,7 +13,7 @@ jobs:
     name: All-Environment Health Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run smoke tests (all environments)
         run: bash scripts/smoke-tests.sh all
       - name: Create issue on failure
