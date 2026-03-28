@@ -72,7 +72,7 @@ export default async function DashboardPage() {
             <div className="flex justify-between">
               <span className="text-[var(--color-muted)]">Profile URL</span>
               <span className="text-[var(--color-ink)]">
-                {profile?.slug ? `checklyra.com/${profile.slug}` : 'Not set'}
+                {profile?.slug ? `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com').replace('https://', '')}/${profile.slug}` : 'Not set'}
               </span>
             </div>
             <div className="flex justify-between">

@@ -3,10 +3,10 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 
-export async function exportUserData() {
+export async function exportUserData(): Promise<string> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!user) return JSON.stringify({ error: 'Not authenticated' });
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -14,7 +14,7 @@ export async function exportUserData() {
     .eq('user_id', user.id)
     .single();
 
-  if (!profile) throw new Error('Profile not found');
+  if (!profile) return JSON.stringify({ error: 'Profile not found' });
 
   const { data: items } = await supabase
     .from('profile_items')
@@ -44,15 +44,9 @@ export async function exportUserData() {
 export async function deleteAccount() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!user) return redirect('/login');
 
-  // Delete profile and all related data (cascade handles items, schools, links)
   await supabase.from('profiles').delete().eq('user_id', user.id);
-
-  // Delete the auth user (requires service role, but user can delete themselves)
-  // Note: Supabase doesn't allow users to delete their own auth record via client SDK
-  // We mark the profile as deleted; full auth cleanup requires a Supabase Edge Function or admin action
-  // For now, sign out the user
   await supabase.auth.signOut();
   redirect('/');
 }
