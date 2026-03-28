@@ -33,12 +33,14 @@ Lyra is a calm, structured public profile platform where users share preferences
 
 ## Environments
 
-| Environment | URL | Branch | Vercel Env | Protection |
-|-------------|-----|--------|------------|------------|
-| Production | checklyra.com | main | production | Public |
-| Staging | stage.checklyra.com | staging | preview | Vercel SSO |
-| Development | dev.checklyra.com | develop | preview | Vercel SSO |
-| MCP Server | mcp.checklyra.com | main | Railway | Public |
+| Environment | URL | Branch | Vercel Env | Supabase Project | Protection |
+|-------------|-----|--------|------------|-----------------|------------|
+| Production | checklyra.com | main | production | llzkgprqewuwkiwclowi | Public |
+| Staging | stage.checklyra.com | staging | preview | uobmlkzrjkptwhttzmmi | Vercel SSO |
+| Development | dev.checklyra.com | develop | preview | ilprytcrnqyrsbsrfujj | Vercel SSO |
+| MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
+
+**Zero cross-dependencies:** Each environment has its own Supabase database. A destructive action on dev has zero impact on staging or production.
 
 ## CI/CD Pipeline
 
