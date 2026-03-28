@@ -9,9 +9,9 @@ jobs:
     name: PR Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -25,6 +25,31 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
+      - name: Run npm audit (high/critical vulnerabilities block PR)
+        run: npm audit --audit-level=high
+      - name: Check for lint/type bypasses without Jira reference
+        run: |
+          echo "Scanning for eslint-disable, ts-ignore, ts-nocheck, ts-expect-error..."
+          VIOLATIONS=""
+          while IFS= read -r line; do
+            file=$(echo "$line" | cut -d: -f1)
+            linenum=$(echo "$line" | cut -d: -f2)
+            content=$(echo "$line" | cut -d: -f3-)
+            # Check if the line contains a KAN- reference (tracked tech debt)
+            if ! echo "$content" | grep -q "KAN-"; then
+              VIOLATIONS="$VIOLATIONS\n  $file:$linenum:$content"
+            fi
+          done < <(grep -rn "eslint-disable\|@ts-ignore\|@ts-nocheck\|@ts-expect-error" src/ --include="*.ts" --include="*.tsx" || true)
+          
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Found lint/type bypasses without Jira ticket reference:"
+            echo -e "$VIOLATIONS"
+            echo ""
+            echo "Each bypass must include a KAN-XX reference (e.g. // eslint-disable-next-line -- KAN-99: reason)"
+            exit 1
+          else
+            echo "No untracked lint/type bypasses found."
+          fi
       - name: Check architecture doc freshness
         run: |
           # Get list of changed files in this PR
