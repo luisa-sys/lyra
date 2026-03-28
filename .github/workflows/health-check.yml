@@ -1,0 +1,24 @@
+name: Scheduled Health Checks
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch: {}
+
+jobs:
+  health-checks:
+    name: All-Environment Health Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke tests (all environments)
+        run: bash scripts/smoke-tests.sh all
+      - name: Create issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --repo ${{ github.repository }} \
+            --title "🔴 Health check failed — $(date -u '+%Y-%m-%d %H:%M UTC')" \
+            --body "Automated health checks failed. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+            --label "bug,automated"

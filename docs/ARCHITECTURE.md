@@ -47,14 +47,28 @@ Lyra is a calm, structured public profile platform where users share preferences
 develop → staging → main (production)
 ```
 
-1. **Push to develop**: lint → typecheck → unit tests → deploy to dev
-2. **Promote to staging**: `scripts/promote-to-staging.sh` → merge develop→staging → full test suite → deploy → health checks → auto-rollback on failure
-3. **Promote to production**: `scripts/promote-to-production.sh` → merge staging→main → full test suite → deploy → 9-point smoke test → auto-rollback on failure → Git tag
+1. **Push to develop**: lint → typecheck → unit tests → deploy to dev.checklyra.com → health check
+2. **Promote to staging**: GitHub Actions workflow_dispatch → verifies dev pipeline passed → merge develop→staging → full test suite → deploy → health checks
+3. **Promote to production**: GitHub Actions workflow_dispatch (type "PRODUCTION" to confirm) → verifies staging pipeline passed → merge staging→main → full test suite → deploy → 9-point smoke test → MCP handshake → Git tag
+
+### Cloud-Native Operations (no desktop required)
+All operations run via GitHub Actions — no local machine needed:
+- **Promote to staging**: Actions tab → "Promote to Staging" → Run workflow → type "promote"
+- **Promote to production**: Actions tab → "Promote to Production" → Run workflow → type "PRODUCTION"
+- **Health checks**: Run automatically every 6 hours; create GitHub Issue on failure
+- **Backups**: Run automatically weekly (Sunday 02:00 UTC)
+- **Local scripts**: Still available as convenience wrappers (scripts/promote-to-*.sh)
+
+### Enforcement Rules
+- Promotion to staging is blocked if the last dev pipeline failed
+- Promotion to production is blocked if the last staging pipeline failed
+- All deployments require passing: lint, typecheck, unit tests, build verification
+- Post-deploy health checks verify site availability and MCP server connectivity
 
 ### Automatic Rollback
-- Pipeline failure: staging/production branch force-reset to previous HEAD
-- Health check failure: same rollback mechanism
-- Smoke test failure (production): same rollback mechanism
+- Pipeline failure: staging/production branch force-reset to previous HEAD (local scripts only)
+- Health check failure: same rollback mechanism (local scripts only)
+- Cloud workflows: fail the job and do not proceed; manual intervention required
 
 ### MCP Server Deployment
 - Railway auto-deploys on push to lyra-mcp-server main branch

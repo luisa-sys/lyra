@@ -1,0 +1,106 @@
+name: Promote to Staging
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "promote" to confirm'
+        required: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  verify-source:
+    name: Verify develop pipeline passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check last dev pipeline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "promote" ]; then
+            echo "::error::You must type 'promote' to confirm"
+            exit 1
+          fi
+          CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch develop --workflow deploy-dev.yml --limit 1 --json conclusion -q '.[0].conclusion')
+          echo "Last dev pipeline: $CONCLUSION"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::Last dev pipeline did not pass ($CONCLUSION). Fix before promoting."
+            exit 1
+          fi
+
+  merge-and-deploy:
+    name: Merge develop → staging
+    needs: verify-source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Merge develop into staging
+        run: |
+          git checkout staging
+          git merge origin/develop -m "Promote develop → staging [workflow_dispatch]"
+          git push origin staging
+          echo "Staging branch updated. Deploy workflow will trigger automatically."
+
+  wait-for-deploy:
+    name: Wait for staging deploy
+    needs: merge-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy-staging workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Waiting for staging deploy pipeline..."
+          TIMEOUT=360
+          ELAPSED=0
+          INTERVAL=20
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+            STATUS=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json status -q '.[0].status')
+            if [ "$STATUS" = "completed" ]; then
+              CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion')
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "✓ Staging deploy passed"
+                exit 0
+              else
+                echo "::error::Staging deploy failed ($CONCLUSION)"
+                exit 1
+              fi
+            fi
+            echo "  ...still running ($ELAPSED/${TIMEOUT}s)"
+          done
+          echo "::error::Staging deploy timed out after ${TIMEOUT}s"
+          exit 1
+
+  post-deploy-health:
+    name: Post-deploy health checks
+    needs: wait-for-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check — staging site
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
+          echo "Staging: $STATUS"
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || (echo "::error::Staging unreachable ($STATUS)" && exit 1)
+      - name: Health check — MCP server
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
+          echo "MCP: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::MCP health failed ($STATUS)" && exit 1)
+      - name: Summary
+        run: |
+          echo "## ✅ Staging Promotion Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "develop has been promoted to staging." >> $GITHUB_STEP_SUMMARY
+          echo "- Staging site: https://stage.checklyra.com" >> $GITHUB_STEP_SUMMARY
+          echo "- MCP server: https://mcp.checklyra.com/health" >> $GITHUB_STEP_SUMMARY
