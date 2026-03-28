@@ -25,17 +25,53 @@ const STEPS = [
   { id: 'preview', label: 'Preview', icon: '👁️' },
 ];
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface WizardProfile {
+  id: string;
+  display_name: string;
+  slug: string;
+  headline: string | null;
+  bio_short: string | null;
+  city: string | null;
+  region: string | null;
+  postcode_prefix: string | null;
+  country: string | null;
+  is_published: boolean;
+}
+
+interface WizardItem {
+  id: string;
+  category: string;
+  title: string;
+  description: string | null;
+  url: string | null;
+  visibility: string;
+}
+
+interface WizardSchool {
+  id: string;
+  school_name: string;
+  school_location: string | null;
+  relationship: string;
+}
+
+interface WizardLink {
+  id: string;
+  title: string;
+  url: string;
+  link_type: string;
+  description: string | null;
+}
+
 export function ProfileWizard({
   profile,
   items,
   schools,
   links,
 }: {
-  profile: any;
-  items: any[];
-  schools: any[];
-  links: any[];
+  profile: WizardProfile;
+  items: WizardItem[];
+  schools: WizardSchool[];
+  links: WizardLink[];
 }) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -78,7 +114,7 @@ export function ProfileWizard({
       {/* Step content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
         {step === 0 && (
-          <IdentityStep profile={profile} onSave={(data: any) => {
+          <IdentityStep profile={profile} onSave={(data: Record<string, string>) => {
             startTransition(async () => {
               await updateProfileFields(data);
               router.refresh();
@@ -88,7 +124,7 @@ export function ProfileWizard({
         )}
 
         {step === 1 && (
-          <SchoolStep schools={schools} onAdd={(data: any) => {
+          <SchoolStep schools={schools} onAdd={(data: { school_name: string; school_location?: string; relationship?: string }) => {
             startTransition(async () => {
               await addSchoolAffiliation(data);
               router.refresh();
@@ -102,7 +138,7 @@ export function ProfileWizard({
         )}
 
         {step === 2 && (
-          <BioStep profile={profile} onSave={(data: any) => {
+          <BioStep profile={profile} onSave={(data: Record<string, string>) => {
             startTransition(async () => {
               await updateProfileFields(data);
               router.refresh();
@@ -117,7 +153,7 @@ export function ProfileWizard({
             description="What do you love? What can't you stand?"
             categories={['likes', 'dislikes']}
             items={items.filter((i) => ['likes', 'dislikes'].includes(i.category))}
-            onAdd={(data: any) => {
+            onAdd={(data: { category: string; title: string; description?: string }) => {
               startTransition(async () => {
                 await addProfileItem(data);
                 router.refresh();
@@ -140,7 +176,7 @@ export function ProfileWizard({
             description="Help people find the perfect gift for you."
             categories={['gift_ideas', 'gifts_to_avoid']}
             items={items.filter((i) => ['gift_ideas', 'gifts_to_avoid'].includes(i.category))}
-            onAdd={(data: any) => {
+            onAdd={(data: { category: string; title: string; description?: string }) => {
               startTransition(async () => {
                 await addProfileItem(data);
                 router.refresh();
@@ -163,7 +199,7 @@ export function ProfileWizard({
             description="Things people should know to respect your space."
             categories={['boundaries', 'helpful_to_know']}
             items={items.filter((i) => ['boundaries', 'helpful_to_know'].includes(i.category))}
-            onAdd={(data: any) => {
+            onAdd={(data: { category: string; title: string; description?: string }) => {
               startTransition(async () => {
                 await addProfileItem(data);
                 router.refresh();
@@ -181,7 +217,7 @@ export function ProfileWizard({
         )}
 
         {step === 6 && (
-          <LinksStep links={links} onAdd={(data: any) => {
+          <LinksStep links={links} onAdd={(data: { title: string; url: string; link_type?: string }) => {
             startTransition(async () => {
               await addExternalLink(data);
               router.refresh();
@@ -238,7 +274,7 @@ export function ProfileWizard({
    STEP COMPONENTS
    ============================================================ */
 
-function IdentityStep({ profile, onSave, isPending }: any) {
+function IdentityStep({ profile, onSave, isPending }: { profile: WizardProfile; onSave: (data: Record<string, string>) => void; isPending: boolean }) {
   const [name, setName] = useState(profile.display_name || '');
   const [headline, setHeadline] = useState(profile.headline || '');
   const [city, setCity] = useState(profile.city || '');
@@ -265,7 +301,7 @@ function IdentityStep({ profile, onSave, isPending }: any) {
   );
 }
 
-function BioStep({ profile, onSave, isPending }: any) {
+function BioStep({ profile, onSave, isPending }: { profile: WizardProfile; onSave: (data: Record<string, string>) => void; isPending: boolean }) {
   const [bio, setBio] = useState(profile.bio_short || '');
 
   return (
@@ -291,7 +327,7 @@ function BioStep({ profile, onSave, isPending }: any) {
   );
 }
 
-function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: any) {
+function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: { schools: WizardSchool[]; onAdd: (data: { school_name: string; school_location?: string; relationship?: string }) => void; onRemove: (id: string) => void; onNext: () => void; isPending: boolean }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [relationship, setRelationship] = useState('parent');
@@ -312,7 +348,7 @@ function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: any) {
 
       {schools.length > 0 && (
         <div className="space-y-2">
-          {schools.map((s: any) => (
+          {schools.map((s: WizardSchool) => (
             <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">{s.school_name}</p>
@@ -348,7 +384,7 @@ function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: any) {
   );
 }
 
-function ItemsStep({ title, description, categories, items, onAdd, onRemove, onNext, isPending }: any) {
+function ItemsStep({ title, description, categories, items, onAdd, onRemove, onNext, isPending }: { title: string; description: string; categories: string[]; items: WizardItem[]; onAdd: (data: { category: string; title: string; description?: string }) => void; onRemove: (id: string) => void; onNext: () => void; isPending: boolean }) {
   const [category, setCategory] = useState(categories[0]);
   const [itemTitle, setItemTitle] = useState('');
   const [itemDesc, setItemDesc] = useState('');
@@ -361,7 +397,7 @@ function ItemsStep({ title, description, categories, items, onAdd, onRemove, onN
 
   const handleAdd = () => {
     if (!itemTitle.trim()) return;
-    onAdd({ category, title: itemTitle, description: itemDesc || undefined });
+    onAdd({ category, title: itemTitle, ...(itemDesc ? { description: itemDesc } : {}) });
     setItemTitle('');
     setItemDesc('');
   };
@@ -375,7 +411,7 @@ function ItemsStep({ title, description, categories, items, onAdd, onRemove, onN
 
       {items.length > 0 && (
         <div className="space-y-2">
-          {items.map((item: any) => (
+          {items.map((item: WizardItem) => (
             <div key={item.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">
@@ -418,7 +454,7 @@ function ItemsStep({ title, description, categories, items, onAdd, onRemove, onN
   );
 }
 
-function LinksStep({ links, onAdd, onRemove, onNext, isPending }: any) {
+function LinksStep({ links, onAdd, onRemove, onNext, isPending }: { links: WizardLink[]; onAdd: (data: { title: string; url: string; link_type?: string }) => void; onRemove: (id: string) => void; onNext: () => void; isPending: boolean }) {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [linkType, setLinkType] = useState('general');
@@ -439,7 +475,7 @@ function LinksStep({ links, onAdd, onRemove, onNext, isPending }: any) {
 
       {links.length > 0 && (
         <div className="space-y-2">
-          {links.map((l: any) => (
+          {links.map((l: WizardLink) => (
             <div key={l.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">{l.title}</p>
@@ -474,14 +510,14 @@ function LinksStep({ links, onAdd, onRemove, onNext, isPending }: any) {
   );
 }
 
-function PreviewStep({ profile, items, schools, links, onPublish, isPending }: any) {
+function PreviewStep({ profile, items, schools, links, onPublish, isPending }: { profile: WizardProfile; items: WizardItem[]; schools: WizardSchool[]; links: WizardLink[]; onPublish: () => void; isPending: boolean }) {
   const categoryLabels: Record<string, string> = {
     likes: 'Likes', dislikes: 'Dislikes',
     gift_ideas: 'Gift ideas', gifts_to_avoid: 'Gifts to avoid',
     boundaries: 'Boundaries', helpful_to_know: 'Helpful to know',
   };
 
-  const groupedItems = items.reduce((acc: any, item: any) => {
+  const groupedItems = items.reduce((acc: Record<string, WizardItem[]>, item: WizardItem) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
@@ -509,18 +545,18 @@ function PreviewStep({ profile, items, schools, links, onPublish, isPending }: a
           <div>
             <h4 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-2">Schools</h4>
             <div className="space-y-1">
-              {schools.map((s: any) => (
+              {schools.map((s: WizardSchool) => (
                 <p key={s.id} className="text-sm text-[var(--color-ink)]">{s.school_name} <span className="text-[var(--color-muted)]">({s.relationship})</span></p>
               ))}
             </div>
           </div>
         )}
 
-        {Object.entries(groupedItems).map(([cat, catItems]: [string, any]) => (
+        {Object.entries(groupedItems).map(([cat, catItems]: [string, WizardItem[]]) => (
           <div key={cat}>
             <h4 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-2">{categoryLabels[cat] || cat}</h4>
             <div className="flex flex-wrap gap-2">
-              {catItems.map((item: any) => (
+              {catItems.map((item: WizardItem) => (
                 <span key={item.id} className="inline-block px-3 py-1 bg-stone-100 rounded-full text-sm text-[var(--color-ink)]">
                   {item.title}
                 </span>
@@ -533,7 +569,7 @@ function PreviewStep({ profile, items, schools, links, onPublish, isPending }: a
           <div>
             <h4 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-2">Links</h4>
             <div className="space-y-1">
-              {links.map((l: any) => (
+              {links.map((l: WizardLink) => (
                 <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
                   className="block text-sm text-[var(--color-sage)] hover:underline">{l.title}</a>
               ))}
