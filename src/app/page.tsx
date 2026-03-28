@@ -2,7 +2,7 @@ import Link from "next/link";
 
 function Nav() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-stone-50/80 backdrop-blur-md border-b border-stone-200/60">
+    <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 bg-stone-50/80 backdrop-blur-md border-b border-stone-200/60">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 tracking-tight">
           lyra
@@ -197,7 +197,7 @@ function CTA() {
 
 function Footer() {
   return (
-    <footer className="py-12 px-6 border-t border-stone-200">
+    <footer role="contentinfo" className="py-12 px-6 border-t border-stone-200">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="font-[family-name:var(--font-serif)] text-lg text-stone-400">lyra</p>
         <div className="flex items-center gap-4 text-sm text-stone-400">
@@ -231,7 +231,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Nav />
-      <main>
+      <main role="main">
         <Hero />
         <ProfilePreview />
         <HowItWorks />
