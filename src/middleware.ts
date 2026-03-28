@@ -1,8 +1,39 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get('cf-connecting-ip') ??
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+  );
+}
 
 export async function middleware(request: NextRequest) {
-  // Skip auth if Supabase env vars are not configured
+  const pathname = request.nextUrl.pathname;
+
+  // Rate limit auth endpoints (login, signup, auth callback)
+  if (
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname.startsWith('/auth/')
+  ) {
+    // Only rate limit POST requests (form submissions)
+    if (request.method === 'POST') {
+      const ip = getClientIp(request);
+      const { limited, retryAfter } = rateLimit(`auth:${ip}`, RATE_LIMITS.auth);
+      if (limited) {
+        return NextResponse.json(
+          { error: 'Too many attempts. Please try again later.' },
+          { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+        );
+      }
+    }
+  }
+
+  // Skip Supabase auth if env vars not configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
