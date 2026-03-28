@@ -1,0 +1,21 @@
+# Lyra robots.txt
+# https://checklyra.com
+
+User-agent: *
+Allow: /
+
+# Static assets
+Disallow: /_next/
+Disallow: /api/
+
+# Auth pages (no need to index)
+Disallow: /login
+Disallow: /signup
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Sitemaps
+Sitemap: https://checklyra.com/sitemap.xml
+
+# LLM discovery
+# See also: /llms.txt and /.well-known/mcp.json

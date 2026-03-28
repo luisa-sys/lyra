@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   title: "Lyra — Let people know you",
   description:
     "A calm profile where you share your preferences, gift ideas, and boundaries — so people in your life never have to guess.",
+  metadataBase: new URL("https://checklyra.com"),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "Lyra — Let people know you",
     description:
@@ -28,6 +32,17 @@ export const metadata: Metadata = {
     url: "https://checklyra.com",
     siteName: "Lyra",
     type: "website",
+    locale: "en_GB",
+  },
+  twitter: {
+    card: "summary",
+    title: "Lyra — Let people know you",
+    description:
+      "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 export default function RootLayout({

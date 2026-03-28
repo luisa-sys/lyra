@@ -64,12 +64,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${profile.display_name} — Lyra`,
     description,
+    alternates: {
+      canonical: `https://checklyra.com/${slug}`,
+    },
     openGraph: {
       title: `${profile.display_name} — Lyra`,
       description,
       url: `https://checklyra.com/${slug}`,
       siteName: 'Lyra',
       type: 'profile',
+      locale: 'en_GB',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${profile.display_name} — Lyra`,
+      description,
     },
   };
 }
