@@ -26,40 +26,11 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
-  integration-tests:
-    name: Integration Tests
-    needs: lint-and-unit-tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: lyra_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: lyra_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Run integration tests
-        run: echo "No integration tests yet - passing"
-        env:
-          DATABASE_URL: postgresql://lyra_test:test_password@localhost:5432/lyra_test
-          CI: true
-  e2e-tests:
-    name: End-to-End Tests
+      - name: Run npm audit (high/critical only)
+        run: npm audit --audit-level=high || true
+
+  build-verification:
+    name: Build Verification
     needs: lint-and-unit-tests
     runs-on: ubuntu-latest
     steps:
@@ -71,17 +42,16 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
       - name: Build application
         run: npm run build
-      - name: Run E2E tests
-        run: echo "No E2E tests configured yet - passing"
-        env:
-          CI: true
+      - name: Verify build output
+        run: |
+          test -d .next || (echo "Build output missing" && exit 1)
+          echo "Build output verified"
+
   deploy-staging:
     name: Deploy to stage.checklyra.com
-    needs: [integration-tests, e2e-tests]
+    needs: build-verification
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -98,6 +68,27 @@ jobs:
       - name: Build project
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy to Vercel
+        id: deploy
         run: |
           URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          vercel alias set $URL stage.checklyra.com --token=${{ secrets.VERCEL_TOKEN }}
+          echo "deploy_url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
+
+  post-deploy-checks:
+    name: Post-Deploy Health Checks
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment propagation
+        run: sleep 20
+      - name: Health check — MCP server
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
+          echo "MCP health: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::MCP health check failed" && exit 1)
+      - name: Smoke test — staging site
+        run: |
+          # Staging is behind Vercel Auth (SSO), so 401 is expected
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
+          echo "Staging site: $STATUS"
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || (echo "::error::Staging site unreachable" && exit 1)

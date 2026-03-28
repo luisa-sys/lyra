@@ -26,40 +26,11 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
-  integration-tests:
-    name: Integration Tests
-    needs: lint-and-unit-tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: lyra_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: lyra_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Run integration tests
-        run: echo "No integration tests yet - passing"
-        env:
-          DATABASE_URL: postgresql://lyra_test:test_password@localhost:5432/lyra_test
-          CI: true
-  e2e-tests:
-    name: End-to-End Tests
+      - name: Run npm audit (high/critical only)
+        run: npm audit --audit-level=high || true
+
+  build-verification:
+    name: Build Verification
     needs: lint-and-unit-tests
     runs-on: ubuntu-latest
     steps:
@@ -71,17 +42,16 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
       - name: Build application
         run: npm run build
-      - name: Run E2E tests
-        run: echo "No E2E tests configured yet - passing"
-        env:
-          CI: true
+      - name: Verify build output
+        run: |
+          test -d .next || (echo "Build output missing" && exit 1)
+          echo "Build output verified"
+
   deploy-production:
     name: Deploy to checklyra.com
-    needs: [integration-tests, e2e-tests]
+    needs: build-verification
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -98,6 +68,56 @@ jobs:
       - name: Build project
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy to Vercel
+        id: deploy
         run: |
           URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "Deployed to $URL"
+          echo "deploy_url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
+
+  post-deploy-smoke-tests:
+    name: Production Smoke Tests
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment propagation
+        run: sleep 30
+      - name: Smoke test — landing page
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com")
+          echo "Landing page: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::Landing page failed ($STATUS)" && exit 1)
+      - name: Smoke test — privacy policy
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/privacy")
+          echo "Privacy: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::Privacy page failed ($STATUS)" && exit 1)
+      - name: Smoke test — terms of service
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/terms")
+          echo "Terms: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::Terms page failed ($STATUS)" && exit 1)
+      - name: Smoke test — sitemap.xml
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/sitemap.xml")
+          echo "Sitemap: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::Sitemap failed ($STATUS)" && exit 1)
+      - name: Smoke test — robots.txt
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/robots.txt")
+          echo "Robots: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::Robots.txt failed ($STATUS)" && exit 1)
+      - name: Smoke test — llms.txt
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/llms.txt")
+          echo "LLMs.txt: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::llms.txt failed ($STATUS)" && exit 1)
+      - name: Smoke test — MCP discovery
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://checklyra.com/.well-known/mcp.json")
+          echo "MCP discovery: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::MCP discovery failed ($STATUS)" && exit 1)
+      - name: Smoke test — MCP server health
+        run: |
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
+          echo "MCP server: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "::error::MCP server health failed ($STATUS)" && exit 1)
