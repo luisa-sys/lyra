@@ -57,8 +57,9 @@ echo "Previous staging HEAD: $PREV_STAGING"
 echo "Merging develop into staging..."
 git checkout staging
 git pull origin staging
-git merge develop --ff-only -m "Promote develop to staging"
-if [ $? -ne 0 ]; then
+git merge develop --ff-only -m "Promote develop to staging" 2>/dev/null || git merge develop -m "Promote develop to staging"
+MERGE_RESULT=$?
+if [ $MERGE_RESULT -ne 0 ]; then
   echo -e "${RED}ERROR: Fast-forward merge failed. staging has diverged from develop.${NC}"
   echo "Resolve manually: git checkout staging && git merge develop"
   git checkout develop
