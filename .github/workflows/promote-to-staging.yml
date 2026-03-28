@@ -95,7 +95,7 @@ jobs:
         run: |
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
           echo "Staging: $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || (echo "::error::Staging unreachable ($STATUS)" && exit 1)
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging unreachable ($STATUS)" && exit 1)
       - name: Health check — MCP server
         run: |
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")

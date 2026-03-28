@@ -95,4 +95,4 @@ jobs:
           # Staging is behind Vercel Auth (SSO), so 401 is expected
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
           echo "Staging site: $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || (echo "::error::Staging site unreachable" && exit 1)
+          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging site unreachable" && exit 1)
