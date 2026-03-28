@@ -1,0 +1,137 @@
+name: Promote to Production
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PRODUCTION" to confirm (case sensitive)'
+        required: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  verify-source:
+    name: Verify staging pipeline passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm production deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PRODUCTION" ]; then
+            echo "::error::You must type 'PRODUCTION' (case sensitive) to confirm"
+            exit 1
+          fi
+          CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion')
+          echo "Last staging pipeline: $CONCLUSION"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::Last staging pipeline did not pass ($CONCLUSION). Fix before promoting."
+            exit 1
+          fi
+
+  merge-and-deploy:
+    name: Merge staging → main
+    needs: verify-source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Merge staging into main
+        run: |
+          git checkout main
+          git merge origin/staging -m "Promote staging → production [workflow_dispatch]"
+          git push origin main
+      - name: Create release tag
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
+          NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — promoted from staging"
+          git push origin "$NEW_TAG"
+          echo "Tagged: $NEW_TAG"
+          echo "RELEASE_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+  wait-for-deploy:
+    name: Wait for production deploy
+    needs: merge-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy-production workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Waiting for production deploy pipeline..."
+          TIMEOUT=420
+          ELAPSED=0
+          INTERVAL=20
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+            STATUS=$(gh run list --repo ${{ github.repository }} --branch main --workflow deploy-production.yml --limit 1 --json status -q '.[0].status')
+            if [ "$STATUS" = "completed" ]; then
+              CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch main --workflow deploy-production.yml --limit 1 --json conclusion -q '.[0].conclusion')
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "✓ Production deploy passed"
+                exit 0
+              else
+                echo "::error::Production deploy FAILED ($CONCLUSION)"
+                exit 1
+              fi
+            fi
+            echo "  ...still running ($ELAPSED/${TIMEOUT}s)"
+          done
+          echo "::error::Production deploy timed out"
+          exit 1
+
+  smoke-tests:
+    name: Production smoke tests
+    needs: wait-for-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CDN propagation
+        run: sleep 15
+      - name: Smoke tests
+        run: |
+          FAIL=0
+          for ENDPOINT in \
+            "https://checklyra.com|200|Landing" \
+            "https://checklyra.com/privacy|200|Privacy" \
+            "https://checklyra.com/terms|200|Terms" \
+            "https://checklyra.com/sitemap.xml|200|Sitemap" \
+            "https://checklyra.com/robots.txt|200|Robots" \
+            "https://checklyra.com/llms.txt|200|LLMs" \
+            "https://checklyra.com/.well-known/mcp.json|200|MCP discovery" \
+            "https://mcp.checklyra.com/health|200|MCP health"; do
+            IFS='|' read -r URL EXPECTED LABEL <<< "$ENDPOINT"
+            ACTUAL=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "$URL" || echo "000")
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "✓ $LABEL: $ACTUAL"
+            else
+              echo "::error::✗ $LABEL: $ACTUAL (expected $EXPECTED)"
+              FAIL=1
+            fi
+          done
+          [ $FAIL -eq 0 ] || exit 1
+      - name: MCP protocol handshake
+        run: |
+          RESPONSE=$(curl -s --max-time 15 -X POST "https://mcp.checklyra.com/mcp" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"ci-smoke","version":"1.0"}}}')
+          echo "$RESPONSE" | grep -q "lyra-mcp-server" || (echo "::error::MCP handshake failed" && exit 1)
+          echo "✓ MCP protocol handshake OK"
+      - name: Summary
+        run: |
+          echo "## ✅ Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "staging has been promoted to production." >> $GITHUB_STEP_SUMMARY
+          echo "- Production: https://checklyra.com" >> $GITHUB_STEP_SUMMARY
+          echo "- MCP server: https://mcp.checklyra.com/health" >> $GITHUB_STEP_SUMMARY
+          echo "- All 9 smoke tests passed" >> $GITHUB_STEP_SUMMARY
