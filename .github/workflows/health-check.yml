@@ -4,6 +4,10 @@ on:
     - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   health-checks:
     name: All-Environment Health Checks
