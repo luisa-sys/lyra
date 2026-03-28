@@ -6,6 +6,10 @@ on:
         description: 'Type "promote" to confirm'
         required: true
 
+permissions:
+  contents: write
+  actions: read
+
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
