@@ -238,7 +238,7 @@ export default function LyraProjectReference() {
           <ul className="mt-1 ml-4 list-disc space-y-0.5">
             <li>Vercel Pro plan — full environment separation with custom environments per branch (staging, develop)</li>
             <li>New Supabase projects use sb_publishable_ and sb_secret_ key formats (not anon/service_role)</li>
-            <li>Cloudflare proxy should be OFF (grey cloud) for the mcp CNAME — Railway handles its own SSL</li>
+            <li>Cloudflare proxy for mcp CNAME was set up automatically by Railway and is working — no manual grey-cloud override needed</li>
             <li>Railway MCP server must point to production Supabase (llzkgprqewuwkiwclowi)</li>
             <li>API keys and secrets are in Vercel env vars, GitHub secrets, and Railway variables — never in code</li>
           </ul>

@@ -52,15 +52,38 @@
 | KAN-106 | P0 | ~~Fix signup Server Action 404~~ | ✅ Done — confirmed working |
 | KAN-107 | P0 | ~~Fix Supabase AuthApiError on signup~~ | ✅ Done — confirmed working |
 
-## Pages built
+## Pages built (verified from src/app/)
 
-- `/login` — email/password + Google OAuth button
-- `/signup` — email/password + Google OAuth button
-- `/auth/callback` — PKCE code exchange
-- `/dashboard` — main dashboard (post-login)
-- `/dashboard/settings` — API key management, account settings (change email, change password)
-- `/dashboard/edit` — profile editor
-- `/{slug}` — public profile page
+| Route | File | Purpose |
+|-------|------|---------|
+| `/` | `page.tsx` | Landing / home page |
+| `/login` | `(auth)/login/page.tsx` | Email/password + Google OAuth login |
+| `/signup` | `(auth)/signup/page.tsx` | Email/password + Google OAuth signup |
+| `/auth/callback` | `auth/callback/route.ts` | PKCE code exchange (server-side route handler) |
+| `/dashboard` | `dashboard/page.tsx` | Main dashboard (post-login) |
+| `/dashboard/profile` | `dashboard/profile/page.tsx` | Profile editor wizard (7 steps: identity, bio, items, links, schools, preview + wizard shell) |
+| `/dashboard/settings` | `dashboard/settings/page.tsx` | API key management, account settings (change email, change password) |
+| `/privacy` | `(legal)/privacy/page.tsx` | Privacy policy |
+| `/terms` | `(legal)/terms/page.tsx` | Terms of service |
+| `/{slug}` | `[slug]/page.tsx` | Public profile page (with custom not-found) |
+
+### Supporting files (not routes)
+- `(auth)/actions.ts` — Server Actions: signIn, signUp, signInWithGoogle, signInWithApple
+- `(auth)/social-login-buttons.tsx` — Google/Apple OAuth button component
+- `dashboard/profile/steps/*.tsx` — 7 wizard step components (identity, bio, items, links, schools, preview, types)
+- `dashboard/profile/wizard.tsx` — Wizard container/state management
+- `dashboard/profile/actions.ts` — Profile mutation Server Actions
+- `dashboard/settings/actions.ts` — Settings mutation Server Actions
+- `dashboard/settings/settings-client.tsx` — Client component for settings page
+- `cookie-consent.tsx` — Cookie consent banner component
+- `sitemap.ts` — Dynamic sitemap generation
+- `error.tsx`, `global-error.tsx`, `loading.tsx` — Error/loading boundaries
+
+### What does NOT exist yet
+- `/dashboard/edit` — referenced in previous handover but does NOT exist. Profile editing is at `/dashboard/profile`
+- `/api/*` — empty directory, no API routes. All mutations use Server Actions
+- No admin panel
+- No public profile discovery/search page
 
 ## What the designer needs to know
 
