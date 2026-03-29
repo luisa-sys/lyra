@@ -143,3 +143,42 @@ All operations run via GitHub Actions — no local machine needed:
 | Railway | MCP server hosting | lyra-mcp-server |
 | GitHub | Source code, CI/CD, secrets | luisa-sys |
 | Atlassian/Jira | Project management | checklyra.atlassian.net |
+
+
+## Security Posture (updated 29 March 2026)
+
+### Application Security — implemented
+- **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy, COOP, CORP, Permissions-Policy, X-XSS-Protection (next.config.ts)
+- **Auth rate limiting**: 10 attempts per 15 minutes per IP on login/signup (middleware.ts + rate-limit.ts)
+- **Input sanitisation**: stripHtml, sanitiseText (length-limited), sanitiseUrl (protocol validation) on both web app and MCP server
+- **PKCE auth flow**: Middleware uses getUser() with JWT revalidation, not getSession()
+- **Per-request Supabase client**: No module-scope client leaks in Vercel's Fluid Compute environment
+- **Centralised env validation**: env.ts fails fast on missing vars
+- **API key auth**: MCP write tools require lyra_ prefixed keys, stored as SHA-256 hashes with revocation support
+- **RLS on all tables**: 5 tables with owner-based access policies
+- **security.txt**: Published at /.well-known/security.txt (contact: security@checklyra.com)
+
+### Pipeline Security — implemented
+- **CodeQL**: security-extended analysis on every push/PR + weekly Sunday 03:00 UTC
+- **GitHub Actions SHA-pinned**: All 9 workflows use full SHA hashes (no tag-based supply chain risk)
+- **npm audit**: Blocking at high/critical level on all 3 deployment pipelines
+- **Dependabot**: Weekly scans for npm and GitHub Actions dependencies
+- **Secret scanning**: GitHub secret scanning with push protection enabled
+- **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference
+
+### OAuth Security — partially configured
+- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in Testing mode.
+- **Apple Sign-In**: Deferred (no Apple Developer account)
+- **Action needed (KAN-90)**: Verify redirect URIs, JavaScript origins, scopes, 2FA on owning Google account
+
+### Known gaps — tracked in Jira
+- MCP server has no rate limiting or CORS (KAN-118)
+- No token rotation schedule documented (KAN-119)
+- No prompt injection defence for user-generated profile data read by AI (KAN-120)
+- 2FA audit incomplete — 7 services to verify (KAN-24)
+- Supabase function search_path security advisories (KAN-108)
+- No OWASP ZAP automated pen testing (KAN-36 backlog)
+- No account lockout after repeated failed attempts (KAN-36 backlog)
+
+### Service inventory for security lockdown
+GitHub, Vercel, Supabase (x3), Cloudflare, Railway, Google Cloud Console, Atlassian/Jira
