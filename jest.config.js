@@ -1,8 +1,9 @@
 /** @type {import('jest').Config} */
 const config = {
   testEnvironment: 'node',
-  transform: {},
-  extensionsToTreatAsEsm: [],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['@swc/jest'],
+  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
