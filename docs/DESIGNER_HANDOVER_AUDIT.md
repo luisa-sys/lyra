@@ -1,49 +1,71 @@
 # Lyra Designer Handover — Dev Environment Readiness Audit
 
-**Date:** 29 March 2026
+**Date:** 29 March 2026 (updated)
 
 ## Environment status
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
-| stage.checklyra.com | ✅ 200 OK | Full Next.js app serving |
-| dev.checklyra.com | ⚠️ 401 | Vercel SSO gate — designer needs team access |
+| dev.checklyra.com | ✅ 200 OK (behind SSO) | Full Next.js app serving. Designer needs Vercel team access or Cloudflare Access (KAN-85) |
+| stage.checklyra.com | ✅ 200 OK (behind SSO) | Full Next.js app serving. Same access requirement |
 | checklyra.com | 🔴 503 | Intentional "Coming Soon" holding page |
-| mcp.checklyra.com/health | ❓ | Could not verify from available tools |
+| mcp.checklyra.com/health | ✅ 200 OK | Returns `{"status":"ok","server":"lyra-mcp-server","version":"1.0.0"}` |
+
+## Signup & auth — confirmed working
+
+- ✅ Email signup works on dev.checklyra.com
+- ✅ Google OAuth login works on dev.checklyra.com
+- ✅ Email confirmation flow works (PKCE code exchange via middleware)
+- Apple Sign-In deferred (no Apple Developer account yet)
 
 ## Blocking issues for designer testing
 
-### P0: Signup flow broken
-- POST /signup returns 404 "Failed to find Server Action" — Next.js Server Action routing failure
-- GET /signup triggers AuthApiError — likely Supabase auth provider misconfiguration after KAN-37 social login work
-- **These must be fixed before any designer testing of auth flows**
-
 ### P1: Designer access
-- dev.checklyra.com requires Vercel SSO — add designer to Vercel team or generate bypass token
+- dev.checklyra.com and stage.checklyra.com require Vercel SSO — designer cannot access without being added to the Vercel team or Cloudflare Access being set up (KAN-85)
+- **Recommended:** Proceed with KAN-85 (Cloudflare Access) — beta testers enter their email, get a one-time PIN, access for 24 hours. Adding a new tester = add their email in Cloudflare dashboard.
 
-## Supabase dev database — healthy
+### P1: Supabase advisories (KAN-108)
+- 2 security warnings: Functions `handle_updated_at` and `handle_new_user` have mutable `search_path`
+- 7 performance warnings: All RLS policies using `auth.uid()` need wrapping as `(select auth.uid())`
+- Multiple permissive SELECT policies on profiles, profile_items, external_links, school_affiliations need consolidation
+- Duplicate index: `profiles_slug_idx` duplicates `profiles_slug_key`
 
-5 tables with RLS: profiles (1 row), profile_items (0), external_links (0), school_affiliations (0), api_keys (0).
-Schema is clean. **Database needs sample data seeded for realistic designer testing.**
+### P2: Sample data needed (KAN-109)
+- Dev database has only 1 user/profile with 0 items, 0 links, 0 school affiliations
+- Designer cannot evaluate populated UI states
+- Need 3-5 sample profiles with items across all categories
 
-## Supabase advisories to fix
+## Infrastructure — healthy
 
-- 2 security: Functions `handle_updated_at` and `handle_new_user` have mutable `search_path` — add `SET search_path = ''`
-- 7 performance: All RLS policies using `auth.uid()` need wrapping as `(select auth.uid())`; 4 tables have duplicate permissive SELECT policies; duplicate index on `profiles`
+- **Vercel:** Pro plan. 20/20 recent builds pass. Turbopack builds in ~9s. Full environment separation (custom environments per branch).
+- **Supabase:** Pro plan. 3 separate projects (dev/staging/prod). 5 tables with RLS. Schema clean.
+- **Railway:** MCP server healthy. Auto-deploys from lyra-mcp-server main branch.
+- **CI/CD:** GitHub Actions. deploy-dev.yml on push to develop. Promotion workflows for staging and production.
 
-## Vercel build status
+## Open Jira tickets for designer readiness
 
-20/20 recent builds pass. Turbopack builds in ~9 seconds. Dual deployment issue: every commit triggers both Git-based and CLI-based deploys.
+| Ticket | Priority | Summary | Status |
+|--------|----------|---------|--------|
+| KAN-85 | P1 | Open staging to beta testers via Cloudflare Access | To Do |
+| KAN-108 | P1 | Fix Supabase security advisories and optimise RLS | To Do |
+| KAN-109 | P2 | Seed dev database with sample profiles | To Do |
+| KAN-106 | P0 | ~~Fix signup Server Action 404~~ | ✅ Done — confirmed working |
+| KAN-107 | P0 | ~~Fix Supabase AuthApiError on signup~~ | ✅ Done — confirmed working |
 
-## Recommended Jira tickets
+## Pages built
 
-1. **P0** Fix signup Server Action 404
-2. **P0** Fix Supabase AuthApiError on signup
-3. **P1** Grant designer Vercel team access
-4. **P1** Fix Supabase function search paths (security)
-5. **P1** Optimise RLS policies (auth.uid wrapping)
-6. **P2** Seed dev database with sample profiles
-7. **P2** Audit test coverage (requires GitHub repo access)
-8. **P2** Audit CI/CD workflows (requires GitHub repo access)
-9. **P3** Eliminate duplicate Vercel deployments
-10. **P3** Verify MCP server health endpoint
+- `/login` — email/password + Google OAuth button
+- `/signup` — email/password + Google OAuth button
+- `/auth/callback` — PKCE code exchange
+- `/dashboard` — main dashboard (post-login)
+- `/dashboard/settings` — API key management, account settings (change email, change password)
+- `/dashboard/edit` — profile editor
+- `/{slug}` — public profile page
+
+## What the designer needs to know
+
+- **Design system:** No formal design system yet — this is part of what the designer will establish
+- **Tailwind CSS:** All styling is utility-first Tailwind. No component library (no shadcn, no MUI)
+- **Colour palette:** Currently uses CSS custom properties (`--color-sage`, etc.) — designer can propose changes
+- **Responsive:** Basic responsive layout in place but not thoroughly tested across breakpoints
+- **Accessibility:** Not audited — needs attention during design phase

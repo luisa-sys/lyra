@@ -104,7 +104,7 @@ const sections = [
       { label: "Dev deploy workflow", value: "deploy-dev.yml (on push to develop)" },
       { label: "Promote to staging", value: "scripts/promote-to-staging.sh" },
       { label: "Promote to production", value: "scripts/promote-to-production.sh" },
-      { label: "Vercel env note", value: "Preview env shared between staging & develop branches (Hobby tier)" },
+      { label: "Vercel env note", value: "Pro plan — full environment separation with custom environments for staging and develop branches" },
     ],
   },
   {
@@ -112,7 +112,7 @@ const sections = [
     icon: "🏗️",
     items: [
       { label: "Framework", value: "Next.js 15 (App Router)" },
-      { label: "Database", value: "Supabase (PostgreSQL 17), EU West (Ireland)" },
+      { label: "Database", value: "Supabase Pro (PostgreSQL 17), EU West (Ireland), 3 separate projects (dev/staging/prod)" },
       { label: "Auth", value: "Supabase Auth — email/password, Google OAuth (Apple pending)" },
       { label: "Google OAuth", value: "Client ID: 381290542304-...73kn (same across all 3 Supabase projects, Testing mode)" },
       { label: "MCP Transport", value: "Streamable HTTP (stateless, JSON-RPC 2.0)" },
@@ -236,7 +236,7 @@ export default function LyraProjectReference() {
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
           <strong>⚠️ Notes:</strong>
           <ul className="mt-1 ml-4 list-disc space-y-0.5">
-            <li>Vercel Hobby tier shares Preview env vars between staging & develop branches — scope vars to branch name in Vercel settings</li>
+            <li>Vercel Pro plan — full environment separation with custom environments per branch (staging, develop)</li>
             <li>New Supabase projects use sb_publishable_ and sb_secret_ key formats (not anon/service_role)</li>
             <li>Cloudflare proxy should be OFF (grey cloud) for the mcp CNAME — Railway handles its own SSL</li>
             <li>Railway MCP server must point to production Supabase (llzkgprqewuwkiwclowi)</li>

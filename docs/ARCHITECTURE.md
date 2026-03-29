@@ -10,7 +10,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 
 ### Web Application (lyra)
 - **Framework**: Next.js 15 (App Router)
-- **Hosting**: Vercel (3 environments: production, staging, development)
+- **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
 ### MCP Server (lyra-mcp-server)
@@ -20,7 +20,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Endpoint**: https://mcp.checklyra.com/mcp
 
 ### Database
-- **Provider**: Supabase (PostgreSQL 17)
+- **Provider**: Supabase Pro (PostgreSQL 17)
 - **Region**: EU West (Ireland)
 - **Tables**: profiles, profile_items, external_links, school_affiliations, api_keys
 - **Auth**: Supabase Auth (email/password, Google OAuth, email confirmation). Apple Sign-In deferred.
@@ -37,11 +37,11 @@ Lyra is a calm, structured public profile platform where users share preferences
 | Environment | URL | Branch | Vercel Env | Supabase Project | Protection |
 |-------------|-----|--------|------------|-----------------|------------|
 | Production | checklyra.com | main | production | llzkgprqewuwkiwclowi | Public |
-| Staging | stage.checklyra.com | staging | preview | uobmlkzrjkptwhttzmmi | Vercel SSO |
-| Development | dev.checklyra.com | develop | preview | ilprytcrnqyrsbsrfujj | Vercel SSO |
+| Staging | stage.checklyra.com | staging | custom (staging) | uobmlkzrjkptwhttzmmi | Vercel SSO |
+| Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
 
-**Zero cross-dependencies:** Each environment has its own Supabase database. A destructive action on dev has zero impact on staging or production.
+**Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
 
 ## CI/CD Pipeline
 
