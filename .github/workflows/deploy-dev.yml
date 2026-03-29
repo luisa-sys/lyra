@@ -26,6 +26,11 @@ jobs:
         run: npx jest --testPathPatterns="tests/unit" --coverage
         env:
           CI: true
+      - name: Verify build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
       - name: Run npm audit (high/critical vulnerabilities block deploy)
         run: npm audit --audit-level=high
   deploy-dev:
