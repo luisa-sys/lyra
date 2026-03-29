@@ -25,4 +25,5 @@ jobs:
             --repo ${{ github.repository }} \
             --title "🔴 Health check failed — $(date -u '+%Y-%m-%d %H:%M UTC')" \
             --body "Automated health checks failed. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
-            --label "bug,automated"
+            --label "bug" \
+            --label "automated"
