@@ -167,16 +167,17 @@ All operations run via GitHub Actions — no local machine needed:
 - **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference
 
 ### OAuth Security — partially configured
-- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in Testing mode.
+- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in **Testing mode** — only allow-listed emails can sign in. **Must move to Production mode before beta launch (KAN-125).** Google verification takes days/weeks — submit early.
 - **Apple Sign-In**: Deferred (no Apple Developer account)
 - **Action needed (KAN-90)**: Verify redirect URIs, JavaScript origins, scopes, 2FA on owning Google account
 
 ### Known gaps — tracked in Jira
-- MCP server has no rate limiting or CORS (KAN-118)
-- No token rotation schedule documented (KAN-119)
-- No prompt injection defence for user-generated profile data read by AI (KAN-120)
+- Google OAuth consent screen in Testing mode — **beta blocker** (KAN-125)
+- MCP server has no rate limiting or CORS (KAN-118) — **DONE 29 Mar 2026**
+- Token rotation schedule documented (KAN-119) — **DONE 29 Mar 2026**
+- Prompt injection defence for user-generated profile data read by AI (KAN-120) — **DONE 29 Mar 2026**
+- MCP write tool annotations (KAN-117) — **DONE 29 Mar 2026**
 - 2FA audit incomplete — 7 services to verify (KAN-24)
-- Supabase function search_path security advisories (KAN-108)
 - No OWASP ZAP automated pen testing (KAN-36 backlog)
 - No account lockout after repeated failed attempts (KAN-36 backlog)
 
