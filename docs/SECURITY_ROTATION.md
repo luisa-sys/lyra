@@ -93,3 +93,13 @@ User-facing API keys (lyra_*) currently have no expiry. Future implementation:
 - Email notification before expiry (requires transactional email — KAN-41)
 
 This is tracked as a future subtask, not part of the initial rotation doc.
+
+
+### Immutable Backup Credentials (added 29 Mar 2026)
+
+| Secret | Location | Rotation | How to rotate |
+|--------|----------|----------|---------------|
+| R2_ACCESS_KEY_ID | GitHub secret | Annual | Cloudflare → R2 → Manage API Tokens → Create new → Update GitHub secret → Revoke old |
+| R2_SECRET_ACCESS_KEY | GitHub secret | Annual | Same as above — rotate together |
+| R2_ACCOUNT_ID | GitHub secret | Never (not a secret) | Only changes if Cloudflare account changes |
+| R2_BUCKET_NAME | GitHub secret | Never | Only changes if bucket is recreated |
