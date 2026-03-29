@@ -182,3 +182,7 @@ All operations run via GitHub Actions — no local machine needed:
 
 ### Service inventory for security lockdown
 GitHub, Vercel, Supabase (x3), Cloudflare, Railway, Google Cloud Console, Atlassian/Jira
+
+
+### Token rotation
+See `docs/SECURITY_ROTATION.md` for the complete secrets inventory, rotation procedures, emergency playbook, and quarterly rotation calendar.
