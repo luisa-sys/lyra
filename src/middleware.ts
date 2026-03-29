@@ -14,6 +14,14 @@ function getClientIp(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Supabase PKCE: redirect code param to /auth/callback for session exchange
+  const code = request.nextUrl.searchParams.get('code');
+  if (code && pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth/callback';
+    return NextResponse.redirect(url);
+  }
+
   // Rate limit auth endpoints (login, signup, auth callback)
   if (
     pathname === '/login' ||
