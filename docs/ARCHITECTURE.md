@@ -1,6 +1,6 @@
 # Lyra Platform Architecture
 
-> Last updated: 2026-03-28 — Auto-updated with each major feature change.
+> Last updated: 2026-03-29 — Auto-updated with each major feature change.
 
 ## Overview
 
@@ -22,8 +22,9 @@ Lyra is a calm, structured public profile platform where users share preferences
 ### Database
 - **Provider**: Supabase (PostgreSQL 17)
 - **Region**: EU West (Ireland)
-- **Tables**: profiles, profile_items, external_links, school_affiliations
-- **Auth**: Supabase Auth (email/password, email confirmation)
+- **Tables**: profiles, profile_items, external_links, school_affiliations, api_keys
+- **Auth**: Supabase Auth (email/password, Google OAuth, email confirmation). Apple Sign-In deferred.
+- **Google OAuth**: Client ID 381290542304-46avld4uoubqd259nrf8ssp8pj2h73kn (same across all 3 projects, Testing mode)
 - **Security**: Row Level Security on all tables
 
 ### DNS & CDN
@@ -108,14 +109,29 @@ All operations run via GitHub Actions — no local machine needed:
 
 ## MCP Server Tools
 
-| Tool | Purpose | Read/Write |
-|------|---------|------------|
-| lyra_search_profiles | Search published profiles | Read |
-| lyra_get_profile | Get full profile by slug/name | Read |
-| lyra_get_section | Get specific category items | Read |
-| lyra_recommend_gifts | Get gift ideas with context | Read |
-| lyra_get_insights | Profile summary | Read |
-| lyra_list_schools | Search school affiliations | Read |
+| Tool | Purpose | Auth | Read/Write |
+|------|---------|------|------------|
+| lyra_search_profiles | Search published profiles | None | Read |
+| lyra_get_profile | Get full profile by slug/name | None | Read |
+| lyra_get_section | Get specific category items | None | Read |
+| lyra_recommend_gifts | Get gift ideas with context | None | Read |
+| lyra_get_insights | Profile summary | None | Read |
+| lyra_list_schools | Search school affiliations | None | Read |
+| lyra_update_profile | Update profile fields | API key | Write |
+| lyra_add_item | Add like/dislike/gift idea/boundary | API key | Write |
+| lyra_remove_item | Remove item by ID | API key | Write |
+| lyra_add_school | Add school affiliation | API key | Write |
+| lyra_remove_school | Remove school affiliation | API key | Write |
+| lyra_add_link | Add external link | API key | Write |
+| lyra_remove_link | Remove external link | API key | Write |
+| lyra_publish_profile | Set profile published/unpublished | API key | Write |
+| lyra_get_onboarding_coaching | Get AI coaching guidance | API key | Read |
+
+### MCP Authentication
+- **Read tools**: No authentication required (public data)
+- **Write tools**: API key required (`lyra_` prefix, SHA-256 hashed, stored in `api_keys` table)
+- **Future**: OAuth 2.1 for seamless auth flow (KAN-88)
+- **Input sanitisation**: All write operations sanitised via `src/sanitise.ts`
 
 ## External Services
 
