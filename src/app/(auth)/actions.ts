@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 
 import { env } from '@/lib/env';
 
@@ -70,4 +71,46 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   return redirect('/');
+}
+
+export async function signInWithGoogle() {
+  const supabase = await createClient();
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get('origin') || getSiteUrl();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return redirect('/login?error=' + encodeURIComponent(error.message));
+  }
+
+  if (data.url) {
+    return redirect(data.url);
+  }
+}
+
+export async function signInWithApple() {
+  const supabase = await createClient();
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get('origin') || getSiteUrl();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return redirect('/login?error=' + encodeURIComponent(error.message));
+  }
+
+  if (data.url) {
+    return redirect(data.url);
+  }
 }

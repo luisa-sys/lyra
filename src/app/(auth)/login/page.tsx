@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { signIn } from '../actions';
+import { SocialLoginButtons } from '../social-login-buttons';
 
 export const metadata = {
   title: 'Sign in to Lyra',
@@ -33,6 +34,14 @@ export default async function LoginPage({
             {params.error}
           </div>
         )}
+
+        <SocialLoginButtons />
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-stone-200" />
+          <span className="text-xs text-[var(--color-muted)]">or</span>
+          <div className="flex-1 h-px bg-stone-200" />
+        </div>
 
         <form className="space-y-4">
           <div>

@@ -24,3 +24,4 @@ export const env = {
   supabaseServiceRoleKey: () => requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   siteUrl: () => optionalEnv('NEXT_PUBLIC_SITE_URL', 'https://checklyra.com'),
 };
+// Force rebuild 20260329011858
