@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { exportUserData, deleteAccount, generateApiKey, listApiKeys, revokeApiKey } from './actions';
+import { exportUserData, deleteAccount, generateApiKey, listApiKeys, revokeApiKey, updateEmail, updatePassword } from './actions';
 
 export function SettingsClient() {
   const [isPending, startTransition] = useTransition();
@@ -10,6 +10,11 @@ export function SettingsClient() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keys, setKeys] = useState<Array<{ id: string; key_prefix: string; name: string; created_at: string; last_used_at: string | null }>>([]);
   const [copied, setCopied] = useState(false);
+  const [emailValue, setEmailValue] = useState('');
+  const [emailMessage, setEmailMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     startTransition(async () => {
@@ -63,8 +68,102 @@ export function SettingsClient() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleUpdateEmail = () => {
+    if (!emailValue) return;
+    setEmailMessage(null);
+    startTransition(async () => {
+      const result = await updateEmail(emailValue);
+      if (result.success) {
+        setEmailMessage({ type: 'success', text: 'Confirmation email sent to your new address. Check your inbox to confirm the change.' });
+        setEmailValue('');
+      } else {
+        setEmailMessage({ type: 'error', text: result.error || 'Failed to update email' });
+      }
+    });
+  };
+
+  const handleUpdatePassword = () => {
+    if (!currentPassword || !newPassword) return;
+    setPasswordMessage(null);
+    startTransition(async () => {
+      const result = await updatePassword(currentPassword, newPassword);
+      if (result.success) {
+        setPasswordMessage({ type: 'success', text: 'Password updated successfully.' });
+        setCurrentPassword('');
+        setNewPassword('');
+      } else {
+        setPasswordMessage({ type: 'error', text: result.error || 'Failed to update password' });
+      }
+    });
+  };
+
   return (
     <>
+      {/* Change Email */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6">
+        <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Change email</h2>
+        <p className="text-sm text-[var(--color-muted)] mb-4">
+          Update the email address associated with your account. You&apos;ll need to confirm the new address.
+        </p>
+        {emailMessage && (
+          <div className={`mb-3 p-3 rounded-lg text-sm ${emailMessage.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {emailMessage.text}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={emailValue}
+            onChange={(e) => setEmailValue(e.target.value)}
+            placeholder="New email address"
+            className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+          />
+          <button
+            onClick={handleUpdateEmail}
+            disabled={isPending || !emailValue}
+            className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {isPending ? 'Updating...' : 'Update'}
+          </button>
+        </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6">
+        <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Change password</h2>
+        <p className="text-sm text-[var(--color-muted)] mb-4">
+          Update your account password. You&apos;ll need your current password to make this change.
+        </p>
+        {passwordMessage && (
+          <div className={`mb-3 p-3 rounded-lg text-sm ${passwordMessage.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {passwordMessage.text}
+          </div>
+        )}
+        <div className="space-y-2 mb-3">
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password (min 6 characters)"
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+          />
+        </div>
+        <button
+          onClick={handleUpdatePassword}
+          disabled={isPending || !currentPassword || !newPassword}
+          className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          {isPending ? 'Updating...' : 'Update password'}
+        </button>
+      </div>
+
       {/* API Keys */}
       <div className="bg-white rounded-xl border border-stone-200 p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">API Keys</h2>

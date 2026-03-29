@@ -109,3 +109,40 @@ export async function revokeApiKey(keyId: string): Promise<{ success?: boolean; 
   if (error) return { error: error.message };
   return { success: true };
 }
+
+export async function updateEmail(newEmail: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const { error } = await supabase.auth.updateUser({
+    email: newEmail,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function updatePassword(currentPassword: string, newPassword: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  if (newPassword.length < 6) return { error: 'New password must be at least 6 characters' };
+
+  // Verify current password by re-authenticating
+  if (user.email) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (signInError) return { error: 'Current password is incorrect' };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
