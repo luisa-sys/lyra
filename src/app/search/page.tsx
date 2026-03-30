@@ -19,6 +19,7 @@ interface SearchProfile {
   headline: string | null;
   city: string | null;
   country: string | null;
+  avatar_url: string | null;
 }
 
 function ProfileCard({ profile }: { profile: SearchProfile }) {
@@ -28,8 +29,12 @@ function ProfileCard({ profile }: { profile: SearchProfile }) {
       className="block bg-white rounded-xl border border-stone-200 p-5 hover:shadow-sm hover:border-stone-300 transition-all group"
     >
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-full bg-[var(--color-sage)] flex items-center justify-center text-lg text-white font-[family-name:var(--font-serif)] shrink-0">
-          {profile.display_name.charAt(0).toUpperCase()}
+        <div className="w-12 h-12 rounded-full bg-[var(--color-sage)] flex items-center justify-center text-lg text-white font-[family-name:var(--font-serif)] shrink-0 overflow-hidden">
+          {profile.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+          ) : (
+            profile.display_name.charAt(0).toUpperCase()
+          )}
         </div>
         <div className="min-w-0">
           <h3 className="font-medium text-[var(--color-ink)] group-hover:text-[var(--color-sage)] transition-colors truncate">
@@ -64,7 +69,7 @@ export default async function SearchPage({
     const pattern = `%${query}%`;
     const { data } = await supabase
       .from('profiles')
-      .select('id, display_name, slug, headline, city, country')
+      .select('id, display_name, slug, headline, city, country, avatar_url')
       .eq('is_published', true)
       .or(`display_name.ilike.${pattern},headline.ilike.${pattern},city.ilike.${pattern},slug.ilike.${pattern}`)
       .order('display_name')

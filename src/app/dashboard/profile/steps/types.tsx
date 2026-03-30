@@ -9,6 +9,7 @@ export interface WizardProfile {
   postcode_prefix: string | null;
   country: string | null;
   is_published: boolean;
+  avatar_url: string | null;
 }
 
 export interface WizardItem {
