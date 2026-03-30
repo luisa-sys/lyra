@@ -1,6 +1,8 @@
 'use client';
 
-import { signInWithGoogle, signInWithApple } from '@/app/(auth)/actions';
+import { signInWithGoogle } from '@/app/(auth)/actions';
+// Apple Sign-In deferred — no Apple Developer account. See KAN-37.
+// import { signInWithApple } from '@/app/(auth)/actions';
 
 export function SocialLoginButtons() {
   return (
@@ -21,6 +23,7 @@ export function SocialLoginButtons() {
         </button>
       </form>
 
+      {/* Apple Sign-In deferred — no Apple Developer account. See KAN-37.
       <form>
         <button
           type="submit"
@@ -33,6 +36,7 @@ export function SocialLoginButtons() {
           Continue with Apple
         </button>
       </form>
+      */}
     </div>
   );
 }
