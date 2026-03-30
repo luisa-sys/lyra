@@ -16,7 +16,7 @@ export default function TermsPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Terms of Service</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 27 March 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 30 March 2026</p>
 
         <h2>1. Acceptance</h2>
         <p>By creating a Lyra account or using checklyra.com, you agree to these terms. If you do not agree, please do not use the service.</p>
