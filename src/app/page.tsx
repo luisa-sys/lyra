@@ -8,6 +8,9 @@ function Nav() {
           lyra
         </Link>
         <div className="flex items-center gap-6">
+          <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+            Find someone
+          </Link>
           <Link href="/login" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
             Sign in
           </Link>
