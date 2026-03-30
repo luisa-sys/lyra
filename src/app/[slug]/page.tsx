@@ -18,6 +18,7 @@ interface ProfileData {
   city: string | null;
   country: string | null;
   is_published: boolean;
+  avatar_url: string | null;
 }
 
 interface ProfileItem {
@@ -219,8 +220,12 @@ export default async function PublicProfilePage({ params }: Props) {
 
       {/* Profile header */}
       <div className="max-w-2xl mx-auto px-6 pt-10 pb-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-[var(--color-sage)] mx-auto mb-4 flex items-center justify-center text-3xl text-white font-[family-name:var(--font-serif)]">
-          {typedProfile.display_name.charAt(0).toUpperCase()}
+        <div className="w-20 h-20 rounded-full bg-[var(--color-sage)] mx-auto mb-4 flex items-center justify-center text-3xl text-white font-[family-name:var(--font-serif)] overflow-hidden">
+          {typedProfile.avatar_url ? (
+            <img src={typedProfile.avatar_url} alt={typedProfile.display_name} className="w-full h-full object-cover" />
+          ) : (
+            typedProfile.display_name.charAt(0).toUpperCase()
+          )}
         </div>
         <h1 className="text-3xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">
           {typedProfile.display_name}

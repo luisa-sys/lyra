@@ -194,3 +194,55 @@ export async function publishProfile(): Promise<ActionResult> {
   revalidatePath('/dashboard');
   return { success: true };
 }
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  const file = formData.get('avatar') as File | null;
+  if (!file || file.size === 0) return { success: false, error: 'No file provided' };
+
+  // Validate MIME type server-side
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { success: false, error: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF' };
+  }
+
+  // Validate file size
+  if (file.size > MAX_FILE_SIZE) {
+    return { success: false, error: 'File too large. Maximum size is 5MB' };
+  }
+
+  // Determine extension from MIME type
+  const extMap: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+  };
+  const ext = extMap[file.type] || 'jpg';
+  const filePath = `${user!.id}/avatar.${ext}`;
+
+  // Upload to Supabase Storage (upsert to overwrite existing)
+  const { error: uploadError } = await supabase.storage
+    .from('profile-photos')
+    .upload(filePath, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) return { success: false, error: uploadError.message };
+
+  // Get public URL
+  const { data: urlData } = supabase.storage
+    .from('profile-photos')
+    .getPublicUrl(filePath);
+
+  // Update profile with avatar URL
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: urlData.publicUrl })
+    .eq('user_id', user!.id);
+
+  if (updateError) return { success: false, error: updateError.message };
+
+  revalidatePath('/dashboard/profile');
+  revalidatePath('/dashboard');
+  return { success: true };
+}

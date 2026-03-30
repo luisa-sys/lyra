@@ -12,6 +12,7 @@ import {
   addExternalLink,
   removeExternalLink,
   publishProfile,
+  uploadAvatar,
 } from './actions';
 import {
   IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, PreviewStep,
@@ -90,6 +91,11 @@ export function ProfileWizard({
               await updateProfileFields(data);
               router.refresh();
               next();
+            });
+          }} onUploadAvatar={(formData: FormData) => {
+            startTransition(async () => {
+              await uploadAvatar(formData);
+              router.refresh();
             });
           }} isPending={isPending} />
         )}
