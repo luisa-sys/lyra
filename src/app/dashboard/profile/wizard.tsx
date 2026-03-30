@@ -25,6 +25,9 @@ const STEPS = [
   { id: 'likes', label: 'Likes & Dislikes', icon: '💚' },
   { id: 'gifts', label: 'Gift ideas', icon: '🎁' },
   { id: 'boundaries', label: 'Boundaries', icon: '🛑' },
+  { id: 'interests', label: 'Books & Media', icon: '📚' },
+  { id: 'values', label: 'Causes & Quotes', icon: '💛' },
+  { id: 'more', label: 'More about you', icon: '✨' },
   { id: 'links', label: 'Links', icon: '🔗' },
   { id: 'preview', label: 'Preview', icon: '👁️' },
 ];
@@ -137,12 +140,36 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 6 && (
+          <ItemsStep title="Books & Media" description="Favourite books, movies, and series — the things that shaped you."
+            categories={['favourite_books', 'favourite_media']}
+            items={items.filter((i) => ['favourite_books', 'favourite_media'].includes(i.category))}
+            onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
+            onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onNext={next} isPending={isPending} />
+        )}
+        {step === 7 && (
+          <ItemsStep title="Causes & Quotes" description="What matters to you — charities, causes, and words that resonate."
+            categories={['causes', 'quotes']}
+            items={items.filter((i) => ['causes', 'quotes'].includes(i.category))}
+            onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
+            onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onNext={next} isPending={isPending} />
+        )}
+        {step === 8 && (
+          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked."
+            categories={['proud_of', 'life_hacks', 'questions', 'billboard']}
+            items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard'].includes(i.category))}
+            onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
+            onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onNext={next} isPending={isPending} />
+        )}
+        {step === 9 && (
           <LinksStep links={links}
             onAdd={(data) => { startTransition(async () => { await addExternalLink(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeExternalLink(id); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 7 && (
+        {step === 10 && (
           <PreviewStep profile={profile} items={items} schools={schools} links={links}
             onPublish={() => { startTransition(async () => { await publishProfile(); router.refresh(); router.push('/dashboard'); }); }}
             isPending={isPending} />

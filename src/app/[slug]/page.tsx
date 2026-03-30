@@ -129,6 +129,14 @@ export default async function PublicProfilePage({ params }: Props) {
     gifts_to_avoid: 'Gifts to avoid',
     boundaries: 'Boundaries',
     helpful_to_know: 'Helpful to know',
+    favourite_books: 'Favourite books',
+    favourite_media: 'Favourite movies & series',
+    causes: 'Causes I care about',
+    quotes: 'Quotes I love',
+    proud_of: 'What I\'m most proud of',
+    life_hacks: 'Life hacks & recommendations',
+    questions: 'Questions I wish people asked',
+    billboard: 'My billboard',
   };
 
   const categoryIcons: Record<string, string> = {
@@ -138,6 +146,14 @@ export default async function PublicProfilePage({ params }: Props) {
     gifts_to_avoid: '🚫',
     boundaries: '🛑',
     helpful_to_know: '💡',
+    favourite_books: '📖',
+    favourite_media: '🎬',
+    causes: '🌍',
+    quotes: '💬',
+    proud_of: '🏆',
+    life_hacks: '✨',
+    questions: '❓',
+    billboard: '📢',
   };
 
   const groupedItems = typedItems.reduce((acc: Record<string, ProfileItem[]>, item) => {
@@ -147,7 +163,11 @@ export default async function PublicProfilePage({ params }: Props) {
   }, {});
 
   // Display order for categories
-  const categoryOrder = ['likes', 'dislikes', 'gift_ideas', 'gifts_to_avoid', 'helpful_to_know', 'boundaries'];
+  const categoryOrder = [
+    'likes', 'dislikes', 'gift_ideas', 'gifts_to_avoid', 'helpful_to_know', 'boundaries',
+    'favourite_books', 'favourite_media', 'causes', 'proud_of', 'life_hacks', 'questions',
+  ];
+  // quotes and billboard render separately with special styling
 
   // JSON-LD structured data for AI consumption (Schema.org Person)
   const jsonLd = {
@@ -251,24 +271,72 @@ export default async function PublicProfilePage({ params }: Props) {
               <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-3">
                 {categoryIcons[cat]} {categoryLabels[cat]}
               </h2>
-              <div className="flex flex-wrap gap-2">
-                {catItems.map((item) => (
-                  <div key={item.id} className="group relative">
-                    <span className="inline-block px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-sm text-[var(--color-ink)]">
-                      {item.title}
-                    </span>
-                    {item.description && (
-                      <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 px-3 py-2 bg-[var(--color-ink)] text-white text-xs rounded-lg max-w-xs z-10">
-                        {item.description}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {cat === 'questions' ? (
+                <div className="space-y-3">
+                  {catItems.map((item) => (
+                    <div key={item.id} className="border-l-3 border-[var(--color-sage)] bg-stone-50 rounded-r-lg pl-4 pr-4 py-3">
+                      <p className="text-sm font-medium text-[var(--color-ink)]">{item.title}</p>
+                      {item.description && (
+                        <p className="text-sm text-[var(--color-muted)] mt-1 leading-relaxed">{item.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {catItems.map((item) => (
+                    <div key={item.id} className="group relative">
+                      <span className="inline-block px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-sm text-[var(--color-ink)]">
+                        {item.title}
+                      </span>
+                      {item.description && (
+                        <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 px-3 py-2 bg-[var(--color-ink)] text-white text-xs rounded-lg max-w-xs z-10">
+                          {item.description}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
       })}
+
+      {/* Quotes — styled with left accent border */}
+      {groupedItems['quotes'] && groupedItems['quotes'].length > 0 && (
+        <div className="max-w-2xl mx-auto px-6 pb-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-3">
+              💬 Quotes I love
+            </h2>
+            <div className="space-y-3">
+              {groupedItems['quotes'].map((item) => (
+                <div key={item.id} className="border-l-3 border-[var(--color-sage)] pl-4 py-1">
+                  <p className="text-[var(--color-ink)] italic leading-relaxed">&ldquo;{item.title}&rdquo;</p>
+                  {item.description && (
+                    <p className="text-sm text-[var(--color-muted)] mt-1">— {item.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Billboard — large statement at the bottom */}
+      {groupedItems['billboard'] && groupedItems['billboard'].length > 0 && (
+        <div className="max-w-2xl mx-auto px-6 pb-6">
+          <div className="bg-[var(--color-sage)] rounded-xl p-8 text-center">
+            <p className="text-xs font-medium text-white/70 uppercase tracking-wide mb-3">
+              If I had a giant billboard, it would say&hellip;
+            </p>
+            <p className="text-xl sm:text-2xl font-[family-name:var(--font-serif)] text-white leading-relaxed">
+              &ldquo;{groupedItems['billboard'][0].title}&rdquo;
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Links */}
       {typedLinks.length > 0 && (
