@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Privacy Policy</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 27 March 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 30 March 2026</p>
 
         <h2>Who we are</h2>
         <p>Lyra (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the website checklyra.com. We are committed to protecting your privacy and handling your personal data transparently.</p>
@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
         <p>When you create a Lyra profile, we collect:</p>
         <ul>
           <li><strong>Account data:</strong> Email address, password (encrypted), display name</li>
-          <li><strong>Profile data:</strong> Headline, bio, city, country, preferences, gift ideas, likes, dislikes, boundaries, school affiliations, and external links — all provided voluntarily by you</li>
+          <li><strong>Profile data:</strong> Headline, bio, city, country, preferences, gift ideas, likes, dislikes, boundaries, school affiliations, external links, and profile photo — all provided voluntarily by you</li>
           <li><strong>Usage data:</strong> Page views and basic analytics (via Vercel Analytics), collected anonymously unless you opt in</li>
         </ul>
         <p>We do <strong>not</strong> collect: payment information, precise location data, browsing history, data from third-party sources, or any data from children under 13.</p>
@@ -39,6 +39,7 @@ export default function PrivacyPolicyPage() {
         <h2>How we use your data</h2>
         <ul>
           <li>To display your public profile at checklyra.com/your-slug</li>
+          <li>To show your profile in Lyra&apos;s search/browse page when published</li>
           <li>To enable AI companions (via MCP) to help people find gift ideas and understand your preferences</li>
           <li>To improve the Lyra service through anonymised analytics</li>
           <li>To send essential account emails (confirmation, password reset)</li>
@@ -52,7 +53,7 @@ export default function PrivacyPolicyPage() {
           <li><strong>Vercel</strong> (website hosting) — serves checklyra.com</li>
           <li><strong>Cloudflare</strong> (DNS and CDN) — routes web traffic</li>
         </ul>
-        <p>Each provider has their own GDPR-compliant data processing agreements. We do not transfer data outside the UK/EU.</p>
+        <p>Each provider has their own GDPR-compliant data processing agreements. We do not transfer data outside the UK/EU. Profile photos are stored in Supabase Storage (EU region). Database backups are stored in Cloudflare R2 with EU jurisdiction and 90-day retention.</p>
 
         <h2>Your rights (UK GDPR / Data Protection Act 2018)</h2>
         <p>You have the right to:</p>
