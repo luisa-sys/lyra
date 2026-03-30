@@ -174,6 +174,108 @@ function Sections() {
     </section>
   );
 }
+function UseCases() {
+  const cases = [
+    {
+      title: "Parents",
+      desc: "Invite your children\u2019s teachers to create a quick profile. End-of-term gifts become easy instead of stressful. Two minutes is all it takes.",
+    },
+    {
+      title: "Friends & family",
+      desc: "Birthdays, Christmas, just because. Stop guessing. Check their Lyra profile and find something they\u2019ll actually love.",
+    },
+    {
+      title: "Colleagues",
+      desc: "New team member? Secret Santa? Share preferences and boundaries without the awkward conversations.",
+    },
+    {
+      title: "Teachers & carers",
+      desc: "A simple way to let parents know what you\u2019d appreciate \u2014 without asking. Just share your profile link.",
+    },
+  ];
+
+  return (
+    <section className="py-24 px-6 bg-white">
+      <div className="max-w-4xl mx-auto">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
+          Who it&apos;s for
+        </h2>
+        <p className="text-stone-500 text-center mb-16 max-w-lg mx-auto">
+          Anyone who&apos;s ever thought &ldquo;I wish they just knew what I wanted.&rdquo; Which is everyone.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 max-w-3xl mx-auto">
+          {cases.map((c) => (
+            <div key={c.title}>
+              <h3 className="font-medium text-stone-800 mb-2">{c.title}</h3>
+              <p className="text-sm text-stone-500 leading-relaxed">{c.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WhatLyraIsNot() {
+  const items = [
+    "No likes, followers, or feeds",
+    "No algorithms deciding what you see",
+    "No pressure to post or engage",
+    "No selling your data",
+    "No notifications or FOMO",
+  ];
+
+  return (
+    <section className="py-24 px-6">
+      <div className="max-w-2xl mx-auto text-center">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-12">
+          What Lyra is not
+        </h2>
+        <div className="space-y-4">
+          {items.map((item) => (
+            <div
+              key={item}
+              className="flex items-center gap-3 text-left max-w-md mx-auto"
+            >
+              <span className="text-[var(--color-lyra-blush)] font-semibold text-sm shrink-0">No</span>
+              <span className="text-stone-500 text-sm">{item.replace(/^No /, "")}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ParentCallout() {
+  return (
+    <section className="py-16 px-6">
+      <div className="max-w-2xl mx-auto">
+        <div className="rounded-2xl border-2 border-[var(--color-lyra-sage-light)] bg-[var(--color-lyra-sage-50)] p-8 sm:p-10 text-center">
+          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+            Are you a parent?
+          </h2>
+          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto">
+            End of term is coming. Instead of guessing what your children&apos;s teachers would like,
+            invite them to create a Lyra profile. It takes two minutes &mdash; just gift ideas and
+            things to avoid &mdash; and it makes everything easier for everyone.
+          </p>
+          <p className="text-sm text-stone-400 italic mb-6 max-w-md mx-auto">
+            &ldquo;Hi! I&apos;m using Lyra to help people know what I&apos;d appreciate.
+            It only takes a couple of minutes. Here&apos;s where you can create yours&hellip;&rdquo;
+          </p>
+          <Link
+            href="/signup"
+            className="inline-block px-8 py-3 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-sm hover:bg-[#7A8E6D] transition-colors"
+          >
+            Create your free profile
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CTA() {
   return (
     <section className="py-24 px-6 bg-[var(--color-lyra-sage-50)]">
@@ -236,6 +338,9 @@ export default function Home() {
         <ProfilePreview />
         <HowItWorks />
         <Sections />
+        <UseCases />
+        <WhatLyraIsNot />
+        <ParentCallout />
         <CTA />
       </main>
       <Footer />
