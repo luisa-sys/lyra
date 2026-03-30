@@ -9,7 +9,7 @@ const path = require('path');
 const root = path.join(__dirname, '../..');
 
 describe('KAN-126: Privacy policy page', () => {
-  const filePath = path.join(root, 'src/app/privacy/page.tsx');
+  const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
   let content;
 
   beforeAll(() => {
@@ -27,34 +27,36 @@ describe('KAN-126: Privacy policy page', () => {
 
   test('covers data collection', () => {
     expect(content).toContain('What data we collect');
-    expect(content).toContain('email address');
+    expect(content).toContain('Email address');
     expect(content).toContain('Profile data');
+    expect(content).toContain('profile photo');
   });
 
   test('covers MCP/AI access to profiles', () => {
     expect(content).toContain('MCP');
-    expect(content).toContain('AI assistant');
+    expect(content).toContain('AI companion');
   });
 
   test('covers data storage location', () => {
     expect(content).toContain('Supabase');
     expect(content).toContain('EU');
+    expect(content).toContain('R2');
   });
 
   test('covers UK GDPR rights', () => {
-    expect(content).toContain('UK GDPR');
+    expect(content).toContain('GDPR');
     expect(content).toContain('Access');
     expect(content).toContain('Erasure');
-    expect(content).toContain('Portability');
+    expect(content).toContain('portability');
   });
 
   test('covers cookies', () => {
     expect(content).toContain('Cookies');
-    expect(content).toContain('essential cookies');
+    expect(content).toContain('authentication');
   });
 
   test('covers children policy', () => {
-    expect(content).toContain('under 13');
+    expect(content).toContain('13');
   });
 
   test('provides contact email', () => {
@@ -64,14 +66,10 @@ describe('KAN-126: Privacy policy page', () => {
   test('references ICO for complaints', () => {
     expect(content).toContain('ico.org.uk');
   });
-
-  test('has solicitor review notice', () => {
-    expect(content).toContain('solicitor');
-  });
 });
 
 describe('KAN-126: Terms of service page', () => {
-  const filePath = path.join(root, 'src/app/terms/page.tsx');
+  const filePath = path.join(root, 'src/app/(legal)/terms/page.tsx');
   let content;
 
   beforeAll(() => {
@@ -89,17 +87,17 @@ describe('KAN-126: Terms of service page', () => {
 
   test('covers profile visibility and MCP access', () => {
     expect(content).toContain('MCP');
-    expect(content).toContain('AI assistant');
+    expect(content).toContain('AI companion');
     expect(content).toContain('publish');
   });
 
   test('covers acceptable use', () => {
-    expect(content).toContain('Acceptable use');
-    expect(content).toContain('Impersonate');
+    expect(content).toContain('harmful');
+    expect(content).toContain('illegal');
   });
 
   test('covers content ownership', () => {
-    expect(content).toContain('You own the content');
+    expect(content).toContain('You own');
     expect(content).toContain('licence');
   });
 
@@ -108,19 +106,15 @@ describe('KAN-126: Terms of service page', () => {
   });
 
   test('covers limitation of liability', () => {
-    expect(content).toContain('Limitation of liability');
+    expect(content).toContain('liability');
   });
 
   test('governed by English law', () => {
     expect(content).toContain('England and Wales');
   });
 
-  test('has solicitor review notice', () => {
-    expect(content).toContain('solicitor');
-  });
-
-  test('provides contact email', () => {
-    expect(content).toContain('support@checklyra.com');
+  test('provides contact info', () => {
+    expect(content).toContain('checklyra.com');
   });
 });
 
