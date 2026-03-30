@@ -16,6 +16,10 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     likes: '💚 Like', dislikes: '💔 Dislike',
     gift_ideas: '🎁 Gift idea', gifts_to_avoid: '🚫 Avoid',
     boundaries: '🛑 Boundary', helpful_to_know: '💡 Helpful to know',
+    favourite_books: '📖 Book', favourite_media: '🎬 Movie/Series',
+    causes: '🌍 Cause', quotes: '💬 Quote',
+    proud_of: '🏆 Proud of', life_hacks: '💡 Life hack',
+    questions: '❓ Question', billboard: '📢 Billboard',
   };
 
   const handleAdd = () => {
