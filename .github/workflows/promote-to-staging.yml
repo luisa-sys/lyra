@@ -27,12 +27,30 @@ jobs:
             echo "::error::You must type 'promote' to confirm"
             exit 1
           fi
-          CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch develop --workflow deploy-dev.yml --limit 1 --json conclusion -q '.[0].conclusion')
-          echo "Last dev pipeline: $CONCLUSION"
-          if [ "$CONCLUSION" != "success" ]; then
-            echo "::error::Last dev pipeline did not pass ($CONCLUSION). Fix before promoting."
-            exit 1
-          fi
+          # Retry loop — GitHub API sometimes returns stale/empty results
+          MAX_ATTEMPTS=5
+          ATTEMPT=0
+          CONCLUSION=""
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch develop --workflow deploy-dev.yml --limit 1 --json conclusion -q '.[0].conclusion')
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Last dev pipeline = '$CONCLUSION'"
+            if [ "$CONCLUSION" = "success" ]; then
+              echo "✓ Dev pipeline verified"
+              exit 0
+            fi
+            if [ "$CONCLUSION" = "failure" ]; then
+              echo "::error::Last dev pipeline failed. Fix before promoting."
+              exit 1
+            fi
+            # Empty or unexpected result — wait and retry (API cache lag)
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "  Result empty or unexpected, retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "::error::Could not verify dev pipeline after $MAX_ATTEMPTS attempts (last result: '$CONCLUSION'). Try again in a minute."
+          exit 1
 
   merge-and-deploy:
     name: Merge develop → staging
