@@ -94,23 +94,24 @@ export async function signInWithGoogle() {
   }
 }
 
-export async function signInWithApple() {
-  const supabase = await createClient();
-  const requestHeaders = await headers();
-  const origin = requestHeaders.get('origin') || getSiteUrl();
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return redirect('/login?error=' + encodeURIComponent(error.message));
-  }
-
-  if (data.url) {
-    return redirect(data.url);
-  }
-}
+// Apple Sign-In deferred — no Apple Developer account. See KAN-37.
+// export async function signInWithApple() {
+//   const supabase = await createClient();
+//   const requestHeaders = await headers();
+//   const origin = requestHeaders.get('origin') || getSiteUrl();
+//
+//   const { data, error } = await supabase.auth.signInWithOAuth({
+//     provider: 'apple',
+//     options: {
+//       redirectTo: `${origin}/auth/callback`,
+//     },
+//   });
+//
+//   if (error) {
+//     return redirect('/login?error=' + encodeURIComponent(error.message));
+//   }
+//
+//   if (data.url) {
+//     return redirect(data.url);
+//   }
+// }
