@@ -27,12 +27,29 @@ jobs:
             echo "::error::You must type 'PRODUCTION' (case sensitive) to confirm"
             exit 1
           fi
-          CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion')
-          echo "Last staging pipeline: $CONCLUSION"
-          if [ "$CONCLUSION" != "success" ]; then
-            echo "::error::Last staging pipeline did not pass ($CONCLUSION). Fix before promoting."
-            exit 1
-          fi
+          # Retry loop — GitHub API sometimes returns stale/empty results
+          MAX_ATTEMPTS=5
+          ATTEMPT=0
+          CONCLUSION=""
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion')
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Last staging pipeline = '$CONCLUSION'"
+            if [ "$CONCLUSION" = "success" ]; then
+              echo "✓ Staging pipeline verified"
+              exit 0
+            fi
+            if [ "$CONCLUSION" = "failure" ]; then
+              echo "::error::Last staging pipeline failed. Fix before promoting."
+              exit 1
+            fi
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "  Result empty or unexpected, retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "::error::Could not verify staging pipeline after $MAX_ATTEMPTS attempts (last result: '$CONCLUSION'). Try again in a minute."
+          exit 1
 
   merge-and-deploy:
     name: Merge staging → main
