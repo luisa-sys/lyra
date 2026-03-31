@@ -36,6 +36,11 @@ export async function exportUserData(): Promise<string> {
     .select('*')
     .eq('profile_id', profile.id);
 
+  const { data: apiKeys } = await supabase
+    .from('api_keys')
+    .select('id, key_prefix, name, created_at, last_used_at, revoked_at')
+    .eq('user_id', user.id);
+
   return JSON.stringify({
     exported_at: new Date().toISOString(),
     account: { email: user.email, created_at: user.created_at },
@@ -43,6 +48,7 @@ export async function exportUserData(): Promise<string> {
     items: items || [],
     schools: schools || [],
     links: links || [],
+    api_keys: apiKeys || [],
   }, null, 2);
 }
 
@@ -51,7 +57,30 @@ export async function deleteAccount() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return redirect('/login');
 
+  // Delete api_keys (not cascaded via profile FK)
+  await supabase.from('api_keys').delete().eq('user_id', user.id);
+
+  // Delete profile photo from storage
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('avatar_url')
+    .eq('user_id', user.id)
+    .single();
+
+  if (profile?.avatar_url) {
+    const path = `${user.id}/`;
+    await supabase.storage.from('profile-photos').list(path).then(({ data: files }) => {
+      if (files?.length) {
+        const paths = files.map(f => `${path}${f.name}`);
+        supabase.storage.from('profile-photos').remove(paths);
+      }
+    });
+  }
+
+  // Delete profile (cascades to profile_items, external_links, school_affiliations)
   await supabase.from('profiles').delete().eq('user_id', user.id);
+
+  // Sign out (Supabase Auth user remains but profile data is gone)
   await supabase.auth.signOut();
   redirect('/');
 }
