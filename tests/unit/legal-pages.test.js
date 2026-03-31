@@ -133,4 +133,60 @@ describe('KAN-126: Footer links exist on homepage', () => {
   test('homepage footer links to /terms', () => {
     expect(content).toContain('href="/terms"');
   });
+
+  test('homepage footer links to /cookies', () => {
+    expect(content).toContain('href="/cookies"');
+  });
+});
+
+describe('KAN-144: Cookie policy page', () => {
+  const filePath = path.join(root, 'src/app/(legal)/cookies/page.tsx');
+  let content;
+
+  beforeAll(() => {
+    content = fs.readFileSync(filePath, 'utf8');
+  });
+
+  test('page file exists', () => {
+    expect(fs.existsSync(filePath)).toBe(true);
+  });
+
+  test('exports metadata with title', () => {
+    expect(content).toContain('Cookie Policy');
+    expect(content).toContain('metadata');
+  });
+
+  test('explains what cookies are', () => {
+    expect(content).toContain('What are cookies');
+  });
+
+  test('lists specific cookies used', () => {
+    expect(content).toContain('sb-');
+    expect(content).toContain('auth-token');
+    expect(content).toContain('Essential');
+  });
+
+  test('mentions third-party cookies (Google, Cloudflare)', () => {
+    expect(content).toContain('Google');
+    expect(content).toContain('Cloudflare');
+  });
+
+  test('explains how to manage cookies', () => {
+    expect(content).toContain('Managing cookies');
+    expect(content).toContain('browser settings');
+  });
+
+  test('commits to no advertising cookies', () => {
+    expect(content).toContain('advertising');
+    expect(content).toContain('tracking');
+  });
+
+  test('provides contact email', () => {
+    expect(content).toContain('privacy@checklyra.com');
+  });
+
+  test('links to privacy policy and terms', () => {
+    expect(content).toContain('href="/privacy"');
+    expect(content).toContain('href="/terms"');
+  });
 });

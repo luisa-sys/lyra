@@ -308,6 +308,7 @@ function Footer() {
         <div className="flex items-center gap-4 text-sm text-stone-400">
           <Link href="/privacy" className="hover:text-stone-600 transition-colors">Privacy</Link>
           <Link href="/terms" className="hover:text-stone-600 transition-colors">Terms</Link>
+          <Link href="/cookies" className="hover:text-stone-600 transition-colors">Cookies</Link>
           <span>&copy; {new Date().getFullYear()} Lyra</span>
         </div>
       </div>
