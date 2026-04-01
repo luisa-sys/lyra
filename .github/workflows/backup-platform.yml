@@ -1,0 +1,138 @@
+name: Weekly Platform Backup
+
+on:
+  schedule:
+    - cron: '30 2 * * 0'  # Sunday 02:30 UTC (after database backup at 02:00)
+  workflow_dispatch:
+
+env:
+  BACKUP_DIR: ./platform-backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create backup directory
+        run: mkdir -p $BACKUP_DIR
+
+      # ── Tier 1: Git repo bundles ──────────────────────────
+      - name: Bundle lyra repo (all branches + tags)
+        run: |
+          git clone --mirror https://x-access-token:${{ github.token }}@github.com/luisa-sys/lyra.git lyra-mirror
+          cd lyra-mirror
+          git bundle create ../$BACKUP_DIR/lyra-repo.bundle --all
+          cd .. && rm -rf lyra-mirror
+          echo "✓ lyra repo bundle: $(du -h $BACKUP_DIR/lyra-repo.bundle | cut -f1)"
+
+      - name: Bundle lyra-mcp-server repo
+        run: |
+          git clone --mirror https://x-access-token:${{ github.token }}@github.com/luisa-sys/lyra-mcp-server.git mcp-mirror
+          cd mcp-mirror
+          git bundle create ../$BACKUP_DIR/lyra-mcp-server-repo.bundle --all
+          cd .. && rm -rf mcp-mirror
+          echo "✓ MCP server repo bundle: $(du -h $BACKUP_DIR/lyra-mcp-server-repo.bundle | cut -f1)"
+
+      # ── Tier 1: GitHub secrets list (names only) ──────────
+      - name: Export GitHub Actions secret names
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "=== GitHub Secrets (NAMES ONLY — values cannot be exported) ===" > $BACKUP_DIR/github-secrets-list.txt
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $BACKUP_DIR/github-secrets-list.txt
+          echo "" >> $BACKUP_DIR/github-secrets-list.txt
+          echo "--- lyra repo ---" >> $BACKUP_DIR/github-secrets-list.txt
+          gh api repos/luisa-sys/lyra/actions/secrets -q '.secrets[].name' >> $BACKUP_DIR/github-secrets-list.txt 2>/dev/null || echo "(failed to fetch)"  >> $BACKUP_DIR/github-secrets-list.txt
+          echo "" >> $BACKUP_DIR/github-secrets-list.txt
+          echo "--- lyra-mcp-server repo ---" >> $BACKUP_DIR/github-secrets-list.txt
+          gh api repos/luisa-sys/lyra-mcp-server/actions/secrets -q '.secrets[].name' >> $BACKUP_DIR/github-secrets-list.txt 2>/dev/null || echo "(failed to fetch)" >> $BACKUP_DIR/github-secrets-list.txt
+          echo "" >> $BACKUP_DIR/github-secrets-list.txt
+          echo "See SECURITY_ROTATION.md for secret value sources." >> $BACKUP_DIR/github-secrets-list.txt
+          echo "✓ Secret names exported"
+
+      # ── Tier 2: Cloudflare DNS zone export ────────────────
+      - name: Export Cloudflare DNS records
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
+            echo "⚠ Cloudflare credentials not configured — skipping DNS export"
+            echo "DNS export skipped: credentials not configured" > $BACKUP_DIR/cloudflare-dns.json
+          else
+            curl -s "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=100" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              > $BACKUP_DIR/cloudflare-dns.json
+            RECORD_COUNT=$(python3 -c "import json; data=json.load(open('$BACKUP_DIR/cloudflare-dns.json')); print(len(data.get('result',[])))" 2>/dev/null || echo "?")
+            echo "✓ DNS records exported: $RECORD_COUNT records"
+          fi
+
+      # ── Tier 2: Supabase schema export ────────────────────
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update && sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+
+      - name: Export Supabase schema (production)
+        if: env.SUPABASE_DB_URL != ''
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "⚠ SUPABASE_DB_URL not set — skipping schema export"
+          else
+            pg_dump "$SUPABASE_DB_URL" --schema-only --schema=public --no-owner --no-privileges \
+              > $BACKUP_DIR/supabase-schema.sql 2>&1 || echo "Schema export failed" > $BACKUP_DIR/supabase-schema.sql
+            echo "✓ Supabase schema exported: $(wc -l < $BACKUP_DIR/supabase-schema.sql) lines"
+          fi
+
+      # ── Upload to GitHub Artifacts ────────────────────────
+      - name: Upload platform backup artifact
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        with:
+          name: lyra-platform-backup-${{ github.run_id }}
+          path: platform-backup/
+          retention-days: 90
+
+      # ── Upload to Cloudflare R2 ───────────────────────────
+      - name: Upload to R2 immutable backup
+        if: success() && env.R2_ACCESS_KEY_ID != ''
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
+            echo "⚠ R2 credentials not configured — skipping immutable backup"
+            exit 0
+          fi
+          pip install awscli --quiet
+          export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
+          export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+          DATE=$(date -u +%Y-%m-%d)
+          for f in $BACKUP_DIR/*; do
+            FILENAME=$(basename "$f")
+            echo "Uploading platform/$DATE/$FILENAME to R2..."
+            aws s3 cp "$f" "s3://${R2_BUCKET_NAME}/platform/${DATE}/${FILENAME}" \
+              --endpoint-url "$R2_ENDPOINT" --no-progress
+          done
+          echo "✅ Platform backup uploaded to R2 (platform/${DATE}/)"
+
+      # ── Summary ───────────────────────────────────────────
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Platform Backup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Asset | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|" >> $GITHUB_STEP_SUMMARY
+          for f in $BACKUP_DIR/*; do
+            NAME=$(basename "$f")
+            SIZE=$(du -h "$f" | cut -f1)
+            echo "| $NAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
+          done
