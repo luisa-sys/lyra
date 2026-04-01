@@ -1,0 +1,58 @@
+name: Weekly Mutation Testing (Stryker)
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'  # Sunday 04:00 UTC (after backup at 02:00)
+  workflow_dispatch:
+
+jobs:
+  mutation-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Stryker
+        run: npm install --no-save @stryker-mutator/core @stryker-mutator/jest-runner @stryker-mutator/typescript-checker
+
+      - name: Run Stryker mutation testing
+        run: npx stryker run
+        continue-on-error: true
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        with:
+          name: mutation-report-${{ github.run_id }}
+          path: reports/mutation/
+          retention-days: 90
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f reports/mutation/mutation-report.json ]; then
+            SCORE=$(cat reports/mutation/mutation-report.json | python3 -c "
+          import json, sys
+          try:
+            data = json.load(sys.stdin)
+            killed = data.get('mutationScore', 0)
+            print(f'{killed:.1f}')
+          except:
+            print('N/A')
+          " 2>/dev/null || echo "N/A")
+            echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+            echo "Mutation score: **${SCORE}%**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Full report available in the uploaded artifact." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Mutation Testing" >> $GITHUB_STEP_SUMMARY
+            echo "No report generated. Check the Stryker run step for errors." >> $GITHUB_STEP_SUMMARY
+          fi

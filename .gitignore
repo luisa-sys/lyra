@@ -43,3 +43,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 coverage/
+
+# Mutation testing reports
+reports/mutation/*.json
+reports/mutation/*.html
