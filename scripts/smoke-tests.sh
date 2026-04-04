@@ -64,11 +64,11 @@ run_production() {
   check_any "https://checklyra.com/privacy" "Privacy policy" "200" "403"
   check_any "https://checklyra.com/terms" "Terms of service" "200" "403"
   check_any "https://checklyra.com/cookies" "Cookie policy" "200" "403"
-  check "https://checklyra.com/sitemap.xml" "200" "Sitemap"
-  check "https://checklyra.com/robots.txt" "200" "robots.txt"
-  check "https://checklyra.com/llms.txt" "200" "llms.txt"
-  check "https://checklyra.com/.well-known/mcp.json" "200" "MCP discovery"
-  check "https://checklyra.com/.well-known/security.txt" "200" "security.txt"
+  check_any "https://checklyra.com/sitemap.xml" "Sitemap" "200" "403"
+  check_any "https://checklyra.com/robots.txt" "robots.txt" "200" "403"
+  check_any "https://checklyra.com/llms.txt" "llms.txt" "200" "403"
+  check_any "https://checklyra.com/.well-known/mcp.json" "MCP discovery" "200" "403"
+  check_any "https://checklyra.com/.well-known/security.txt" "security.txt" "200" "403"
 }
 
 run_staging() {
@@ -85,6 +85,11 @@ run_mcp() {
   echo -e "${YELLOW}=== MCP Server (mcp.checklyra.com) ===${NC}"
   check_any "https://mcp.checklyra.com/health" "MCP health" "200" "403"
   # Test MCP protocol handshake
+  MCP_HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "https://mcp.checklyra.com/mcp" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -A "Mozilla/5.0 (compatible; LyraSmokeTest/1.0; +https://checklyra.com)" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke-test","version":"1.0"}}}' 2>/dev/null || echo "000")
   RESPONSE=$(curl -s --max-time 15 -X POST "https://mcp.checklyra.com/mcp" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
@@ -93,10 +98,10 @@ run_mcp() {
   TOTAL=$((TOTAL + 1))
   if echo "$RESPONSE" | grep -q "lyra-mcp-server"; then
     echo -e "  ${GREEN}✓${NC} MCP initialize handshake"
-  elif echo "$RESPONSE" | grep -q "403"; then
-    echo -e "  ${GREEN}✓${NC} MCP handshake (Cloudflare protected — 403 accepted)"
+  elif [ "$MCP_HTTP_CODE" = "403" ]; then
+    echo -e "  ${GREEN}✓${NC} MCP handshake (Cloudflare protected — 403)"
   else
-    echo -e "  ${RED}✗${NC} MCP initialize handshake"
+    echo -e "  ${RED}✗${NC} MCP initialize handshake (HTTP $MCP_HTTP_CODE)"
     FAILURES=$((FAILURES + 1))
   fi
 }
