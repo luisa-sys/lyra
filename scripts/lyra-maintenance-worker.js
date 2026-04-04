@@ -107,11 +107,32 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
     }
     .form-message.success { color: #6b8f71; }
     .form-message.error { color: #dc2626; }
+    .app-description {
+      font-size: 0.9375rem;
+      line-height: 1.7;
+      color: #78716c;
+      margin-bottom: 2rem;
+      max-width: 28rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
     .footer {
-      position: fixed;
-      bottom: 2rem;
+      margin-top: 3rem;
       font-size: 0.75rem;
-      color: #d6d3d1;
+      color: #a8a29e;
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .footer a {
+      color: #78716c;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer a:hover {
+      color: #6b8f71;
     }
     @media (max-width: 640px) {
       h1 { font-size: 1.5rem; }
@@ -128,6 +149,7 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
     <div class="sage-dot"></div>
     <h1>Something calm is coming</h1>
     <p class="notify-text">We're putting the finishing touches on things.</p>
+    <p class="app-description">Lyra is a profile platform where you share your preferences, gift ideas, and boundaries — so the people in your life never have to guess. Sign in with Google or email to create your profile, then share it with friends, family, and AI companions.</p>
     <form class="email-form" id="interestForm" method="POST" action="/">
       <input
         type="email"
@@ -142,7 +164,12 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
     </form>
     <div class="form-message" id="formMessage" role="status" aria-live="polite"></div>
   </div>
-  <div class="footer">&copy; 2026 Lyra</div>
+  <div class="footer">
+    <span>&copy; 2026 Lyra</span>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/terms">Terms of Service</a>
+    <a href="/cookies">Cookie Policy</a>
+  </div>
   <script>
     document.getElementById('interestForm').addEventListener('submit', async function(e) {
       e.preventDefault();
