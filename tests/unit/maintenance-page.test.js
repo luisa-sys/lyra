@@ -105,9 +105,10 @@ describe('KAN-129: Worker code file integrity', () => {
     expect(fs.existsSync(workerPath)).toBe(true);
   });
 
-  test('worker does not contain tagline text', () => {
+  test('worker contains app description for Google OAuth verification', () => {
     const content = fs.readFileSync(workerPath, 'utf8');
-    expect(content).not.toContain('so the people in your life never have to guess');
+    expect(content).toContain('Lyra is a profile platform');
+    expect(content).toContain('class="app-description"');
   });
 
   test('worker does not contain mailto: links', () => {
