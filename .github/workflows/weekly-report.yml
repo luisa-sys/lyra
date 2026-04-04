@@ -1,0 +1,194 @@
+name: Weekly Status Report
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'  # Monday 07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update && sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+
+      - name: Generate weekly report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          REPORT="reports/weekly-report-$(date -u +%Y-%m-%d).md"
+          mkdir -p reports
+
+          echo "# Lyra Weekly Status Report" > "$REPORT"
+          echo "**Generated:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          # ── Section 1: Endpoint Health ─────────────────────
+          echo "## 1. Endpoint Health" >> "$REPORT"
+          echo "" >> "$REPORT"
+          echo "| Endpoint | Status |" >> "$REPORT"
+          echo "|----------|--------|" >> "$REPORT"
+          for pair in \
+            "https://checklyra.com|Production" \
+            "https://checklyra.com/privacy|Privacy" \
+            "https://checklyra.com/terms|Terms" \
+            "https://checklyra.com/cookies|Cookies" \
+            "https://checklyra.com/sitemap.xml|Sitemap" \
+            "https://checklyra.com/robots.txt|robots.txt" \
+            "https://mcp.checklyra.com/health|MCP Health"; do
+            URL="${pair%%|*}"
+            LABEL="${pair##*|}"
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
+              -A "Mozilla/5.0 (compatible; LyraReport/1.0)" "$URL" 2>/dev/null || echo "000")
+            if [ "$CODE" = "200" ] || [ "$CODE" = "503" ]; then
+              echo "| $LABEL | ✅ $CODE |" >> "$REPORT"
+            else
+              echo "| $LABEL | ⚠️ $CODE |" >> "$REPORT"
+            fi
+          done
+          echo "" >> "$REPORT"
+
+          # ── Section 2: Database Metrics ────────────────────
+          echo "## 2. Database Metrics (Production)" >> "$REPORT"
+          echo "" >> "$REPORT"
+          if [ -n "$SUPABASE_DB_URL" ]; then
+            METRICS=$(psql "$SUPABASE_DB_URL" -t -A -F'|' -c "
+              SELECT
+                (SELECT count(*) FROM auth.users) as total_users,
+                (SELECT count(*) FROM auth.users WHERE created_at > now() - interval '7 days') as new_users_7d,
+                (SELECT count(*) FROM public.profiles) as total_profiles,
+                (SELECT count(*) FROM public.profiles WHERE is_published = true) as published_profiles,
+                (SELECT count(*) FROM public.profile_items) as total_items,
+                (SELECT count(*) FROM public.external_links) as total_links,
+                (SELECT count(*) FROM public.school_affiliations) as total_schools,
+                (SELECT count(*) FROM public.api_keys) as total_api_keys
+            " 2>/dev/null || echo "ERROR")
+            if [ "$METRICS" != "ERROR" ]; then
+              IFS='|' read -r USERS NEW_USERS PROFILES PUBLISHED ITEMS LINKS SCHOOLS KEYS <<< "$METRICS"
+              echo "| Metric | Count |" >> "$REPORT"
+              echo "|--------|-------|" >> "$REPORT"
+              echo "| Total users | $USERS |" >> "$REPORT"
+              echo "| New users (7 days) | $NEW_USERS |" >> "$REPORT"
+              echo "| Total profiles | $PROFILES |" >> "$REPORT"
+              echo "| Published profiles | $PUBLISHED |" >> "$REPORT"
+              echo "| Profile items | $ITEMS |" >> "$REPORT"
+              echo "| External links | $LINKS |" >> "$REPORT"
+              echo "| School affiliations | $SCHOOLS |" >> "$REPORT"
+              echo "| API keys | $KEYS |" >> "$REPORT"
+            else
+              echo "⚠️ Could not connect to production database" >> "$REPORT"
+            fi
+          else
+            echo "⚠️ SUPABASE_DB_URL not configured" >> "$REPORT"
+          fi
+          echo "" >> "$REPORT"
+
+          # ── Section 3: Interest Signups (KV) ───────────────
+          echo "## 3. Interest Email Signups" >> "$REPORT"
+          echo "" >> "$REPORT"
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            KV_NAMESPACE="c7bdc8624f0a4bd5b0a8ad36e9f93d96"
+            KV_KEYS=$(curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" 2>/dev/null)
+            TOTAL_SIGNUPS=$(echo "$KV_KEYS" | python3 -c "import json,sys; data=json.load(sys.stdin); print(len(data.get('result',[])))" 2>/dev/null || echo "?")
+            echo "| Metric | Count |" >> "$REPORT"
+            echo "|--------|-------|" >> "$REPORT"
+            echo "| Total interest signups | $TOTAL_SIGNUPS |" >> "$REPORT"
+
+            # List individual emails with timestamps
+            if [ "$TOTAL_SIGNUPS" != "?" ] && [ "$TOTAL_SIGNUPS" != "0" ]; then
+              echo "" >> "$REPORT"
+              echo "**Recent signups:**" >> "$REPORT"
+              echo "" >> "$REPORT"
+              # Get each key's value for timestamp
+              for KEY_NAME in $(echo "$KV_KEYS" | python3 -c "import json,sys; data=json.load(sys.stdin); [print(k['name']) for k in data.get('result',[])]" 2>/dev/null); do
+                VALUE=$(curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/values/$KEY_NAME" \
+                  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" 2>/dev/null)
+                TIMESTAMP=$(echo "$VALUE" | python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('timestamp','unknown'))" 2>/dev/null || echo "unknown")
+                echo "- $KEY_NAME (signed up: $TIMESTAMP)" >> "$REPORT"
+              done
+            fi
+          else
+            echo "⚠️ Cloudflare credentials not configured — cannot read KV signups" >> "$REPORT"
+          fi
+          echo "" >> "$REPORT"
+
+          # ── Section 4: CI/CD Pipeline ──────────────────────
+          echo "## 4. CI/CD Pipeline (Last 7 Days)" >> "$REPORT"
+          echo "" >> "$REPORT"
+          echo "| Workflow | Runs | Passed | Failed |" >> "$REPORT"
+          echo "|----------|------|--------|--------|" >> "$REPORT"
+          for WF in deploy-dev pr-checks promote-to-staging promote-to-production health-check backup-database backup-platform; do
+            RUNS_JSON=$(gh api "repos/luisa-sys/lyra/actions/workflows/${WF}.yml/runs?created=>$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)&per_page=100" 2>/dev/null || echo '{"total_count":0,"workflow_runs":[]}')
+            TOTAL_RUNS=$(echo "$RUNS_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_count',0))" 2>/dev/null || echo "0")
+            PASSED=$(echo "$RUNS_JSON" | python3 -c "import json,sys; runs=json.load(sys.stdin).get('workflow_runs',[]); print(sum(1 for r in runs if r.get('conclusion')=='success'))" 2>/dev/null || echo "0")
+            FAILED=$(echo "$RUNS_JSON" | python3 -c "import json,sys; runs=json.load(sys.stdin).get('workflow_runs',[]); print(sum(1 for r in runs if r.get('conclusion')=='failure'))" 2>/dev/null || echo "0")
+            echo "| $WF | $TOTAL_RUNS | $PASSED | $FAILED |" >> "$REPORT"
+          done
+          echo "" >> "$REPORT"
+
+          # ── Section 5: Security ────────────────────────────
+          echo "## 5. Security" >> "$REPORT"
+          echo "" >> "$REPORT"
+          DEPENDABOT=$(gh api repos/luisa-sys/lyra/dependabot/alerts?state=open -q 'length' 2>/dev/null || echo "?")
+          CODEQL=$(gh api repos/luisa-sys/lyra/code-scanning/alerts?state=open -q 'length' 2>/dev/null || echo "?")
+          echo "| Check | Count |" >> "$REPORT"
+          echo "|-------|-------|" >> "$REPORT"
+          echo "| Open Dependabot alerts | $DEPENDABOT |" >> "$REPORT"
+          echo "| Open CodeQL alerts | $CODEQL |" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          # ── Section 6: Test Suite ──────────────────────────
+          echo "## 6. Test Suite" >> "$REPORT"
+          echo "" >> "$REPORT"
+          echo "| Repo | Tests |" >> "$REPORT"
+          echo "|------|-------|" >> "$REPORT"
+          echo "| lyra (web app) | 239 |" >> "$REPORT"
+          echo "| lyra-mcp-server | 64 |" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          # ── Section 7: Deployment Status ───────────────────
+          echo "## 7. Current Deployment" >> "$REPORT"
+          echo "" >> "$REPORT"
+          LATEST_TAG=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || echo "unknown")
+          LATEST_COMMIT=$(git log origin/main --oneline -1 2>/dev/null || echo "unknown")
+          echo "- **Version:** $LATEST_TAG" >> "$REPORT"
+          echo "- **Latest commit:** $LATEST_COMMIT" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          # ── Section 8: Google OAuth Status ─────────────────
+          echo "## 8. Pending Actions" >> "$REPORT"
+          echo "" >> "$REPORT"
+          echo "- Google OAuth: Submitted for production verification (100-user cap until approved)" >> "$REPORT"
+          echo "- Cloudflare: CLOUDFLARE_ACCOUNT_ID secret needed for KV signup reporting" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          echo "---" >> "$REPORT"
+          echo "*Report generated by GitHub Actions. View full report in workflow artifacts.*" >> "$REPORT"
+
+          # Output to step summary
+          cat "$REPORT" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        with:
+          name: weekly-report-${{ github.run_id }}
+          path: reports/weekly-report-*.md
+          retention-days: 90

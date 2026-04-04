@@ -47,3 +47,4 @@ coverage/
 # Mutation testing reports
 reports/mutation/*.json
 reports/mutation/*.html
+reports/weekly-report-*.md
