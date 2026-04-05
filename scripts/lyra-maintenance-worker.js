@@ -266,6 +266,7 @@ export default {
       '/llms.txt',
       '/privacy',
       '/terms',
+      '/cookies',
       '/auth/'
     ];
 

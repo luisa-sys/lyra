@@ -5,7 +5,7 @@ import json
 import sys
 import html
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 def md_to_html(md):
     """Simple markdown to HTML conversion for email."""
@@ -57,7 +57,7 @@ def main():
         md = f.read()
 
     html_body = md_to_html(md)
-    date = datetime.utcnow().strftime('%Y-%m-%d')
+    date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
     wrapper = f'''<div style="font-family:'DM Sans',Helvetica,Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;background:#fafaf9;">
 <div style="text-align:center;margin-bottom:24px;">
@@ -70,7 +70,7 @@ def main():
 </div>'''
 
     payload = {
-        'from': 'Lyra Reports <onboarding@resend.dev>',
+        'from': 'Lyra Reports <reports@checklyra.com>',
         'to': ['luisa@santos-stephens.com'],
         'subject': f'Lyra Weekly Report — {date}',
         'html': wrapper
