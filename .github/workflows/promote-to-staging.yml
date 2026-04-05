@@ -67,6 +67,7 @@ jobs:
       - name: Merge develop into staging
         run: |
           git checkout staging
+          git pull origin staging --ff-only
           git merge origin/develop -m "Promote develop → staging [workflow_dispatch]"
           git push origin staging
           echo "Staging branch updated. Deploy workflow will trigger automatically."
