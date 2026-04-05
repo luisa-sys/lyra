@@ -1,78 +1,76 @@
-# Bug Triage Prompt — Weekly Report → BUGS Tickets
+# Bug Triage Prompt — Weekly Report Scanning
 
-## When to Run
+## Process
 
-Every Monday after the weekly report email arrives (sent 07:00 UTC from reports@checklyra.com).
+Every Monday after the weekly report email arrives (from reports@checklyra.com), use Cowork or Claude.ai to scan the report and raise BUGS tickets.
 
-## How to Run
+## Prompt to Use
 
-Open Cowork or a new Claude conversation with Gmail and Atlassian MCP connectors enabled. Paste the prompt below.
+Copy and paste this into Cowork or a Claude.ai chat with Gmail + Atlassian MCP connectors enabled:
 
-## The Prompt
+---
+
+**Prompt:**
 
 ```
-Search my Gmail for the most recent email from reports@checklyra.com with subject
-containing "Lyra Weekly Report". Read the full email body.
+Search my Gmail for the most recent email from reports@checklyra.com with subject containing "Lyra Weekly Platform Report". Read the full email body.
 
 Scan the report for any of these issues:
 
-1. ENDPOINT HEALTH: Any endpoint returning non-200 status (EXCEPT 403 from
-   checklyra.com which is expected due to Cloudflare maintenance worker)
-2. CI/CD FAILURES: Any workflow with failed runs in the past week
-3. SECURITY ALERTS: Any open CodeQL alerts (critical or high severity)
-4. DEPENDENCY VULNERABILITIES: Any Dependabot critical/high alerts
-5. TEST REGRESSION: Test count below 239 (lyra) or 64 (MCP server)
-6. BACKUP FAILURE: Database or platform backup reported as failed
-7. MUTATION TESTING: Stryker mutation score drop or failure
-8. DB METRICS: Any table with 0 rows that should have data (profiles, profile_items)
+1. ENDPOINT HEALTH: Any endpoint returning non-200 status (EXCEPT 403 from checklyra.com which is expected due to Cloudflare maintenance worker)
+2. CI/CD FAILURES: Any workflow failures reported in the past week
+3. SECURITY ALERTS: Any open CodeQL alerts (especially critical/high), any Dependabot critical/high vulnerabilities
+4. TEST REGRESSION: Test count below 239 (lyra) or 64 (MCP server), or suite count below 19 (lyra) or 2 (MCP)
+5. BACKUP FAILURES: Any database or platform backup failures
+6. MUTATION TESTING: Stryker mutation score drop (if reported)
+7. DATABASE: Any concerning metrics (e.g. unexpected row count changes, missing tables)
 
-For each issue found, create a ticket in the BUGS Jira project with:
+For each issue found, create a Task in the BUGS Jira project (key: BUGS) at checklyra.atlassian.net with:
 - Summary: Clear one-line description of the issue
 - Description including:
-  - What: What the issue is
-  - Source: Which section of the weekly report flagged it
+  - What was detected (quote the relevant section from the report)
   - Severity: Critical / High / Medium / Low
-  - Recommended fix: Specific steps to resolve
-  - Report date: The date of the weekly report
+  - Recommended fix steps
+  - Source: "Weekly report [date]"
 
-Before creating each ticket, search BUGS project for existing open tickets with
-similar summaries to avoid duplicates. If a matching open ticket exists, add a
-comment with the latest occurrence date instead of creating a new ticket.
+DEDUPLICATION: Before creating each ticket, search BUGS project for existing open tickets with similar summary. If a matching ticket exists, add a comment instead of creating a duplicate.
 
-If the report shows all green / no issues, respond with:
-"Weekly report clean — no bugs to raise. All systems healthy."
+If the report shows ALL GREEN (all endpoints healthy, zero failures, zero alerts, tests at or above floor), respond with: "Weekly report clean — no bugs to raise."
 ```
 
-## BUGS Project Details
+---
 
-- Project key: BUGS
-- Project ID: 10035
-- Issue type: Task (id: 10049)
-- Cloud ID: fde496ba-2db8-481a-8544-39d6e9122101
+## Expected Behaviour
+
+- **Clean report**: "Weekly report clean — no bugs to raise."
+- **Issues found**: Creates 1 BUGS ticket per distinct issue, with severity and recommended fix
+- **Duplicate detection**: Comments on existing tickets rather than creating duplicates
 
 ## Severity Guide
 
-| Severity | Criteria | Example |
-|----------|----------|---------|
-| Critical | Production down, data loss, security breach | All endpoints 500, backup restore failed |
-| High | Feature broken, security vuln, test regression | CodeQL critical alert, test count dropped |
-| Medium | Degraded performance, non-critical failure | One workflow failed, Dependabot medium alert |
-| Low | Cosmetic, minor inconsistency | Stryker score dipped 1%, non-critical endpoint slow |
+| Severity | Criteria | Response Time |
+|----------|----------|---------------|
+| Critical | Production down, data loss, security breach | Same day |
+| High | Feature broken, endpoint failing, security vuln | Within 2 days |
+| Medium | Degraded performance, non-critical test failure | Within 1 week |
+| Low | Cosmetic, warning-level alert, minor regression | Next sprint |
 
-## Expected "False Positives" (Do NOT raise bugs for these)
+## Known Exceptions (Do NOT raise bugs for these)
 
-- `checklyra.com` returning 403 or 503 → This is the Cloudflare maintenance worker, expected behaviour
-- `checklyra.com/cookies` returning 403 → Same, maintenance worker (until worker is redeployed with /cookies in allowedPaths)
-- GitHub Actions 403 from smoke tests → Cloudflare blocks CI runner IPs, known and accepted
+- `checklyra.com` returning 403 — this is the Cloudflare maintenance worker, expected behaviour
+- `checklyra.com/cookies` returning 503 — known issue, tracked separately
+- Cloudflare bot protection blocking GitHub Actions runner IPs (shows as 403 in smoke tests)
 
-## Deduplication Rules
+## BUGS Project Details
 
-1. Search `project = BUGS AND status != Done AND summary ~ "<key phrase>"` before creating
-2. If found, add comment: "Still occurring as of [report date]"
-3. If not found, create new ticket
+- Jira project key: `BUGS`
+- Project ID: `10035`
+- Issue type: Task (ID `10049`)
+- Board: https://checklyra.atlassian.net/jira/software/projects/BUGS/board
 
-## History
+## Weekly Cadence
 
-- April 2026: Adopted weekly-report-based approach (supersedes KAN-92-95 email scanning service)
-- Process uses Cowork/Claude with Gmail + Atlassian MCP connectors
-- No custom code or infrastructure needed
+1. **Monday ~07:30 UTC**: Weekly report email arrives
+2. **Monday morning**: Run the bug triage prompt via Cowork/Claude
+3. **Monday**: Review any created BUGS tickets, prioritise
+4. **During week**: Fix critical/high bugs, schedule medium/low for next sprint
