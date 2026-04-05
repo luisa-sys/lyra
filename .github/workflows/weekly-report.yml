@@ -185,6 +185,9 @@ jobs:
           # Output to step summary
           cat "$REPORT" >> $GITHUB_STEP_SUMMARY
 
+          # Save report path for email step
+          echo "REPORT_PATH=$REPORT" >> $GITHUB_ENV
+
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
@@ -192,3 +195,29 @@ jobs:
           name: weekly-report-${{ github.run_id }}
           path: reports/weekly-report-*.md
           retention-days: 90
+
+      - name: Email report via Resend
+        if: success() && env.RESEND_API_KEY != ''
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          REPORT_FILE="${REPORT_PATH}"
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "Report file not found — skipping email"
+            exit 0
+          fi
+
+          # Convert markdown to simple HTML for email
+          python3 scripts/report-to-email.py "$REPORT_FILE" > /tmp/report-email.json
+
+          RESPONSE=$(curl -s -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/report-email.json)
+
+          echo "Email response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"id"'; then
+            echo "Weekly report emailed successfully"
+          else
+            echo "Email send may have failed — check Resend dashboard"
+          fi
