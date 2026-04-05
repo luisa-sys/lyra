@@ -339,7 +339,7 @@ export default {
               },
               body: JSON.stringify({
                 from: 'Lyra Notifications <notifications@checklyra.com>',
-                to: ['luisa@santos-stephens.com'],
+                to: ['luisa@checklyra.com'],
                 subject: `New Lyra interest signup: ${email}`,
                 html: `<p>Someone just signed up for Lyra launch notifications.</p>
                        <p><strong>Email:</strong> ${email}</p>
