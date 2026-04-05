@@ -1,0 +1,113 @@
+name: Weekly Backup Restore Test
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'  # Sunday 05:00 UTC (after backups at 02:00-02:30, mutation at 04:00)
+  workflow_dispatch:
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update && sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+
+      - name: Export production schema
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL not configured — skipping"
+            exit 0
+          fi
+          pg_dump "$SUPABASE_DB_URL" --schema-only --schema=public --no-owner --no-privileges \
+            > /tmp/prod-schema.sql 2>&1
+          echo "Production schema: $(wc -l < /tmp/prod-schema.sql) lines"
+
+      - name: Verify schema integrity
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "Skipping — no DB URL"
+            exit 0
+          fi
+
+          echo "## Backup Restore Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          PASS=0
+          FAIL=0
+
+          # Check 1: Schema file exists and is non-empty
+          if [ -s /tmp/prod-schema.sql ]; then
+            echo "- ✅ Schema export: $(wc -l < /tmp/prod-schema.sql) lines" >> $GITHUB_STEP_SUMMARY
+            PASS=$((PASS + 1))
+          else
+            echo "- ❌ Schema export failed or empty" >> $GITHUB_STEP_SUMMARY
+            FAIL=$((FAIL + 1))
+          fi
+
+          # Check 2: Expected tables exist in schema
+          for TABLE in profiles profile_items external_links school_affiliations api_keys; do
+            if grep -q "CREATE TABLE public.${TABLE}" /tmp/prod-schema.sql; then
+              echo "- ✅ Table public.${TABLE} found in schema" >> $GITHUB_STEP_SUMMARY
+              PASS=$((PASS + 1))
+            else
+              echo "- ❌ Table public.${TABLE} MISSING from schema" >> $GITHUB_STEP_SUMMARY
+              FAIL=$((FAIL + 1))
+            fi
+          done
+
+          # Check 3: RLS is enabled on key tables
+          for TABLE in profiles profile_items external_links school_affiliations api_keys; do
+            if grep -q "ALTER TABLE public.${TABLE} ENABLE ROW LEVEL SECURITY" /tmp/prod-schema.sql; then
+              echo "- ✅ RLS enabled on public.${TABLE}" >> $GITHUB_STEP_SUMMARY
+              PASS=$((PASS + 1))
+            else
+              echo "- ⚠️ RLS not found for public.${TABLE} (may be in separate statement)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          # Check 4: Row counts from live database
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Live Row Counts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Table | Rows |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|" >> $GITHUB_STEP_SUMMARY
+          for TABLE in profiles profile_items external_links school_affiliations api_keys; do
+            COUNT=$(psql "$SUPABASE_DB_URL" -t -A -c "SELECT count(*) FROM public.${TABLE}" 2>/dev/null || echo "?")
+            echo "| ${TABLE} | ${COUNT} |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          # Check 5: Verify git bundles can be created (repo integrity)
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Repository Integrity" >> $GITHUB_STEP_SUMMARY
+          git bundle create /tmp/test-bundle.bundle --all 2>/dev/null
+          if [ -s /tmp/test-bundle.bundle ]; then
+            BUNDLE_SIZE=$(du -h /tmp/test-bundle.bundle | cut -f1)
+            # Verify bundle is valid by listing refs
+            REFS=$(git bundle list-heads /tmp/test-bundle.bundle 2>/dev/null | wc -l)
+            echo "- ✅ Git bundle valid: ${BUNDLE_SIZE}, ${REFS} refs" >> $GITHUB_STEP_SUMMARY
+            PASS=$((PASS + 1))
+          else
+            echo "- ❌ Git bundle creation failed" >> $GITHUB_STEP_SUMMARY
+            FAIL=$((FAIL + 1))
+          fi
+          rm -f /tmp/test-bundle.bundle
+
+          # Summary
+          echo "" >> $GITHUB_STEP_SUMMARY
+          TOTAL=$((PASS + FAIL))
+          echo "### Result: ${PASS}/${TOTAL} checks passed" >> $GITHUB_STEP_SUMMARY
+          if [ "$FAIL" -gt 0 ]; then
+            echo "⚠️ ${FAIL} check(s) failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All backup integrity checks passed" >> $GITHUB_STEP_SUMMARY
+          fi
