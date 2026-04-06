@@ -39,7 +39,7 @@
     "jest": "^30.3.0",
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4",
-    "ts-jest": "^29.4.6",
+    "ts-jest": "^29.4.9",
     "typescript": "^5"
   }
 }
