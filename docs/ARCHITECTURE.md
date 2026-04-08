@@ -18,6 +18,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Railway (auto-deploy from main)
 - **Repository**: https://github.com/luisa-sys/lyra-mcp-server
 - **Endpoint**: https://mcp.checklyra.com/mcp
+- **Dev Endpoint**: https://mcp-dev.checklyra.com/mcp (points to dev Supabase)
 
 ### Database
 - **Provider**: Supabase Pro (PostgreSQL 17)
@@ -30,7 +31,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 ### DNS & CDN
 - **Provider**: Cloudflare
 - **Domain**: checklyra.com
-- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com
+- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com
 
 ## Environments
 
@@ -40,6 +41,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 | Staging | stage.checklyra.com | staging | custom (staging) | uobmlkzrjkptwhttzmmi | Vercel SSO |
 | Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
+| MCP Dev | mcp-dev.checklyra.com | main | Railway | ilprytcrnqyrsbsrfujj (dev) | Public |
 
 **Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
 

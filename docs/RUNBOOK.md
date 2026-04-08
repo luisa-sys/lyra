@@ -82,3 +82,23 @@ supabase migration repair <VERSION> --status reverted
 | Supabase | supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj | supabase.com/support |
 | Cloudflare | dash.cloudflare.com | cloudflare.com/support |
 | GitHub | github.com/luisa-sys/lyra | support.github.com |
+| Railway | railway.app (Lyra project) | railway.app/help |
+
+## MCP Server Operations
+
+### Production MCP (mcp.checklyra.com)
+- **Hosting**: Railway (auto-deploy from luisa-sys/lyra-mcp-server main branch)
+- **Supabase**: Production (llzkgprqewuwkiwclowi)
+- **Restart**: Railway dashboard → lyra-mcp-server service → Deployments → Redeploy
+
+### Dev MCP (mcp-dev.checklyra.com)
+- **Hosting**: Railway (same repo, separate service, auto-deploy from main)
+- **Supabase**: Dev (ilprytcrnqyrsbsrfujj)
+- **Restart**: Railway dashboard → lyra-mcp-dev service → Deployments → Redeploy
+- **Purpose**: Testing write tools with API keys generated on dev.checklyra.com
+
+### MCP Health Check
+```bash
+curl https://mcp.checklyra.com/health      # Production
+curl https://mcp-dev.checklyra.com/health   # Dev
+```
