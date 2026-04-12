@@ -33,16 +33,29 @@ export const metadata: Metadata = {
     siteName: "Lyra",
     type: "website",
     locale: "en_GB",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Lyra — Let people know you",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Lyra — Let people know you",
     description:
       "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
     follow: true,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/lyra-icon-180.png",
   },
 };
 export default function RootLayout({

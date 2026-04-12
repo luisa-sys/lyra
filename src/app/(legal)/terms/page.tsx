@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const metadata = {
   title: 'Terms of Service — Lyra',
@@ -10,7 +11,9 @@ export default function TermsPage() {
     <main className="min-h-screen bg-stone-50">
       <nav className="border-b border-stone-200/60">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center">
-          <Link href="/" className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">lyra</Link>
+          <Link href="/" className="flex items-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />
+          </Link>
         </div>
       </nav>
 
