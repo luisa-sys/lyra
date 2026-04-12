@@ -74,6 +74,28 @@ supabase migration repair <VERSION> --status reverted
 ./scripts/restore-database.sh ./backups/latest_backup.sql
 ```
 
+## Scheduled Workflows (GitHub Actions)
+
+| Day | Time (UTC) | Workflow | Description |
+|-----|-----------|----------|-------------|
+| Sunday | 02:00 | backup-database.yml | Database backup to GitHub Artifacts (90-day retention) |
+| Sunday | 02:30 | backup-platform.yml | Full platform backup (repos, DNS, schema) to Cloudflare R2 |
+| Sunday | 04:00 | mutation-testing.yml | Stryker mutation testing |
+| Sunday | 05:00 | backup-restore-test.yml | Automated backup restore verification |
+| Monday | 07:00 | weekly-report.yml | Weekly status report emailed via Resend |
+| Monday | — | Dependabot | Dependency update PRs (npm + GitHub Actions) |
+| Wednesday | 07:00 | security-audit.yml | npm audit scan; emails alert if high/critical vulns found |
+
+All scheduled workflows also support `workflow_dispatch` for manual runs.
+
+### Security Audit (Wednesday 07:00 UTC)
+- Runs `npm audit --json` against lockfile
+- Parses results for high/critical severity vulnerabilities
+- Emails `luisa@santos-stephens.com` via Resend if any found
+- Writes detailed advisory table to GitHub Actions step summary
+- Workflow fails (red status) when high/critical vulns detected — visible in GitHub UI
+- Manual trigger: GitHub → Actions → "Weekly Security Audit" → Run workflow
+
 ## Emergency Contacts
 
 | Service | Dashboard | Support |

@@ -44,7 +44,7 @@ The pipeline is: **develop → staging → main** (promotion-based).
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **239 tests** (19 suites) in lyra, **64 tests** (2 suites) in lyra-mcp-server
+- Current test floor: **254 tests** (20 suites) in lyra, **64 tests** (2 suites) in lyra-mcp-server
 
 ## Test Integrity Policy
 
@@ -132,3 +132,4 @@ See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
 - Sunday 04:00 — Stryker mutation testing
 - Sunday 05:00 — Backup restore test
 - Monday 07:00 — Weekly report (emails via Resend)
+- Wednesday 07:00 — Security audit (npm audit + email alerts via Resend)
