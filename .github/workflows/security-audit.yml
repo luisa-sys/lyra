@@ -1,0 +1,135 @@
+name: Weekly Security Audit
+
+on:
+  schedule:
+    - cron: '0 7 * * 3'  # Wednesday 07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: audit
+        run: |
+          npm audit --json > /tmp/audit-results.json 2>&1 || true
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+          # Parse results
+          HIGH=$(python3 -c "
+          import json, sys
+          try:
+              data = json.load(open('/tmp/audit-results.json'))
+              vulns = data.get('metadata', {}).get('vulnerabilities', {})
+              high = vulns.get('high', 0)
+              critical = vulns.get('critical', 0)
+              print(high + critical)
+          except:
+              print(0)
+          ")
+          echo "high_critical_count=$HIGH" >> $GITHUB_OUTPUT
+
+          TOTAL=$(python3 -c "
+          import json
+          try:
+              data = json.load(open('/tmp/audit-results.json'))
+              vulns = data.get('metadata', {}).get('vulnerabilities', {})
+              print(sum(vulns.values()))
+          except:
+              print(0)
+          ")
+          echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
+
+      - name: Generate audit report
+        id: report
+        run: |
+          python3 scripts/audit-to-email.py /tmp/audit-results.json > /tmp/audit-email.json
+          echo "has_vulns=$(python3 -c "import json; d=json.load(open('/tmp/audit-email.json')); print('true' if d.get('has_vulnerabilities') else 'false')")" >> $GITHUB_OUTPUT
+
+      - name: Output to step summary
+        run: |
+          echo "## 🔒 Weekly Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.audit.outputs.high_critical_count }}" != "0" ]; then
+            echo "### ⚠️ High/Critical Vulnerabilities Found: ${{ steps.audit.outputs.high_critical_count }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No high/critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total vulnerabilities:** ${{ steps.audit.outputs.total_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Include advisory details
+          python3 -c "
+          import json
+          try:
+              data = json.load(open('/tmp/audit-results.json'))
+              vulns = data.get('vulnerabilities', {})
+              if vulns:
+                  print('| Package | Severity | Advisory | Fix |')
+                  print('|---------|----------|----------|-----|')
+                  for name, info in vulns.items():
+                      severity = info.get('severity', 'unknown')
+                      fix = info.get('fixAvailable', False)
+                      fix_str = 'Yes' if fix else 'No'
+                      via = info.get('via', [])
+                      url = ''
+                      for v in via:
+                          if isinstance(v, dict):
+                              url = v.get('url', '')
+                              break
+                      print(f'| {name} | {severity} | {url} | {fix_str} |')
+          except Exception as e:
+              print(f'Could not parse audit results: {e}')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: Email vulnerability alert via Resend
+        if: steps.report.outputs.has_vulns == 'true'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "⚠️ RESEND_API_KEY not configured — skipping email"
+            exit 0
+          fi
+
+          # Remove the has_vulnerabilities flag before sending (not a Resend field)
+          python3 -c "
+          import json
+          data = json.load(open('/tmp/audit-email.json'))
+          data.pop('has_vulnerabilities', None)
+          json.dump(data, open('/tmp/audit-email-send.json', 'w'))
+          "
+
+          RESPONSE=$(curl -s -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/audit-email-send.json)
+
+          echo "Email response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"id"'; then
+            echo "✅ Security alert emailed successfully"
+          else
+            echo "⚠️ Email send may have failed — check Resend dashboard"
+          fi
+
+      - name: Fail if high/critical vulnerabilities found
+        if: steps.audit.outputs.high_critical_count != '0'
+        run: |
+          echo "❌ ${{ steps.audit.outputs.high_critical_count }} high/critical vulnerabilities detected"
+          echo "Run 'npm audit' locally and fix before next deploy"
+          exit 1
