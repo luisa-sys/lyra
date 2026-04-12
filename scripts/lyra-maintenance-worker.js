@@ -328,6 +328,31 @@ export default {
 
         await env.INTEREST_EMAILS.put(email, record);
 
+        // Send notification email (non-blocking — don't delay the user response)
+        if (env.RESEND_API_KEY) {
+          try {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: 'Lyra Notifications <notifications@checklyra.com>',
+                to: ['luisa@checklyra.com'],
+                subject: `New Lyra interest signup: ${email}`,
+                html: `<p>Someone just signed up for Lyra launch notifications.</p>
+                       <p><strong>Email:</strong> ${email}</p>
+                       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+                       <p><strong>Source:</strong> Maintenance page (checklyra.com)</p>`,
+              }),
+            });
+          } catch (notifyErr) {
+            // Notification failure should not affect the user — log and continue
+            console.error('Failed to send signup notification:', notifyErr);
+          }
+        }
+
         return new Response(
           JSON.stringify({ message: "Thanks! We'll let you know when Lyra launches." }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
