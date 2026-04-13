@@ -1,0 +1,18 @@
+# Cloudflare Workers configuration for Lyra maintenance page
+# Deployed automatically via Cloudflare Workers Builds (Git integration)
+# See: https://developers.cloudflare.com/workers/wrangler/configuration/
+#
+# Secrets (configured in Cloudflare dashboard, not here):
+#   RESEND_API_KEY — for signup notification emails
+
+name = "lyra-maintenance"
+main = "scripts/lyra-maintenance-worker.js"
+compatibility_date = "2024-12-01"
+
+# KV namespace binding for interest email signups
+[[kv_namespaces]]
+binding = "INTEREST_EMAILS"
+id = "c7bdc8624f0a4bd5b0a8ad36e9f93d96"
+
+# Routes are managed in the Cloudflare dashboard, not here.
+# Current route: checklyra.com/* → this worker
