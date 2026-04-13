@@ -6,7 +6,7 @@ function Nav() {
     <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 bg-stone-50/80 backdrop-blur-md border-b border-stone-200/60">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image src="/lyra-logo.png" alt="Lyra" width={40} height={40} className="h-10 w-auto" priority />
+          <Image src="/lyra-logo.png" alt="Lyra" width={80} height={80} className="h-20 w-auto" priority />
         </Link>
         <div className="flex items-center gap-6">
           <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
