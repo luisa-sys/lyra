@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { env } from '@/lib/env';
 
@@ -206,8 +207,8 @@ export default async function PublicProfilePage({ params }: Props) {
       {/* Nav */}
       <nav aria-label="Profile navigation" className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">
-            lyra
+          <Link href="/" className="flex items-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
           </Link>
           <Link
             href="/signup"

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { signIn } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
 
@@ -18,8 +19,8 @@ export default async function LoginPage({
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Link href="/" className="font-[family-name:var(--font-serif)] text-2xl text-[var(--color-ink)]">
-            Lyra
+          <Link href="/" className="flex items-center justify-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={48} height={48} className="h-12 w-auto" priority />
           </Link>
           <h1 className="mt-4 text-xl font-medium text-[var(--color-ink)]">
             Welcome back
