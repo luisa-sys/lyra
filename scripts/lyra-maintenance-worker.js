@@ -5,7 +5,7 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lyra — Coming Soon</title>
   <meta name="description" content="Lyra is a calm profile platform. Launching soon." />
-  <meta name="robots" content="noindex, nofollow" />
+  <meta name="robots" content="noindex" />
   <meta property="og:title" content="Lyra — Coming Soon" />
   <meta property="og:description" content="A calm profile platform. Launching soon." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
