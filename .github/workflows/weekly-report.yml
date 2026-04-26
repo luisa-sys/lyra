@@ -39,10 +39,18 @@ jobs:
           echo "" >> "$REPORT"
 
           # ── Section 1: Endpoint Health ─────────────────────
+          # KAN-160: GitHub Actions runner IPs are bot-blocked by Cloudflare,
+          # which returns 403 on public pages from this runner.
+          # 403 here means "Cloudflare reachable, IP-blocked" — NOT a real outage.
+          # See gotcha #7 in CLAUDE.md. We treat 403 as ✅ but flag it explicitly,
+          # then run a secondary probe via the maintenance worker's POST endpoint
+          # which DOES respond from the runner because it's served by the worker
+          # itself rather than going through Cloudflare's bot challenge.
+          set -o pipefail
           echo "## 1. Endpoint Health" >> "$REPORT"
           echo "" >> "$REPORT"
-          echo "| Endpoint | Status |" >> "$REPORT"
-          echo "|----------|--------|" >> "$REPORT"
+          echo "| Endpoint | Status | Notes |" >> "$REPORT"
+          echo "|----------|--------|-------|" >> "$REPORT"
           for pair in \
             "https://checklyra.com|Production" \
             "https://checklyra.com/privacy|Privacy" \
@@ -55,12 +63,29 @@ jobs:
             LABEL="${pair##*|}"
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
               -A "Mozilla/5.0 (compatible; LyraReport/1.0)" "$URL" 2>/dev/null || echo "000")
-            if [ "$CODE" = "200" ] || [ "$CODE" = "503" ]; then
-              echo "| $LABEL | ✅ $CODE |" >> "$REPORT"
-            else
-              echo "| $LABEL | ⚠️ $CODE |" >> "$REPORT"
-            fi
+            case "$CODE" in
+              200)   echo "| $LABEL | ✅ 200 | OK |" >> "$REPORT" ;;
+              503)   echo "| $LABEL | ✅ 503 | Maintenance page (expected) |" >> "$REPORT" ;;
+              403)   echo "| $LABEL | ✅ 403 | CI bot-block (page is up — see KAN-160) |" >> "$REPORT" ;;
+              000)   echo "| $LABEL | ❌ DNS/timeout | Could not reach host |" >> "$REPORT" ;;
+              *)     echo "| $LABEL | ⚠️ $CODE | Unexpected — investigate |" >> "$REPORT" ;;
+            esac
           done
+
+          # Secondary probe: confirm the maintenance worker is actually running
+          # by POSTing an empty body. The worker returns 400 with a JSON error
+          # body for invalid requests — this proves the worker code is executing,
+          # which a 403 bot-block on GET cannot prove. If THIS comes back 403,
+          # something is genuinely wrong with the worker.
+          WORKER_PROBE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
+            -X POST -H "Content-Type: application/json" -d '{}' \
+            "https://checklyra.com/" 2>/dev/null || echo "000")
+          case "$WORKER_PROBE" in
+            400)   echo "| Worker liveness | ✅ 400 | Worker responding (POST returns expected JSON error) |" >> "$REPORT" ;;
+            403)   echo "| Worker liveness | ❌ 403 | Worker NOT responding from CI — investigate |" >> "$REPORT" ;;
+            429)   echo "| Worker liveness | ⚠️ 429 | Rate-limited from this IP |" >> "$REPORT" ;;
+            *)     echo "| Worker liveness | ⚠️ $WORKER_PROBE | Unexpected from worker |" >> "$REPORT" ;;
+          esac
           echo "" >> "$REPORT"
 
           # ── Section 2: Database Metrics ────────────────────
