@@ -72,20 +72,11 @@ jobs:
             esac
           done
 
-          # Secondary probe: confirm the maintenance worker is actually running
-          # by POSTing an empty body. The worker returns 400 with a JSON error
-          # body for invalid requests — this proves the worker code is executing,
-          # which a 403 bot-block on GET cannot prove. If THIS comes back 403,
-          # something is genuinely wrong with the worker.
-          WORKER_PROBE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
-            -X POST -H "Content-Type: application/json" -d '{}' \
-            "https://checklyra.com/" 2>/dev/null || echo "000")
-          case "$WORKER_PROBE" in
-            400)   echo "| Worker liveness | ✅ 400 | Worker responding (POST returns expected JSON error) |" >> "$REPORT" ;;
-            403)   echo "| Worker liveness | ❌ 403 | Worker NOT responding from CI — investigate |" >> "$REPORT" ;;
-            429)   echo "| Worker liveness | ⚠️ 429 | Rate-limited from this IP |" >> "$REPORT" ;;
-            *)     echo "| Worker liveness | ⚠️ $WORKER_PROBE | Unexpected from worker |" >> "$REPORT" ;;
-          esac
+          # Note: a "worker liveness" POST probe was attempted here but Cloudflare's
+          # bot challenge applies to POSTs as well as GETs from CI runner IPs, so the
+          # probe always returns 403. A real liveness signal needs to come from inside
+          # Cloudflare (e.g. Cloudflare Workers Analytics API) or from a non-CI source
+          # like UptimeRobot. Tracked as follow-up to KAN-160 / KAN-163.
           echo "" >> "$REPORT"
 
           # ── Section 2: Database Metrics ────────────────────
