@@ -190,6 +190,8 @@ These have caused real bugs. Read before making related changes:
 
 14. **Workflow silent-skip pattern**: `if: env.X != ''` patterns silently skip critical steps when secrets are absent and report the workflow green. See "Workflow & Backup Integrity Policy" section above. Tracked under KAN-167 — do not add new instances of this pattern.
 
+15. **Cloudflare Workers have a two-step deploy**: Quick Edit Save creates a new VERSION but does NOT automatically promote it to the active DEPLOYMENT. The "Saved successfully" toast confirms the version was uploaded, not that it's serving production traffic. After saving, you MUST go to the Versions and Deployments tab and click Promote on the new version. Without promotion, the live site keeps serving the previous version even though the dashboard shows the latest source. This caught us during KAN-169 — verified state contradicted live state for nearly an hour. Always verify live behaviour with `curl -s https://checklyra.com/ | grep <expected-change>` after any worker edit, not just trust the Save toast.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
