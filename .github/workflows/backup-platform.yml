@@ -5,6 +5,12 @@ on:
     - cron: '30 2 * * 0'  # Sunday 02:30 UTC (after database backup at 02:00)
   workflow_dispatch:
 
+# KAN-167: every multi-line `run:` uses bash with `set -e -o pipefail` semantics
+# so that any failed command halts execution and pipe failures are not swallowed.
+defaults:
+  run:
+    shell: bash
+
 env:
   BACKUP_DIR: ./platform-backup
 
@@ -13,11 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create backup directory
-        run: mkdir -p $BACKUP_DIR
+        run: |
+          set -euo pipefail
+          mkdir -p $BACKUP_DIR
 
       # ── Tier 1: Git repo bundles ──────────────────────────
       - name: Bundle lyra repo (all branches + tags)
         run: |
+          set -euo pipefail
           git clone --mirror https://x-access-token:${{ github.token }}@github.com/luisa-sys/lyra.git lyra-mirror
           cd lyra-mirror
           git bundle create ../$BACKUP_DIR/lyra-repo.bundle --all
@@ -26,6 +35,7 @@ jobs:
 
       - name: Bundle lyra-mcp-server repo
         run: |
+          set -euo pipefail
           git clone --mirror https://x-access-token:${{ github.token }}@github.com/luisa-sys/lyra-mcp-server.git mcp-mirror
           cd mcp-mirror
           git bundle create ../$BACKUP_DIR/lyra-mcp-server-repo.bundle --all
@@ -33,63 +43,235 @@ jobs:
           echo "✓ MCP server repo bundle: $(du -h $BACKUP_DIR/lyra-mcp-server-repo.bundle | cut -f1)"
 
       # ── Tier 1: GitHub secrets list (names only) ──────────
+      # KAN-167: the previous version used `|| echo "(failed to fetch)"` which
+      # silently swallowed 403 responses (the default GITHUB_TOKEN does not have
+      # permission to list repo secrets). The step now fails loud if either
+      # repo's secrets cannot be listed, so we know about it on the next run
+      # rather than discovering broken backups months later.
       - name: Export GitHub Actions secret names
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "=== GitHub Secrets (NAMES ONLY — values cannot be exported) ===" > $BACKUP_DIR/github-secrets-list.txt
-          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $BACKUP_DIR/github-secrets-list.txt
-          echo "" >> $BACKUP_DIR/github-secrets-list.txt
-          echo "--- lyra repo ---" >> $BACKUP_DIR/github-secrets-list.txt
-          gh api repos/luisa-sys/lyra/actions/secrets -q '.secrets[].name' >> $BACKUP_DIR/github-secrets-list.txt 2>/dev/null || echo "(failed to fetch)"  >> $BACKUP_DIR/github-secrets-list.txt
-          echo "" >> $BACKUP_DIR/github-secrets-list.txt
-          echo "--- lyra-mcp-server repo ---" >> $BACKUP_DIR/github-secrets-list.txt
-          gh api repos/luisa-sys/lyra-mcp-server/actions/secrets -q '.secrets[].name' >> $BACKUP_DIR/github-secrets-list.txt 2>/dev/null || echo "(failed to fetch)" >> $BACKUP_DIR/github-secrets-list.txt
-          echo "" >> $BACKUP_DIR/github-secrets-list.txt
-          echo "See SECURITY_ROTATION.md for secret value sources." >> $BACKUP_DIR/github-secrets-list.txt
-          echo "✓ Secret names exported"
+          set -euo pipefail
+          OUTPUT_FILE="$BACKUP_DIR/github-secrets-list.txt"
+          echo "=== GitHub Secrets (NAMES ONLY — values cannot be exported) ===" > "$OUTPUT_FILE"
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$OUTPUT_FILE"
+          echo "" >> "$OUTPUT_FILE"
+
+          STEP_FAILED=0
+
+          for repo in luisa-sys/lyra luisa-sys/lyra-mcp-server; do
+            echo "--- $repo ---" >> "$OUTPUT_FILE"
+            # Capture both stdout and stderr; gh api exits non-zero on HTTP errors.
+            if RESPONSE=$(gh api "repos/$repo/actions/secrets" -q '.secrets[].name' 2>&1); then
+              echo "$RESPONSE" >> "$OUTPUT_FILE"
+              echo "✓ $repo: $(echo "$RESPONSE" | wc -l) secrets listed"
+            else
+              echo "(fetch failed: see workflow log for details)" >> "$OUTPUT_FILE"
+              echo "::error::Failed to list secrets for $repo. gh api response: $RESPONSE"
+              echo "::error::This usually means GITHUB_TOKEN lacks 'secrets: read' permission. Either grant the permission, switch to a PAT, or remove this step."
+              STEP_FAILED=1
+            fi
+            echo "" >> "$OUTPUT_FILE"
+          done
+
+          echo "See SECURITY_ROTATION.md for secret value sources." >> "$OUTPUT_FILE"
+
+          if [ "$STEP_FAILED" -eq 1 ]; then
+            echo "::error::github-secrets-list step failed for at least one repo — failing the workflow"
+            exit 1
+          fi
 
       # ── Tier 2: Cloudflare DNS zone export ────────────────
+      # KAN-167: removed step-level `if: env.CLOUDFLARE_API_TOKEN != ''` that
+      # would silently skip the entire DNS export if either secret was missing.
+      # Now the absence is detected inline and fails the workflow loud.
       - name: Export Cloudflare DNS records
-        if: env.CLOUDFLARE_API_TOKEN != ''
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
-            echo "⚠ Cloudflare credentials not configured — skipping DNS export"
-            echo "DNS export skipped: credentials not configured" > $BACKUP_DIR/cloudflare-dns.json
-          else
-            curl -s "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=100" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              > $BACKUP_DIR/cloudflare-dns.json
-            RECORD_COUNT=$(python3 -c "import json; data=json.load(open('$BACKUP_DIR/cloudflare-dns.json')); print(len(data.get('result',[])))" 2>/dev/null || echo "?")
-            echo "✓ DNS records exported: $RECORD_COUNT records"
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ZONE_ID:-}" ]; then
+            echo "::error::Cloudflare credentials missing (CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID) — cannot back up DNS records"
+            exit 1
           fi
+
+          # `-f` makes curl exit non-zero on HTTP 4xx/5xx; `-S` prints errors
+          # even with `-s`. The combination prevents silent acceptance of
+          # error responses with HTTP 200 bodies.
+          curl -fsS "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records?per_page=100" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -o $BACKUP_DIR/cloudflare-dns.json
+
+          # Validate the response: Cloudflare can return 200 with success:false
+          # in the body (e.g. permission errors). The integrity check rejects this.
+          python3 <<'PYEOF'
+          import json, sys
+          with open('./platform-backup/cloudflare-dns.json') as f:
+              data = json.load(f)
+          if not data.get('success'):
+              errors = data.get('errors', [])
+              print(f"::error::Cloudflare DNS API returned success=false. Errors: {errors}")
+              sys.exit(1)
+          records = data.get('result', [])
+          if len(records) < 1:
+              print(f"::error::Cloudflare DNS API returned 0 records — likely auth or zone-id misconfiguration")
+              sys.exit(1)
+          print(f"✓ DNS records exported: {len(records)} records")
+          PYEOF
 
       # ── Tier 2: Supabase schema export ────────────────────
       - name: Install PostgreSQL 17 client
         run: |
+          set -euo pipefail
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
           sudo apt-get update && sudo apt-get install -y postgresql-client-17
           echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
 
+      # KAN-167: this is the critical fix. The previous version used
+      # `pg_dump ... || echo "Schema export failed" > $FILE` which OVERWROTE
+      # the SQL output file with a 22-byte placeholder string on failure and
+      # exited the step zero. The artifact would then be uploaded as if the
+      # backup succeeded. Now: if pg_dump fails, the workflow fails red.
       - name: Export Supabase schema (production)
-        if: env.SUPABASE_DB_URL != ''
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "⚠ SUPABASE_DB_URL not set — skipping schema export"
-          else
-            pg_dump "$SUPABASE_DB_URL" --schema-only --schema=public --no-owner --no-privileges \
-              > $BACKUP_DIR/supabase-schema.sql 2>&1 || echo "Schema export failed" > $BACKUP_DIR/supabase-schema.sql
-            echo "✓ Supabase schema exported: $(wc -l < $BACKUP_DIR/supabase-schema.sql) lines"
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL is not set — cannot export schema"
+            exit 1
           fi
 
+          # No fallback. If pg_dump fails, set -e propagates it.
+          # stderr is redirected to a separate file so it doesn't pollute the SQL output.
+          pg_dump "$SUPABASE_DB_URL" --schema-only --schema=public --no-owner --no-privileges \
+            > $BACKUP_DIR/supabase-schema.sql 2> $BACKUP_DIR/supabase-schema.stderr.log
+
+          echo "✓ Supabase schema exported: $(wc -l < $BACKUP_DIR/supabase-schema.sql) lines"
+
+      # ── KAN-167: Verify backup integrity BEFORE upload ────
+      # This is the safety net: every artifact is validated as real, not a
+      # placeholder. If any check fails, the workflow goes red and the
+      # broken artifact is NOT uploaded to R2 (because R2 upload step uses
+      # `if: success()`). The artifact IS uploaded to GitHub artifacts so we
+      # can inspect what went wrong.
+      - name: Verify backup integrity
+        run: |
+          set -euo pipefail
+          echo "## Backup Integrity Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          INTEGRITY_FAILED=0
+
+          # SQL dump must start with "--" (PostgreSQL comment header) and contain CREATE statements
+          SQL_FILE="$BACKUP_DIR/supabase-schema.sql"
+          if [ -f "$SQL_FILE" ]; then
+            if ! head -c 2 "$SQL_FILE" | grep -q "^--"; then
+              echo "::error::supabase-schema.sql does not start with PostgreSQL comment header. First chars: $(head -c 50 "$SQL_FILE")"
+              echo "| supabase-schema.sql | ❌ Invalid header |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            elif ! grep -q "^CREATE" "$SQL_FILE"; then
+              echo "::error::supabase-schema.sql contains no CREATE statements"
+              echo "| supabase-schema.sql | ❌ No CREATE statements |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            else
+              LINE_COUNT=$(wc -l < "$SQL_FILE")
+              if [ "$LINE_COUNT" -lt 50 ]; then
+                echo "::error::supabase-schema.sql suspiciously short ($LINE_COUNT lines)"
+                echo "| supabase-schema.sql | ❌ Only $LINE_COUNT lines |" >> $GITHUB_STEP_SUMMARY
+                INTEGRITY_FAILED=1
+              else
+                echo "| supabase-schema.sql | ✅ $LINE_COUNT lines, valid SQL |" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          else
+            echo "::error::supabase-schema.sql is missing"
+            echo "| supabase-schema.sql | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+            INTEGRITY_FAILED=1
+          fi
+
+          # DNS export must be valid JSON with success:true and at least 5 records
+          DNS_FILE="$BACKUP_DIR/cloudflare-dns.json"
+          if [ -f "$DNS_FILE" ]; then
+            DNS_CHECK=$(python3 <<PYEOF
+          import json
+          try:
+              with open('$DNS_FILE') as f:
+                  d = json.load(f)
+              if not d.get('success'):
+                  print(f"FAIL:success=false errors={d.get('errors',[])}")
+              elif len(d.get('result', [])) < 5:
+                  print(f"FAIL:only {len(d.get('result',[]))} records")
+              else:
+                  print(f"OK:{len(d.get('result',[]))} records")
+          except Exception as e:
+              print(f"FAIL:parse error: {e}")
+          PYEOF
+          )
+            if [[ "$DNS_CHECK" == OK:* ]]; then
+              echo "| cloudflare-dns.json | ✅ ${DNS_CHECK#OK:} |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "::error::cloudflare-dns.json failed integrity check: ${DNS_CHECK#FAIL:}"
+              echo "| cloudflare-dns.json | ❌ ${DNS_CHECK#FAIL:} |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            fi
+          else
+            echo "::error::cloudflare-dns.json is missing"
+            echo "| cloudflare-dns.json | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+            INTEGRITY_FAILED=1
+          fi
+
+          # github-secrets-list.txt must NOT contain "(fetch failed" or "Resource not accessible"
+          SECRETS_FILE="$BACKUP_DIR/github-secrets-list.txt"
+          if [ -f "$SECRETS_FILE" ]; then
+            if grep -q "fetch failed\|Resource not accessible" "$SECRETS_FILE"; then
+              echo "::error::github-secrets-list.txt contains failure markers"
+              echo "| github-secrets-list.txt | ❌ Contains failure markers |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            else
+              # `grep -c` always prints the count; `set +e` lets it exit 1 on
+              # zero matches without halting the whole script.
+              set +e
+              SECRET_COUNT=$(grep -cE "^[A-Z_]+$" "$SECRETS_FILE")
+              set -e
+              echo "| github-secrets-list.txt | ✅ $SECRET_COUNT secret names captured |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "::error::github-secrets-list.txt is missing"
+            echo "| github-secrets-list.txt | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+            INTEGRITY_FAILED=1
+          fi
+
+          # Repo bundles must exist and be > 1KB
+          for bundle in lyra-repo.bundle lyra-mcp-server-repo.bundle; do
+            if [ -f "$BACKUP_DIR/$bundle" ]; then
+              SIZE=$(stat -c%s "$BACKUP_DIR/$bundle" 2>/dev/null || stat -f%z "$BACKUP_DIR/$bundle")
+              if [ "$SIZE" -lt 1024 ]; then
+                echo "::error::$bundle suspiciously small ($SIZE bytes)"
+                echo "| $bundle | ❌ Only $SIZE bytes |" >> $GITHUB_STEP_SUMMARY
+                INTEGRITY_FAILED=1
+              else
+                echo "| $bundle | ✅ $(du -h "$BACKUP_DIR/$bundle" | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "::error::$bundle is missing"
+              echo "| $bundle | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            fi
+          done
+
+          if [ "$INTEGRITY_FAILED" -eq 1 ]; then
+            echo "::error::Backup integrity check FAILED — see annotations above. R2 upload will be skipped."
+            exit 1
+          fi
+          echo "✅ All backup integrity checks passed"
+
       # ── Upload to GitHub Artifacts ────────────────────────
+      # `if: always()` means we get the artifact even on failure, so we can
+      # inspect what went wrong. This is intentional and not a silent-skip.
       - name: Upload platform backup artifact
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
@@ -99,34 +281,62 @@ jobs:
           retention-days: 90
 
       # ── Upload to Cloudflare R2 ───────────────────────────
+      # KAN-167: removed step-level `if: env.R2_ACCESS_KEY_ID != ''` that
+      # would silently skip the upload if R2 wasn't configured. Now: if R2
+      # creds are missing, the step fails loud. The step still uses
+      # `if: success()` so R2 upload is skipped if the backup itself failed
+      # integrity checks — that's deliberate, we don't want to upload
+      # broken artifacts to immutable storage.
       - name: Upload to R2 immutable backup
-        if: success() && env.R2_ACCESS_KEY_ID != ''
+        if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
-            echo "⚠ R2 credentials not configured — skipping immutable backup"
-            exit 0
+          set -euo pipefail
+          if [ -z "${R2_ACCESS_KEY_ID:-}" ] || [ -z "${R2_SECRET_ACCESS_KEY:-}" ] \
+             || [ -z "${R2_ENDPOINT:-}" ] || [ -z "${R2_BUCKET_NAME:-}" ]; then
+            echo "::error::R2 credentials incomplete — cannot upload backup to immutable storage"
+            exit 1
           fi
+
           pip install awscli --quiet
           export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
           export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
           DATE=$(date -u +%Y-%m-%dT%H%M%SZ)
+          UPLOAD_FAILED=0
+
           for f in $BACKUP_DIR/*; do
             FILENAME=$(basename "$f")
             echo "Uploading platform/$DATE/$FILENAME to R2..."
-            aws s3 cp "$f" "s3://${R2_BUCKET_NAME}/platform/${DATE}/${FILENAME}" \
-              --endpoint-url "$R2_ENDPOINT" --no-progress || echo "⚠ Upload failed for $FILENAME (may already exist under bucket lock)"
+            # Capture aws cli output so we can distinguish ObjectLockedByBucketPolicy
+            # (HTTP 409, expected on same-day re-runs) from real errors.
+            if AWS_OUTPUT=$(aws s3 cp "$f" "s3://${R2_BUCKET_NAME}/platform/${DATE}/${FILENAME}" \
+                --endpoint-url "$R2_ENDPOINT" --no-progress 2>&1); then
+              echo "  ✓ $FILENAME uploaded"
+            else
+              if echo "$AWS_OUTPUT" | grep -q "ObjectLockedByBucketPolicy\|already exists"; then
+                echo "::warning::$FILENAME already exists under bucket lock (expected on same-day re-runs)"
+              else
+                echo "::error::$FILENAME upload failed: $AWS_OUTPUT"
+                UPLOAD_FAILED=1
+              fi
+            fi
           done
+
+          if [ "$UPLOAD_FAILED" -eq 1 ]; then
+            echo "::error::At least one R2 upload failed for non-bucket-lock reasons"
+            exit 1
+          fi
           echo "✅ Platform backup uploaded to R2 (platform/${DATE}/)"
 
       # ── Summary ───────────────────────────────────────────
       - name: Summary
         if: always()
         run: |
+          set -euo pipefail
           echo "## Platform Backup Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Asset | Size |" >> $GITHUB_STEP_SUMMARY
