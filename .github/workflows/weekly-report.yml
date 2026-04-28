@@ -374,6 +374,13 @@ jobs:
       # KAN-167 Phase 3: actual test counts from `npx jest --listTests`
       # rather than hardcoded numbers (which had drifted: report said 239
       # while reality was 256).
+      #
+      # Implementation note: use `while read` rather than `xargs grep` because
+      # xargs whitespace-splits paths by default. Filter to `.test.` files
+      # only (excluding Playwright `.spec.` files Jest can list but not run).
+      # The count is APPROXIMATE — static-analysis count of `test(` / `it(`
+      # literals at the start of a line; doesn't capture `test.each(...)`
+      # parametrised tests. Fine for drift detection, not authoritative.
       - name: Section 6 — Test Suite
         if: always()
         run: |
@@ -382,24 +389,25 @@ jobs:
           echo "## 6. Test Suite" > "$OUT"
           echo "" >> "$OUT"
 
-          # lyra: count tests by running Jest in dry-run mode. We use
-          # `--listTests` to find files, then sum tests via a quick AST-ish
-          # parse (counting `test(` and `it(` literally — close enough).
-          LYRA_FILES=$(npx jest --listTests 2>/dev/null | grep -c '\.test\.' || echo 0)
-          # Quick test-count: sum of `test(`/`it(` occurrences in test files
-          LYRA_TESTS=$(npx jest --listTests 2>/dev/null | xargs grep -hcE "^\s*(test|it)\(" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+          TEST_FILE_LIST="$RUNNER_TEMP/jest-files.txt"
+          npx jest --listTests 2>/dev/null | grep '\.test\.' > "$TEST_FILE_LIST" || true
+          LYRA_FILES=$(wc -l < "$TEST_FILE_LIST" | tr -d ' ')
+
+          LYRA_TESTS=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            COUNT=$(grep -cE "^\s*(test|it)\(" "$f" 2>/dev/null || echo 0)
+            LYRA_TESTS=$((LYRA_TESTS + COUNT))
+          done < "$TEST_FILE_LIST"
 
           if [ "$LYRA_FILES" -gt 0 ] && [ "$LYRA_TESTS" -gt 0 ]; then
-            LYRA_LINE="| lyra (web app) | $LYRA_TESTS tests across $LYRA_FILES files |"
+            LYRA_LINE="| lyra (web app) | ~$LYRA_TESTS tests across $LYRA_FILES files (approximate, static count) |"
           else
             LYRA_LINE="| lyra (web app) | ❌ FETCH FAILED |"
             echo "::warning::Section 6 — could not count lyra tests (files=$LYRA_FILES, tests=$LYRA_TESTS)"
           fi
 
-          # MCP server: count from this repo would require checking out the
-          # other repo. For now, count test files in the bundle if available,
-          # else mark as "see lyra-mcp-server CI". This is honest about the
-          # cross-repo data limitation.
+          # MCP server: cross-repo count not wired here. Honest about it.
           MCP_LINE="| lyra-mcp-server | See repo CI (cross-repo count not yet wired) |"
 
           echo "| Repo | Tests |" >> "$OUT"
