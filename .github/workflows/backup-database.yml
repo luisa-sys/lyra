@@ -2,8 +2,30 @@ name: Weekly Database Backup
 
 on:
   schedule:
-    - cron: '0 2 * * 0'
+    - cron: '0 2 * * 0'  # Sunday 02:00 UTC
   workflow_dispatch:
+
+# KAN-167 Phase 2: every multi-line `run:` uses bash with `set -e -o pipefail`
+# semantics so any failed command halts execution.
+defaults:
+  run:
+    shell: bash
+
+env:
+  # KAN-167 Phase 2: row-count threshold for the integrity check.
+  # Lyra is currently pre-launch — Google OAuth verification is pending
+  # (KAN-125), no users have signed up. Setting this to 0 acknowledges
+  # that an empty database is the EXPECTED state right now and avoids
+  # weekly false-positive warnings until launch.
+  #
+  # WHEN LYRA LAUNCHES (KAN-125 closes + first user signs up):
+  #   1. Change this value to 1 (or higher if multiple expected tables
+  #      should always have rows)
+  #   2. Commit the change so the integrity check starts catching the
+  #      "production database is suddenly empty" scenario
+  #
+  # See KAN-125 (launch tracking) and KAN-167 (this policy work).
+  EXPECTED_MIN_ROWS: '0'
 
 jobs:
   backup:
@@ -13,8 +35,9 @@ jobs:
 
       - name: Install PostgreSQL 17 client
         run: |
-          # Supabase runs Postgres 17 — pg_dump requires matching major version
-          # BUGS-2: Default apt postgresql-client installs v16, causing version mismatch
+          set -euo pipefail
+          # Supabase runs Postgres 17 — pg_dump requires matching major version.
+          # BUGS-2: Default apt postgresql-client installs v16, causing version mismatch.
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
           sudo apt-get update && sudo apt-get install -y postgresql-client-17
@@ -22,64 +45,230 @@ jobs:
           echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
           /usr/lib/postgresql/17/bin/pg_dump --version
 
-      - name: Run pg_dump backup
+      # KAN-167 Phase 2: `continue-on-error: true` is RETAINED here as a
+      # DELIBERATE policy exception — this step is allowed to fail because the
+      # next step (REST API fallback) is the safety net. This is the only
+      # acceptable use of `continue-on-error: true` in our workflows: where
+      # a documented fallback step exists. The fallback step writes a
+      # BACKUP_METHOD=rest_api_fallback marker and emits ::warning:: so we
+      # KNOW the primary path failed even when the workflow exits green.
+      - name: Run pg_dump backup (primary path)
         id: pgdump
         continue-on-error: true
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "SUPABASE_DB_URL not set - skipping pg_dump"
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL is not set — pg_dump cannot run. REST API fallback will activate."
             exit 1
           fi
           chmod +x scripts/backup-database.sh
           ./scripts/backup-database.sh ./backups
+          # Mark which path produced the artifact so the integrity check
+          # and any downstream consumers know what they're looking at.
+          echo "BACKUP_METHOD=pg_dump" > ./backups/BACKUP_METHOD
+          echo "BACKUP_METHOD_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ./backups/BACKUP_METHOD
 
+      # KAN-167 Phase 2: this fallback step ONLY runs if pg_dump failed.
+      # When it runs, it writes a BACKUP_METHOD marker indicating fallback was
+      # used AND emits a ::warning:: annotation so the failure is visible in
+      # the run summary even though the workflow may exit green.
       - name: Fallback to REST API backup
         if: steps.pgdump.outcome == 'failure'
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          set -euo pipefail
+          echo "::warning::pg_dump failed — falling back to REST API backup. The artifact will be JSON-per-table, not SQL. Investigate why pg_dump failed (Supabase networking? Pooler endpoint change? Credentials?). See KAN-167."
+
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::REST API fallback also missing required secrets (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY). No backup possible."
+            exit 1
+          fi
+
           chmod +x scripts/backup-database-api.sh
           ./scripts/backup-database-api.sh ./backups
+          # Mark which path was used so integrity check treats this as degraded
+          # rather than full backup.
+          echo "BACKUP_METHOD=rest_api_fallback" > ./backups/BACKUP_METHOD
+          echo "BACKUP_METHOD_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ./backups/BACKUP_METHOD
+          echo "BACKUP_METHOD_REASON=pg_dump primary path failed in step pgdump" >> ./backups/BACKUP_METHOD
 
+      # KAN-167 Phase 2: NEW STEP. Validates every artifact before R2 upload.
+      # The workflow goes RED here if the backup is a placeholder, malformed,
+      # or doesn't meet the configured row-count threshold. This prevents
+      # broken artifacts from being committed to immutable R2 storage where
+      # they'd be locked for 90 days.
+      - name: Verify backup integrity
+        run: |
+          set -euo pipefail
+          echo "## Database Backup Integrity Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          INTEGRITY_FAILED=0
+
+          # Read which backup method was actually used
+          if [ -f ./backups/BACKUP_METHOD ]; then
+            BACKUP_METHOD=$(grep "^BACKUP_METHOD=" ./backups/BACKUP_METHOD | cut -d= -f2)
+            echo "Backup method: $BACKUP_METHOD"
+            echo "| Backup method | $BACKUP_METHOD |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::error::BACKUP_METHOD marker file is missing — neither pg_dump nor REST fallback wrote it"
+            echo "| Backup method | ❌ marker missing |" >> $GITHUB_STEP_SUMMARY
+            INTEGRITY_FAILED=1
+            BACKUP_METHOD=unknown
+          fi
+
+          if [ "$BACKUP_METHOD" = "pg_dump" ]; then
+            # ── pg_dump path: validate the .sql file ──
+            SQL_FILES=( ./backups/lyra_backup_*.sql )
+            if [ ! -f "${SQL_FILES[0]}" ]; then
+              echo "::error::No .sql file found in ./backups/ despite pg_dump claiming success"
+              echo "| .sql file | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            else
+              SQL_FILE="${SQL_FILES[0]}"
+
+              # Must start with PostgreSQL comment header
+              if ! head -c 2 "$SQL_FILE" | grep -q "^--"; then
+                echo "::error::$SQL_FILE does not start with PostgreSQL comment header. First 50 chars: $(head -c 50 "$SQL_FILE")"
+                echo "| .sql file | ❌ Invalid header |" >> $GITHUB_STEP_SUMMARY
+                INTEGRITY_FAILED=1
+              elif ! grep -q "^CREATE TABLE" "$SQL_FILE"; then
+                echo "::error::$SQL_FILE contains no CREATE TABLE statements"
+                echo "| .sql file | ❌ No CREATE TABLE |" >> $GITHUB_STEP_SUMMARY
+                INTEGRITY_FAILED=1
+              else
+                LINE_COUNT=$(wc -l < "$SQL_FILE")
+                CREATE_COUNT=$(grep -c "^CREATE TABLE" "$SQL_FILE")
+                if [ "$LINE_COUNT" -lt 50 ]; then
+                  echo "::error::$SQL_FILE suspiciously short ($LINE_COUNT lines)"
+                  echo "| .sql file | ❌ Only $LINE_COUNT lines |" >> $GITHUB_STEP_SUMMARY
+                  INTEGRITY_FAILED=1
+                else
+                  echo "| .sql file | ✅ $LINE_COUNT lines, $CREATE_COUNT CREATE TABLE statements |" >> $GITHUB_STEP_SUMMARY
+
+                  # Row-count threshold check — gated by EXPECTED_MIN_ROWS env var
+                  # Counts INSERT INTO statements as a proxy for row count
+                  INSERT_COUNT=$(grep -c "^INSERT INTO" "$SQL_FILE" || true)
+                  if [ "$INSERT_COUNT" -lt "$EXPECTED_MIN_ROWS" ]; then
+                    echo "::error::$SQL_FILE contains $INSERT_COUNT INSERT statements but EXPECTED_MIN_ROWS=$EXPECTED_MIN_ROWS"
+                    echo "| Row count | ❌ $INSERT_COUNT < threshold $EXPECTED_MIN_ROWS |" >> $GITHUB_STEP_SUMMARY
+                    INTEGRITY_FAILED=1
+                  else
+                    echo "| Row count | ✅ $INSERT_COUNT INSERT statements (threshold: $EXPECTED_MIN_ROWS) |" >> $GITHUB_STEP_SUMMARY
+                  fi
+                fi
+              fi
+            fi
+
+          elif [ "$BACKUP_METHOD" = "rest_api_fallback" ]; then
+            # ── REST fallback path: validate per-table .json files ──
+            JSON_FILES=( ./backups/*.json )
+            if [ ! -f "${JSON_FILES[0]}" ]; then
+              echo "::error::REST fallback claimed success but no .json files in ./backups/"
+              echo "| .json files | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+              INTEGRITY_FAILED=1
+            else
+              # Validate each JSON file is a valid JSON array (REST API returns arrays)
+              JSON_FAILED=0
+              for f in ./backups/*.json; do
+                if ! python3 -c "import json,sys; d=json.load(open('$f')); sys.exit(0 if isinstance(d,list) else 1)" 2>/dev/null; then
+                  echo "::error::$f is not a valid JSON array — REST API likely returned an error response"
+                  JSON_FAILED=1
+                  INTEGRITY_FAILED=1
+                fi
+              done
+              if [ "$JSON_FAILED" -eq 0 ]; then
+                COUNT=$(ls ./backups/*.json | wc -l)
+                echo "| .json files | ⚠ $COUNT files (REST fallback — see warning above) |" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+
+          else
+            echo "::error::Unknown BACKUP_METHOD: $BACKUP_METHOD"
+            INTEGRITY_FAILED=1
+          fi
+
+          if [ "$INTEGRITY_FAILED" -eq 1 ]; then
+            echo "::error::Database backup integrity check FAILED — see annotations. R2 upload will be skipped."
+            exit 1
+          fi
+          echo "✅ All database backup integrity checks passed"
+
+      # KAN-167 Phase 2: artifact upload still uses `if: always()` so we get the
+      # artifact even on failure (for forensics). This is intentional and is
+      # NOT a silent-skip — the workflow still goes red on integrity failure.
       - name: Upload backup artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: lyra-db-backup-${{ github.run_id }}
           path: backups/
           retention-days: 90
 
+      # KAN-167 Phase 2: removed `continue-on-error: true` (was hiding real R2
+      # errors as "may already exist under bucket lock"). Now distinguishes
+      # ObjectLockedByBucketPolicy (HTTP 409, expected on same-day re-runs)
+      # from real errors (auth, network) which fail the workflow loud.
+      # Removed `if: env.R2_ACCESS_KEY_ID != ''` step-level silent-skip.
+      # `if: success()` is retained — we don't upload broken artifacts.
       - name: Upload to Cloudflare R2 immutable backup
-        if: success() && env.R2_ACCESS_KEY_ID != ''
-        continue-on-error: true
+        if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
-            echo "R2 credentials not configured — skipping immutable backup"
-            exit 0
+          set -euo pipefail
+          if [ -z "${R2_ACCESS_KEY_ID:-}" ] || [ -z "${R2_SECRET_ACCESS_KEY:-}" ] \
+             || [ -z "${R2_ENDPOINT:-}" ] || [ -z "${R2_BUCKET_NAME:-}" ]; then
+            echo "::error::R2 credentials incomplete — cannot upload database backup to immutable storage"
+            exit 1
           fi
-          # Install AWS CLI (S3-compatible with R2)
+
           pip install awscli --quiet
-          # Configure for R2
           export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
           export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
-          echo "R2 endpoint: ${R2_ENDPOINT}"
-          echo "R2 bucket: ${R2_BUCKET_NAME}"
-          # Upload with timestamp key to avoid object lock conflicts on re-runs
           DATE=$(date -u +%Y-%m-%dT%H%M%SZ)
-          for f in backups/*; do
+          UPLOAD_FAILED=0
+
+          for f in ./backups/*; do
             FILENAME=$(basename "$f")
-            echo "Uploading $FILENAME to R2..."
-            aws s3 cp "$f" "s3://${R2_BUCKET_NAME}/${DATE}/${FILENAME}" \
-              --endpoint-url "$R2_ENDPOINT" \
-              --no-progress || echo "⚠ Upload failed for $FILENAME (may already exist under bucket lock)"
+            echo "Uploading database/$DATE/$FILENAME to R2..."
+            if AWS_OUTPUT=$(aws s3 cp "$f" "s3://${R2_BUCKET_NAME}/database/${DATE}/${FILENAME}" \
+                --endpoint-url "$R2_ENDPOINT" --no-progress 2>&1); then
+              echo "  ✓ $FILENAME uploaded"
+            else
+              if echo "$AWS_OUTPUT" | grep -q "ObjectLockedByBucketPolicy\|already exists"; then
+                echo "::warning::$FILENAME already exists under bucket lock (expected on same-day re-runs)"
+              else
+                echo "::error::$FILENAME upload failed: $AWS_OUTPUT"
+                UPLOAD_FAILED=1
+              fi
+            fi
           done
-          echo "✅ Immutable backup uploaded to R2 (${R2_BUCKET_NAME}/${DATE}/)"
-          echo "🔒 Bucket lock: 90-day retention — cannot be deleted"
+
+          if [ "$UPLOAD_FAILED" -eq 1 ]; then
+            echo "::error::At least one R2 upload failed for non-bucket-lock reasons"
+            exit 1
+          fi
+          echo "✅ Database backup uploaded to R2 (database/${DATE}/)"
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Database Backup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Asset | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|" >> $GITHUB_STEP_SUMMARY
+          for f in ./backups/*; do
+            NAME=$(basename "$f")
+            SIZE=$(du -h "$f" | cut -f1)
+            echo "| $NAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
+          done
