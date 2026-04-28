@@ -45,14 +45,20 @@ jobs:
       # ── Tier 1: GitHub secrets list (names only) ──────────
       # KAN-167: the previous version used `|| echo "(failed to fetch)"` which
       # silently swallowed 403 responses (the default GITHUB_TOKEN does not have
-      # permission to list repo secrets). The step now fails loud if either
-      # repo's secrets cannot be listed, so we know about it on the next run
-      # rather than discovering broken backups months later.
+      # permission to list repo secrets). The step now uses LYRA_BACKUP_PAT
+      # (a fine-grained PAT with secrets:read scope on both lyra and
+      # lyra-mcp-server) and fails loud if either repo's secrets cannot be listed.
+      # See KAN-170 for PAT rotation tracking.
       - name: Export GitHub Actions secret names
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.LYRA_BACKUP_PAT }}
         run: |
           set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::LYRA_BACKUP_PAT secret is not set. Generate a fine-grained PAT with secrets:read scope on luisa-sys/lyra and luisa-sys/lyra-mcp-server, add it as a repo secret, see KAN-170."
+            exit 1
+          fi
+
           OUTPUT_FILE="$BACKUP_DIR/github-secrets-list.txt"
           echo "=== GitHub Secrets (NAMES ONLY — values cannot be exported) ===" > "$OUTPUT_FILE"
           echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$OUTPUT_FILE"
@@ -69,7 +75,7 @@ jobs:
             else
               echo "(fetch failed: see workflow log for details)" >> "$OUTPUT_FILE"
               echo "::error::Failed to list secrets for $repo. gh api response: $RESPONSE"
-              echo "::error::This usually means GITHUB_TOKEN lacks 'secrets: read' permission. Either grant the permission, switch to a PAT, or remove this step."
+              echo "::error::Check that LYRA_BACKUP_PAT is valid, has secrets:read scope, and includes both luisa-sys/lyra and luisa-sys/lyra-mcp-server in its repo access list. See KAN-170."
               STEP_FAILED=1
             fi
             echo "" >> "$OUTPUT_FILE"
