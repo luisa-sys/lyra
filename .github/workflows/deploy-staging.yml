@@ -83,16 +83,78 @@ jobs:
     needs: deploy-staging
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Wait for deployment propagation
         run: sleep 20
+      # BUGS-4: verify Vercel actually deployed our SHA before health-checking.
+      # Without this, the 401 from stage.checklyra.com (Vercel SSO) would be
+      # accepted as success even if the deploy never happened or rolled back.
+      - name: Verify Vercel deployment matches commit SHA
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          MAX_ATTEMPTS=6
+          ATTEMPT=0
+          STATE=""
+          UID=""
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            DEPLOY_INFO=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=staging&limit=5" \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              meta = d.get('meta', {}) or {}
+              sha = meta.get('githubCommitSha') or ''
+              if sha == target:
+                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
+            STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
+
+            if [ "$UID" = "NONE" ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel staging deployment for SHA ${EXPECTED_SHA:0:8} yet"
+              [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
+              echo "::error::Vercel has no staging deployment for SHA ${EXPECTED_SHA:0:8}"
+              exit 1
+            fi
+
+            if [ "$STATE" = "READY" ]; then
+              echo "::notice::Vercel deployment $UID for SHA ${EXPECTED_SHA:0:8} is READY"
+              break
+            fi
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $UID is $STATE"
+            [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15
+          done
+
+          if [ "$STATE" != "READY" ]; then
+            echo "::error::Vercel deployment $UID never reached READY state ($STATE)"
+            exit 1
+          fi
       - name: Health check — MCP server
         run: |
+          set -euo pipefail
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
           echo "MCP health: $STATUS"
           [ "$STATUS" = "200" ] || (echo "::error::MCP health check failed" && exit 1)
       - name: Smoke test — staging site
         run: |
-          # Staging is behind Vercel Auth (SSO), so 401 is expected
+          set -euo pipefail
+          # SHA verification above is the primary success signal. This URL
+          # check is defense-in-depth — it confirms stage.checklyra.com is
+          # reachable. Vercel SSO returns 401 for unauthenticated curl,
+          # which is expected and acceptable here. integrity-ok: 401 SHA-verified above
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
           echo "Staging site: $STATUS"
           [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging site unreachable" && exit 1)
