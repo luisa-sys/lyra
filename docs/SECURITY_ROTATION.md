@@ -1,6 +1,6 @@
 # Security Rotation Schedule
 
-> Last updated: 29 March 2026 | KAN-119
+> Last updated: 29 April 2026 | KAN-119, BUGS-4 (PAT additions, GitHub App removal — never created)
 > Review this document quarterly. Set calendar reminders for 90-day rotations.
 
 ## Secrets Inventory
@@ -12,8 +12,8 @@
 | Supabase sb_publishable_ keys (x3) | Vercel env vars, GitHub secrets | Annual or on suspicion | Supabase → Settings → API → Regenerate. Zero-downtime: new key works immediately, old key remains valid during migration window. Update Vercel env vars + GitHub secrets + redeploy all 3 environments. | Initial setup |
 | Supabase sb_secret_ keys (x3) | Vercel env vars, GitHub secrets, Railway env vars | Annual or on suspicion | Same as above. **Also update Railway env vars** for MCP server. Multiple keys can coexist — issue new key, deploy, then revoke old. | Initial setup |
 | Vercel deploy token | GitHub secret: VERCEL_TOKEN | 90 days | Vercel → Settings → Tokens → Create new → Update GitHub secret → Revoke old token. | Initial setup |
-| GitHub App private key | GitHub secret: PRIVATE_KEY | Annual | GitHub → Settings → Developer Settings → GitHub Apps → Lyra CI → Generate new private key → Update GitHub secret → Delete old key. | Initial setup |
-| GitHub App ID | GitHub variable: APP_ID | Never (not a secret) | Only changes if App is recreated. | N/A |
+| LYRA_RELEASE_PAT | GitHub secret (luisa-sys/lyra) | Annual | GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens → Regenerate. Scope: contents:write on luisa-sys/lyra only. Used by promote-to-staging.yml and promote-to-production.yml so downstream deploy workflows trigger (GITHUB_TOKEN suppresses triggers). Created for BUGS-4 fix. | 29 April 2026 |
+| LYRA_BACKUP_PAT | GitHub secret (luisa-sys/lyra) | Annual | GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens → Regenerate. Scope: secrets:read, dependabot_alerts:read, code_scanning_alerts:read, contents:read on luisa-sys/lyra AND luisa-sys/lyra-mcp-server. Used by backup-platform.yml and weekly-report.yml for cross-repo telemetry. | 28 April 2026 |
 | Google OAuth client secret | Supabase Auth config (all 3 projects) | Annual or on suspicion | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client → Reset Secret → Update in all 3 Supabase project Auth settings. **Causes downtime**: all Google Sign-In sessions invalidated immediately. | Initial setup |
 | Railway API token | Local scripts only (not in CI) | 90 days | Railway → Account → Tokens → Create new → Update local env → Revoke old. | Initial setup |
 | SUPABASE_DB_URL (pg_dump) | GitHub secret | Annual | Supabase → Settings → Database → Connection string (Transaction Pooler, port 6543). Password changes if database password is reset. | Initial setup |
@@ -55,13 +55,31 @@
 6. Test Google Sign-In on dev environment
 7. Promote to staging and production
 
-### Rotating GitHub App private key
-1. GitHub → Settings → Developer Settings → GitHub Apps → select the Lyra CI app
-2. Scroll to "Private keys" → Generate a private key
-3. Download the new .pem file
-4. GitHub → repo Settings → Secrets → Actions → Update PRIVATE_KEY with the full PEM content
-5. Trigger promote-to-staging workflow to confirm it works
-6. Delete the old private key in the GitHub App settings
+### Rotating LYRA_RELEASE_PAT
+
+1. Go to <https://github.com/settings/personal-access-tokens>
+2. Find LYRA_RELEASE_PAT (or the renamed equivalent if it has been renamed)
+3. Click "Regenerate token" (1-year expiry, custom)
+4. Permissions: Contents → Read and write on luisa-sys/lyra ONLY (no other scope)
+5. Copy the new token immediately (only shown once)
+6. GitHub → luisa-sys/lyra → Settings → Secrets and variables → Actions → Update LYRA_RELEASE_PAT
+7. Test by triggering promote-to-staging.yml — verify deploy-staging.yml actually fires
+8. Delete the old token in GitHub Settings
+
+### Rotating LYRA_BACKUP_PAT
+
+1. Go to <https://github.com/settings/personal-access-tokens>
+2. Find LYRA_BACKUP_PAT
+3. Click "Regenerate token" (1-year expiry, custom)
+4. Permissions on BOTH luisa-sys/lyra AND luisa-sys/lyra-mcp-server:
+   - Contents: Read
+   - Dependabot alerts: Read
+   - Code scanning alerts: Read
+   - Secrets: Read
+5. Copy the new token immediately
+6. GitHub → luisa-sys/lyra → Settings → Secrets → Update LYRA_BACKUP_PAT (only stored on lyra repo, NOT on lyra-mcp-server)
+7. Test by manually triggering backup-platform.yml — verify all secret listings work and no "(failed to fetch)" appears
+8. Delete the old token
 
 ## Emergency Rotation Playbook
 
@@ -79,7 +97,7 @@ If you suspect ANY secret has been compromised:
 | When | What to rotate |
 |------|---------------|
 | 1st of every quarter (Jan, Apr, Jul, Oct) | Vercel deploy token, Railway API token |
-| 1st of January | All Supabase keys (3 environments), GitHub App private key, Google OAuth secret |
+| 1st of January | All Supabase keys (3 environments), LYRA_RELEASE_PAT, LYRA_BACKUP_PAT, Google OAuth secret |
 | On any security incident | Everything in the affected service chain |
 | When an employee/contractor leaves | All secrets they had access to |
 

@@ -14,115 +14,291 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   verify-source:
-    name: Verify develop pipeline passed
+    name: Verify develop pipeline passed at HEAD
     runs-on: ubuntu-latest
+    outputs:
+      develop_sha: ${{ steps.check.outputs.develop_sha }}
     steps:
-      - name: Check last dev pipeline
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+          ref: develop
+      - name: Check dev CI passed at develop HEAD (BUGS-4 fix)
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           if [ "${{ github.event.inputs.confirm }}" != "promote" ]; then
             echo "::error::You must type 'promote' to confirm"
             exit 1
           fi
-          # Use gh api directly to bypass CLI caching issues
-          # Query workflow runs for deploy-dev.yml, filter by branch and status
+
+          DEVELOP_SHA=$(git rev-parse HEAD)
+          echo "develop HEAD: $DEVELOP_SHA"
+          echo "develop_sha=$DEVELOP_SHA" >> "$GITHUB_OUTPUT"
+
+          # BUGS-4: filter by headSha so we cannot match a stale run from a
+          # previous (since-superseded) commit. The previous code took
+          # --limit 1 unconditionally, which means a green run for an OLD
+          # commit could mask CI failures or non-runs for the current HEAD.
           MAX_ATTEMPTS=10
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy-dev.yml/runs?branch=develop&status=completed&per_page=1" -q '.workflow_runs[0].conclusion' 2>/dev/null || echo "")
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: dev pipeline = '$CONCLUSION'"
-            if [ "$CONCLUSION" = "success" ]; then
-              echo "✓ Dev pipeline verified"
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch develop \
+              --workflow deploy-dev.yml \
+              --limit 10 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$DEVELOP_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: dev CI for ${DEVELOP_SHA:0:8} = $STATUS / $CONCLUSION"
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-dev run for SHA ${DEVELOP_SHA:0:8} yet"
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" = "success" ]; then
+              echo "::notice::Dev CI verified for ${DEVELOP_SHA:0:8} (run $RUN_ID)"
               exit 0
-            fi
-            if [ "$CONCLUSION" = "failure" ]; then
-              echo "::error::Last dev pipeline failed. Fix before promoting."
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" != "success" ]; then
+              echo "::error::Dev CI for ${DEVELOP_SHA:0:8} concluded $CONCLUSION (run $RUN_ID). Fix before promoting."
               exit 1
             fi
+
             if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-              echo "  Waiting 15s before retry..."
               sleep 15
             fi
           done
-          echo "::error::Could not verify dev pipeline after $MAX_ATTEMPTS attempts. Try again shortly."
+          echo "::error::Could not verify dev CI for ${DEVELOP_SHA:0:8} after $MAX_ATTEMPTS attempts."
+          echo "::error::Either dev CI hasn't run for this commit yet, or there's a CI delay. Re-trigger shortly."
           exit 1
 
   merge-and-deploy:
     name: Merge develop → staging
     needs: verify-source
     runs-on: ubuntu-latest
+    outputs:
+      merged_sha: ${{ steps.merge.outputs.merged_sha }}
     steps:
+      # BUGS-4: use LYRA_RELEASE_PAT instead of GITHUB_TOKEN. The
+      # GITHUB_TOKEN does not trigger downstream workflows on push (per
+      # https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication
+      # — "events triggered by the GITHUB_TOKEN will not create a new
+      # workflow run"). The PAT is attributed to a real user and DOES
+      # trigger deploy-staging.yml on push.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
       - name: Configure git
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       - name: Merge develop into staging
+        id: merge
         run: |
+          set -euo pipefail
           git checkout staging
           git pull origin staging --ff-only
           git merge origin/develop -m "Promote develop → staging [workflow_dispatch]"
+          MERGED_SHA=$(git rev-parse HEAD)
+          echo "merged_sha=$MERGED_SHA" >> "$GITHUB_OUTPUT"
+          echo "Pushing staging at SHA $MERGED_SHA..."
           git push origin staging
-          echo "Staging branch updated. Deploy workflow will trigger automatically."
+          echo "::notice::Pushed staging at $MERGED_SHA. deploy-staging.yml should trigger now."
 
   wait-for-deploy:
-    name: Wait for staging deploy
+    name: Wait for staging deploy (SHA-matched)
     needs: merge-and-deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for deploy-staging workflow
+      # BUGS-4: filter gh run list by headSha == merged SHA so we cannot
+      # match a stale run from a previous deploy. The previous code used
+      # --limit 1 unconditionally, which matched 32-day-old runs.
+      - name: Wait for deploy-staging.yml run for our SHA
         env:
           GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.merge-and-deploy.outputs.merged_sha }}
         run: |
-          echo "Waiting for staging deploy pipeline..."
-          TIMEOUT=360
+          set -euo pipefail
+          echo "Waiting for deploy-staging.yml run with headSha=$EXPECTED_SHA..."
+          TIMEOUT=420
           ELAPSED=0
           INTERVAL=20
           while [ $ELAPSED -lt $TIMEOUT ]; do
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
-            STATUS=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json status -q '.[0].status')
+
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch staging \
+              --workflow deploy-staging.yml \
+              --limit 5 \
+              --json status,conclusion,headSha,databaseId,createdAt \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-staging run for SHA ${EXPECTED_SHA:0:8} yet ($ELAPSED/${TIMEOUT}s)"
+              continue
+            fi
+
             if [ "$STATUS" = "completed" ]; then
-              CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch staging --workflow deploy-staging.yml --limit 1 --json conclusion -q '.[0].conclusion')
               if [ "$CONCLUSION" = "success" ]; then
-                echo "✓ Staging deploy passed"
+                echo "::notice::deploy-staging run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
                 exit 0
               else
-                echo "::error::Staging deploy failed ($CONCLUSION)"
+                echo "::error::deploy-staging run $RUN_ID FAILED ($CONCLUSION) for SHA ${EXPECTED_SHA:0:8}"
                 exit 1
               fi
             fi
-            echo "  ...still running ($ELAPSED/${TIMEOUT}s)"
+
+            echo "  deploy-staging run $RUN_ID is $STATUS for SHA ${EXPECTED_SHA:0:8} ($ELAPSED/${TIMEOUT}s)"
           done
-          echo "::error::Staging deploy timed out after ${TIMEOUT}s"
+
+          echo "::error::deploy-staging.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
+          echo "::error::This usually means the merge push did not trigger downstream workflows."
+          echo "::error::Check that LYRA_RELEASE_PAT is set and the merge job uses it (not GITHUB_TOKEN)."
           exit 1
 
   post-deploy-health:
-    name: Post-deploy health checks
-    needs: wait-for-deploy
+    name: Verify staging actually serving merged SHA
+    needs: [merge-and-deploy, wait-for-deploy]
     runs-on: ubuntu-latest
     steps:
-      - name: Health check — staging site
+      # BUGS-4: query Vercel API for the latest staging deployment and
+      # compare its SHA to our merged SHA. The previous health check
+      # accepted HTTP 401 (Vercel SSO) as success — but 401 is returned
+      # regardless of which build is deployed, so it tells us nothing.
+      - name: Verify Vercel deployed our SHA to staging
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          EXPECTED_SHA: ${{ needs.merge-and-deploy.outputs.merged_sha }}
         run: |
+          set -euo pipefail
+          # Query the Vercel REST API for recent deployments on this project,
+          # filter for staging-target, and verify the most recent has our SHA.
+          # Retry briefly because Vercel may take ~30s to register the deploy
+          # after deploy-staging.yml completes.
+          MAX_ATTEMPTS=6
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            DEPLOY_INFO=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=staging&limit=5" \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              meta = d.get('meta', {}) or {}
+              sha = meta.get('githubCommitSha') or ''
+              if sha == target:
+                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
+            STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
+
+            if [ "$UID" = "NONE" ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel deployment for SHA ${EXPECTED_SHA:0:8} yet"
+              [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
+              echo "::error::Vercel has no staging deployment for SHA ${EXPECTED_SHA:0:8}"
+              exit 1
+            fi
+
+            if [ "$STATE" = "READY" ]; then
+              echo "::notice::Vercel deployment $UID for SHA ${EXPECTED_SHA:0:8} is READY"
+              break
+            fi
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $UID is $STATE"
+            [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15
+          done
+
+          if [ "$STATE" != "READY" ]; then
+            echo "::error::Vercel deployment $UID never reached READY state ($STATE)"
+            exit 1
+          fi
+
+      - name: Health check — staging endpoint reachable
+        run: |
+          set -euo pipefail
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
-          echo "Staging: $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging unreachable ($STATUS)" && exit 1)
+          # 200 = served (would need bypass to see actual content)
+          # 401 = Vercel SSO gate (expected for staging)
+          # 403 = Cloudflare bot challenge (acceptable for CI)
+          # Any 5xx = real failure
+          case "$STATUS" in
+            200|401|403)
+              echo "::notice::stage.checklyra.com responded $STATUS (gate or content)"
+              ;;
+            *)
+              echo "::error::stage.checklyra.com unreachable: $STATUS"
+              exit 1
+              ;;
+          esac
       - name: Health check — MCP server
         run: |
+          set -euo pipefail
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
-          echo "MCP: $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "403" ] || (echo "::error::MCP health failed ($STATUS)" && exit 1)
+          case "$STATUS" in
+            200|403)
+              echo "::notice::MCP server responded $STATUS"
+              ;;
+            *)
+              echo "::error::MCP server unreachable: $STATUS"
+              exit 1
+              ;;
+          esac
       - name: Summary
+        env:
+          EXPECTED_SHA: ${{ needs.merge-and-deploy.outputs.merged_sha }}
         run: |
-          echo "## ✅ Staging Promotion Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "develop has been promoted to staging." >> $GITHUB_STEP_SUMMARY
-          echo "- Staging site: https://stage.checklyra.com" >> $GITHUB_STEP_SUMMARY
-          echo "- MCP server: https://mcp.checklyra.com/health" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ✅ Staging Promotion Complete"
+            echo ""
+            echo "develop has been promoted to staging at SHA \`${EXPECTED_SHA:0:8}\`."
+            echo ""
+            echo "- Staging site: https://stage.checklyra.com"
+            echo "- MCP server: https://mcp.checklyra.com/health"
+            echo "- Vercel deployment verified for this SHA"
+          } >> "$GITHUB_STEP_SUMMARY"

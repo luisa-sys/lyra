@@ -10,6 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Workflow integrity check (BUGS-4)
+        # Static scan of .github/workflows/*.yml for known false-positive
+        # patterns (GITHUB_TOKEN+push, --limit 1 deploy verification, 401
+        # acceptance without SHA verification). Fails the PR if any
+        # workflow re-introduces a banned pattern. See script source for
+        # rationale and the # integrity-ok: allow-list mechanism.
+        run: bash scripts/check-workflow-integrity.sh
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:

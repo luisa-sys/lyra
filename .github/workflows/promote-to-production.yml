@@ -9,117 +9,396 @@ on:
 permissions:
   contents: write
   actions: read
+  pull-requests: write
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   verify-source:
-    name: Verify staging pipeline passed
+    name: Verify staging pipeline passed at HEAD
     runs-on: ubuntu-latest
+    outputs:
+      staging_sha: ${{ steps.check.outputs.staging_sha }}
+      staging_short: ${{ steps.check.outputs.staging_short }}
     steps:
-      - name: Confirm production deploy
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+          ref: staging
+      - name: Check staging CI passed at staging HEAD (BUGS-4 fix)
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           if [ "${{ github.event.inputs.confirm }}" != "PRODUCTION" ]; then
             echo "::error::You must type 'PRODUCTION' (case sensitive) to confirm"
             exit 1
           fi
-          # Use gh api directly to bypass CLI caching issues
+
+          STAGING_SHA=$(git rev-parse HEAD)
+          STAGING_SHORT="${STAGING_SHA:0:8}"
+          echo "staging HEAD: $STAGING_SHA"
+          echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
+          echo "staging_short=$STAGING_SHORT" >> "$GITHUB_OUTPUT"
+
+          # BUGS-4: filter by headSha to avoid matching stale runs.
           MAX_ATTEMPTS=10
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy-staging.yml/runs?branch=staging&status=completed&per_page=1" -q '.workflow_runs[0].conclusion' 2>/dev/null || echo "")
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: staging pipeline = '$CONCLUSION'"
-            if [ "$CONCLUSION" = "success" ]; then
-              echo "✓ Staging pipeline verified"
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch staging \
+              --workflow deploy-staging.yml \
+              --limit 10 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$STAGING_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: staging CI for $STAGING_SHORT = $STATUS / $CONCLUSION"
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-staging run for SHA $STAGING_SHORT yet"
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" = "success" ]; then
+              echo "::notice::Staging CI verified for $STAGING_SHORT (run $RUN_ID)"
               exit 0
-            fi
-            if [ "$CONCLUSION" = "failure" ]; then
-              echo "::error::Last staging pipeline failed. Fix before promoting."
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" != "success" ]; then
+              echo "::error::Staging CI for $STAGING_SHORT concluded $CONCLUSION (run $RUN_ID). Fix before promoting."
               exit 1
             fi
+
             if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-              echo "  Waiting 15s before retry..."
               sleep 15
             fi
           done
-          echo "::error::Could not verify staging pipeline after $MAX_ATTEMPTS attempts. Try again shortly."
+          echo "::error::Could not verify staging CI for $STAGING_SHORT after $MAX_ATTEMPTS attempts."
           exit 1
 
-  merge-and-deploy:
-    name: Merge staging → main
+  create-release-pr:
+    name: Create release branch + PR + enable auto-merge
     needs: verify-source
     runs-on: ubuntu-latest
+    outputs:
+      release_branch: ${{ steps.pr.outputs.release_branch }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
     steps:
+      # BUGS-4: use LYRA_RELEASE_PAT for the push so downstream workflows
+      # (PR Quality Gate, CodeQL Analysis) ARE triggered by the release
+      # branch push. GITHUB_TOKEN would silently suppress those triggers,
+      # making auto-merge wait forever for status checks that never run.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
       - name: Configure git
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Merge staging into main
+      - name: Create release branch from staging
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
+          STAGING_SHA: ${{ needs.verify-source.outputs.staging_sha }}
+          STAGING_SHORT: ${{ needs.verify-source.outputs.staging_short }}
         run: |
-          git checkout main
-          git pull origin main --ff-only
-          git merge origin/staging -m "Promote staging → production [workflow_dispatch]"
-          git push origin main
-      - name: Create release tag
-        run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
-          NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
-          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — promoted from staging"
-          git push origin "$NEW_TAG"
-          echo "Tagged: $NEW_TAG"
-          echo "RELEASE_TAG=$NEW_TAG" >> $GITHUB_ENV
+          set -euo pipefail
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="release/${DATE}-prod-${STAGING_SHORT}"
+          echo "Creating release branch: $BRANCH"
 
-  wait-for-deploy:
-    name: Wait for production deploy
-    needs: merge-and-deploy
+          # Check out staging exactly (no merge with main; the PR will merge)
+          git checkout staging
+          git pull origin staging --ff-only
+          git checkout -b "$BRANCH"
+          # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger
+          git push origin "$BRANCH"
+
+          echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # Compose PR body with all the relevant context
+          PR_TITLE="Promote staging → production ($STAGING_SHORT)"
+          PR_BODY=$(cat <<EOF
+          Auto-generated promotion PR by promote-to-production.yml workflow.
+
+          ## What this is
+
+          This PR promotes the current \`staging\` branch HEAD to \`main\`, triggering a production deployment.
+
+          - **Source SHA**: \`$STAGING_SHA\`
+          - **Source branch**: \`staging\`
+          - **Triggered by**: workflow_dispatch (manual trigger by ${{ github.actor }})
+          - **Auto-merge**: enabled — will merge automatically when status checks pass
+
+          ## Verification gates before merge
+
+          GitHub branch protection on \`main\` requires:
+          - PR Quality Gate (lint + type-check + unit tests + npm audit)
+          - CodeQL Analysis
+
+          Both run automatically on this PR. Auto-merge will trigger once both pass.
+
+          ## What happens after merge
+
+          1. \`deploy-production.yml\` triggers on push to \`main\`
+          2. Vercel deploys to checklyra.com
+          3. \`promote-to-production.yml\` workflow continues with smoke tests + SHA verification
+          4. If smoke tests pass, a release tag \`v0.1.x+1\` is created
+          5. If smoke tests fail, automatic Vercel rollback is attempted
+
+          ## How to abort
+
+          - Close this PR before status checks complete → no merge happens, no deploy
+          - This will cause the wait-for-merge job in the parent workflow to time out and fail loudly
+
+          ## Refs
+
+          - BUGS-4: PR-based pattern fix (replaces direct push that bypassed branch protection)
+          - KAN-173: hybrid release automation
+          EOF
+          )
+
+          # Create the PR
+          PR_URL=$(gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY")
+
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "PR created: $PR_URL (number: $PR_NUMBER)"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Enable auto-merge. Status checks must pass before this fires.
+          # If auto-merge is disabled at repo level, this command fails.
+          gh pr merge "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --auto \
+            --merge
+
+          echo "::notice::PR #$PR_NUMBER opened with auto-merge enabled"
+          {
+            echo "## 📥 Promotion PR Opened"
+            echo ""
+            echo "- PR: $PR_URL"
+            echo "- Source SHA: \`$STAGING_SHORT\`"
+            echo "- Auto-merge: enabled"
+            echo ""
+            echo "Waiting for status checks (CodeQL + PR Quality Gate) to pass..."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  wait-for-merge:
+    name: Wait for PR merge
+    needs: [verify-source, create-release-pr]
     runs-on: ubuntu-latest
+    outputs:
+      merge_sha: ${{ steps.poll.outputs.merge_sha }}
     steps:
-      - name: Wait for deploy-production workflow
+      - name: Poll PR until merged
+        id: poll
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.create-release-pr.outputs.pr_number }}
+          STAGING_SHORT: ${{ needs.verify-source.outputs.staging_short }}
         run: |
-          echo "Waiting for production deploy pipeline..."
-          TIMEOUT=420
+          set -euo pipefail
+          # Status checks (CodeQL takes ~1.5min, PR Quality Gate takes ~1min)
+          # then auto-merge fires. Total typically under 4 min. Allow 15 min
+          # for safety (CodeQL can be queued up to ~5 min during peak times).
+          TIMEOUT=900
           ELAPSED=0
           INTERVAL=20
           while [ $ELAPSED -lt $TIMEOUT ]; do
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
-            STATUS=$(gh run list --repo ${{ github.repository }} --branch main --workflow deploy-production.yml --limit 1 --json status -q '.[0].status')
+
+            PR_STATE=$(gh pr view "$PR_NUMBER" \
+              --repo "${{ github.repository }}" \
+              --json state,merged,mergeCommit,mergeable,statusCheckRollup \
+              -q '{state, merged, sha: .mergeCommit.oid, mergeable, checks: [.statusCheckRollup[] | {name: .name, conclusion: .conclusion}]}')
+
+            STATE=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
+            MERGED=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['merged'])")
+
+            if [ "$MERGED" = "True" ]; then
+              MERGE_SHA=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'] or '')")
+              if [ -z "$MERGE_SHA" ]; then
+                echo "::error::PR #$PR_NUMBER reports merged but mergeCommit.oid is empty"
+                exit 1
+              fi
+              echo "::notice::PR #$PR_NUMBER merged at $MERGE_SHA"
+              echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if [ "$STATE" = "CLOSED" ]; then
+              echo "::error::PR #$PR_NUMBER was CLOSED without merging. Promotion aborted."
+              exit 1
+            fi
+
+            # Print progress on every check
+            CHECK_SUMMARY=$(echo "$PR_STATE" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          checks = d.get('checks') or []
+          if not checks:
+              print('  (no status checks reported yet)')
+          else:
+              for c in checks:
+                  print(f\"    {c['name']}: {c['conclusion'] or 'pending'}\")")
+            echo "  PR #$PR_NUMBER state=$STATE merged=$MERGED ($ELAPSED/${TIMEOUT}s)"
+            echo "$CHECK_SUMMARY"
+          done
+
+          echo "::error::PR #$PR_NUMBER did not merge within ${TIMEOUT}s"
+          echo "::error::Check status checks on the PR. CodeQL and PR Quality Gate must pass for auto-merge to fire."
+          exit 1
+
+  wait-for-deploy:
+    name: Wait for production deploy (SHA-matched)
+    needs: wait-for-merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy-production.yml run for our SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for deploy-production.yml run with headSha=$EXPECTED_SHA..."
+          TIMEOUT=480
+          ELAPSED=0
+          INTERVAL=20
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch main \
+              --workflow deploy-production.yml \
+              --limit 5 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-production run for SHA ${EXPECTED_SHA:0:8} yet ($ELAPSED/${TIMEOUT}s)"
+              continue
+            fi
+
             if [ "$STATUS" = "completed" ]; then
-              CONCLUSION=$(gh run list --repo ${{ github.repository }} --branch main --workflow deploy-production.yml --limit 1 --json conclusion -q '.[0].conclusion')
               if [ "$CONCLUSION" = "success" ]; then
-                echo "✓ Production deploy passed"
+                echo "::notice::deploy-production run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
                 exit 0
               else
-                echo "::error::Production deploy FAILED ($CONCLUSION)"
+                echo "::error::deploy-production run $RUN_ID FAILED ($CONCLUSION) for SHA ${EXPECTED_SHA:0:8}"
                 exit 1
               fi
             fi
-            echo "  ...still running ($ELAPSED/${TIMEOUT}s)"
+
+            echo "  deploy-production run $RUN_ID is $STATUS for SHA ${EXPECTED_SHA:0:8} ($ELAPSED/${TIMEOUT}s)"
           done
-          echo "::error::Production deploy timed out"
+
+          echo "::error::deploy-production.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
           exit 1
 
   smoke-tests:
-    name: Production smoke tests
-    needs: wait-for-deploy
+    name: Production smoke tests + SHA verification
+    needs: [wait-for-merge, wait-for-deploy]
     runs-on: ubuntu-latest
     steps:
+      # BUGS-4: verify Vercel actually deployed our SHA to production.
+      - name: Verify Vercel deployed our SHA to production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          EXPECTED_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+        run: |
+          set -euo pipefail
+          MAX_ATTEMPTS=6
+          ATTEMPT=0
+          STATE=""
+          UID=""
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            DEPLOY_INFO=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=production&limit=5" \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              meta = d.get('meta', {}) or {}
+              sha = meta.get('githubCommitSha') or ''
+              if sha == target:
+                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
+            STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
+
+            if [ "$UID" = "NONE" ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel production deployment for SHA ${EXPECTED_SHA:0:8} yet"
+              [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
+              echo "::error::Vercel has no production deployment for SHA ${EXPECTED_SHA:0:8}"
+              exit 1
+            fi
+
+            if [ "$STATE" = "READY" ]; then
+              echo "::notice::Vercel deployment $UID for SHA ${EXPECTED_SHA:0:8} is READY"
+              break
+            fi
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $UID is $STATE"
+            [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15
+          done
+
+          if [ "$STATE" != "READY" ]; then
+            echo "::error::Vercel deployment $UID never reached READY state ($STATE)"
+            exit 1
+          fi
       - name: Wait for CDN propagation
         run: sleep 15
-      - name: Smoke tests
+      - name: Smoke tests on public endpoints
         run: |
+          set -euo pipefail
           FAIL=0
           for ENDPOINT in \
             "https://checklyra.com|200,403|Landing" \
@@ -147,6 +426,7 @@ jobs:
           [ $FAIL -eq 0 ] || exit 1
       - name: MCP protocol handshake
         run: |
+          set -euo pipefail
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "https://mcp.checklyra.com/mcp" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
@@ -161,14 +441,103 @@ jobs:
             echo "$RESPONSE" | grep -q "lyra-mcp-server" || (echo "::error::MCP handshake failed" && exit 1)
             echo "✓ MCP protocol handshake OK"
           fi
-      - name: Summary
+
+  cleanup-release-branch:
+    name: Delete release branch after successful merge
+    needs: [create-release-pr, wait-for-merge, smoke-tests]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      # BUGS-4: clean up the release branch we created in create-release-pr.
+      # Runs only on overall success — if smoke tests fail we leave the
+      # branch in place for forensics. Uses LYRA_RELEASE_PAT so the delete
+      # is attributed correctly in audit logs (not as github-actions[bot]).
+      - name: Delete release branch
+        env:
+          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
+          BRANCH: ${{ needs.create-release-pr.outputs.release_branch }}
         run: |
-          echo "## ✅ Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "staging has been promoted to production." >> $GITHUB_STEP_SUMMARY
-          echo "- Production: https://checklyra.com" >> $GITHUB_STEP_SUMMARY
-          echo "- MCP server: https://mcp.checklyra.com/health" >> $GITHUB_STEP_SUMMARY
-          echo "- All 9 smoke tests passed" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          echo "Deleting release branch: $BRANCH"
+          # If the branch is already gone (e.g. someone deleted it manually),
+          # this returns 422. We catch that as success.
+          if gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$BRANCH" 2>&1 | tee /tmp/del.out; then
+            echo "::notice::Deleted release branch $BRANCH"
+          else
+            if grep -q "Reference does not exist" /tmp/del.out; then
+              echo "::notice::Release branch $BRANCH was already deleted"
+            else
+              echo "::warning::Failed to delete release branch $BRANCH (non-fatal — branch can be deleted manually)"
+            fi
+          fi
+
+  release-tag:
+    name: Create release tag
+    needs: [wait-for-merge, smoke-tests]
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      # BUGS-4: tag created AFTER smoke tests pass (was: tag before deploy).
+      # This way a failed deploy doesn't leave a misleading version tag.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Create and push release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
+          NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — promoted from staging"
+          git push origin "$NEW_TAG"
+          echo "Tagged: $NEW_TAG"
+          echo "release_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
+  summary:
+    name: Production promotion summary
+    needs: [wait-for-merge, smoke-tests, release-tag, cleanup-release-branch]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Final summary
+        env:
+          MERGE_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+          RELEASE_TAG: ${{ needs.release-tag.outputs.release_tag }}
+          SMOKE_RESULT: ${{ needs.smoke-tests.result }}
+          TAG_RESULT: ${{ needs.release-tag.result }}
+        run: |
+          set -euo pipefail
+          if [ "$SMOKE_RESULT" = "success" ] && [ "$TAG_RESULT" = "success" ]; then
+            {
+              echo "## ✅ Production Deployment Complete"
+              echo ""
+              echo "Production deployed at SHA \`${MERGE_SHA:0:8}\` (\`$RELEASE_TAG\`)."
+              echo ""
+              echo "- Production: https://checklyra.com"
+              echo "- MCP server: https://mcp.checklyra.com/health"
+              echo "- Vercel deployment SHA-verified"
+              echo "- All 9 smoke tests passed"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ Production Promotion Failed"
+              echo ""
+              echo "- Smoke tests: $SMOKE_RESULT"
+              echo "- Release tag: $TAG_RESULT"
+              echo "- Merge SHA: \`${MERGE_SHA:0:8}\`"
+              echo ""
+              echo "Investigate via Actions tab. Auto-rollback may have triggered."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   auto-rollback:
     name: Auto-rollback on failure
@@ -180,17 +549,17 @@ jobs:
         run: npm install -g vercel@latest
       - name: Rollback to previous deployment
         run: |
+          set -uo pipefail
+          # Note: NOT using -e so we can fall through to a clear error
+          # message rather than abort silently if the rollback itself fails.
           echo "::warning::Smoke tests FAILED — initiating automatic rollback"
-          # List recent production deployments and rollback to the previous one
           DEPLOYMENTS=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} 2>/dev/null | head -5)
           echo "Recent deployments:"
           echo "$DEPLOYMENTS"
-          # Vercel automatically keeps previous deployments — promote the previous one
           PREV_URL=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --json 2>/dev/null | python3 -c "
           import json, sys
           try:
             data = json.load(sys.stdin)
-            # Find the second most recent production deployment
             prod_deploys = [d for d in data if d.get('target') == 'production']
             if len(prod_deploys) >= 2:
               print(prod_deploys[1]['url'])
@@ -202,11 +571,15 @@ jobs:
           if [ "$PREV_URL" != "NONE" ] && [ -n "$PREV_URL" ]; then
             echo "Rolling back to: $PREV_URL"
             vercel promote "$PREV_URL" --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes 2>&1 || echo "::warning::Vercel promote failed — manual rollback may be needed"
-            echo "## ⚠️ Auto-Rollback Executed" >> $GITHUB_STEP_SUMMARY
-            echo "Smoke tests failed. Rolled back to previous deployment." >> $GITHUB_STEP_SUMMARY
+            {
+              echo "## ⚠️ Auto-Rollback Executed"
+              echo "Smoke tests failed. Rolled back to previous deployment."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::error::Could not find previous deployment for rollback"
-            echo "## ❌ Auto-Rollback Failed" >> $GITHUB_STEP_SUMMARY
-            echo "No previous deployment found. Manual intervention required." >> $GITHUB_STEP_SUMMARY
-            echo "Run: vercel rollback --token=\$VERCEL_TOKEN" >> $GITHUB_STEP_SUMMARY
+            {
+              echo "## ❌ Auto-Rollback Failed"
+              echo "No previous deployment found. Manual intervention required."
+              echo "Run: vercel rollback --token=\$VERCEL_TOKEN"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi

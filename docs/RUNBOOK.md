@@ -4,6 +4,76 @@
 
 EnvironmentURLBranchProtectionProduction<https://checklyra.com>mainPublicDevelopment<https://dev.checklyra.com>developVercel SSOStaging<https://stage.checklyra.com>stagingVercel SSO
 
+## Release Procedure
+
+Promotions follow develop → staging → main with manual triggers and automated verification.
+
+### Promote develop → staging
+
+```bash
+gh workflow run promote-to-staging.yml -f confirm=promote --repo luisa-sys/lyra
+```
+
+The workflow:
+
+1. Verifies dev CI passed at develop HEAD (filtered by SHA — won't accept stale runs)
+2. Merges develop into staging using `LYRA_RELEASE_PAT` (NOT `GITHUB_TOKEN`, which suppresses downstream workflow triggers — see CLAUDE.md gotcha #16)
+3. Pushes staging branch
+4. Waits up to 7 min for `deploy-staging.yml` to run for the new SHA
+5. Verifies via Vercel API that the new SHA is actually deployed and READY
+6. Smoke-checks `stage.checklyra.com` and `mcp.checklyra.com/health`
+
+If any step fails, the workflow exits non-zero and no further promotion happens.
+
+### Promote staging → main (production)
+
+```bash
+gh workflow run promote-to-production.yml -f confirm=PRODUCTION --repo luisa-sys/lyra
+```
+
+Note the case-sensitive confirmation — must be exactly `PRODUCTION`.
+
+The workflow uses a PR-based pattern (because `main` requires PR per branch protection):
+
+1. Verifies staging CI passed at staging HEAD (SHA-filtered)
+2. Creates a release branch `release/{date}-prod-{shortsha}` from staging
+3. Pushes the release branch using `LYRA_RELEASE_PAT` so PR-checks workflows trigger
+4. Opens a PR from release branch → main with full context in the body
+5. Enables auto-merge — PR merges automatically when status checks pass
+6. Polls until merged (up to 15 min — CodeQL + PR Quality Gate must pass)
+7. Waits for `deploy-production.yml` to run for the merge SHA
+8. Verifies Vercel production deployment matches the SHA
+9. Runs 9 smoke tests on public endpoints
+10. If all pass, creates release tag `v0.1.x+1`
+11. Cleans up the release branch
+12. If smoke tests fail, auto-rollback fires (Vercel `promote` to previous deployment)
+
+### Required secrets
+
+- `LYRA_RELEASE_PAT` — fine-grained PAT with `contents:write` on `luisa-sys/lyra`. Used for the merge push so downstream workflows trigger. Annual rotation. See `docs/SECURITY_ROTATION.md`.
+- `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` — for SHA verification via Vercel API.
+
+### When NOT to release
+
+- Open Highest-priority bug ticket against the system being released
+- Smoke test endpoints already failing (deploy won't make it worse, but you won't get a clean signal)
+- Mid-incident (use a hotfix branch directly to main via PR if needed; don't pile a release on top of an active investigation)
+- Friday afternoon UK time (no support window for the weekend)
+
+### Verifying a release worked
+
+After the workflow completes successfully:
+
+```bash
+# Confirm production SHA matches main HEAD
+gh api repos/luisa-sys/lyra/branches/main --jq '.commit.sha'
+curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=production&limit=1" \
+  | python3 -c "import json,sys; d=json.load(sys.stdin)['deployments'][0]; print(f\"Vercel SHA: {d['meta'].get('githubCommitSha')}\")"
+```
+
+Both SHAs should match. If they don't, suspect the CodeQL alert dashboard mismatch (alerts only auto-resolve against `main`'s state, may take 24h after merge to refresh).
+
 ## Deployment Rollback
 
 ### Via Vercel Dashboard (recommended)
