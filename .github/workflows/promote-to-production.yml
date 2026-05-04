@@ -21,18 +21,18 @@ defaults:
 
 jobs:
   verify-source:
-    name: Verify staging pipeline passed at HEAD
+    name: Verify beta pipeline passed at HEAD
     runs-on: ubuntu-latest
     outputs:
-      staging_sha: ${{ steps.check.outputs.staging_sha }}
-      staging_short: ${{ steps.check.outputs.staging_short }}
+      beta_sha: ${{ steps.check.outputs.beta_sha }}
+      beta_short: ${{ steps.check.outputs.beta_short }}
       main_sha_before_merge: ${{ steps.check.outputs.main_sha_before_merge }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 1
-          ref: staging
-      - name: Check staging CI passed at staging HEAD (BUGS-4 fix)
+          ref: beta
+      - name: Check beta CI passed at beta HEAD (BUGS-4 fix)
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -43,11 +43,11 @@ jobs:
             exit 1
           fi
 
-          STAGING_SHA=$(git rev-parse HEAD)
-          STAGING_SHORT="${STAGING_SHA:0:8}"
-          echo "staging HEAD: $STAGING_SHA"
-          echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
-          echo "staging_short=$STAGING_SHORT" >> "$GITHUB_OUTPUT"
+          BETA_SHA=$(git rev-parse HEAD)
+          BETA_SHORT="${BETA_SHA:0:8}"
+          echo "beta HEAD: $BETA_SHA"
+          echo "beta_sha=$BETA_SHA" >> "$GITHUB_OUTPUT"
+          echo "beta_short=$BETA_SHORT" >> "$GITHUB_OUTPUT"
 
           # BUGS-9: capture main HEAD BEFORE the merge so auto-rollback knows
           # which SHA to roll back to. We can't compute this in auto-rollback
@@ -61,19 +61,20 @@ jobs:
           echo "main_sha_before_merge=$MAIN_SHA_BEFORE_MERGE" >> "$GITHUB_OUTPUT"
 
           # BUGS-4: filter by headSha to avoid matching stale runs.
+          # KAN-175: source is now `beta` and CI workflow is `deploy-beta.yml`.
           MAX_ATTEMPTS=10
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             RUN_INFO=$(gh run list \
               --repo "${{ github.repository }}" \
-              --branch staging \
-              --workflow deploy-staging.yml \
+              --branch beta \
+              --workflow deploy-beta.yml \
               --limit 10 \
               --json status,conclusion,headSha,databaseId \
               | python3 -c "
           import json, sys
-          target = '$STAGING_SHA'
+          target = '$BETA_SHA'
           runs = json.load(sys.stdin)
           for r in runs:
               if r['headSha'] == target:
@@ -86,15 +87,15 @@ jobs:
             CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
             RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
 
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: staging CI for $STAGING_SHORT = $STATUS / $CONCLUSION"
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: beta CI for $BETA_SHORT = $STATUS / $CONCLUSION"
 
             if [ "$STATUS" = "NONE" ]; then
-              echo "  No deploy-staging run for SHA $STAGING_SHORT yet"
+              echo "  No deploy-beta run for SHA $BETA_SHORT yet"
             elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" = "success" ]; then
-              echo "::notice::Staging CI verified for $STAGING_SHORT (run $RUN_ID)"
+              echo "::notice::Beta CI verified for $BETA_SHORT (run $RUN_ID)"
               exit 0
             elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" != "success" ]; then
-              echo "::error::Staging CI for $STAGING_SHORT concluded $CONCLUSION (run $RUN_ID). Fix before promoting."
+              echo "::error::Beta CI for $BETA_SHORT concluded $CONCLUSION (run $RUN_ID). Fix before promoting."
               exit 1
             fi
 
@@ -102,7 +103,7 @@ jobs:
               sleep 15
             fi
           done
-          echo "::error::Could not verify staging CI for $STAGING_SHORT after $MAX_ATTEMPTS attempts."
+          echo "::error::Could not verify beta CI for $BETA_SHORT after $MAX_ATTEMPTS attempts."
           exit 1
 
   create-release-pr:
@@ -126,21 +127,23 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Create release branch from staging
+      - name: Create release branch from beta
         id: pr
         env:
           GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
-          STAGING_SHA: ${{ needs.verify-source.outputs.staging_sha }}
-          STAGING_SHORT: ${{ needs.verify-source.outputs.staging_short }}
+          BETA_SHA: ${{ needs.verify-source.outputs.beta_sha }}
+          BETA_SHORT: ${{ needs.verify-source.outputs.beta_short }}
         run: |
           set -euo pipefail
           DATE=$(date -u +%Y-%m-%d)
-          BRANCH="release/${DATE}-prod-${STAGING_SHORT}"
+          BRANCH="release/${DATE}-prod-${BETA_SHORT}"
           echo "Creating release branch: $BRANCH"
 
-          # Check out staging exactly (no merge with main; the PR will merge)
-          git checkout staging
-          git pull origin staging --ff-only
+          # KAN-175: source is now `beta` (was `staging` before KAN-175).
+          # The next promotion gate is beta → main; staging→beta is a separate
+          # workflow (promote-staging-to-beta.yml).
+          git checkout beta
+          git pull origin beta --ff-only
           git checkout -b "$BRANCH"
 
           # BUGS-11: merge main HEAD into the release branch so the head has
@@ -162,16 +165,16 @@ jobs:
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
           # Compose PR body with all the relevant context
-          PR_TITLE="Promote staging → production ($STAGING_SHORT)"
+          PR_TITLE="Promote beta → production ($BETA_SHORT)"
           PR_BODY=$(cat <<EOF
           Auto-generated promotion PR by promote-to-production.yml workflow.
 
           ## What this is
 
-          This PR promotes the current \`staging\` branch HEAD to \`main\`, triggering a production deployment.
+          This PR promotes the current \`beta\` branch HEAD to \`main\`, triggering a production deployment.
 
-          - **Source SHA**: \`$STAGING_SHA\`
-          - **Source branch**: \`staging\`
+          - **Source SHA**: \`$BETA_SHA\`
+          - **Source branch**: \`beta\`
           - **Triggered by**: workflow_dispatch (manual trigger by ${{ github.actor }})
           - **Auto-merge**: enabled — will merge automatically when status checks pass
 
@@ -227,7 +230,7 @@ jobs:
             echo "## 📥 Promotion PR Opened"
             echo ""
             echo "- PR: $PR_URL"
-            echo "- Source SHA: \`$STAGING_SHORT\`"
+            echo "- Source SHA: \`$BETA_SHORT\`"
             echo "- Auto-merge: enabled"
             echo ""
             echo "Waiting for status checks (CodeQL + PR Quality Gate) to pass..."
@@ -245,7 +248,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ needs.create-release-pr.outputs.pr_number }}
-          STAGING_SHORT: ${{ needs.verify-source.outputs.staging_short }}
+          BETA_SHORT: ${{ needs.verify-source.outputs.beta_short }}
         run: |
           set -euo pipefail
           # Status checks (CodeQL takes ~1.5min, PR Quality Gate takes ~1min)

@@ -49,10 +49,18 @@ export const metadata: Metadata = {
       "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
     images: ["/og-image.png"],
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  // KAN-175: only allow indexing on production. On beta and any non-prod
+  // env (dev, staging, preview), emit noindex,nofollow so leaked URLs don't
+  // surface in search results. Mirrors the per-env robots.txt logic in
+  // src/app/robots.ts.
+  robots: (() => {
+    const isProductionEnv =
+      process.env.IS_BETA_DEPLOY !== 'true' &&
+      process.env.VERCEL_ENV === 'production';
+    return isProductionEnv
+      ? { index: true, follow: true }
+      : { index: false, follow: false, noarchive: true, nosnippet: true };
+  })(),
   icons: {
     icon: "/favicon.ico",
     apple: "/lyra-icon-180.png",
