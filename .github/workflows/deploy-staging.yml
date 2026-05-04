@@ -100,7 +100,7 @@ jobs:
           MAX_ATTEMPTS=6
           ATTEMPT=0
           STATE=""
-          UID=""
+          DEPLOY_UID=""
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             DEPLOY_INFO=$(curl -sf \
@@ -119,10 +119,10 @@ jobs:
           else:
               print('NONE||')
           ")
-            UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
+            DEPLOY_UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
             STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
 
-            if [ "$UID" = "NONE" ]; then
+            if [ "$DEPLOY_UID" = "NONE" ]; then
               echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel staging deployment for SHA ${EXPECTED_SHA:0:8} yet"
               [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
               echo "::error::Vercel has no staging deployment for SHA ${EXPECTED_SHA:0:8}"
@@ -130,16 +130,16 @@ jobs:
             fi
 
             if [ "$STATE" = "READY" ]; then
-              echo "::notice::Vercel deployment $UID for SHA ${EXPECTED_SHA:0:8} is READY"
+              echo "::notice::Vercel deployment $DEPLOY_UID for SHA ${EXPECTED_SHA:0:8} is READY"
               break
             fi
 
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $UID is $STATE"
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $DEPLOY_UID is $STATE"
             [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15
           done
 
           if [ "$STATE" != "READY" ]; then
-            echo "::error::Vercel deployment $UID never reached READY state ($STATE)"
+            echo "::error::Vercel deployment $DEPLOY_UID never reached READY state ($STATE)"
             exit 1
           fi
       - name: Health check — MCP server
