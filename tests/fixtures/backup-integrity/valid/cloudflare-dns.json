@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result": [
+    {"id": "rec1", "type": "A", "name": "checklyra.com", "content": "76.76.21.21"},
+    {"id": "rec2", "type": "A", "name": "www.checklyra.com", "content": "76.76.21.21"},
+    {"id": "rec3", "type": "CNAME", "name": "stage.checklyra.com", "content": "cname.vercel-dns.com"},
+    {"id": "rec4", "type": "CNAME", "name": "dev.checklyra.com", "content": "cname.vercel-dns.com"},
+    {"id": "rec5", "type": "MX", "name": "checklyra.com", "content": "10 inbound.example.com"}
+  ]
+}
