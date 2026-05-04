@@ -114,6 +114,30 @@ for f in "$WORKFLOW_DIR"/*.yml; do
   fi
 done
 
+# ── Pattern 4: rollback / promote step swallowing errors with `|| echo ::warning::` ──
+# BUGS-9: the previous auto-rollback step in promote-to-production.yml ran
+# `vercel promote ... || echo "::warning::..."` which converted a real CLI
+# failure into a step-summary lie. Any rollback/promote line that ORs into
+# `echo "::warning::"` (or `echo "::notice::"`) hides the failure from the job
+# status. Use `|| { echo ::error:: ; exit 1 ; }` if you really need a custom
+# message — never `|| echo ::warning::` on a critical action.
+for f in "$WORKFLOW_DIR"/*.yml; do
+  [ -f "$f" ] || continue
+
+  # Match: `vercel ... || echo "::warning::..."` OR `... promote ... || echo "::warning::..."`
+  if grep -nE '(vercel|promote|rollback).*\|\|[[:space:]]*echo[[:space:]]+"::(warning|notice)::' "$f" >/tmp/rb_hits 2>/dev/null && [ -s /tmp/rb_hits ]; then
+    if ! grep -qE '# integrity-ok:.*rollback' "$f"; then
+      while IFS= read -r hit; do
+        echo "::error file=$f::Pattern 4: rollback/promote step swallows error with '|| echo ::warning/notice::' — produces false-positive success → $hit"
+      done < /tmp/rb_hits
+      echo "    Use '|| { echo ::error:: ; exit 1 ; }', or invoke a script with set -euo pipefail."
+      echo "    Or add '# integrity-ok: rollback <reason>' if genuinely advisory."
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+  fi
+done
+rm -f /tmp/rb_hits
+
 echo ""
 if [ "$PROBLEMS" -eq 0 ]; then
   echo "✓ No workflow integrity issues found"
