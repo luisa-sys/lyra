@@ -26,6 +26,7 @@ jobs:
     outputs:
       staging_sha: ${{ steps.check.outputs.staging_sha }}
       staging_short: ${{ steps.check.outputs.staging_short }}
+      main_sha_before_merge: ${{ steps.check.outputs.main_sha_before_merge }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -47,6 +48,17 @@ jobs:
           echo "staging HEAD: $STAGING_SHA"
           echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
           echo "staging_short=$STAGING_SHORT" >> "$GITHUB_OUTPUT"
+
+          # BUGS-9: capture main HEAD BEFORE the merge so auto-rollback knows
+          # which SHA to roll back to. We can't compute this in auto-rollback
+          # itself because by then main has already moved.
+          MAIN_SHA_BEFORE_MERGE=$(gh api repos/${{ github.repository }}/branches/main --jq .commit.sha)
+          if [ -z "$MAIN_SHA_BEFORE_MERGE" ] || [ "$MAIN_SHA_BEFORE_MERGE" = "null" ]; then
+            echo "::error::Could not determine main HEAD before merge — auto-rollback would have no target SHA"
+            exit 1
+          fi
+          echo "main HEAD pre-merge: $MAIN_SHA_BEFORE_MERGE"
+          echo "main_sha_before_merge=$MAIN_SHA_BEFORE_MERGE" >> "$GITHUB_OUTPUT"
 
           # BUGS-4: filter by headSha to avoid matching stale runs.
           MAX_ATTEMPTS=10
@@ -130,6 +142,20 @@ jobs:
           git checkout staging
           git pull origin staging --ff-only
           git checkout -b "$BRANCH"
+
+          # BUGS-11: merge main HEAD into the release branch so the head has
+          # main's HEAD as a direct ancestor. Without this, the next promotion
+          # after a successful production merge has behind_by=1 from main
+          # (because the prior merge commit was never copied back into
+          # develop/staging), which trips main's `required_status_checks.strict`
+          # rule and silently blocks GitHub auto-merge for the full 15-min
+          # wait-for-merge timeout. With this merge, behind_by=0 by
+          # construction and auto-merge can fire as soon as required checks pass.
+          # Conflicts here are intentionally fatal — they indicate divergence
+          # beyond auto-resolution and need human review.
+          git fetch origin main --depth=50
+          git merge origin/main --no-edit -m "Merge main into release branch (BUGS-11)"
+
           # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger
           git push origin "$BRANCH"
 
@@ -542,45 +568,22 @@ jobs:
 
   auto-rollback:
     name: Auto-rollback on failure
-    needs: smoke-tests
+    needs: [verify-source, smoke-tests]
     if: failure()
     runs-on: ubuntu-latest
     steps:
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-      - name: Rollback to previous deployment
-        run: |
-          set -uo pipefail
-          # Note: NOT using -e so we can fall through to a clear error
-          # message rather than abort silently if the rollback itself fails.
-          echo "::warning::Smoke tests FAILED — initiating automatic rollback"
-          DEPLOYMENTS=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} 2>/dev/null | head -5)
-          echo "Recent deployments:"
-          echo "$DEPLOYMENTS"
-          PREV_URL=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --json 2>/dev/null | python3 -c "
-          import json, sys
-          try:
-            data = json.load(sys.stdin)
-            prod_deploys = [d for d in data if d.get('target') == 'production']
-            if len(prod_deploys) >= 2:
-              print(prod_deploys[1]['url'])
-            else:
-              print('NONE')
-          except:
-            print('NONE')
-          " 2>/dev/null || echo "NONE")
-          if [ "$PREV_URL" != "NONE" ] && [ -n "$PREV_URL" ]; then
-            echo "Rolling back to: $PREV_URL"
-            vercel promote "$PREV_URL" --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes 2>&1 || echo "::warning::Vercel promote failed — manual rollback may be needed"
-            {
-              echo "## ⚠️ Auto-Rollback Executed"
-              echo "Smoke tests failed. Rolled back to previous deployment."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::error::Could not find previous deployment for rollback"
-            {
-              echo "## ❌ Auto-Rollback Failed"
-              echo "No previous deployment found. Manual intervention required."
-              echo "Run: vercel rollback --token=\$VERCEL_TOKEN"
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+      - name: Roll production back to pre-merge SHA (BUGS-9)
+        env:
+          TARGET_SHA: ${{ needs.verify-source.outputs.main_sha_before_merge }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        # set -euo pipefail in the script itself; no swallowing fallbacks.
+        # Replaces the previous `vercel ls --json | filter target=production`
+        # parser that printed "NONE" on shape mismatch, then promoted the
+        # string "NONE", then swallowed the error with `|| echo ::warning::`,
+        # producing a false-positive success. See run 25324541577.
+        run: python3 scripts/rollback-to-sha.py
