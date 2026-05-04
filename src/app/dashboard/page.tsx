@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 
 export const metadata = {
@@ -27,8 +28,8 @@ export default async function DashboardPage() {
     <main className="min-h-screen">
       <header className="border-b border-stone-200 bg-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">
-            Lyra
+          <h1 className="flex items-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
           </h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-[var(--color-muted)]">

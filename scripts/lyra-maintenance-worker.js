@@ -5,7 +5,7 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lyra — Coming Soon</title>
   <meta name="description" content="Lyra is a calm profile platform. Launching soon." />
-  <meta name="robots" content="noindex, nofollow" />
+  <meta name="robots" content="noindex" />
   <meta property="og:title" content="Lyra — Coming Soon" />
   <meta property="og:description" content="A calm profile platform. Launching soon." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -166,9 +166,9 @@ const MAINTENANCE_HTML = `<!DOCTYPE html>
   </div>
   <div class="footer">
     <span>&copy; 2026 Lyra</span>
-    <a href="/privacy">Privacy Policy</a>
-    <a href="/terms">Terms of Service</a>
-    <a href="/cookies">Cookie Policy</a>
+    <a href="https://checklyra.com/privacy">Privacy Policy</a>
+    <a href="https://checklyra.com/terms">Terms of Service</a>
+    <a href="https://checklyra.com/cookies">Cookie Policy</a>
   </div>
   <script>
     document.getElementById('interestForm').addEventListener('submit', async function(e) {
@@ -367,10 +367,9 @@ export default {
 
     // Serve maintenance page for GET and everything else
     return new Response(MAINTENANCE_HTML, {
-      status: 503,
+      status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Retry-After': '604800',
         'Cache-Control': 'no-store',
         'X-Robots-Tag': 'noindex',
       },

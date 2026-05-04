@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { env } from '@/lib/env';
 
@@ -83,8 +84,8 @@ export default async function SearchPage({
       {/* Nav */}
       <nav aria-label="Search navigation" className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">
-            lyra
+          <Link href="/" className="flex items-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />
           </Link>
           <Link
             href="/signup"

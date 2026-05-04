@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { SettingsClient } from './settings-client';
 
 export const metadata = {
@@ -17,7 +18,9 @@ export default async function SettingsPage() {
     <main className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="font-[family-name:var(--font-serif)] text-xl text-[var(--color-ink)]">Lyra</Link>
+          <Link href="/dashboard" className="flex items-center">
+            <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
+          </Link>
           <span className="text-sm text-[var(--color-muted)]">Account Settings</span>
         </div>
       </header>

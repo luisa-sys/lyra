@@ -20,32 +20,85 @@ async function getUserProfile(supabase: Awaited<ReturnType<typeof createClient>>
   return profile;
 }
 
-export async function updateProfile(formData: FormData): Promise<ActionResult> {
-  const { user, supabase, error: authError } = await getAuthenticatedUser();
-  if (authError) return { success: false, error: authError };
+/**
+ * Allowlist of columns on the `profiles` table that are user-editable via
+ * server actions. Any key not in this list will be REJECTED by
+ * updateProfileFields (and any future caller that writes user-supplied
+ * field names) — this prevents remote property injection (CodeQL alert #2,
+ * CWE-250 / CWE-400) where an attacker submits an unexpected column name.
+ *
+ * Sourced from supabase/migrations/20260324061701_create_lyra_schema.sql
+ * + 20260330120000_add_avatar_url_and_storage.sql.
+ *
+ * EXPLICITLY EXCLUDED:
+ * - id, user_id, created_at, updated_at: system-managed columns, must
+ *   never be writable by user input.
+ * - slug: unique-constrained at DB level, requires a separate flow with
+ *   collision handling. NOT in this allowlist by design.
+ *
+ * When adding new user-editable columns to the profiles table, add them
+ * here in the same PR — there's a regression test that asserts this list
+ * is non-empty and a separate test in tests/unit/profile-actions.test.ts
+ * that checks the allowlist contents.
+ */
+export const ALLOWED_PROFILE_FIELDS = [
+  'display_name',
+  'headline',
+  'bio_short',
+  'city',
+  'region',
+  'postcode_prefix',
+  'country',
+  'avatar_url',
+  'is_published',
+  'onboarding_complete',
+  'completion_score',
+] as const;
 
-  const field = formData.get('field') as string;
-  const rawValue = formData.get('value') as string;
-  const value = sanitiseText(rawValue);
+type AllowedProfileField = typeof ALLOWED_PROFILE_FIELDS[number];
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ [field]: value })
-    .eq('user_id', user!.id);
-
-  if (error) return { success: false, error: error.message };
-  revalidatePath('/dashboard/profile');
-  return { success: true };
+function isAllowedProfileField(key: string): key is AllowedProfileField {
+  return (ALLOWED_PROFILE_FIELDS as readonly string[]).includes(key);
 }
+
+// KAN-167 / CodeQL alert #2: the previous `updateProfile(formData)` function
+// was DEAD CODE (zero callers in src/) AND had a remote property injection
+// vulnerability — it accepted a `field` name from FormData and wrote
+// `{ [field]: value }` to the profiles table, allowing an authenticated user
+// to write to ANY column on their own row including `is_published`,
+// `completion_score`, `created_at`, etc. Deleted rather than fixed because
+// no caller exists. If a single-field update API is needed in the future,
+// reintroduce it using `updateProfileFields({ [field]: value })` so the
+// allowlist applies.
 
 export async function updateProfileFields(data: Record<string, string | boolean | number | null>): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
-  // Sanitise string values
+  // Reject any key not in the allowlist — prevents remote property injection.
+  // We collect rejected keys rather than failing on the first one so the
+  // error message is useful for debugging legitimate callers.
+  const rejected: string[] = [];
   const sanitised: Record<string, string | boolean | number | null> = {};
   for (const [key, val] of Object.entries(data)) {
+    if (!isAllowedProfileField(key)) {
+      rejected.push(key);
+      continue;
+    }
     sanitised[key] = typeof val === 'string' ? sanitiseText(val) : val;
+  }
+
+  if (rejected.length > 0) {
+    return {
+      success: false,
+      error: `Field(s) not permitted: ${rejected.join(', ')}`,
+    };
+  }
+
+  // If after filtering there's nothing to write, treat as a no-op success
+  // rather than firing a meaningless UPDATE with empty SET.
+  if (Object.keys(sanitised).length === 0) {
+    return { success: true };
   }
 
   const { error } = await supabase

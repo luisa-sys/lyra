@@ -141,4 +141,24 @@ describe('KAN-129: Worker code file integrity', () => {
     expect(content).toContain('!env.INTEREST_EMAILS');
     expect(content).toContain('503');
   });
+
+  // KAN-169: meta robots should be `noindex` only — `nofollow` may cause
+  // OAuth verifiers and other crawlers to refuse to follow the privacy/terms
+  // links, which in turn can cause Google OAuth verification to fail.
+  test('meta robots tag uses noindex without nofollow', () => {
+    const content = fs.readFileSync(workerPath, 'utf8');
+    // Must include the noindex meta tag (we still don't want pre-launch page indexed)
+    expect(content).toMatch(/<meta\s+name="robots"\s+content="noindex"\s*\/>/);
+    // Must NOT include nofollow anywhere in the meta robots directive
+    expect(content).not.toMatch(/<meta\s+name="robots"[^>]*nofollow/);
+  });
+
+  // KAN-169: privacy policy link must be present and reachable from the
+  // homepage. This was the issue Google's OAuth verifier flagged on
+  // 2026-04-05. Guard against accidental removal.
+  test('homepage HTML contains a privacy policy link', () => {
+    const content = fs.readFileSync(workerPath, 'utf8');
+    expect(content).toContain('href="https://checklyra.com/privacy"');
+    expect(content).toMatch(/>Privacy Policy</);
+  });
 });
