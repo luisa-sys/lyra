@@ -40,7 +40,7 @@
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",
-    "typescript": "^5"
+    "typescript": "^6"
   },
   "overrides": {
     "postcss": "^8.5.10"
