@@ -48,7 +48,8 @@ jest.mock('@/lib/supabase-server', () => ({
   }),
 }));
 
-import { updateProfileFields, ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/actions';
+import { updateProfileFields } from '@/app/dashboard/profile/actions';
+import { ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/profile-fields';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
