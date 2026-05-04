@@ -200,11 +200,11 @@ These have caused real bugs. Read before making related changes:
 
 19. **MCP servers are per-environment** — keys do NOT cross environments: There are TWO MCP servers (deployed on Railway), each pointed at exactly one Supabase project. API keys generated in one environment cannot be validated by an MCP server pointed at a different Supabase project, because each project has its own `api_keys` table.
 
-    | MCP endpoint | Supabase project | App that issues compatible keys |
+    | MCP endpoint | Supabase project | App(s) that issue compatible keys |
     |---|---|---|
-    | `mcp.checklyra.com` | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `checklyra.com` (production) |
+    | `mcp.checklyra.com` | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `checklyra.com` (production) AND, once KAN-175 lands, `beta.checklyra.com` — beta shares prod's Supabase |
     | `mcp-dev.checklyra.com` | `dev-lyra` (`ilprytcrnqyrsbsrfujj`) | `dev.checklyra.com` |
-    | (no stage MCP yet) | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `stage.checklyra.com` — keys generated here cannot be used until a stage MCP is deployed |
+    | _(no stage MCP — by design)_ | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `stage.checklyra.com` — staging is engineering-only and does not expose MCP integrations. Keys generated here are functionally inert; UI should be hidden (KAN-175). |
 
     Symptoms when this is wrong: write tool returns `"Invalid API key"` even though the key looks valid in the issuing app's Settings page. Fix: regenerate the key against the env whose MCP you intend to use. **Read tools** (`get_profile`, `search_profiles`, etc.) are public — they don't validate the key at all, so they appear to "work" with any key. Only **write tools** (`update_profile`, `add_item`, etc.) actually exercise auth. Tracked under BUGS-1 (2026-05-04). Will be obsoleted by KAN-88 (MCP OAuth 2.1).
 
