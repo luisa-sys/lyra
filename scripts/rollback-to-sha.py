@@ -130,11 +130,14 @@ def main() -> int:
     token = os.environ.get("VERCEL_TOKEN", "").strip()
     team_id = os.environ.get("VERCEL_ORG_ID", "").strip()
     project_id = os.environ.get("VERCEL_PROJECT_ID", "").strip()
+    dry_run = os.environ.get("DRY_RUN", "").strip() in {"1", "true", "yes"}
 
     if not all([target_sha, token, team_id, project_id]):
         print("::error::Missing one of TARGET_SHA, VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID")
         return 1
 
+    if dry_run:
+        print("DRY-RUN: will exercise lookup + verification but skip the promote API call.")
     print(f"Target SHA: {target_sha} (looking up matching production deployment…)")
 
     # Step 1: find the deployment matching TARGET_SHA
@@ -157,18 +160,34 @@ def main() -> int:
     deployment_url = target.get("url", "")
     print(f"Found target deployment: uid={uid} url=https://{deployment_url}")
 
-    # Step 2: promote it
-    try:
-        promote_deployment(token, team_id, uid)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        print(f"::error::Vercel promote API call failed: {e.code} {e.reason}")
-        print(body)
-        return 1
+    # Step 2: promote it (skipped in dry-run)
+    if dry_run:
+        print(f"DRY-RUN: would POST /v10/.../promote/{uid}; skipping.")
+    else:
+        try:
+            promote_deployment(token, team_id, uid)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            print(f"::error::Vercel promote API call failed: {e.code} {e.reason}")
+            print(body)
+            return 1
+        print(f"Promote requested for {uid}; verifying production SHA…")
 
-    print(f"Promote requested for {uid}; verifying production SHA…")
+    # Step 3: verify production now serves TARGET_SHA. In dry-run mode we
+    # exercise the verification API once (proves auth + parsing) but treat
+    # any result as informational — it doesn't have to match.
+    if dry_run:
+        try:
+            verify_listing = list_production_deployments(token, project_id, team_id, limit=1)
+        except urllib.error.HTTPError as e:
+            print(f"::error::DRY-RUN verification API call failed: {e.code} {e.reason}")
+            return 1
+        current = parse_current_sha(verify_listing) or "?"
+        match = "match" if current == target_sha else "no-match (expected — target may not be current production)"
+        print(f"DRY-RUN: verification API works. Current production SHA = {current[:8]} ({match}).")
+        print(f"::notice::DRY-RUN successful — lookup, promote-skip, verify-API all green for SHA {target_sha[:8]}")
+        return 0
 
-    # Step 3: verify production now serves TARGET_SHA
     deadline = time.time() + 60
     last_seen_sha: Optional[str] = None
     while time.time() < deadline:
