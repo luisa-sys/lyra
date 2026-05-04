@@ -497,6 +497,145 @@ jobs:
             echo "section-7=ok" >> "$QUALITY_FILE"
           fi
 
+      # ── Section 13: Backup Integrity ───────────────────────
+      # KAN-167 Phase 4: actively check the most recent platform-backup
+      # artifact for placeholder strings ("Schema export failed",
+      # "(failed to fetch", success:false JSON) instead of trusting the
+      # backup workflow's self-reported "all green". Per KAN-167 thesis,
+      # a workflow that silently writes a placeholder file and reports
+      # success is exactly the false-positive class we are eliminating.
+      #
+      # Section number is 13 (not 8) per ticket KAN-167 Phase 4 spec —
+      # 8-12 reserved for future sections (e.g. Section 12 "report self-
+      # health" from Phase 2).
+      - name: Section 13 — Backup Integrity
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/13-backup-integrity.md"
+          echo "## 13. Backup Integrity" > "$OUT"
+          echo "" >> "$OUT"
+
+          # Find the most recent successful backup-platform.yml run.
+          if ! RUN_JSON=$(gh api "repos/${{ github.repository }}/actions/workflows/backup-platform.yml/runs?status=success&per_page=1" 2>"$RUNNER_TEMP/bp-runs.err"); then
+            ERR=$(head -c 200 "$RUNNER_TEMP/bp-runs.err")
+            echo "❌ DATA UNAVAILABLE — could not list backup-platform runs: $ERR" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:run-list-fetch-error" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — backup-platform run list fetch failed: $ERR"
+            exit 0
+          fi
+
+          RUN_ID=$(echo "$RUN_JSON" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          runs = d.get('workflow_runs', [])
+          if not runs:
+              print('NONE')
+          else:
+              print(runs[0]['id'])
+          ")
+
+          if [ "$RUN_ID" = "NONE" ]; then
+            echo "⚠️ DATA UNAVAILABLE — no successful backup-platform.yml runs found." >> "$OUT"
+            echo "" >> "$OUT"
+            echo "This is suspicious — the backup is scheduled weekly. Investigate workflow history." >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:no-successful-backup-runs" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — no successful backup-platform runs in history"
+            exit 0
+          fi
+
+          RUN_DATE=$(echo "$RUN_JSON" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          print(d['workflow_runs'][0].get('created_at', 'unknown'))
+          ")
+
+          # Find the lyra-platform-backup-* artifact on that run.
+          if ! ART_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" 2>"$RUNNER_TEMP/bp-art.err"); then
+            ERR=$(head -c 200 "$RUNNER_TEMP/bp-art.err")
+            echo "❌ DATA UNAVAILABLE — could not list artifacts on run $RUN_ID: $ERR" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:artifact-list-fetch-error" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — artifact list fetch failed: $ERR"
+            exit 0
+          fi
+
+          ART_NAME=$(echo "$ART_JSON" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          for a in d.get('artifacts', []):
+              n = a.get('name', '')
+              if n.startswith('lyra-platform-backup-') and not a.get('expired'):
+                  print(n)
+                  break
+          else:
+              print('NONE')
+          ")
+
+          if [ "$ART_NAME" = "NONE" ]; then
+            echo "❌ DATA UNAVAILABLE — run $RUN_ID has no lyra-platform-backup-* artifact (or it is expired)." >> "$OUT"
+            echo "" >> "$OUT"
+            echo "Run: https://github.com/${{ github.repository }}/actions/runs/$RUN_ID" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:no-platform-backup-artifact" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — no platform-backup artifact on run $RUN_ID"
+            exit 0
+          fi
+
+          # Download into a temp dir (gh run download extracts the zip).
+          DOWNLOAD_DIR="$RUNNER_TEMP/backup-download"
+          mkdir -p "$DOWNLOAD_DIR"
+          if ! gh run download "$RUN_ID" --repo "${{ github.repository }}" --name "$ART_NAME" --dir "$DOWNLOAD_DIR" 2>"$RUNNER_TEMP/bp-dl.err"; then
+            ERR=$(head -c 200 "$RUNNER_TEMP/bp-dl.err")
+            echo "❌ DATA UNAVAILABLE — gh run download failed for $ART_NAME: $ERR" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:artifact-download-error" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — artifact download failed: $ERR"
+            exit 0
+          fi
+
+          # Run the integrity check. Capture stdout (the ✅/❌ table) and
+          # exit code separately. Don't let the script's exit 1 trip our
+          # `set -e` — we want to surface the failure in the email and the
+          # quality summary, not crash the report job.
+          INTEGRITY_OUT="$RUNNER_TEMP/integrity-output.txt"
+          set +e
+          bash scripts/check-backup-integrity.sh "$DOWNLOAD_DIR" > "$INTEGRITY_OUT" 2>&1
+          INTEGRITY_RC=$?
+          set -e
+
+          echo "**Source:** [run $RUN_ID]($GITHUB_SERVER_URL/${{ github.repository }}/actions/runs/$RUN_ID) (created $RUN_DATE)" >> "$OUT"
+          echo "" >> "$OUT"
+          echo "**Artifact:** \`$ART_NAME\`" >> "$OUT"
+          echo "" >> "$OUT"
+          echo "| File | Result |" >> "$OUT"
+          echo "|------|--------|" >> "$OUT"
+          # Convert the script's "✅/❌ filename: detail" lines into table rows.
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            # Match lines like "✅ cloudflare-dns.json: 5 records"
+            if [[ "$line" =~ ^(✅|❌)\ ([^:]+):\ (.+)$ ]]; then
+              ICON="${BASH_REMATCH[1]}"
+              FILE="${BASH_REMATCH[2]}"
+              DETAIL="${BASH_REMATCH[3]}"
+              echo "| \`$FILE\` | $ICON $DETAIL |" >> "$OUT"
+            fi
+          done < "$INTEGRITY_OUT"
+          echo "" >> "$OUT"
+
+          if [ "$INTEGRITY_RC" -eq 0 ]; then
+            echo "section-13=ok" >> "$QUALITY_FILE"
+          else
+            echo "**❌ Backup integrity check FAILED — see annotations and the table above. The most recent backup may contain placeholder data and should not be trusted for restore.**" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-13=failed:integrity-check-failed" >> "$QUALITY_FILE"
+            echo "::error::Section 13 — backup integrity check failed (rc=$INTEGRITY_RC). The latest backup contains placeholder data."
+          fi
+
       # ── Compose final report (Data Quality Summary at top) ─
       - name: Compose final report
         if: always()
@@ -513,15 +652,16 @@ jobs:
             # ── Data Quality Summary ──
             echo "## 0. Data Quality Summary"
             echo ""
-            echo "This report is built from 7 data sources. Per KAN-167 Phase 3, each"
+            echo "This report is built from 8 data sources. Per KAN-167 Phase 3+4, each"
             echo "source either succeeds with real data or shows DATA UNAVAILABLE with"
-            echo "the reason — never a silent placeholder."
+            echo "the reason — never a silent placeholder. Section 13 actively checks"
+            echo "the most recent backup artifact for placeholder strings (Phase 4)."
             echo ""
             echo "| Section | Status |"
             echo "|---------|--------|"
 
             ALL_OK=1
-            for n in 1 2 3 4 5 6 7; do
+            for n in 1 2 3 4 5 6 7 13; do
               STATUS_LINE=$(grep "^section-$n=" "$QUALITY_FILE" 2>/dev/null || echo "section-$n=missing:section-did-not-run")
               STATUS=$(echo "$STATUS_LINE" | cut -d= -f2)
               case "$STATUS" in
@@ -564,6 +704,7 @@ jobs:
                 5) NAME="Security" ;;
                 6) NAME="Test Suite" ;;
                 7) NAME="Current Deployment" ;;
+                13) NAME="Backup Integrity" ;;
               esac
               echo "| $n. $NAME | $ICON $REASON |"
             done
