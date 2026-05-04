@@ -16,6 +16,7 @@ Before starting any task, Claude must:
 All work must be tracked in Jira. KAN project for design/deployment, BUGS project for bug tracking.
 
 Every KAN Task/Story description MUST include all six sections:
+
 1. **What & Why**
 2. **Implementation steps**
 3. **Tests Required** — unit, functional, E2E: what to test, mocks, edge cases
@@ -88,29 +89,112 @@ When Claude is deliberately changing site content (e.g. updating a tagline, addi
 
 This policy applies to all test types: unit (Jest), E2E (Playwright), smoke, integration, and any future test suites.
 
+## Workflow & Backup Integrity Policy
+
+**FALSE POSITIVES ARE WORSE THAN FAILURES.** A workflow that silently skips a step and reports green destroys the trust we place in our automation. Backups that look successful but contain placeholder content are worse than no backup at all, because they hide the failure for months.
+
+This policy is mandatory for all GitHub Actions workflows, scheduled jobs, status reports, and backup pipelines.
+
+### Forbidden patterns
+
+Claude must NEVER introduce, and must actively REMOVE on sight:
+
+1. **Silent-skip on missing secrets** — `if: env.X != ''` patterns that skip a critical step without failing. If a secret is missing for a backup, deploy, or verification step, the workflow MUST exit non-zero.
+2. **Error-swallowing fallbacks for critical data** — patterns like `pg_dump ... || echo "Schema export failed" > $FILE` that overwrite the target file with a placeholder string on failure. Use `set -euo pipefail` and let the error propagate, OR write a sentinel and explicitly `exit 1`.
+3. **Lossy** `|| echo "?"` **or** `|| echo "ERROR"` **fallbacks in status reports.** The report must distinguish "0" from "fetch failed". Use clear "DATA UNAVAILABLE" or "(fetch failed: )" labels, never a silent placeholder that reads like a clean zero.
+4. `continue-on-error: true` **on backup or deploy steps.** Acceptable ONLY on advisory steps (e.g. mutation testing) and ONLY with a code comment explaining why.
+5. **Multi-line** `run:` **blocks without** `set -euo pipefail` at the top, OR without `defaults.run.shell: bash` at the workflow level. Pipe failures otherwise go undetected.
+
+### Required patterns
+
+Every multi-line shell block in a GitHub Actions workflow must:
+
+1. Start with `set -euo pipefail` so any failed command halts execution.
+2. Validate critical outputs before declaring success — a SQL dump must start with `--` and contain `CREATE TABLE`; a JSON API response must have `success: true` and a non-empty `result`.
+3. Use GitHub's `::error::` and `::warning::` annotations on failure paths so the failure is surfaced in the run summary, not buried in logs.
+
+### Backup integrity requirements
+
+Every backup workflow must include a final "verify integrity" step that fails the workflow if:
+
+- A SQL dump file does not begin with `--` (PostgreSQL comment header)
+- A SQL dump contains zero `CREATE` statements
+- A SQL dump is suspiciously short (less than 50 lines for the full schema)
+- A JSON export does not parse, has `success: false`, or has zero records when records are expected
+- A secrets-list export contains the literal string "(failed to fetch)"
+
+Status reports (weekly report email and similar) must also actively check the most recent backup artifact for these placeholder patterns and flag them in a "Backup Integrity" section.
+
+### Pre-merge grep checks
+
+Before merging any workflow or test change, run these checks locally and report findings:
+
+```bash
+# Tests that silently skip
+grep -rn -E "(test|it|describe)\.(skip|todo|only)" tests/ src/
+grep -rn -E "\b(xtest|xit|xdescribe)\b" tests/ src/
+
+# Empty test bodies
+grep -rn -E "(test|it)\([^,]*,\s*(\(\)\s*=>|function\s*\(\))\s*\{\s*\}" tests/ src/
+
+# Workflow silent-skip patterns
+grep -rn -E "if:.*env\..*!=\s*''" .github/workflows/
+grep -rn -E '\|\|\s*echo\s*"' .github/workflows/
+grep -rn -E "continue-on-error:\s*true" .github/workflows/
+```
+
+If any match, justify it in a code comment or remove it.
+
+### When investigating "all green" status reports
+
+Never trust a green workflow run on its own. To verify a backup was real:
+
+1. Download the most recent artifact: `gh run download <run-id>`
+2. Verify each file is not a placeholder:
+   - SQL: `head -c 100 <file>.sql` — must be SQL, not the string "Schema export failed"
+   - JSON: parse and assert `success: true` and `len(result) > 0`
+   - Text lists: `grep -c "(failed to fetch)" <file>.txt` must be 0
+3. If any check fails, file a bug at Highest priority and treat the prior backups as suspect until investigated.
+
+This is policy, not a suggestion. Tracked under KAN-167.
+
 ## Known Technical Gotchas
 
 These have caused real bugs. Read before making related changes:
 
-1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge.
+ 1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge.
 
-2. **Vercel branch scoping**: The `develop` branch deploys as a Preview environment. Variables must be scoped via CLI (`vercel env add [VAR] preview develop`) — the dashboard UI cannot scope to a specific branch.
+ 2. **Vercel branch scoping**: The `develop` branch deploys as a Preview environment. Variables must be scoped via CLI (`vercel env add [VAR] preview develop`) — the dashboard UI cannot scope to a specific branch.
 
-3. **GitHub Actions `gh run list` caching**: Recently completed runs may not appear. Use `gh api "repos/{repo}/actions/workflows/{name}/runs?branch={branch}&status=completed&per_page=1"` with retries instead.
+ 3. **GitHub Actions** `gh run list` **caching**: Recently completed runs may not appear. Use `gh api "repos/{repo}/actions/workflows/{name}/runs?branch={branch}&status=completed&per_page=1"` with retries instead.
 
-4. **Supabase Storage RLS**: Buckets must be created via SQL (`INSERT INTO storage.buckets`), then RLS policies applied via `apply_migration`. Use `storage.foldername(name)[1]` for per-user folder enforcement.
+ 4. **Supabase Storage RLS**: Buckets must be created via SQL (`INSERT INTO storage.buckets`), then RLS policies applied via `apply_migration`. Use `storage.foldername(name)[1]` for per-user folder enforcement.
 
-5. **ESLint `no-explicit-any`**: Use `unknown[]` not `any[]` in test files.
+ 5. **ESLint** `no-explicit-any`: Use `unknown[]` not `any[]` in test files.
 
-6. **Next.js route group conflicts**: Creating `src/app/privacy/page.tsx` alongside `src/app/(legal)/privacy/page.tsx` causes Turbopack duplicate route errors. Don't create parallel routes outside and inside a route group.
+ 6. **Next.js route group conflicts**: Creating `src/app/privacy/page.tsx` alongside `src/app/(legal)/privacy/page.tsx` causes Turbopack duplicate route errors. Don't create parallel routes outside and inside a route group.
 
-7. **Cloudflare 403 from CI**: GitHub Actions runner IPs are blocked by Cloudflare bot protection. All smoke tests must accept 403 as valid alongside expected status codes.
+ 7. **Cloudflare 403 from CI**: GitHub Actions runner IPs are blocked by Cloudflare bot protection. All smoke tests must accept 403 as valid alongside expected status codes.
 
-8. **R2 object lock on re-runs**: Same-day backup re-runs fail with ObjectLockedByBucketPolicy. Use timestamp-based paths (YYYY-MM-DDTHHMMSSZ) not date-only paths.
+ 8. **R2 object lock on re-runs**: Same-day backup re-runs fail with ObjectLockedByBucketPolicy. Use timestamp-based paths (YYYY-MM-DDTHHMMSSZ) not date-only paths.
 
-9. **Supabase CLI not used**: SQL migrations must always be provided as actual file contents — never as a filename or path. Use the Supabase MCP `apply_migration` tool or SQL Editor.
+ 9. **Supabase CLI not used**: SQL migrations must always be provided as actual file contents — never as a filename or path. Use the Supabase MCP `apply_migration` tool or SQL Editor.
 
 10. **Jira response parsing**: The actual issues array is inside a `text` field containing a JSON string — requires `json.loads(data[0]['text'])`, not direct dict access.
+
+11. `actions/checkout` **defaults to a shallow clone (depth 1)** which excludes git tags. Workflows that call `git describe --tags` MUST set `with: fetch-depth: 0` (or `fetch-tags: true`) on the checkout step, otherwise tag lookups silently return "unknown". This caused the "Version: unknown" bug in weekly-report.yml.
+
+12. `package.json` **version vs git tags drift**: `package.json` shows `0.1.0` while latest git tag is `v0.1.35`. Tracked in KAN-166. Until aligned, use `git describe --tags --abbrev=0` for the authoritative version, never `pkg.version`.
+
+13. **Cloudflare API token scoping is per-resource**: A token with Zone:Read works for DNS export but NOT for KV or R2. Each scope (DNS, KV, R2, Workers) must be added to the token explicitly. If KV reads return empty/error while DNS reads succeed, suspect missing KV scope first.
+
+14. **Workflow silent-skip pattern**: `if: env.X != ''` patterns silently skip critical steps when secrets are absent and report the workflow green. See "Workflow & Backup Integrity Policy" section above. Tracked under KAN-167 — do not add new instances of this pattern.
+
+15. **Cloudflare Workers have a two-step deploy**: Quick Edit Save creates a new VERSION but does NOT automatically promote it to the active DEPLOYMENT. The "Saved successfully" toast confirms the version was uploaded, not that it's serving production traffic. After saving, you MUST go to the Versions and Deployments tab and click Promote on the new version. Without promotion, the live site keeps serving the previous version even though the dashboard shows the latest source. This caught us during KAN-169 — verified state contradicted live state for nearly an hour. Always verify live behaviour with `curl -s https://checklyra.com/ | grep <expected-change>` after any worker edit, not just trust the Save toast.
+
+16. **GITHUB_TOKEN suppresses downstream workflow triggers**: Per [GitHub's docs](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication), pushes made using `secrets.GITHUB_TOKEN` do NOT trigger downstream workflows on the destination branch — even though the push itself succeeds. This is intentional (prevents recursive workflow runs) but it silently broke `promote-to-staging.yml` and `promote-to-production.yml` for ~32 days: the workflows reported success but no `deploy-staging.yml` / `deploy-production.yml` ever fired. The fix is a dedicated PAT (`LYRA_RELEASE_PAT`) with `contents:write` for the merge push. Discovered during BUGS-4 verification on 2026-04-29. The `scripts/check-workflow-integrity.sh` script (run as part of `pr-checks.yml`) statically detects this pattern and fails any PR that re-introduces it. Allow-list with `# integrity-ok: <reason>` only with explicit justification.
+
+17. **edit_block corrupts markdown on long/complex content**: Desktop Commander's `edit_block` tool intermittently corrupts `.md` files when the new content is large (~1KB+) and contains em-dashes, multiple backticks, and tildes. Two observed symptoms: (a) tildes get escaped to `\~`, (b) wholesale deletion of unrelated lines. Discovered 2026-04-29 during BUGS-4 work; tracked under BUGS-5. Workarounds: (1) for multi-change markdown updates, prefer manual paste in editor (bypasses every tool layer); (2) for surgical edits, use `python3 -c 'with open(...) as f: ... f.write(...)'` via bash (direct filesystem write); (3) ALWAYS run `git diff <file>` after any markdown edit and revert if corruption seen. `edit_block` is fine for code files — only unreliable on `.md`.
 
 ## Supabase Migration Rules
 
@@ -127,6 +211,7 @@ See `docs/ARCHITECTURE.md` for the full environment table. Three environments: d
 ## Scheduled Workflows
 
 See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
+
 - Sunday 02:00 — Database backup
 - Sunday 02:30 — Platform backup (repos, DNS, schema to R2)
 - Sunday 04:00 — Stryker mutation testing
