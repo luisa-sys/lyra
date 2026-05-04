@@ -232,10 +232,11 @@ jobs:
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
 
+            # BUGS-8: gh CLI removed the boolean `merged` field; derive it from `mergedAt`.
             PR_STATE=$(gh pr view "$PR_NUMBER" \
               --repo "${{ github.repository }}" \
-              --json state,merged,mergeCommit,mergeable,statusCheckRollup \
-              -q '{state, merged, sha: .mergeCommit.oid, mergeable, checks: [.statusCheckRollup[] | {name: .name, conclusion: .conclusion}]}')
+              --json state,mergedAt,mergeCommit,mergeable,statusCheckRollup \
+              -q '{state, merged: (.mergedAt != null), sha: .mergeCommit.oid, mergeable, checks: [.statusCheckRollup[] | {name: .name, conclusion: .conclusion}]}')
 
             STATE=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
             MERGED=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['merged'])")
