@@ -17,6 +17,12 @@ jobs:
         # workflow re-introduces a banned pattern. See script source for
         # rationale and the # integrity-ok: allow-list mechanism.
         run: bash scripts/check-workflow-integrity.sh
+      - name: Server-action export check (BUGS-12)
+        # Static scan of every `'use server'` file in src/ for non-async
+        # exports. Next.js 16+ rejects these at action-invocation time
+        # (build does NOT catch it), so without this guard a regression
+        # ships green and breaks every form on the affected page.
+        run: bash scripts/check-server-action-exports.sh
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:

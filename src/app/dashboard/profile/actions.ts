@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
+import { isAllowedProfileField } from './profile-fields';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -20,46 +21,9 @@ async function getUserProfile(supabase: Awaited<ReturnType<typeof createClient>>
   return profile;
 }
 
-/**
- * Allowlist of columns on the `profiles` table that are user-editable via
- * server actions. Any key not in this list will be REJECTED by
- * updateProfileFields (and any future caller that writes user-supplied
- * field names) — this prevents remote property injection (CodeQL alert #2,
- * CWE-250 / CWE-400) where an attacker submits an unexpected column name.
- *
- * Sourced from supabase/migrations/20260324061701_create_lyra_schema.sql
- * + 20260330120000_add_avatar_url_and_storage.sql.
- *
- * EXPLICITLY EXCLUDED:
- * - id, user_id, created_at, updated_at: system-managed columns, must
- *   never be writable by user input.
- * - slug: unique-constrained at DB level, requires a separate flow with
- *   collision handling. NOT in this allowlist by design.
- *
- * When adding new user-editable columns to the profiles table, add them
- * here in the same PR — there's a regression test that asserts this list
- * is non-empty and a separate test in tests/unit/profile-actions.test.ts
- * that checks the allowlist contents.
- */
-export const ALLOWED_PROFILE_FIELDS = [
-  'display_name',
-  'headline',
-  'bio_short',
-  'city',
-  'region',
-  'postcode_prefix',
-  'country',
-  'avatar_url',
-  'is_published',
-  'onboarding_complete',
-  'completion_score',
-] as const;
-
-type AllowedProfileField = typeof ALLOWED_PROFILE_FIELDS[number];
-
-function isAllowedProfileField(key: string): key is AllowedProfileField {
-  return (ALLOWED_PROFILE_FIELDS as readonly string[]).includes(key);
-}
+// The allowlist (ALLOWED_PROFILE_FIELDS, AllowedProfileField, isAllowedProfileField)
+// lives in ./profile-fields — Next.js 16+ rejects non-async-function exports from
+// `'use server'` files at action-invocation time. See BUGS-12.
 
 // KAN-167 / CodeQL alert #2: the previous `updateProfile(formData)` function
 // was DEAD CODE (zero callers in src/) AND had a remote property injection
