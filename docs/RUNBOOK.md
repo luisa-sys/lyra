@@ -50,8 +50,18 @@ The workflow uses a PR-based pattern (because `main` requires PR per branch prot
 
 ### Required secrets
 
-- `LYRA_RELEASE_PAT` — fine-grained PAT with `contents:write` on `luisa-sys/lyra`. Used for the merge push so downstream workflows trigger. Annual rotation. See `docs/SECURITY_ROTATION.md`.
+- `LYRA_RELEASE_PAT` — fine-grained PAT with `contents:write` AND `pull-requests:write` on `luisa-sys/lyra`. Used for the merge push so downstream workflows trigger AND for `gh pr create` in the production-promotion flow (BUGS-8). Annual rotation. See `docs/SECURITY_ROTATION.md`.
 - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` — for SHA verification via Vercel API.
+
+### Version pairing (KAN-166)
+
+Every release tag MUST be paired with a `package.json` version bump. The pipeline currently produces the tag automatically (step 10 above) AFTER the merge to main has landed; the bump is the operator's responsibility on the originating PR. Workflow:
+
+1. On the PR that will be promoted, run `npm version <patch|minor|major> --no-git-tag-version` to bump `package.json` AND `package-lock.json`. Commit on the same PR.
+2. Promote develop → staging → main as normal. The post-merge tag step (`v0.1.x+1`) will match.
+3. The CI test `tests/unit/version-drift.test.js` fails any future PR where `package.json` version doesn't match an existing tag — drift is caught fast, not silently.
+
+**Don't** create a tag without bumping `package.json`, or vice versa. The drift test will reject the next PR until the pair is reunited.
 
 ### When NOT to release
 
@@ -120,39 +130,55 @@ Backups are saved to `./backups/lyra_backup_YYYYMMDD_HHMMSS.sql`
 
 ### Verifying a backup is real (NEVER skip)
 
-A green workflow run is not proof of a real backup. Before trusting any backup, verify the artifact contents:
+A green workflow run is not proof of a real backup. KAN-167 produced two layers of automated verification that make manual checks the exception, not the rule:
+
+1. **Pre-upload gate** in `backup-platform.yml` — fails the workflow red if the SQL dump is a placeholder, the DNS JSON has `success:false`, or the secrets list contains failure markers. R2 upload is skipped on failure.
+2. **Section 13 of the weekly status report** — re-validates the most recent successful backup artifact and surfaces ✅/❌ per file in the Monday email. Drives the report run red if any check fails.
+
+Use the manual procedure below ONLY when:
+- Investigating a specific suspect run (e.g., the workflow reported success but a downstream Section 13 check flagged it)
+- Verifying a brand-new operator workflow before relying on it
+- Spot-checking after a major change to the backup pipeline
+
+#### Manual verification (operator command)
+
+Reach for the helper script — it implements the same three checks Section 13 runs in CI, callable locally against any downloaded artifact:
 
 ```bash
 # Download the most recent backup-platform artifact
-RUN_ID=$(gh run list --workflow=backup-platform.yml --limit 1 --json databaseId -q '.[0].databaseId')
-gh run download $RUN_ID -R luisa-sys/lyra -D /tmp/lyra-backup
+RUN_ID=$(gh run list --workflow=backup-platform.yml --status success --limit 1 --json databaseId -q '.[0].databaseId')
+ART_NAME=$(gh api "repos/luisa-sys/lyra/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts[] | select(.name | startswith("lyra-platform-backup-")) | .name' | head -1)
+gh run download $RUN_ID -R luisa-sys/lyra --name "$ART_NAME" --dir /tmp/lyra-backup
 
-# Verify the SQL dump is real (not a placeholder string)
-head -c 100 /tmp/lyra-backup/*/supabase-schema.sql
-# MUST start with "--" and look like SQL. If it says "Schema export failed", file a bug at Highest priority.
+# Run the same checks Section 13 runs
+bash scripts/check-backup-integrity.sh /tmp/lyra-backup
+# Exits 0 + ✅ lines if all checks pass
+# Exits 1 + ❌ lines if any check fails — file a Highest-priority ticket
 
-grep -c "^CREATE TABLE" /tmp/lyra-backup/*/supabase-schema.sql
-# MUST be > 0
-
-# Verify Cloudflare DNS export is real
-python3 -c "
-import json, glob
-path = glob.glob('/tmp/lyra-backup/*/cloudflare-dns.json')[0]
-d = json.load(open(path))
-assert d.get('success'), 'API returned failure'
-assert len(d.get('result', [])) > 0, 'No DNS records'
-print(f'OK: {len(d[\"result\"])} DNS records')
-"
-
-# Verify secrets list is real
-grep -c "(failed to fetch)" /tmp/lyra-backup/*/github-secrets-list.txt
-# MUST be 0
-
-# Cleanup
+# Cleanup when done
 rm -rf /tmp/lyra-backup
 ```
 
-If any of the above fails, the backup is suspect and should be re-run. See KAN-167 for ongoing work to make these checks automatic.
+If `check-backup-integrity.sh` exits non-zero, treat ALL backups since the last verified-clean run as suspect. The `❌` line on stdout names the specific failure; investigate the workflow logs for that run. KAN-167 is the parent ticket for the underlying integrity policy.
+
+#### Manual deep-dive (when the script reports failure)
+
+```bash
+# SQL dump
+head -c 100 /tmp/lyra-backup/supabase-schema.sql       # must start with "--"
+grep -c "^CREATE TABLE" /tmp/lyra-backup/supabase-schema.sql  # must be > 0
+
+# DNS JSON
+python3 -c "
+import json
+d = json.load(open('/tmp/lyra-backup/cloudflare-dns.json'))
+print('success:', d.get('success'), 'records:', len(d.get('result', [])))
+"
+
+# Secrets list — must NOT contain failure markers
+grep -E "\(failed to fetch|fetch failed|Resource not accessible" /tmp/lyra-backup/github-secrets-list.txt
+# (no output = clean)
+```
 
 ## Database Restore
 
