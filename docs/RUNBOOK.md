@@ -2,7 +2,30 @@
 
 ## Environments
 
-EnvironmentURLBranchProtectionProduction<https://checklyra.com>mainPublicDevelopment<https://dev.checklyra.com>developVercel SSOStaging<https://stage.checklyra.com>stagingVercel SSO
+Each environment is a fully independent stack: app + Supabase + (where deployed) MCP server. **Keys, sessions, and data do NOT cross environments.**
+
+| Environment | App URL | MCP URL | Supabase project | Branch | Access |
+|---|---|---|---|---|---|
+| Production | https://checklyra.com | https://mcp.checklyra.com | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `main` | Public (Cloudflare bot challenge) |
+| Beta _(planned — KAN-175)_ | https://beta.checklyra.com | https://mcp.checklyra.com | `prod-lyra` (shared with prod) | `beta` | Vercel SSO + email allowlist |
+| Staging | https://stage.checklyra.com | _(none — internal-only)_ | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `staging` | Vercel SSO |
+| Development | https://dev.checklyra.com | https://mcp-dev.checklyra.com | `dev-lyra` (`ilprytcrnqyrsbsrfujj`) | `develop` | Vercel SSO |
+
+### MCP usage rules
+
+- **Read tools** (`lyra_get_profile`, `lyra_search_profiles`, etc.) are public — no API key required. They will work against any MCP endpoint regardless of which env you're targeting.
+- **Write tools** (`lyra_update_profile`, `lyra_add_item`, etc.) require an `api_key` argument. The key must have been generated on the **same Supabase project as the MCP** you're calling. Per-env mapping:
+  - Key from `dev.checklyra.com/dashboard/settings` → use `mcp-dev.checklyra.com`
+  - Key from `checklyra.com/dashboard/settings` OR `beta.checklyra.com/dashboard/settings` → use `mcp.checklyra.com` (beta and prod share `prod-lyra`, so keys are interchangeable across them)
+  - Key from `stage.checklyra.com/dashboard/settings` → currently has no MCP endpoint; staging keys are functionally inert. Staging is engineering-only and does not expose MCP integrations.
+
+If a write call returns `"Invalid API key"`, regenerate against the env whose MCP you're calling. Tracked by BUGS-1 (closed 2026-05-04 as documentation gap, not a code bug).
+
+### Stage's role in the new pipeline
+
+Once KAN-175 lands, stage's purpose narrows to **engineering pre-flight only** — a test mirror against `stage-lyra` that catches build/deploy regressions before code reaches beta testers. Stage will NOT have an MCP server, and the API key generation UI on stage should be hidden or warn-flagged (part of KAN-175 scope).
+
+Real-user beta testing happens on `beta.checklyra.com` with prod credentials, so beta keys are valid prod keys via the existing `mcp.checklyra.com`.
 
 ## Release Procedure
 
