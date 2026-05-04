@@ -142,6 +142,20 @@ jobs:
           git checkout staging
           git pull origin staging --ff-only
           git checkout -b "$BRANCH"
+
+          # BUGS-11: merge main HEAD into the release branch so the head has
+          # main's HEAD as a direct ancestor. Without this, the next promotion
+          # after a successful production merge has behind_by=1 from main
+          # (because the prior merge commit was never copied back into
+          # develop/staging), which trips main's `required_status_checks.strict`
+          # rule and silently blocks GitHub auto-merge for the full 15-min
+          # wait-for-merge timeout. With this merge, behind_by=0 by
+          # construction and auto-merge can fire as soon as required checks pass.
+          # Conflicts here are intentionally fatal — they indicate divergence
+          # beyond auto-resolution and need human review.
+          git fetch origin main --depth=50
+          git merge origin/main --no-edit -m "Merge main into release branch (BUGS-11)"
+
           # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger
           git push origin "$BRANCH"
 
