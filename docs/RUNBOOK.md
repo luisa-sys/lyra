@@ -2,7 +2,33 @@
 
 ## Environments
 
-EnvironmentURLBranchProtectionProduction<https://checklyra.com>mainPublicDevelopment<https://dev.checklyra.com>developVercel SSOStaging<https://stage.checklyra.com>stagingVercel SSO
+Each environment is a fully independent stack: app + Supabase + (where deployed) MCP server. **Keys, sessions, and data do NOT cross environments.**
+
+| Environment | App URL | MCP URL | Supabase project | Branch | Access |
+|---|---|---|---|---|---|
+| Production | https://checklyra.com | https://mcp.checklyra.com | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `main` | Public (Cloudflare bot challenge) |
+| Staging | https://stage.checklyra.com | _(not deployed yet — see below)_ | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `staging` | Vercel SSO |
+| Development | https://dev.checklyra.com | https://mcp-dev.checklyra.com | `dev-lyra` (`ilprytcrnqyrsbsrfujj`) | `develop` | Vercel SSO |
+
+### MCP usage rules
+
+- **Read tools** (`lyra_get_profile`, `lyra_search_profiles`, etc.) are public — no API key required. They will work against any MCP endpoint regardless of which env you're targeting.
+- **Write tools** (`lyra_update_profile`, `lyra_add_item`, etc.) require an `api_key` argument. The key must have been generated on the **same env as the MCP** you're calling. Per-env validation:
+  - Key from `dev.checklyra.com/dashboard/settings` → use `mcp-dev.checklyra.com`
+  - Key from `checklyra.com/dashboard/settings` → use `mcp.checklyra.com`
+  - Key from `stage.checklyra.com/dashboard/settings` → currently has no MCP endpoint; staging keys cannot be used until a stage MCP is deployed.
+
+If a write call returns `"Invalid API key"`, regenerate against the env whose MCP you're calling. Tracked by BUGS-1 (closed 2026-05-04 as documentation gap, not a code bug).
+
+### Staging MCP — current gap
+
+Staging issues API keys via its Settings page but has no MCP server pointed at `stage-lyra`, so those keys are functionally inert. Decision pending on whether to:
+
+1. Deploy a third Railway service `mcp-stage.checklyra.com → stage-lyra` so staging mirrors prod's full stack (recommended for beta testers who need MCP integration).
+2. Hide the API key generation UI on `stage.checklyra.com` until (1) is in place.
+3. Reframe staging as a beta channel for prod data — would require pointing `stage.checklyra.com` at `prod-lyra` Supabase, with corresponding loss of isolation for testing.
+
+See "Stage strategy" discussion 2026-05-04 for context.
 
 ## Release Procedure
 
