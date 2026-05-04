@@ -1,7 +1,12 @@
 version: 2
 updates:
+  # npm deps target develop so they flow through the standard
+  # develop → staging → main pipeline. Workflow-file bumps below
+  # (github-actions ecosystem) still target main since workflow
+  # changes only take effect once on main (CLAUDE.md gotcha #1).
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
