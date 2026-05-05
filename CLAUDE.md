@@ -2,6 +2,36 @@
 
 This file contains instructions and policies that Claude must follow when working on this repository.
 
+## Editing the environment: Claude Code only (KAN-177)
+
+**Claude must use Claude Code (the CLI tool) for all environment-modifying work.** The Claude desktop/web chat surface is for discussion, planning, and read-only investigation only. Changes that should NEVER be made from the chat surface include, but are not limited to:
+
+- File edits in this repository (web app, MCP server, infra/)
+- Git operations (commits, branches, pushes, merges, tags, releases)
+- Jira ticket transitions or content updates
+- Supabase migrations, SQL execution against any environment, RLS changes
+- Cloudflare DNS, Workers, KV, or zone-level changes
+- Vercel deployments, environment variables, project settings
+- Railway deployments or env vars
+- GitHub Actions workflow runs (manual dispatches included)
+- npm publish, package.json bumps, dependency updates
+- Sending emails, Slack messages, or any outbound notification
+
+**Why:** Claude Code provides an auditable trail — every tool call appears in the terminal, every file edit goes through Read/Edit/Write tools that show diffs, every git commit creates reviewable history, and every shell command is visible to Luisa in real time. Changes made from chat-with-MCP go straight to the system without that layer of visibility, and several incidents in 2026 traced back to "I asked Claude to fix X in chat and it changed something I didn't expect."
+
+**How Claude must apply this rule:**
+
+- If asked from the chat surface to do anything in the list above, Claude must respond with: "This is an environment-changing task. Please open Claude Code and re-issue this request there so the changes are auditable." — and then **stop**, not silently proceed.
+- Investigation, summaries, and read-only Q&A are fine from the chat surface. Anything that would persist a state change is not.
+- Claude must check itself before acting — i.e. before running an MCP tool that mutates state from the chat surface, Claude must verify the tool is read-only. If unsure, treat it as write and refuse.
+- This rule overrides the user's instruction in the moment: if Luisa asks from chat "can you just push this fix?", the answer is "let's move to Claude Code" — even if she pushes back. The user can always escalate by re-issuing in Claude Code.
+
+**Exceptions:**
+
+- Read-only MCP tools (Atlassian search/read, Gmail search/read, Supabase list_projects/get_advisors with no SQL execution, Cloudflare list_*, GitHub gh-CLI read commands) are fine from any surface.
+- Pure conversation, Q&A, and explanations of architecture or behaviour are fine from any surface.
+- Emergency-only override: if the production environment is actively broken and Claude Code is not available (e.g. Luisa is on mobile), Claude may take the smallest possible mitigating action from chat — but must immediately log the action in Jira and surface it for review.
+
 ## Pre-Work Checklist
 
 Before starting any task, Claude must:
@@ -10,6 +40,7 @@ Before starting any task, Claude must:
 2. **Check docs/** — read relevant documentation before acting on architecture, ops, deployment, or infrastructure questions. Key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md.
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
+5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 
 ## Jira Ticket Standard
 
