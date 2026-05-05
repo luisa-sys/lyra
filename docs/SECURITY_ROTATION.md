@@ -101,6 +101,22 @@ If you suspect ANY secret has been compromised:
 | On any security incident | Everything in the affected service chain |
 | When an employee/contractor leaves | All secrets they had access to |
 
+## Automated Rotation Reminders (KAN-170)
+
+The workflow [`.github/workflows/secret-rotation-reminder.yml`](../.github/workflows/secret-rotation-reminder.yml) runs on the 1st of every month at 07:00 UTC. It parses the **Infrastructure Secrets** table above and emails `luisa@santos-stephens.com` (via Resend) if any secret's `Last Rotated + Rotation cadence` date is within 30 days of today, or already overdue.
+
+The parser is [`scripts/check-secret-rotation.py`](../scripts/check-secret-rotation.py). Manual run:
+
+```bash
+python3 scripts/check-secret-rotation.py            # exit 1 if anything in window or overdue
+python3 scripts/check-secret-rotation.py --warn-days 7
+python3 scripts/check-secret-rotation.py --today 2027-04-01    # for testing
+```
+
+When you rotate a secret, **update the `Last Rotated` cell in the table above and commit** so the next reminder rides the new schedule. The parser reads dates in the format `28 April 2026` or `2026-04-28`.
+
+Rows with `Last Rotated: Initial setup` are flagged as advisory warnings (they have no anchor date so we can't compute next-due) but do NOT cause the reminder workflow to fail. Overdue and within-window rows DO cause failure and trigger the email.
+
 ## Lyra API Key Expiry (TODO)
 
 User-facing API keys (lyra_*) currently have no expiry. Future implementation:
