@@ -72,25 +72,32 @@ jobs:
         run: |
           set -uo pipefail
           # Dev is behind Vercel SSO. We use Protection Bypass for Automation
-          # to reach the health endpoint. Outcomes:
+          # via the QUERY-STRING + COOKIE-JAR method (NOT the header method) —
+          # Cloudflare in front of Vercel strips unrecognised custom headers,
+          # so the `x-vercel-protection-bypass` header gets dropped before
+          # reaching Vercel. Query-string + cookie-jar bypasses Cloudflare's
+          # header filter entirely. Verified working 2026-05-05.
+          #
+          # Outcomes:
           #   200 + correct values  → ::notice::, exit 0 (happy path)
-          #   200 + WRONG values    → ::error::, exit 1 (real regression — block!)
-          #   non-2xx (401/403/etc) → ::warning::, exit 0 (Vercel-side issue:
-          #                           bypass not honored / plan limitation /
-          #                           wrong scope. NOT a code regression.)
-          # Per CLAUDE.md gotcha #14, every "skip" branch emits a clear
-          # warning so the run summary surfaces the issue.
+          #   200 + WRONG values    → ::error::, exit 1 (real regression)
+          #   non-2xx               → ::warning::, exit 0 (Vercel-side issue,
+          #                           NOT a code regression)
+          # Per CLAUDE.md gotcha #14, every skip branch emits a clear warning.
           if [ -z "$VERCEL_BYPASS" ]; then
             echo "::warning::VERCEL_AUTOMATION_BYPASS secret not set; skipping dev health smoke."
             exit 0
           fi
-          RESPONSE=$(curl -s -w "\n%{http_code}" -H "x-vercel-protection-bypass: $VERCEL_BYPASS" --max-time 15 "https://dev.checklyra.com/api/health")
+          COOKIE_JAR=$(mktemp)
+          RESPONSE=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -w "\n%{http_code}" --max-time 20 \
+            "https://dev.checklyra.com/api/health?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=$VERCEL_BYPASS")
+          rm -f "$COOKIE_JAR"
           STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           echo "HTTP $STATUS"
           echo "Body: $BODY"
           if [ "$STATUS" != "200" ]; then
-            echo "::warning::Dev health smoke received HTTP $STATUS instead of 200. Bypass token may not be honored on this Vercel env (plan limitation or scope). Skipping assertion — verify Vercel → Settings → Deployment Protection."
+            echo "::warning::Dev health smoke received HTTP $STATUS instead of 200. Bypass token may not be honored on this Vercel env. Skipping assertion — verify Vercel → Settings → Deployment Protection."
             exit 0
           fi
           SITE_URL=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('siteUrl',''))")
