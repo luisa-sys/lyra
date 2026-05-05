@@ -2,11 +2,34 @@
 
 ## Environments
 
-EnvironmentURLBranchProtectionProduction<https://checklyra.com>mainPublicDevelopment<https://dev.checklyra.com>developVercel SSOStaging<https://stage.checklyra.com>stagingVercel SSO
+Each environment is a fully independent stack: app + Supabase + (where deployed) MCP server. **Keys, sessions, and data do NOT cross environments.**
+
+| Environment | App URL | MCP URL | Supabase project | Branch | Access |
+|---|---|---|---|---|---|
+| Production | https://checklyra.com | https://mcp.checklyra.com | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `main` | Public (Cloudflare bot challenge) |
+| Beta _(planned — KAN-175)_ | https://beta.checklyra.com | https://mcp.checklyra.com | `prod-lyra` (shared with prod) | `beta` | Vercel SSO + email allowlist |
+| Staging | https://stage.checklyra.com | _(none — internal-only)_ | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `staging` | Vercel SSO |
+| Development | https://dev.checklyra.com | https://mcp-dev.checklyra.com | `dev-lyra` (`ilprytcrnqyrsbsrfujj`) | `develop` | Vercel SSO |
+
+### MCP usage rules
+
+- **Read tools** (`lyra_get_profile`, `lyra_search_profiles`, etc.) are public — no API key required. They will work against any MCP endpoint regardless of which env you're targeting.
+- **Write tools** (`lyra_update_profile`, `lyra_add_item`, etc.) require an `api_key` argument. The key must have been generated on the **same Supabase project as the MCP** you're calling. Per-env mapping:
+  - Key from `dev.checklyra.com/dashboard/settings` → use `mcp-dev.checklyra.com`
+  - Key from `checklyra.com/dashboard/settings` OR `beta.checklyra.com/dashboard/settings` → use `mcp.checklyra.com` (beta and prod share `prod-lyra`, so keys are interchangeable across them)
+  - Key from `stage.checklyra.com/dashboard/settings` → currently has no MCP endpoint; staging keys are functionally inert. Staging is engineering-only and does not expose MCP integrations.
+
+If a write call returns `"Invalid API key"`, regenerate against the env whose MCP you're calling. Tracked by BUGS-1 (closed 2026-05-04 as documentation gap, not a code bug).
+
+### Stage's role in the new pipeline
+
+Once KAN-175 lands, stage's purpose narrows to **engineering pre-flight only** — a test mirror against `stage-lyra` that catches build/deploy regressions before code reaches beta testers. Stage will NOT have an MCP server, and the API key generation UI on stage should be hidden or warn-flagged (part of KAN-175 scope).
+
+Real-user beta testing happens on `beta.checklyra.com` with prod credentials, so beta keys are valid prod keys via the existing `mcp.checklyra.com`.
 
 ## Release Procedure
 
-Promotions follow develop → staging → main with manual triggers and automated verification.
+Promotions follow develop → staging → beta → main with manual triggers (and one weekly auto-promote to staging — see `docs/RELEASE_POLICY.md`). The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
 
 ### Promote develop → staging
 
@@ -229,9 +252,26 @@ All scheduled workflows also support `workflow_dispatch` for manual runs.
 - Workflow fails (red status) when high/critical vulns detected — visible in GitHub UI
 - Manual trigger: GitHub → Actions → "Weekly Security Audit" → Run workflow
 
+## Incident Response
+
+**Primary signal:** UptimeRobot (5-minute interval, KAN-163). Email alerts to luisa@santos-stephens.com and ben@santos-stephens.com when any monitored endpoint goes down or an SSL cert is within 30 days of expiry.
+
+**Secondary signal:** the 6-hourly GitHub Actions health-check workflow. Slower (up to 6h delay) but redundant; useful when UptimeRobot itself is degraded.
+
+**Tertiary signal:** weekly report Monday 07:00 UTC — Section 1 endpoint health is a 7-day summary, not a live signal, but it cross-checks UptimeRobot.
+
+When an alert fires:
+1. Check the affected endpoint manually with `curl -I` to confirm it's a real outage rather than a probe blocking issue (Cloudflare bot protection occasionally trips on UptimeRobot's IP — gotcha #7 in CLAUDE.md).
+2. Check Vercel deployment status for the affected env.
+3. Check Cloudflare for DNS, Workers, or zone-level issues.
+4. If MCP-side: check Railway logs.
+5. Roll back the deploy if a recent promotion looks responsible — see "Deployment Rollback" above.
+
+UptimeRobot setup, monitor list, and bootstrap procedure: [`docs/UPTIMEROBOT_SETUP.md`](./UPTIMEROBOT_SETUP.md).
+
 ## Emergency Contacts
 
-ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.com/luisa-sys-projects/lyra)[vercel.com/help](http://vercel.com/help)Supabase[supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj](http://supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj)[supabase.com/support](http://supabase.com/support)Cloudflare[dash.cloudflare.com](http://dash.cloudflare.com)[cloudflare.com/support](http://cloudflare.com/support)GitHub[github.com/luisa-sys/lyra](http://github.com/luisa-sys/lyra)[support.github.com](http://support.github.com)Railwayrailway.app (Lyra project)railway.app/help
+ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.com/luisa-sys-projects/lyra)[vercel.com/help](http://vercel.com/help)Supabase[supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj](http://supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj)[supabase.com/support](http://supabase.com/support)Cloudflare[dash.cloudflare.com](http://dash.cloudflare.com)[cloudflare.com/support](http://cloudflare.com/support)GitHub[github.com/luisa-sys/lyra](http://github.com/luisa-sys/lyra)[support.github.com](http://support.github.com)Railwayrailway.app (Lyra project)railway.app/helpUptimeRobot[dashboard.uptimerobot.com](https://dashboard.uptimerobot.com/)[uptimerobot.com/help](https://uptimerobot.com/help)
 
 ## MCP Server Operations
 

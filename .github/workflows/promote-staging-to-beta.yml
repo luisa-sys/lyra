@@ -1,0 +1,287 @@
+name: Promote Staging to Beta
+# KAN-175: promotes the staging branch to the beta branch, triggering
+# deploy-beta.yml which deploys to beta.checklyra.com via Vercel's
+# beta custom environment (which uses production Supabase credentials
+# + IS_BETA_DEPLOY=true to activate the in-app beta gate).
+#
+# Pipeline: develop → staging → beta → main
+#
+# This workflow is the staging→beta gate. It mirrors promote-to-staging.yml's
+# direct-merge pattern (no PR), validated via deploy-beta.yml's full lint /
+# type-check / unit-tests / npm-audit / build-verification chain on push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "promote" to confirm'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify-source:
+    name: Verify staging pipeline passed at HEAD
+    runs-on: ubuntu-latest
+    outputs:
+      staging_sha: ${{ steps.check.outputs.staging_sha }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+          ref: staging
+      - name: Check staging CI passed at staging HEAD (BUGS-4 fix)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "promote" ]; then
+            echo "::error::You must type 'promote' to confirm"
+            exit 1
+          fi
+
+          STAGING_SHA=$(git rev-parse HEAD)
+          echo "staging HEAD: $STAGING_SHA"
+          echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
+
+          MAX_ATTEMPTS=10
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch staging \
+              --workflow deploy-staging.yml \
+              --limit 10 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$STAGING_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: staging CI for ${STAGING_SHA:0:8} = $STATUS / $CONCLUSION"
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-staging run for SHA ${STAGING_SHA:0:8} yet"
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" = "success" ]; then
+              echo "::notice::Staging CI verified for ${STAGING_SHA:0:8} (run $RUN_ID)"
+              exit 0
+            elif [ "$STATUS" = "completed" ] && [ "$CONCLUSION" != "success" ]; then
+              echo "::error::Staging CI for ${STAGING_SHA:0:8} concluded $CONCLUSION (run $RUN_ID). Fix before promoting."
+              exit 1
+            fi
+
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              sleep 15
+            fi
+          done
+          echo "::error::Could not verify staging CI for ${STAGING_SHA:0:8} after $MAX_ATTEMPTS attempts."
+          exit 1
+
+  merge-and-push:
+    name: Merge staging → beta
+    needs: verify-source
+    runs-on: ubuntu-latest
+    outputs:
+      merged_sha: ${{ steps.merge.outputs.merged_sha }}
+    steps:
+      # Use LYRA_RELEASE_PAT — GITHUB_TOKEN does not trigger downstream
+      # workflows on push (deploy-beta.yml would never fire). See gotcha #16.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Merge staging into beta
+        id: merge
+        run: |
+          set -euo pipefail
+          git fetch origin beta:beta
+          git checkout beta
+          git pull origin beta --ff-only
+          git merge origin/staging -m "Promote staging → beta [workflow_dispatch]"
+          MERGED_SHA=$(git rev-parse HEAD)
+          echo "merged_sha=$MERGED_SHA" >> "$GITHUB_OUTPUT"
+          echo "Pushing beta at SHA $MERGED_SHA..."
+          git push origin beta
+          echo "::notice::Pushed beta at $MERGED_SHA. deploy-beta.yml should trigger now."
+
+  wait-for-deploy:
+    name: Wait for beta deploy (SHA-matched)
+    needs: merge-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy-beta.yml run for our SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merged_sha }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for deploy-beta.yml run with headSha=$EXPECTED_SHA..."
+          TIMEOUT=420
+          ELAPSED=0
+          INTERVAL=20
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+
+            RUN_INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --branch beta \
+              --workflow deploy-beta.yml \
+              --limit 5 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$EXPECTED_SHA'
+          runs = json.load(sys.stdin)
+          for r in runs:
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+            CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+            RUN_ID=$(echo "$RUN_INFO" | cut -d'|' -f3)
+
+            if [ "$STATUS" = "NONE" ]; then
+              echo "  No deploy-beta run for SHA ${EXPECTED_SHA:0:8} yet ($ELAPSED/${TIMEOUT}s)"
+              continue
+            fi
+
+            if [ "$STATUS" = "completed" ]; then
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "::notice::deploy-beta run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
+                exit 0
+              else
+                echo "::error::deploy-beta run $RUN_ID FAILED ($CONCLUSION) for SHA ${EXPECTED_SHA:0:8}"
+                exit 1
+              fi
+            fi
+
+            echo "  deploy-beta run $RUN_ID is $STATUS for SHA ${EXPECTED_SHA:0:8} ($ELAPSED/${TIMEOUT}s)"
+          done
+
+          echo "::error::deploy-beta.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
+          echo "::error::This usually means the merge push did not trigger downstream workflows."
+          echo "::error::Check that LYRA_RELEASE_PAT is set and the merge job uses it (not GITHUB_TOKEN)."
+          exit 1
+
+  post-deploy-health:
+    name: Verify beta actually serving merged SHA
+    needs: [merge-and-push, wait-for-deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Vercel deployed our SHA to beta
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merged_sha }}
+        run: |
+          set -euo pipefail
+          MAX_ATTEMPTS=6
+          ATTEMPT=0
+          STATE=""
+          DEPLOY_UID=""
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            DEPLOY_INFO=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&limit=10" \
+              | python3 -c "
+          import json, sys
+          target_sha = '$EXPECTED_SHA'
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              meta = d.get('meta', {}) or {}
+              sha = meta.get('githubCommitSha') or ''
+              dep_target = d.get('target') or ''
+              if sha == target_sha and dep_target == 'beta':
+                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            DEPLOY_UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
+            STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
+
+            if [ "$DEPLOY_UID" = "NONE" ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel beta deployment for SHA ${EXPECTED_SHA:0:8} yet"
+              [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
+              echo "::error::Vercel has no beta deployment for SHA ${EXPECTED_SHA:0:8}"
+              exit 1
+            fi
+
+            if [ "$STATE" = "READY" ]; then
+              echo "::notice::Vercel deployment $DEPLOY_UID for SHA ${EXPECTED_SHA:0:8} is READY"
+              break
+            fi
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: deployment $DEPLOY_UID is $STATE"
+            [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15
+          done
+
+          if [ "$STATE" != "READY" ]; then
+            echo "::error::Vercel deployment $DEPLOY_UID never reached READY state ($STATE)"
+            exit 1
+          fi
+
+      - name: Health check — beta endpoint reachable
+        run: |
+          set -euo pipefail
+          # integrity-ok: 403 SHA-verified above (KAN-175)
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://beta.checklyra.com")
+          case "$STATUS" in
+            200|401|403)
+              echo "::notice::beta.checklyra.com responded $STATUS"
+              ;;
+            *)
+              echo "::error::beta.checklyra.com unreachable: $STATUS"
+              exit 1
+              ;;
+          esac
+
+      - name: Summary
+        env:
+          EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merged_sha }}
+        run: |
+          {
+            echo "## ✅ Beta Promotion Complete"
+            echo ""
+            echo "staging has been promoted to beta at SHA \`${EXPECTED_SHA:0:8}\`."
+            echo ""
+            echo "- Beta site: https://beta.checklyra.com"
+            echo "- Backed by prod-lyra Supabase (shared with production)"
+            echo "- Beta gate active — only users with is_beta_eligible=true can access"
+            echo "- Vercel deployment verified for this SHA"
+            echo ""
+            echo "Next step: run promote-to-production.yml when beta has been validated."
+          } >> "$GITHUB_STEP_SUMMARY"

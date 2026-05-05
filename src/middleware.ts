@@ -77,6 +77,35 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // KAN-175: Beta gate. Only active on the beta deploy (IS_BETA_DEPLOY=true).
+  // Authenticated users without is_beta_eligible=true get redirected to
+  // /waitlist. The /waitlist page itself is exempt so the redirect doesn't
+  // loop. Auth pages and the auth callback are also exempt so users can
+  // complete sign-in before the gate evaluates them.
+  const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
+  const exemptFromBetaGate =
+    pathname === '/waitlist' ||
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/favicon.ico';
+
+  if (isBetaDeploy && user && !exemptFromBetaGate) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_beta_eligible')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!profile?.is_beta_eligible) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/waitlist';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Redirect unauthenticated users away from protected routes
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone();
@@ -91,6 +120,8 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname === '/signup')
   ) {
     const url = request.nextUrl.clone();
+    // KAN-175: on beta, ineligible users belong at /waitlist, not /dashboard.
+    // The dashboard redirect would just bounce them through the beta gate again.
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }

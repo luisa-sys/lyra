@@ -1,10 +1,22 @@
-name: Deploy to Staging
+name: Deploy to Beta
+# KAN-175: deploys the beta branch to beta.checklyra.com via Vercel's
+# custom "beta" environment. Beta uses production Supabase credentials,
+# so the build env vars resolve to PROD_* secrets and IS_BETA_DEPLOY=true
+# activates the in-app beta gate (middleware redirects ineligible users
+# to /waitlist).
+
 on:
   push:
-    branches: [staging]
+    branches: [beta]
+
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   lint-and-unit-tests:
     name: Lint & Unit Tests
@@ -45,19 +57,22 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          # Beta uses PROD credentials. Same secrets as deploy-production.yml.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          IS_BETA_DEPLOY: 'true'
       - name: Verify build output
         run: |
-          test -d .next || (echo "Build output missing" && exit 1)
+          set -euo pipefail
+          test -d .next || (echo "::error::Build output missing" && exit 1)
           echo "Build output verified"
 
-  deploy-staging:
-    name: Deploy to stage.checklyra.com
+  deploy-beta:
+    name: Deploy to beta.checklyra.com
     needs: build-verification
     runs-on: ubuntu-latest
-    environment: staging
+    environment: beta
     outputs:
       deploy_url: ${{ steps.deploy.outputs.deploy_url }}
     steps:
@@ -76,21 +91,24 @@ jobs:
       - name: Deploy to Vercel
         id: deploy
         run: |
+          set -euo pipefail
           URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
   post-deploy-checks:
     name: Post-Deploy Health Checks
-    needs: deploy-staging
+    needs: deploy-beta
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Wait for deployment propagation
         run: sleep 20
-      # BUGS-4: verify Vercel actually deployed our SHA before health-checking.
-      # Without this, the 401 from stage.checklyra.com (Vercel SSO) would be
-      # accepted as success even if the deploy never happened or rolled back.
+      # BUGS-4 / KAN-175: verify Vercel actually deployed our SHA before
+      # health-checking. Custom env "beta" is queried by name in target=beta.
+      # If Vercel API rejects custom env names in this filter, fall back to
+      # listing deployments without the target filter and matching on SHA
+      # AND deployment.target=='beta' Python-side.
       - name: Verify Vercel deployment matches commit SHA
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -105,17 +123,20 @@ jobs:
           DEPLOY_UID=""
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
+            # Pull last 10 deployments without target filter, then filter
+            # Python-side on both SHA and target=='beta' for robustness.
             DEPLOY_INFO=$(curl -sf \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=staging&limit=5" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&limit=10" \
               | python3 -c "
           import json, sys
-          target = '$EXPECTED_SHA'
+          target_sha = '$EXPECTED_SHA'
           data = json.load(sys.stdin)
           for d in data.get('deployments', []):
               meta = d.get('meta', {}) or {}
               sha = meta.get('githubCommitSha') or ''
-              if sha == target:
+              dep_target = d.get('target') or ''
+              if sha == target_sha and dep_target == 'beta':
                   print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
                   break
           else:
@@ -125,9 +146,9 @@ jobs:
             STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
 
             if [ "$DEPLOY_UID" = "NONE" ]; then
-              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel staging deployment for SHA ${EXPECTED_SHA:0:8} yet"
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: no Vercel beta deployment for SHA ${EXPECTED_SHA:0:8} yet"
               [ $ATTEMPT -lt $MAX_ATTEMPTS ] && sleep 15 && continue
-              echo "::error::Vercel has no staging deployment for SHA ${EXPECTED_SHA:0:8}"
+              echo "::error::Vercel has no beta deployment for SHA ${EXPECTED_SHA:0:8}"
               exit 1
             fi
 
@@ -144,62 +165,76 @@ jobs:
             echo "::error::Vercel deployment $DEPLOY_UID never reached READY state ($STATE)"
             exit 1
           fi
+      - name: Smoke test — beta site reachable
+        run: |
+          set -euo pipefail
+          # Beta is publicly reachable (no Vercel SSO) but Cloudflare bot
+          # protection may return 403 to CI runner IPs. The SHA verification
+          # above is the primary signal.
+          # integrity-ok: 403 SHA-verified above (KAN-175)
+          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://beta.checklyra.com")
+          echo "Beta site: $STATUS"
+          # 200 = served (likely without Cloudflare bot challenge)
+          # 403 = Cloudflare bot challenge from CI IP — acceptable
+          # 401 = unexpected (no Vercel SSO on beta) but tolerated for now
+          case "$STATUS" in
+            200|401|403)
+              echo "::notice::Beta site responsive: $STATUS"
+              ;;
+            *)
+              echo "::error::Beta site unreachable ($STATUS)"
+              exit 1
+              ;;
+          esac
       - name: Verify env wiring via /api/health (KAN-175)
         env:
           VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
-          DEPLOY_URL: ${{ needs.deploy-staging.outputs.deploy_url }}
+          DEPLOY_URL: ${{ needs.deploy-beta.outputs.deploy_url }}
         run: |
           set -uo pipefail
-          # KAN-175: Cloudflare bot challenge blocks CI runner IPs from
-          # reaching stage.checklyra.com directly. We hit the Vercel
-          # deployment URL directly (lyra-xxx.vercel.app) which isn't
-          # proxied through Cloudflare. Bypass header travels intact.
-          # Verified working 2026-05-05.
-          #
-          # Outcomes (per CLAUDE.md gotcha #14):
-          #   200 + correct values → ::notice::, exit 0
-          #   200 + WRONG values   → ::error::, exit 1 (real regression)
-          #   non-2xx              → ::warning::, exit 0 (Vercel-side issue)
-          if [ -z "$VERCEL_BYPASS" ]; then
-            echo "::warning::VERCEL_AUTOMATION_BYPASS secret not set; skipping staging health smoke."
-            exit 0
-          fi
+          # KAN-175: hit the Vercel deployment URL directly instead of
+          # beta.checklyra.com — Cloudflare bot challenge blocks CI runner
+          # IPs at the edge (returns 403 + JS challenge). The Vercel direct
+          # URL (lyra-xxx.vercel.app) is not proxied through Cloudflare.
+          # Beta is in a custom Vercel env that has SSO, so we still need
+          # the bypass header on the direct URL. Verified working 2026-05-05.
           if [ -z "$DEPLOY_URL" ]; then
-            echo "::warning::deploy_url output missing from deploy-staging job; skipping smoke."
+            echo "::warning::deploy_url output missing from deploy-beta job; skipping smoke."
             exit 0
           fi
           DEPLOY_URL_CLEAN="${DEPLOY_URL#https://}"
           DEPLOY_URL_CLEAN="${DEPLOY_URL_CLEAN#http://}"
           echo "Hitting: https://$DEPLOY_URL_CLEAN/api/health"
-          RESPONSE=$(curl -s -H "x-vercel-protection-bypass: $VERCEL_BYPASS" -w "\n%{http_code}" --max-time 20 \
+          BYPASS_HEADER=()
+          if [ -n "$VERCEL_BYPASS" ]; then
+            BYPASS_HEADER=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS")
+          fi
+          RESPONSE=$(curl -s "${BYPASS_HEADER[@]}" -w "\n%{http_code}" --max-time 20 \
             "https://$DEPLOY_URL_CLEAN/api/health")
           STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           echo "HTTP $STATUS"
           echo "Body: $BODY"
           if [ "$STATUS" != "200" ]; then
-            echo "::warning::Staging health smoke received HTTP $STATUS instead of 200. Skipping assertion."
+            echo "::warning::Beta health smoke: HTTP $STATUS instead of 200. Skipping assertion."
             exit 0
           fi
           SITE_URL=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('siteUrl',''))")
           IS_BETA=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('isBetaDeploy',False))")
-          if [ "$SITE_URL" != "https://stage.checklyra.com" ]; then
-            echo "::error::Staging health: NEXT_PUBLIC_SITE_URL='$SITE_URL', expected 'https://stage.checklyra.com'."
+          if [ "$SITE_URL" != "https://beta.checklyra.com" ]; then
+            echo "::error::Beta health: NEXT_PUBLIC_SITE_URL='$SITE_URL', expected 'https://beta.checklyra.com'. Fix in Vercel beta env."
             exit 1
           fi
-          if [ "$IS_BETA" = "True" ]; then
-            echo "::error::Staging health: isBetaDeploy is True — staging must NOT have the beta gate active."
+          if [ "$IS_BETA" != "True" ]; then
+            echo "::error::Beta health: isBetaDeploy=$IS_BETA, expected True. Set IS_BETA_DEPLOY=true on Vercel beta env."
             exit 1
           fi
-          echo "::notice::Staging env wiring verified (siteUrl=$SITE_URL)"
-      - name: Health check — MCP server
+          echo "::notice::Beta env wiring verified (siteUrl=$SITE_URL, isBetaDeploy=$IS_BETA)"
+      - name: Health check — MCP server (shared with prod)
         run: |
           set -euo pipefail
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://mcp.checklyra.com/health")
           echo "MCP health: $STATUS"
-          # 200 = server up
-          # 403 = Cloudflare bot challenge from datacenter IPs (acceptable for CI; KAN-160)
-          # Any 5xx or other = real failure
           # integrity-ok: 403 is bot-block — verified server returns 200 to non-CI clients (BUGS-7)
           case "$STATUS" in
             200|403)
@@ -210,13 +245,3 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Smoke test — staging site
-        run: |
-          set -euo pipefail
-          # SHA verification above is the primary success signal. This URL
-          # check is defense-in-depth — it confirms stage.checklyra.com is
-          # reachable. Vercel SSO returns 401 for unauthenticated curl,
-          # which is expected and acceptable here. integrity-ok: 401 SHA-verified above
-          STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
-          echo "Staging site: $STATUS"
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging site unreachable" && exit 1)

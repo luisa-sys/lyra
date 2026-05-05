@@ -2,6 +2,36 @@
 
 This file contains instructions and policies that Claude must follow when working on this repository.
 
+## Editing the environment: Claude Code only (KAN-177)
+
+**Claude must use Claude Code (the CLI tool) for all environment-modifying work.** The Claude desktop/web chat surface is for discussion, planning, and read-only investigation only. Changes that should NEVER be made from the chat surface include, but are not limited to:
+
+- File edits in this repository (web app, MCP server, infra/)
+- Git operations (commits, branches, pushes, merges, tags, releases)
+- Jira ticket transitions or content updates
+- Supabase migrations, SQL execution against any environment, RLS changes
+- Cloudflare DNS, Workers, KV, or zone-level changes
+- Vercel deployments, environment variables, project settings
+- Railway deployments or env vars
+- GitHub Actions workflow runs (manual dispatches included)
+- npm publish, package.json bumps, dependency updates
+- Sending emails, Slack messages, or any outbound notification
+
+**Why:** Claude Code provides an auditable trail — every tool call appears in the terminal, every file edit goes through Read/Edit/Write tools that show diffs, every git commit creates reviewable history, and every shell command is visible to Luisa in real time. Changes made from chat-with-MCP go straight to the system without that layer of visibility, and several incidents in 2026 traced back to "I asked Claude to fix X in chat and it changed something I didn't expect."
+
+**How Claude must apply this rule:**
+
+- If asked from the chat surface to do anything in the list above, Claude must respond with: "This is an environment-changing task. Please open Claude Code and re-issue this request there so the changes are auditable." — and then **stop**, not silently proceed.
+- Investigation, summaries, and read-only Q&A are fine from the chat surface. Anything that would persist a state change is not.
+- Claude must check itself before acting — i.e. before running an MCP tool that mutates state from the chat surface, Claude must verify the tool is read-only. If unsure, treat it as write and refuse.
+- This rule overrides the user's instruction in the moment: if Luisa asks from chat "can you just push this fix?", the answer is "let's move to Claude Code" — even if she pushes back. The user can always escalate by re-issuing in Claude Code.
+
+**Exceptions:**
+
+- Read-only MCP tools (Atlassian search/read, Gmail search/read, Supabase list_projects/get_advisors with no SQL execution, Cloudflare list_*, GitHub gh-CLI read commands) are fine from any surface.
+- Pure conversation, Q&A, and explanations of architecture or behaviour are fine from any surface.
+- Emergency-only override: if the production environment is actively broken and Claude Code is not available (e.g. Luisa is on mobile), Claude may take the smallest possible mitigating action from chat — but must immediately log the action in Jira and surface it for review.
+
 ## Pre-Work Checklist
 
 Before starting any task, Claude must:
@@ -10,6 +40,7 @@ Before starting any task, Claude must:
 2. **Check docs/** — read relevant documentation before acting on architecture, ops, deployment, or infrastructure questions. Key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md.
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
+5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 
 ## Jira Ticket Standard
 
@@ -33,11 +64,12 @@ Full details: `docs/JIRA_TICKET_STANDARD.md`
 The pipeline is: **develop → staging → main** (promotion-based).
 
 - All feature work goes to `develop` via PR
-- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote`
-- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`
+- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
+- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated)
 - **Never push directly to staging or main**
 - All environments must be kept in sync
 - Commit and push only after verifying code compiles and tests pass
+- Cadence: at least one release/week to flush the chain (see `docs/RELEASE_POLICY.md`)
 
 ## Testing Requirements
 
@@ -45,7 +77,7 @@ The pipeline is: **develop → staging → main** (promotion-based).
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **254 tests** (20 suites) in lyra, **64 tests** (2 suites) in lyra-mcp-server
+- Current test floor: **330 tests** (27 suites) in lyra, **64 tests** (2 suites) in lyra-mcp-server
 
 ## Test Integrity Policy
 
@@ -198,7 +230,17 @@ These have caused real bugs. Read before making related changes:
 
 18. **`'use server'` files can ONLY export async functions**: In Next.js 16+ / React 19, any non-async-function export from a file declared `'use server'` (e.g. `export const FOO = [...]`, `export class X`, `export function syncFn()`) is rejected at *action-invocation time* with `Error: A "use server" file can only export async functions, found "X"`. The build does NOT catch this — it only fires when the action module is loaded by an action call in production, so the bug ships green to the dev preview and 500s every form submission on the affected route. Discovered 2026-05-04 from a regression where `ALLOWED_PROFILE_FIELDS` was added to `src/app/dashboard/profile/actions.ts` for testability — this broke every step of the profile wizard on dev. Tracked under BUGS-12. **Fix pattern:** move constants, types, and type guards to a sibling `.ts` module (e.g. `profile-fields.ts`) and import them from the action file. `export type` is fine (types are erased), but anything with a runtime shape must live elsewhere. **Guard:** `scripts/check-server-action-exports.sh` (run from `pr-checks.yml`) statically detects this pattern and fails any PR that re-introduces it. Allow-list with `// server-action-exports-ok: <reason>` only with explicit justification.
 
-19. **Cloudflare Workers Builds posts a check on every PR by default**: The `lyra-maintenance` Workers Builds Git integration triggers on every push to any branch and posts a "Workers Builds: lyra-maintenance" check to GitHub. The build fails on PRs that don't change worker code (no-op build) and — even though the check is NOT in branch-protection required-checks — its failure status blocks GitHub auto-merge, forcing admin-merge. Fix: in Cloudflare dashboard → Workers & Pages → `lyra-maintenance` → Settings → Build → Build watch paths, set Include paths to `wrangler.toml, scripts/lyra-maintenance-worker.js`. With watch paths set, pushes that don't touch those files skip the build entirely and no GitHub check is posted. Caveats from the docs: watch-path matching is bypassed (i.e. build always runs) for empty pushes, pushes with 3000+ file changes, or pushes with 20+ commits — so very large bulk merges will still trigger a no-op build. Discovered 2026-05-04 from PR #98. **Verified post-fix behaviour (KAN-174, 2026-05-04)**: on a doc-only commit (5d5ee1f, CLAUDE.md only) the check still posts but with `conclusion: success` and `started_at == completed_at` (zero duration — build skipped at source). Auto-merge therefore not blocked. The fix changes the check from FAILURE → SUCCESS rather than removing it entirely.
+19. **MCP servers are per-environment** — keys do NOT cross environments: There are TWO MCP servers (deployed on Railway), each pointed at exactly one Supabase project. API keys generated in one environment cannot be validated by an MCP server pointed at a different Supabase project, because each project has its own `api_keys` table.
+
+    | MCP endpoint | Supabase project | App(s) that issue compatible keys |
+    |---|---|---|
+    | `mcp.checklyra.com` | `prod-lyra` (`llzkgprqewuwkiwclowi`) | `checklyra.com` (production) AND, once KAN-175 lands, `beta.checklyra.com` — beta shares prod's Supabase |
+    | `mcp-dev.checklyra.com` | `dev-lyra` (`ilprytcrnqyrsbsrfujj`) | `dev.checklyra.com` |
+    | _(no stage MCP — by design)_ | `stage-lyra` (`uobmlkzrjkptwhttzmmi`) | `stage.checklyra.com` — staging is engineering-only and does not expose MCP integrations. Keys generated here are functionally inert; UI should be hidden (KAN-175). |
+
+    Symptoms when this is wrong: write tool returns `"Invalid API key"` even though the key looks valid in the issuing app's Settings page. Fix: regenerate the key against the env whose MCP you intend to use. **Read tools** (`get_profile`, `search_profiles`, etc.) are public — they don't validate the key at all, so they appear to "work" with any key. Only **write tools** (`update_profile`, `add_item`, etc.) actually exercise auth. Tracked under BUGS-1 (2026-05-04). Will be obsoleted by KAN-88 (MCP OAuth 2.1).
+
+20. **Cloudflare Workers Builds posts a check on every PR by default**: The `lyra-maintenance` Workers Builds Git integration triggers on every push to any branch and posts a "Workers Builds: lyra-maintenance" check to GitHub. The build fails on PRs that don't change worker code (no-op build) and — even though the check is NOT in branch-protection required-checks — its failure status blocks GitHub auto-merge, forcing admin-merge. Fix: in Cloudflare dashboard → Workers & Pages → `lyra-maintenance` → Settings → Build → Build watch paths, set Include paths to `wrangler.toml, scripts/lyra-maintenance-worker.js`. With watch paths set, pushes that don't touch those files skip the build entirely and no GitHub check is posted. Caveats from the docs: watch-path matching is bypassed (i.e. build always runs) for empty pushes, pushes with 3000+ file changes, or pushes with 20+ commits — so very large bulk merges will still trigger a no-op build. Discovered 2026-05-04 from PR #98. **Verified post-fix behaviour (KAN-174, 2026-05-04)**: on a doc-only commit (5d5ee1f, CLAUDE.md only) the check still posts but with `conclusion: success` and `started_at == completed_at` (zero duration — build skipped at source). Auto-merge therefore not blocked. The fix changes the check from FAILURE → SUCCESS rather than removing it entirely.
 
 ## Supabase Migration Rules
 
