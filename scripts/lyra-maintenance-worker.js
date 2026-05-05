@@ -259,7 +259,7 @@ export default {
     }
 
     // Allow these paths through to Vercel (discovery, SEO, legal, health).
-    // KAN-175: /api/__health__ allowed so deploy-production.yml's smoke
+    // KAN-175: /api/health allowed so deploy-production.yml's smoke
     // step can verify env wiring (NEXT_PUBLIC_SITE_URL etc.) on prod
     // without exposing the rest of the app behind the maintenance page.
     // The allow is intentionally narrow — other /api/ paths still hit
@@ -273,7 +273,7 @@ export default {
       '/terms',
       '/cookies',
       '/auth/',
-      '/api/__health__'
+      '/api/health'
     ];
 
     const path = url.pathname;

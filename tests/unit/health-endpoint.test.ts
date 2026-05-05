@@ -1,12 +1,12 @@
 /**
  * KAN-175: health endpoint contract tests.
  *
- * The endpoint at /api/__health__ is exposed for CI smoke checks. Tests
+ * The endpoint at /api/health is exposed for CI smoke checks. Tests
  * here assert the response shape (so deploy workflows can rely on it)
  * and that no secrets sneak in.
  */
 
-describe('GET /api/__health__', () => {
+describe('GET /api/health', () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe('GET /api/__health__', () => {
     process.env.IS_BETA_DEPLOY = 'true';
     process.env.VERCEL_ENV = 'preview';
 
-    const { GET } = await import('@/app/api/__health__/route');
+    const { GET } = await import('@/app/api/health/route');
     const res = await GET();
     const body = await res.json();
 
@@ -40,7 +40,7 @@ describe('GET /api/__health__', () => {
     delete process.env.IS_BETA_DEPLOY;
     process.env.VERCEL_ENV = 'production';
 
-    const { GET } = await import('@/app/api/__health__/route');
+    const { GET } = await import('@/app/api/health/route');
     const res = await GET();
     const body = await res.json();
 
@@ -53,7 +53,7 @@ describe('GET /api/__health__', () => {
     for (const val of ['false', '1', 'yes', 'TRUE', '']) {
       process.env.IS_BETA_DEPLOY = val;
       jest.resetModules();
-      const { GET } = await import('@/app/api/__health__/route');
+      const { GET } = await import('@/app/api/health/route');
       const res = await GET();
       const body = await res.json();
       expect(body.isBetaDeploy).toBe(false);
@@ -65,7 +65,7 @@ describe('GET /api/__health__', () => {
     delete process.env.IS_BETA_DEPLOY;
     delete process.env.VERCEL_ENV;
 
-    const { GET } = await import('@/app/api/__health__/route');
+    const { GET } = await import('@/app/api/health/route');
     const res = await GET();
     const body = await res.json();
 
@@ -81,7 +81,7 @@ describe('GET /api/__health__', () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'NEVER_LEAK_THIS';
     process.env.LYRA_RELEASE_PAT = 'NEVER_LEAK_THIS_EITHER';
 
-    const { GET } = await import('@/app/api/__health__/route');
+    const { GET } = await import('@/app/api/health/route');
     const res = await GET();
     const body = await res.json();
 
@@ -93,7 +93,7 @@ describe('GET /api/__health__', () => {
   });
 
   test('sends no-cache headers (so smoke checks always see fresh state)', async () => {
-    const { GET } = await import('@/app/api/__health__/route');
+    const { GET } = await import('@/app/api/health/route');
     const res = await GET();
 
     const cacheControl = res.headers.get('cache-control') || '';
