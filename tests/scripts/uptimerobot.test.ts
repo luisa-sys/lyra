@@ -43,13 +43,17 @@ describe('LYRA_MONITORS canonical list', () => {
   });
 
   test('covers prod, beta, stage, dev, prod-mcp, dev-mcp', () => {
-    const urls = LYRA_MONITORS.map((m) => m.url).join('|');
-    expect(urls).toMatch(/checklyra\.com\//);
-    expect(urls).toMatch(/beta\.checklyra\.com/);
-    expect(urls).toMatch(/stage\.checklyra\.com/);
-    expect(urls).toMatch(/dev\.checklyra\.com/);
-    expect(urls).toMatch(/mcp\.checklyra\.com\/health/);
-    expect(urls).toMatch(/mcp-dev\.checklyra\.com\/health/);
+    // Substring `toContain` rather than unanchored regex matchers — CodeQL
+    // flags regex-on-URL patterns as high security-severity (the pattern
+    // could match attacker-controlled hosts if lifted into production input
+    // validation). toContain has no regex semantics so it can't be misused.
+    const urls = LYRA_MONITORS.map((m) => m.url);
+    expect(urls).toContain('https://checklyra.com/');
+    expect(urls).toContain('https://beta.checklyra.com/');
+    expect(urls).toContain('https://stage.checklyra.com/');
+    expect(urls).toContain('https://dev.checklyra.com/');
+    expect(urls).toContain('https://mcp.checklyra.com/health');
+    expect(urls).toContain('https://mcp-dev.checklyra.com/health');
   });
 
   test('canonical list is frozen — runtime mutation rejected', () => {
