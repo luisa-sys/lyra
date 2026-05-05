@@ -69,35 +69,40 @@ jobs:
       - name: Verify env wiring via /api/health (KAN-175)
         env:
           VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.deploy_url }}
         run: |
           set -uo pipefail
-          # Dev is behind Vercel SSO. We use Protection Bypass for Automation
-          # via the QUERY-STRING + COOKIE-JAR method (NOT the header method) —
-          # Cloudflare in front of Vercel strips unrecognised custom headers,
-          # so the `x-vercel-protection-bypass` header gets dropped before
-          # reaching Vercel. Query-string + cookie-jar bypasses Cloudflare's
-          # header filter entirely. Verified working 2026-05-05.
+          # KAN-175: Cloudflare bot challenge blocks CI runner IPs from
+          # reaching dev.checklyra.com directly (returns 403 + JS challenge
+          # page). Solution: hit the Vercel deployment URL directly
+          # (lyra-xxx.vercel.app) which isn't proxied through Cloudflare.
+          # Bypass header travels intact when not going through Cloudflare.
+          # Verified working 2026-05-05 after multiple iterations.
           #
           # Outcomes:
-          #   200 + correct values  → ::notice::, exit 0 (happy path)
-          #   200 + WRONG values    → ::error::, exit 1 (real regression)
-          #   non-2xx               → ::warning::, exit 0 (Vercel-side issue,
-          #                           NOT a code regression)
-          # Per CLAUDE.md gotcha #14, every skip branch emits a clear warning.
+          #   200 + correct values → ::notice::, exit 0 (happy path)
+          #   200 + WRONG values   → ::error::, exit 1 (real regression)
+          #   non-2xx              → ::warning::, exit 0 (Vercel-side issue,
+          #                          NOT a code regression)
           if [ -z "$VERCEL_BYPASS" ]; then
             echo "::warning::VERCEL_AUTOMATION_BYPASS secret not set; skipping dev health smoke."
             exit 0
           fi
-          COOKIE_JAR=$(mktemp)
-          RESPONSE=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -w "\n%{http_code}" --max-time 20 \
-            "https://dev.checklyra.com/api/health?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=$VERCEL_BYPASS")
-          rm -f "$COOKIE_JAR"
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::warning::deploy_url output missing from prior step; skipping smoke."
+            exit 0
+          fi
+          DEPLOY_URL_CLEAN="${DEPLOY_URL#https://}"
+          DEPLOY_URL_CLEAN="${DEPLOY_URL_CLEAN#http://}"
+          echo "Hitting: https://$DEPLOY_URL_CLEAN/api/health"
+          RESPONSE=$(curl -s -H "x-vercel-protection-bypass: $VERCEL_BYPASS" -w "\n%{http_code}" --max-time 20 \
+            "https://$DEPLOY_URL_CLEAN/api/health")
           STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           echo "HTTP $STATUS"
           echo "Body: $BODY"
           if [ "$STATUS" != "200" ]; then
-            echo "::warning::Dev health smoke received HTTP $STATUS instead of 200. Bypass token may not be honored on this Vercel env. Skipping assertion — verify Vercel → Settings → Deployment Protection."
+            echo "::warning::Dev health smoke received HTTP $STATUS instead of 200. Skipping assertion."
             exit 0
           fi
           SITE_URL=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('siteUrl',''))")
