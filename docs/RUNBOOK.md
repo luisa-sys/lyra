@@ -29,7 +29,7 @@ Real-user beta testing happens on `beta.checklyra.com` with prod credentials, so
 
 ## Release Procedure
 
-Promotions follow develop → staging → main with manual triggers and automated verification.
+Promotions follow develop → staging → beta → main with manual triggers (and one weekly auto-promote to staging — see `docs/RELEASE_POLICY.md`). The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
 
 ### Promote develop → staging
 
