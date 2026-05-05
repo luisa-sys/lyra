@@ -33,11 +33,12 @@ Full details: `docs/JIRA_TICKET_STANDARD.md`
 The pipeline is: **develop → staging → main** (promotion-based).
 
 - All feature work goes to `develop` via PR
-- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote`
-- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`
+- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
+- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated)
 - **Never push directly to staging or main**
 - All environments must be kept in sync
 - Commit and push only after verifying code compiles and tests pass
+- Cadence: at least one release/week to flush the chain (see `docs/RELEASE_POLICY.md`)
 
 ## Testing Requirements
 
