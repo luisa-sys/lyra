@@ -16,7 +16,7 @@ This audit enforces the policies in [CLAUDE.md → Test Integrity Policy](../CLA
 | GitHub Actions workflows | 14 | ✅ pass per KAN-167 audit (loop-closure pending — see follow-ups) |
 | Jest config silencers | n/a | ✅ pass — no `bail`, `silent: true`, or `verbose: false` in CI |
 
-**Test count regression guard refreshed:** floor was 16 files / 208 tests (set 2026-03-31); now 21 files / 268 static-grep test blocks (current 22 files / 269 grep / 290 Jest).
+**Test count regression guard refreshed:** floor was 16 files / 208 tests (set 2026-03-31); refreshed 2026-05-04 to 21 files / 268 static-grep blocks. **Refreshed again 2026-05-05 (KAN-168 follow-up): now 29 files / 320 static-grep blocks**, current 30 files / 327 grep / 351 Jest. Pattern broadened to include `tests/scripts/` after KAN-163 added the UptimeRobot bootstrap test there. New tests added 2026-05-05: KAN-163 UptimeRobot lib (17), BUGS-11 promote-to-production meta (6), KAN-170 secret-rotation parser (4), KAN-173 release-drift script (6), KAN-156-159 homepage refresh (5 new + 2 updated assertions).
 
 **New static-analysis test added:** `tests/unit/test-meta-integrity.test.js` enforces "every `test()` / `it()` block must contain at least one `expect()` call".
 
