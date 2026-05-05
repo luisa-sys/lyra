@@ -184,6 +184,27 @@ jobs:
               exit 1
               ;;
           esac
+      - name: Verify env wiring via /api/__health__ (KAN-175)
+        run: |
+          set -euo pipefail
+          # KAN-175: assert the deployed app sees the right env vars. Catches
+          # regressions of: missing IS_BETA_DEPLOY=true, a stale or wrong
+          # NEXT_PUBLIC_SITE_URL, mismatched VERCEL_ENV. If any of these
+          # drift, the OAuth redirect chain breaks (users get bounced to the
+          # prod maintenance page instead of staying on beta).
+          BODY=$(curl -sf --max-time 15 "https://beta.checklyra.com/api/__health__")
+          echo "Health response: $BODY"
+          SITE_URL=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('siteUrl',''))")
+          IS_BETA=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('isBetaDeploy',False))")
+          if [ "$SITE_URL" != "https://beta.checklyra.com" ]; then
+            echo "::error::Beta health: NEXT_PUBLIC_SITE_URL='$SITE_URL', expected 'https://beta.checklyra.com'. Fix in Vercel beta env."
+            exit 1
+          fi
+          if [ "$IS_BETA" != "True" ]; then
+            echo "::error::Beta health: isBetaDeploy=$IS_BETA, expected True. Set IS_BETA_DEPLOY=true on Vercel beta env."
+            exit 1
+          fi
+          echo "::notice::Beta env wiring verified (siteUrl=$SITE_URL, isBetaDeploy=$IS_BETA)"
       - name: Health check — MCP server (shared with prod)
         run: |
           set -euo pipefail
