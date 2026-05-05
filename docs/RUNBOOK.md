@@ -252,9 +252,26 @@ All scheduled workflows also support `workflow_dispatch` for manual runs.
 - Workflow fails (red status) when high/critical vulns detected — visible in GitHub UI
 - Manual trigger: GitHub → Actions → "Weekly Security Audit" → Run workflow
 
+## Incident Response
+
+**Primary signal:** UptimeRobot (5-minute interval, KAN-163). Email alerts to luisa@santos-stephens.com and ben@santos-stephens.com when any monitored endpoint goes down or an SSL cert is within 30 days of expiry.
+
+**Secondary signal:** the 6-hourly GitHub Actions health-check workflow. Slower (up to 6h delay) but redundant; useful when UptimeRobot itself is degraded.
+
+**Tertiary signal:** weekly report Monday 07:00 UTC — Section 1 endpoint health is a 7-day summary, not a live signal, but it cross-checks UptimeRobot.
+
+When an alert fires:
+1. Check the affected endpoint manually with `curl -I` to confirm it's a real outage rather than a probe blocking issue (Cloudflare bot protection occasionally trips on UptimeRobot's IP — gotcha #7 in CLAUDE.md).
+2. Check Vercel deployment status for the affected env.
+3. Check Cloudflare for DNS, Workers, or zone-level issues.
+4. If MCP-side: check Railway logs.
+5. Roll back the deploy if a recent promotion looks responsible — see "Deployment Rollback" above.
+
+UptimeRobot setup, monitor list, and bootstrap procedure: [`docs/UPTIMEROBOT_SETUP.md`](./UPTIMEROBOT_SETUP.md).
+
 ## Emergency Contacts
 
-ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.com/luisa-sys-projects/lyra)[vercel.com/help](http://vercel.com/help)Supabase[supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj](http://supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj)[supabase.com/support](http://supabase.com/support)Cloudflare[dash.cloudflare.com](http://dash.cloudflare.com)[cloudflare.com/support](http://cloudflare.com/support)GitHub[github.com/luisa-sys/lyra](http://github.com/luisa-sys/lyra)[support.github.com](http://support.github.com)Railwayrailway.app (Lyra project)railway.app/help
+ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.com/luisa-sys-projects/lyra)[vercel.com/help](http://vercel.com/help)Supabase[supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj](http://supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj)[supabase.com/support](http://supabase.com/support)Cloudflare[dash.cloudflare.com](http://dash.cloudflare.com)[cloudflare.com/support](http://cloudflare.com/support)GitHub[github.com/luisa-sys/lyra](http://github.com/luisa-sys/lyra)[support.github.com](http://support.github.com)Railwayrailway.app (Lyra project)railway.app/helpUptimeRobot[dashboard.uptimerobot.com](https://dashboard.uptimerobot.com/)[uptimerobot.com/help](https://uptimerobot.com/help)
 
 ## MCP Server Operations
 

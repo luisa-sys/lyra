@@ -8,11 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test:unit": "npx jest --testPathPatterns=tests/unit",
+    "test:unit": "npx jest --testPathPatterns='tests/(unit|scripts)'",
     "test:integration": "npx jest --testPathPatterns=tests/integration",
     "test:e2e": "npx playwright test",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
-    "db:migrate": "echo 'No migrations configured yet'"
+    "test:scripts": "npx jest --testPathPatterns=tests/scripts",
+    "db:migrate": "echo 'No migrations configured yet'",
+    "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
