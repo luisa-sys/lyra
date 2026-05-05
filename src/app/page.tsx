@@ -37,7 +37,7 @@ function Hero() {
           Let people<br />know you
         </h1>
         <p className="text-lg sm:text-xl text-stone-500 leading-relaxed max-w-xl mx-auto mb-12">
-          Share your preferences, gift ideas, and boundaries in one calm place
+          Share your preferences, gift ideas, and boundaries in one place
           — so the people in your life never have to guess.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
