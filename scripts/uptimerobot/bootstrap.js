@@ -111,14 +111,39 @@ async function main() {
   }
 
   if (APPLY) {
-    for (const c of monitorDiff.toCreate) {
-      const res = await client.newMonitor({
-        friendlyName: c.friendlyName,
-        url: c.url,
-        alertContacts: alertContactsParam,
-      });
-      const id = res.monitor?.id;
-      log(`  + created monitor ${c.friendlyName} (id ${id})`);
+    // UptimeRobot throttles newMonitor (~1 req/3s on free tier).
+    // Throttle locally + retry on 429 with longer backoff so the script
+    // is reliable end-to-end without operator intervention.
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (let i = 0; i < monitorDiff.toCreate.length; i++) {
+      const c = monitorDiff.toCreate[i];
+      let attempt = 0;
+      while (true) {
+        try {
+          const res = await client.newMonitor({
+            friendlyName: c.friendlyName,
+            url: c.url,
+            alertContacts: alertContactsParam,
+          });
+          const id = res.monitor?.id;
+          log(`  + created monitor ${c.friendlyName} (id ${id})`);
+          break;
+        } catch (err) {
+          attempt++;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('429') && attempt <= 4) {
+            const wait = 10000 * attempt;
+            log(`  ⏳ 429 from UptimeRobot, sleeping ${wait}ms before retry ${attempt}/4`);
+            await sleep(wait);
+            continue;
+          }
+          throw err;
+        }
+      }
+      // Pre-emptive 4s pause between calls.
+      if (i < monitorDiff.toCreate.length - 1) {
+        await sleep(4000);
+      }
     }
   }
 
