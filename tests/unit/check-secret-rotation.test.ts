@@ -59,4 +59,16 @@ describe('check-secret-rotation.py', () => {
     expect(r.stdout).not.toMatch(/OVERDUE/);
     expect(r.exitCode).toBe(0);
   });
+
+  test('skips rows with "Only on suspicion" cadence (no-schedule path)', () => {
+    // The Sentry DSN row uses "Only on suspicion" — should be skipped
+    // entirely (no warning, no error). Verify by looking at a date well
+    // past any annual rotation: the DSN row should NOT appear in any
+    // category, but the annual-cadence rows would. We assert the DSN row
+    // isn't flagged as overdue/in-window/unparseable.
+    const r = run(['--today', '2027-04-15', '--warn-days', '30']);
+    expect(r.stdout).not.toMatch(/Sentry DSN/);
+    // sanity check: scheduled-cadence rows still get flagged
+    expect(r.stdout).toMatch(/LYRA_RELEASE_PAT|LYRA_BACKUP_PAT/);
+  });
 });

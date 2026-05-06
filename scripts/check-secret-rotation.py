@@ -35,6 +35,18 @@ CADENCE_DAYS = {
     "quarterly": 90,
 }
 
+# Cadences meaning "no scheduled rotation" — rows with these are
+# informational only and skipped by the calendar reminder. Used for
+# credentials that rotate only on incident (e.g. Sentry DSN, which is
+# public-by-design and only rotates on leak).
+NO_SCHEDULE_CADENCES = {
+    "only on suspicion",
+    "on suspicion only",
+    "never",
+    "as needed",
+    "manual",
+}
+
 
 class SecretRow(NamedTuple):
     name: str
@@ -142,6 +154,11 @@ def main() -> int:
             unrotated.append(
                 f"  ⚠️  {row.name}: Last Rotated='Initial setup' — never rotated. Add a real date to SECURITY_ROTATION.md."
             )
+            continue
+        # No-schedule cadences (e.g. "Only on suspicion") are informational
+        # only — skip them entirely from the calendar reminder. They're
+        # tracked by incident response, not by date arithmetic.
+        if row.rotation.strip().lower() in NO_SCHEDULE_CADENCES:
             continue
         next_due = row.next_due()
         if next_due is None:
