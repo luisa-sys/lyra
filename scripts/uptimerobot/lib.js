@@ -96,6 +96,7 @@ function makeClient({ apiKey, httpClient = (typeof fetch === 'function' ? fetch 
       sslExpirationReminder = 1,
       timeout = 30,
       httpMethodType = 1,
+      customHttpStatuses,
     }) =>
       call('newMonitor', {
         friendly_name: friendlyName,
@@ -106,13 +107,15 @@ function makeClient({ apiKey, httpClient = (typeof fetch === 'function' ? fetch 
         ssl_expiration_reminder: sslExpirationReminder,
         timeout,
         http_method_type: httpMethodType,
+        custom_http_statuses: customHttpStatuses,
       }),
-    editMonitor: ({ id, alertContacts, interval, sslExpirationReminder = 1 }) =>
+    editMonitor: ({ id, alertContacts, interval, sslExpirationReminder = 1, customHttpStatuses }) =>
       call('editMonitor', {
         id,
         alert_contacts: alertContacts,
         interval,
         ssl_expiration_reminder: sslExpirationReminder,
+        custom_http_statuses: customHttpStatuses,
       }),
   };
 }
@@ -123,14 +126,31 @@ function makeClient({ apiKey, httpClient = (typeof fetch === 'function' ? fetch 
  * the world against weekly-report Section 1.
  *
  * Each entry: a `friendlyName` we use as the idempotency key (search by
- * exact match before creating) and the URL the monitor should poll.
+ * exact match before creating), the URL the monitor should poll, and
+ * optionally `customHttpStatuses` to override the default "200-299 = up,
+ * 300-599 = down" classification.
+ *
+ * The `customHttpStatuses` format is UptimeRobot's: `<code>:<1|0>_<code>:<1|0>...`
+ * where 1 = consider as "up", 0 = consider as "down".
+ *
+ * Why we override status mapping on dev/stage:
+ * - dev.checklyra.com and stage.checklyra.com sit behind Vercel SSO,
+ *   which returns 401 for unauthenticated traffic. UptimeRobot's free
+ *   scraper has no way to authenticate, so it always sees 401. Without
+ *   the override, both monitors stay falsely DOWN forever.
+ * - The 401 means "Vercel SSO is alive and refusing me", which is
+ *   exactly the signal we want for "the deployment is up". A real
+ *   outage on those envs would return 502/503/timeout, which we still
+ *   want to alert on.
+ * - 403 is also accepted-as-up because Cloudflare bot challenge
+ *   sometimes returns 403 to UptimeRobot's IPs (CLAUDE.md gotcha #7).
  */
 const LYRA_MONITORS = Object.freeze([
   { friendlyName: 'Lyra prod — checklyra.com',         url: 'https://checklyra.com/' },
   { friendlyName: 'Lyra prod — privacy',               url: 'https://checklyra.com/privacy' },
   { friendlyName: 'Lyra beta — beta.checklyra.com',    url: 'https://beta.checklyra.com/' },
-  { friendlyName: 'Lyra stage — stage.checklyra.com',  url: 'https://stage.checklyra.com/' },
-  { friendlyName: 'Lyra dev — dev.checklyra.com',      url: 'https://dev.checklyra.com/' },
+  { friendlyName: 'Lyra stage — stage.checklyra.com',  url: 'https://stage.checklyra.com/', customHttpStatuses: '200:1_401:1_403:1' },
+  { friendlyName: 'Lyra dev — dev.checklyra.com',      url: 'https://dev.checklyra.com/',   customHttpStatuses: '200:1_401:1_403:1' },
   { friendlyName: 'Lyra MCP prod — mcp.checklyra.com', url: 'https://mcp.checklyra.com/health' },
   { friendlyName: 'Lyra MCP dev — mcp-dev.checklyra.com', url: 'https://mcp-dev.checklyra.com/health' },
 ]);
@@ -167,9 +187,26 @@ function planMonitorDiff(existing, desired) {
         desiredUrl: want.url,
         reason: 'url-mismatch',
       });
-    } else {
-      unchanged.push({ id: have.id, friendlyName: want.friendlyName });
+      continue;
     }
+    // Reconcile customHttpStatuses if it differs. UptimeRobot's API
+    // returns `custom_http_statuses` as a string like "200-1_401-1_403-1"
+    // (yes, with hyphens between code and flag, even though the API
+    // accepts underscores on input). Normalise both sides for compare.
+    const normalise = (s) => (s || '').replace(/[-_]/g, ':').replace(/(\d):/g, '$1:');
+    const haveStatuses = normalise(have.custom_http_statuses);
+    const wantStatuses = normalise(want.customHttpStatuses);
+    if (haveStatuses !== wantStatuses) {
+      toUpdate.push({
+        id: have.id,
+        friendlyName: want.friendlyName,
+        currentCustomHttpStatuses: have.custom_http_statuses || '',
+        desiredCustomHttpStatuses: want.customHttpStatuses || '',
+        reason: 'custom-http-statuses-mismatch',
+      });
+      continue;
+    }
+    unchanged.push({ id: have.id, friendlyName: want.friendlyName });
   }
   return { toCreate, toUpdate, unchanged };
 }
