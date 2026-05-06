@@ -56,6 +56,24 @@ describe('LYRA_MONITORS canonical list', () => {
     expect(urls).toContain('https://mcp-dev.checklyra.com/health');
   });
 
+  test('SSO-protected envs (dev, stage) carry the customHttpStatuses override', () => {
+    // dev and stage sit behind Vercel SSO and return 401 to UR's scraper.
+    // Without the 401:1 override they'd stay falsely DOWN forever.
+    // Verified live 2026-05-06 — alert path was triggered via these false
+    // positives within 2 min of monitor creation; the override stops the
+    // alert spam from recurring on every scrape.
+    const dev = LYRA_MONITORS.find((m) => m.friendlyName === 'Lyra dev — dev.checklyra.com');
+    const stage = LYRA_MONITORS.find((m) => m.friendlyName === 'Lyra stage — stage.checklyra.com');
+    expect(dev?.customHttpStatuses).toBe('200:1_401:1_403:1');
+    expect(stage?.customHttpStatuses).toBe('200:1_401:1_403:1');
+    // Public envs should NOT have the override — we want real 401/403
+    // there to fail the monitor.
+    const prod = LYRA_MONITORS.find((m) => m.friendlyName === 'Lyra prod — checklyra.com');
+    const beta = LYRA_MONITORS.find((m) => m.friendlyName === 'Lyra beta — beta.checklyra.com');
+    expect(prod?.customHttpStatuses).toBeUndefined();
+    expect(beta?.customHttpStatuses).toBeUndefined();
+  });
+
   test('canonical list is frozen — runtime mutation rejected', () => {
     expect(() => {
       // Cast away readonly to attempt a real mutation; Object.freeze should reject.
@@ -75,16 +93,48 @@ describe('planMonitorDiff', () => {
     expect(out.toUpdate.length).toBe(0);
   });
 
-  test('matches by friendly_name and reports unchanged when url already correct', () => {
+  test('matches by friendly_name and reports unchanged when url + custom_http_statuses already correct', () => {
+    // Mirror the canonical list including customHttpStatuses where set.
+    // UptimeRobot's API returns the field as `custom_http_statuses` with
+    // hyphens between code and flag (e.g. "200-1_401-1_403-1") even
+    // though it accepts underscores on input — the diff planner
+    // normalises both sides, so the test mirrors the API output shape.
     const existing = LYRA_MONITORS.map((m, i) => ({
       id: 1000 + i,
       friendly_name: m.friendlyName,
       url: m.url,
+      custom_http_statuses: m.customHttpStatuses
+        ? m.customHttpStatuses.replace(/:/g, '-')
+        : '',
     }));
     const out = planMonitorDiff(existing, LYRA_MONITORS);
     expect(out.toCreate).toEqual([]);
     expect(out.toUpdate).toEqual([]);
     expect(out.unchanged.length).toBe(LYRA_MONITORS.length);
+  });
+
+  test('flags custom_http_statuses drift as toUpdate (so apply path can edit it)', () => {
+    // dev's canonical entry includes customHttpStatuses; an existing
+    // monitor created without it (older bootstrap version) should be
+    // flagged for reconcile. URL is correct in both cases.
+    const dev = LYRA_MONITORS.find((m) => m.friendlyName === 'Lyra dev — dev.checklyra.com');
+    const existing = [
+      {
+        id: 999,
+        friendly_name: dev!.friendlyName,
+        url: dev!.url,
+        custom_http_statuses: '', // older monitor created without override
+      },
+    ];
+    const out = planMonitorDiff(existing, [dev!]);
+    expect(out.toUpdate).toHaveLength(1);
+    expect(out.toUpdate[0]).toMatchObject({
+      id: 999,
+      friendlyName: dev!.friendlyName,
+      reason: 'custom-http-statuses-mismatch',
+      currentCustomHttpStatuses: '',
+      desiredCustomHttpStatuses: '200:1_401:1_403:1',
+    });
   });
 
   test('flags url drift via toUpdate (manual review) instead of silent overwrite', () => {

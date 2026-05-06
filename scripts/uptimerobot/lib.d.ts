@@ -34,6 +34,13 @@ export const FIVE_MINUTES: 300;
 export interface MonitorSpec {
   readonly friendlyName: string;
   readonly url: string;
+  /**
+   * Optional override for UptimeRobot's default 200-299=up / 300-599=down
+   * classification. Format: `<code>:<1|0>_...` where 1=up, 0=down. e.g.
+   * `"200:1_401:1_403:1"` accepts 401 (Vercel SSO) and 403 (Cloudflare
+   * bot challenge) as "up" — used on dev/stage/SSO-protected envs.
+   */
+  readonly customHttpStatuses?: string;
 }
 export const LYRA_MONITORS: readonly MonitorSpec[];
 
@@ -78,7 +85,13 @@ export interface UptimeRobotClient {
   }): Promise<{ stat: 'ok'; alertcontact?: { id: number } }>;
   getMonitors(search?: string): Promise<{
     stat: 'ok';
-    monitors?: Array<{ id: number; friendly_name: string; url: string; status?: number }>;
+    monitors?: Array<{
+      id: number;
+      friendly_name: string;
+      url: string;
+      status?: number;
+      custom_http_statuses?: string;
+    }>;
   }>;
   newMonitor(input: {
     friendlyName: string;
@@ -89,12 +102,14 @@ export interface UptimeRobotClient {
     sslExpirationReminder?: number;
     timeout?: number;
     httpMethodType?: number;
+    customHttpStatuses?: string;
   }): Promise<{ stat: 'ok'; monitor?: { id: number } }>;
   editMonitor(input: {
     id: number;
     alertContacts?: string;
     interval?: number;
     sslExpirationReminder?: number;
+    customHttpStatuses?: string;
   }): Promise<{ stat: 'ok' }>;
 }
 
@@ -104,17 +119,28 @@ export interface ExistingMonitor {
   id: number;
   friendly_name: string;
   url: string;
+  custom_http_statuses?: string;
 }
+
+export type MonitorDiffEntry =
+  | {
+      id: number;
+      friendlyName: string;
+      currentUrl: string;
+      desiredUrl: string;
+      reason: 'url-mismatch';
+    }
+  | {
+      id: number;
+      friendlyName: string;
+      currentCustomHttpStatuses: string;
+      desiredCustomHttpStatuses: string;
+      reason: 'custom-http-statuses-mismatch';
+    };
 
 export interface MonitorDiff {
   toCreate: MonitorSpec[];
-  toUpdate: Array<{
-    id: number;
-    friendlyName: string;
-    currentUrl: string;
-    desiredUrl: string;
-    reason: 'url-mismatch';
-  }>;
+  toUpdate: MonitorDiffEntry[];
   unchanged: Array<{ id: number; friendlyName: string }>;
 }
 
