@@ -82,14 +82,29 @@ const sections = [
     ],
   },
   {
-    title: "UptimeRobot (Monitoring) — KAN-163",
+    title: "UptimeRobot (Uptime monitoring) — KAN-163",
     icon: "📡",
     items: [
       { label: "Dashboard", link: "https://dashboard.uptimerobot.com/" },
       { label: "Setup guide", link: "https://github.com/luisa-sys/lyra/blob/develop/docs/UPTIMEROBOT_SETUP.md" },
       { label: "Plan", value: "Free — 50 monitors, 5-minute interval, SSL expiry monitoring" },
-      { label: "Alerts to", value: "luisa@santos-stephens.com, ben@santos-stephens.com" },
+      { label: "Alert recipient", value: "luisa@santos-stephens.com (free tier = 1 contact; ben@ via email forwarding TBD)" },
       { label: "Bootstrap script", value: "scripts/uptimerobot/bootstrap.js (idempotent, dry-run by default)" },
+      { label: "SSO-protected envs", value: "dev + stage have custom_http_statuses=200/401/403=UP (Vercel SSO returns 401)" },
+    ],
+  },
+  {
+    title: "Sentry (Error monitoring) — KAN-104",
+    icon: "🚨",
+    items: [
+      { label: "Dashboard", link: "https://sentry.io/" },
+      { label: "Setup guide", link: "https://github.com/luisa-sys/lyra/blob/develop/docs/SENTRY_SETUP.md" },
+      { label: "Region", value: "EU (de.sentry.io) — GDPR-friendly" },
+      { label: "DSN", value: "https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704", copy: true },
+      { label: "Org ID", value: "o4511340602523648 (numeric, in DSN)" },
+      { label: "Project ID", value: "4511340621594704 (numeric, in DSN)" },
+      { label: "Activation", value: "Set NEXT_PUBLIC_SENTRY_DSN + IS_SENTRY_ENABLED=true on each Vercel env" },
+      { label: "Source-map upload", value: "Requires SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT on Vercel (build time only)" },
     ],
   },
   {
