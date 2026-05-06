@@ -17,6 +17,9 @@
 | Google OAuth client secret | Supabase Auth config (all 3 projects) | Annual or on suspicion | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client → Reset Secret → Update in all 3 Supabase project Auth settings. **Causes downtime**: all Google Sign-In sessions invalidated immediately. | Initial setup |
 | Railway API token | Local scripts only (not in CI) | 90 days | Railway → Account → Tokens → Create new → Update local env → Revoke old. | Initial setup |
 | SUPABASE_DB_URL (pg_dump) | GitHub secret | Annual | Supabase → Settings → Database → Connection string (Transaction Pooler, port 6543). Password changes if database password is reset. | Initial setup |
+| SENTRY_AUTH_TOKEN | Vercel env vars (each env) | Annual | Sentry → User Auth Tokens → Create new (scopes: org:read, project:read, project:write, project:releases) → Update in Vercel each env → redeploy → revoke old token. Build-time only — used by `next build` to upload source maps. Missing/wrong token doesn't fail the build (errorHandler swallows it), just means stack traces stay minified in Sentry. | 6 May 2026 |
+| Sentry DSN (NEXT_PUBLIC_SENTRY_DSN) | Vercel env vars (each env) | Only on suspicion | Sentry → Project → Settings → Client Keys (DSN) → "Generate new key". Public-by-design, doesn't expire. Rotate only if leaked into a context that matters (rare — DSN allows ingestion only, not data access). | 6 May 2026 |
+| UptimeRobot Main API key | Local only — never committed | Annual | UptimeRobot → My Settings → API Settings → Create Main API Key → use to re-run `npm run uptimerobot:bootstrap` if needed. Document scope: full account write. KAN-163 docs/UPTIMEROBOT_SETUP.md. | 5 May 2026 |
 
 ### User-Facing Secrets (user-controlled)
 
