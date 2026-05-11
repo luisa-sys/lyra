@@ -181,3 +181,29 @@ jobs:
                   cid = e.get("id", "?")
                   print(f"| {name} | `{slug}` | `{branch}` | `{domain}` | `{cid}` |")
           PY
+      - name: Echo JSON to log (so non-UI clients can parse it)
+        run: |
+          set -euo pipefail
+          echo "=== ENV VARS (names + scope only) ==="
+          python3 -c "
+          import json
+          with open('/tmp/vercel-envs.json') as f:
+              data = json.load(f)
+          rows = sorted(
+              (e.get('key','?'),
+               ','.join(e.get('target') or []),
+               e.get('gitBranch') or '',
+               ','.join(e.get('customEnvironmentIds') or []))
+              for e in data.get('envs', [])
+          )
+          for k, t, gb, ce in rows:
+              print(f'{k}\t{t}\tgitBranch={gb}\tcustomEnvs={ce}')
+          "
+          echo ""
+          echo "=== CUSTOM ENVIRONMENTS ==="
+          cat /tmp/vercel-custom-envs.json | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          for e in (d.get('customEnvironments') or d.get('environments') or []):
+              print(json.dumps(e, sort_keys=True))
+          "
