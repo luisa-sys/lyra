@@ -55,11 +55,12 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID")
 
-          echo "$RESP" | python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$RESP" > /tmp/vercel-envs.json
+          python3 <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os, sys, collections
 
-          raw = sys.stdin.read()
-          data = json.loads(raw)
+          with open('/tmp/vercel-envs.json') as f:
+              data = json.load(f)
           envs = data.get("envs", [])
 
           # Bucket every env-var entry by where it applies.
@@ -156,9 +157,11 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/custom-environments?teamId=$VERCEL_ORG_ID" \
             || echo '{"customEnvironments":[]}')
-          echo "$RESP" | python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json, sys
-          data = json.loads(sys.stdin.read())
+          printf '%s' "$RESP" > /tmp/vercel-custom-envs.json
+          python3 <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          with open('/tmp/vercel-custom-envs.json') as f:
+              data = json.load(f)
           envs = data.get("customEnvironments") or data.get("environments") or []
           if not envs:
               print("_none defined_\n")
