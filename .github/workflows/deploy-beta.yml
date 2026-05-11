@@ -84,15 +84,21 @@ jobs:
           cache: 'npm'
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
+      # BUGS-13: pull beta env (not preview) so build resolves IS_BETA_DEPLOY,
+      # NEXT_PUBLIC_SITE_URL=https://beta.checklyra.com, and PROD_SUPABASE_*
+      # from the beta custom environment. Without this, Vercel CLI defaults
+      # to preview scope and the resulting deployment is target=preview,
+      # which both serves stale content on beta.checklyra.com and trips the
+      # post-deploy SHA verification (which filters target=='beta').
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=beta --token=${{ secrets.VERCEL_TOKEN }}
       - name: Build project
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --target=beta --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy to Vercel
         id: deploy
         run: |
           set -euo pipefail
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          URL=$(vercel deploy --prebuilt --target=beta --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
