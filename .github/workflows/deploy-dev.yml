@@ -66,3 +66,53 @@ jobs:
             echo "::error::Health check failed with status $STATUS"
             exit 1
           fi
+      - name: Verify env wiring via /api/health (KAN-175)
+        env:
+          VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.deploy_url }}
+        run: |
+          set -uo pipefail
+          # KAN-175: Cloudflare bot challenge blocks CI runner IPs from
+          # reaching dev.checklyra.com directly (returns 403 + JS challenge
+          # page). Solution: hit the Vercel deployment URL directly
+          # (lyra-xxx.vercel.app) which isn't proxied through Cloudflare.
+          # Bypass header travels intact when not going through Cloudflare.
+          # Verified working 2026-05-05 after multiple iterations.
+          #
+          # Outcomes:
+          #   200 + correct values → ::notice::, exit 0 (happy path)
+          #   200 + WRONG values   → ::error::, exit 1 (real regression)
+          #   non-2xx              → ::warning::, exit 0 (Vercel-side issue,
+          #                          NOT a code regression)
+          if [ -z "$VERCEL_BYPASS" ]; then
+            echo "::warning::VERCEL_AUTOMATION_BYPASS secret not set; skipping dev health smoke."
+            exit 0
+          fi
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::warning::deploy_url output missing from prior step; skipping smoke."
+            exit 0
+          fi
+          DEPLOY_URL_CLEAN="${DEPLOY_URL#https://}"
+          DEPLOY_URL_CLEAN="${DEPLOY_URL_CLEAN#http://}"
+          echo "Hitting: https://$DEPLOY_URL_CLEAN/api/health"
+          RESPONSE=$(curl -s -H "x-vercel-protection-bypass: $VERCEL_BYPASS" -w "\n%{http_code}" --max-time 20 \
+            "https://$DEPLOY_URL_CLEAN/api/health")
+          STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "HTTP $STATUS"
+          echo "Body: $BODY"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Dev health smoke received HTTP $STATUS instead of 200. Skipping assertion."
+            exit 0
+          fi
+          SITE_URL=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('siteUrl',''))")
+          IS_BETA=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('isBetaDeploy',False))")
+          if [ "$SITE_URL" != "https://dev.checklyra.com" ]; then
+            echo "::error::Dev health: NEXT_PUBLIC_SITE_URL='$SITE_URL', expected 'https://dev.checklyra.com'."
+            exit 1
+          fi
+          if [ "$IS_BETA" = "True" ]; then
+            echo "::error::Dev health: isBetaDeploy is True — dev must NOT have the beta gate active."
+            exit 1
+          fi
+          echo "::notice::Dev env wiring verified (siteUrl=$SITE_URL)"

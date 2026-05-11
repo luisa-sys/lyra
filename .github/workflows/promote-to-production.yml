@@ -142,24 +142,53 @@ jobs:
           # KAN-175: source is now `beta` (was `staging` before KAN-175).
           # The next promotion gate is beta → main; staging→beta is a separate
           # workflow (promote-staging-to-beta.yml).
+          git fetch origin main beta --depth=200
           git checkout beta
           git pull origin beta --ff-only
           git checkout -b "$BRANCH"
 
-          # BUGS-11: merge main HEAD into the release branch so the head has
-          # main's HEAD as a direct ancestor. Without this, the next promotion
-          # after a successful production merge has behind_by=1 from main
-          # (because the prior merge commit was never copied back into
-          # develop/staging), which trips main's `required_status_checks.strict`
-          # rule and silently blocks GitHub auto-merge for the full 15-min
-          # wait-for-merge timeout. With this merge, behind_by=0 by
-          # construction and auto-merge can fire as soon as required checks pass.
-          # Conflicts here are intentionally fatal — they indicate divergence
-          # beyond auto-resolution and need human review.
-          git fetch origin main --depth=50
-          git merge origin/main --no-edit -m "Merge main into release branch (BUGS-11)"
+          # BUGS-11 (rebase): GitHub's `required_status_checks.strict: true`
+          # on main rejects auto-merge if main has commits not reachable as
+          # *first-parent* ancestors of the PR head. The earlier merge-main
+          # approach (`git merge origin/main` into the release branch) gives
+          # main's HEAD as a SECOND parent of the merge commit — git's full
+          # ancestry includes it, but GitHub's strict-ancestry check follows
+          # first-parent only and still reports behind_by≥1. Empirically the
+          # last 4 prod promotions (#99, #103, #111, #120) all required an
+          # admin-merge despite the merge-main step succeeding.
+          #
+          # Rebase produces strictly linear first-parent ancestry: every
+          # commit from beta is replayed on top of main's HEAD, so the new
+          # release-branch tip has main's HEAD as a direct first-parent
+          # ancestor. behind_by=0 by construction.
+          #
+          # Conflicts during rebase are intentionally fatal — they indicate
+          # divergence beyond auto-resolution and need human review. The
+          # release branch will be left in an aborted state and the workflow
+          # exits non-zero.
+          MAIN_SHA=$(git rev-parse origin/main)
+          BETA_BEFORE_REBASE=$(git rev-parse HEAD)
+          echo "Rebasing $BRANCH onto main ($MAIN_SHA)…"
+          if ! git rebase origin/main; then
+            echo "::error::Rebase onto main produced conflicts. Aborting."
+            git rebase --abort || true
+            exit 1
+          fi
+          BETA_AFTER_REBASE=$(git rev-parse HEAD)
+          echo "Rebase complete. HEAD: $BETA_BEFORE_REBASE → $BETA_AFTER_REBASE"
 
-          # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger
+          # Sanity-check that main is now a direct first-parent ancestor of
+          # the rebased head. If GitHub's compare API disagrees with us
+          # later, fail loud here rather than at auto-merge time.
+          if ! git merge-base --is-ancestor "$MAIN_SHA" HEAD; then
+            echo "::error::Post-rebase: main HEAD ($MAIN_SHA) is NOT an ancestor of release branch HEAD. BUGS-11 fix would not work."
+            exit 1
+          fi
+          echo "::notice::main is a direct ancestor of $BRANCH (BUGS-11 strict-ancestry satisfied)"
+
+          # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger.
+          # `--force-with-lease` is unnecessary here because $BRANCH was
+          # just created locally and never pushed.
           git push origin "$BRANCH"
 
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
@@ -300,8 +329,49 @@ jobs:
             echo "$CHECK_SUMMARY"
           done
 
+          # BUGS-11 diagnostics on timeout — dump enough info to root-cause
+          # without needing a separate investigation. We surface:
+          #   - mergeStateStatus (CLEAN / BLOCKED / UNSTABLE / DIRTY / etc.)
+          #   - behind_by from main (strict-ancestry check)
+          #   - autoMergeRequest state
+          #   - all check_runs and check_suites with their app slugs
+          #   - the legacy combined commit-status (any pending statuses?)
+          # An admin-merge can be done by an operator once the cause is clear.
           echo "::error::PR #$PR_NUMBER did not merge within ${TIMEOUT}s"
-          echo "::error::Check status checks on the PR. CodeQL and PR Quality Gate must pass for auto-merge to fire."
+          echo "## BUGS-11 diagnostics" >> "$GITHUB_STEP_SUMMARY"
+          PR_DIAG=$(gh pr view "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --json mergeable,mergeStateStatus,headRefOid,autoMergeRequest 2>/dev/null || echo '{}')
+          MERGE_STATE=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mergeStateStatus','?'))")
+          MERGEABLE=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mergeable','?'))")
+          HEAD_SHA=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('headRefOid','?'))")
+          AUTO=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); am=d.get('autoMergeRequest'); print(am.get('enabledBy',{}).get('login') if am else 'NOT-ENABLED')")
+          echo "::error::mergeable=$MERGEABLE  mergeStateStatus=$MERGE_STATE  autoMerge=$AUTO  head=$HEAD_SHA"
+          {
+            echo "- **mergeable**: \`$MERGEABLE\`"
+            echo "- **mergeStateStatus**: \`$MERGE_STATE\` (CLEAN means merge can fire; BLOCKED means a required gate is missing; UNSTABLE means non-required check failed)"
+            echo "- **autoMergeRequest**: $AUTO"
+            echo "- **head SHA**: \`$HEAD_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Strict-ancestry comparison vs main
+          COMP=$(gh api "repos/${{ github.repository }}/compare/main...$HEAD_SHA" --jq '{ahead_by, behind_by, status}' 2>/dev/null || echo '{}')
+          echo "::error::compare(main…HEAD): $COMP"
+          echo "- **compare(main…HEAD)**: \`$COMP\` (behind_by>0 with strict=true blocks auto-merge — BUGS-11)" >> "$GITHUB_STEP_SUMMARY"
+          # Check-runs + check-suites breakdown
+          echo "### check_runs" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/check-runs" \
+            --jq '.check_runs[] | "- " + .name + " [" + .app.slug + "] → " + (.conclusion // "pending")' \
+            >> "$GITHUB_STEP_SUMMARY" || true
+          echo "### check_suites" >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/check-suites" \
+            --jq '.check_suites[] | "- " + .app.slug + " → " + .status + "/" + (.conclusion // "—")' \
+            >> "$GITHUB_STEP_SUMMARY" || true
+          # Legacy combined commit-status — pending statuses block auto-merge
+          # for some legacy integrations (e.g. CodeQL Advanced Security on
+          # repos that recently switched between Code Scanning configurations).
+          STATUS_STATE=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/status" --jq '.state' 2>/dev/null || echo "?")
+          echo "- **legacy combined status**: \`$STATUS_STATE\` (pending here can keep auto-merge held even when check_runs are green)" >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Check status checks on the PR. CodeQL Analysis and PR Quality Gate must pass AND mergeStateStatus must be CLEAN for auto-merge to fire."
           exit 1
 
   wait-for-deploy:

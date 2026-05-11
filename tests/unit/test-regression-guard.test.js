@@ -19,30 +19,35 @@ const REPO_ROOT = path.join(__dirname, '../..');
 
 describe('KAN-110 + KAN-168: Test count regression guard', () => {
   test('test file count meets minimum floor', () => {
-    // Current count: 22 unit test files (2026-05-04). Floor at 21 catches
-    // single-file deletion; raise this when adding new test files.
-    const TEST_FILE_FLOOR = 21;
+    // KAN-168 refresh 2026-05-05: now 30 unit/script test files (was 22).
+    // Floor at 29 catches single-file deletion; raise this when adding
+    // new test files.
+    const TEST_FILE_FLOOR = 29;
 
-    const result = execSync('npx jest --testPathPatterns=tests/unit --listTests', {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
+    const result = execSync(
+      "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
+      { cwd: REPO_ROOT, encoding: 'utf8' }
+    );
 
     const testFiles = result.trim().split('\n').filter(Boolean);
     expect(testFiles.length).toBeGreaterThanOrEqual(TEST_FILE_FLOOR);
   });
 
   test('total test count meets minimum floor', () => {
-    // Static-count floor: 269 test()/it() blocks at line starts as of
-    // 2026-05-04 (Jest reports 290 because it expands 5 test.each blocks
-    // into multiple cases). Floor at 268 catches single-block deletion.
-    // We use static count (not a Jest run) to keep this guard fast.
-    const TEST_COUNT_FLOOR = 268;
+    // KAN-168 refresh 2026-05-05: now 327 test()/it() blocks at line starts
+    // across tests/unit + tests/scripts (Jest reports 319 unit + scripts,
+    // 330 incl. e2e). Floor at 320 leaves a small headroom for legitimate
+    // refactors but catches large deletions. Increase this floor in the
+    // same PR as any net-new-test addition.
+    const TEST_COUNT_FLOOR = 320;
 
-    const listOutput = execSync('npx jest --testPathPatterns=tests/unit --listTests', {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
+    // KAN-168: include tests/scripts (uptimerobot bootstrap test) which
+    // is now part of the test:unit run via the broadened jest pattern in
+    // package.json.
+    const listOutput = execSync(
+      "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
+      { cwd: REPO_ROOT, encoding: 'utf8' }
+    );
     const testFiles = listOutput.trim().split('\n').filter(Boolean);
 
     let totalTests = 0;

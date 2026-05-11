@@ -82,6 +82,17 @@ const sections = [
     ],
   },
   {
+    title: "UptimeRobot (Monitoring) — KAN-163",
+    icon: "📡",
+    items: [
+      { label: "Dashboard", link: "https://dashboard.uptimerobot.com/" },
+      { label: "Setup guide", link: "https://github.com/luisa-sys/lyra/blob/develop/docs/UPTIMEROBOT_SETUP.md" },
+      { label: "Plan", value: "Free — 50 monitors, 5-minute interval, SSL expiry monitoring" },
+      { label: "Alerts to", value: "luisa@santos-stephens.com, ben@santos-stephens.com" },
+      { label: "Bootstrap script", value: "scripts/uptimerobot/bootstrap.js (idempotent, dry-run by default)" },
+    ],
+  },
+  {
     title: "Jira (Project Management)",
     icon: "📋",
     items: [

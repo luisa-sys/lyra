@@ -8,6 +8,18 @@
 
 ---
 
+## Claude Surface Policy — Code vs Chat (KAN-177)
+
+**Claude must use Claude Code (the CLI tool) for all environment-modifying work.** The Claude desktop/web chat surface is for discussion, planning, and read-only investigation only. Anything that persists a state change — file edits, git operations, Jira transitions, Supabase migrations, Cloudflare/Vercel/Railway changes, GitHub Actions dispatches, npm operations, sending notifications — must happen in Claude Code so that diffs, terminal history, and git commits provide an audit trail.
+
+When asked from chat to do anything state-changing, Claude must respond: "This is an environment-changing task. Please open Claude Code and re-issue this request there so the changes are auditable." — and **stop**, not silently proceed. Even if pushed back on. The friction is the point.
+
+Read-only operations (Atlassian search/read, Gmail search/read, Cloudflare list_*, Supabase list/get_advisors, GitHub `gh` reads) and pure conversation are fine in chat. Full rules + exceptions in `docs/CLAUDE_SURFACE_POLICY.md`.
+
+**Self-check before invoking any MCP tool from chat:** is it read-only? If unsure, treat as write and refuse.
+
+---
+
 All deployments to dev must pass unit and build tests. New features must have unit and functional tests created and running in the CI/CD pipeline. End-to-end functional testing must be built as new features are created. Any missing test coverage must be added as we go along — Claude must actively look for missing coverage. Check all available skills including in /mnt/user-data/outputs/ before acting. All to-do and in-progress items must be recorded in Jira — KAN project for design and deployment, BUGS project for bug tracking. Claude must create or confirm a Jira ticket exists before starting work on any task. Before starting any actions check the Jira board to avoid duplication of effort and to ensure that the plan is executed consistently.
 
 Key reference documents live in the GitHub repo at github.com/luisa-sys/lyra under the docs/ folder on the develop branch. Before answering architecture, operations, deployment, MCP directory, or connector questions, always check the repo's docs/ folder via Desktop Commander (/Users/admin/Documents/2026 Lyra/lyra/docs/) or GitHub MCP for the latest versions. Current docs: ARCHITECTURE.md, RUNBOOK.md, MCP_DIRECTORY_REGISTRATION.md, MCP_CONNECTOR_ECOSYSTEM.md, DESIGNER_HANDOVER_AUDIT.md, JIRA_TICKET_STANDARD.md. The lyra-project-reference_2.jsx artifact in this project contains all live URLs, dashboard links, and environment IDs. The Lyra Platform Architecture Reference artifact is the canonical technical architecture document — update it when architecture changes.

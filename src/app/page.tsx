@@ -37,7 +37,7 @@ function Hero() {
           Let people<br />know you
         </h1>
         <p className="text-lg sm:text-xl text-stone-500 leading-relaxed max-w-xl mx-auto mb-12">
-          Share your preferences, gift ideas, and boundaries in one calm place
+          Share your preferences, gift ideas, and boundaries in one place
           — so the people in your life never have to guess.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -221,12 +221,15 @@ function UseCases() {
 }
 
 function WhatLyraIsNot() {
+  // KAN-156: anti-social features expanded.
   const items = [
     "No likes, followers, or feeds",
+    "No friend requests, direct or group messages",
     "No algorithms deciding what you see",
     "No pressure to post or engage",
     "No selling your data",
     "No notifications or FOMO",
+    "No endless scrolling",
   ];
 
   return (
@@ -245,22 +248,73 @@ function WhatLyraIsNot() {
               <span className="text-stone-500 text-sm">{item.replace(/^No /, "")}</span>
             </div>
           ))}
+          {/* KAN-156: positive counterpoint to the No list. */}
+          <div className="flex items-center gap-3 text-left max-w-md mx-auto pt-2">
+            <span className="text-[var(--color-lyra-sage)] font-semibold text-sm shrink-0" aria-hidden="true">✓</span>
+            <span className="text-stone-700 text-sm font-medium">Only see what you want to see</span>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function ParentCallout() {
+/**
+ * KAN-157: About Lyra — mission statement + practical use cases. Sits
+ * just below the hero so it answers "what is Lyra for?" before the rest.
+ */
+function AboutLyra() {
+  const useCases = [
+    "Gift-giving — know what people actually want",
+    "Understanding sensitive topics before conversations",
+    "Finding common interests and things you share",
+    "Learning from tips and recommendations others share",
+    "Understanding house rules before visiting someone",
+    "Anything else that improves relationships offline",
+  ];
+
+  return (
+    <section id="about" className="py-24 px-6 bg-stone-50/40">
+      <div className="max-w-3xl mx-auto text-center">
+        <p className="text-sm font-medium tracking-widest uppercase text-[var(--color-lyra-sage)] mb-4">
+          About Lyra
+        </p>
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-6">
+          For real-life relationships, not screen time
+        </h2>
+        <p className="text-stone-500 leading-relaxed mb-12 max-w-xl mx-auto">
+          Lyra exists to improve people&apos;s relationships in real life — not to make them
+          spend time online. There&apos;s nothing to scroll, no feed to refresh, no metrics to chase.
+          Just a quiet profile that helps the people you care about know you a little better.
+        </p>
+        <ul className="text-left max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3">
+          {useCases.map((u) => (
+            <li key={u} className="flex items-start gap-3 text-stone-600 text-sm leading-relaxed">
+              <span className="text-[var(--color-lyra-sage)] font-semibold shrink-0 mt-0.5" aria-hidden="true">→</span>
+              <span>{u}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * KAN-158: ParentTeacherCallout replaces the single ParentCallout. Both
+ * audiences live side-by-side on desktop, stacked on mobile. KAN-156 copy
+ * updates folded in: "End of term" → "End of year"; teacher invite line.
+ */
+function ParentTeacherCallout() {
   return (
     <section className="py-16 px-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="rounded-2xl border-2 border-[var(--color-lyra-sage-light)] bg-[var(--color-lyra-sage-50)] p-8 sm:p-10 text-center">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="rounded-2xl border-2 border-[var(--color-lyra-sage-light)] bg-[var(--color-lyra-sage-50)] p-8 sm:p-10 text-center flex flex-col">
           <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
             Are you a parent?
           </h2>
-          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto">
-            End of term is coming. Instead of guessing what your children&apos;s teachers would like,
+          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+            End of year is coming. Instead of guessing what your children&apos;s teachers would like,
             invite them to create a Lyra profile. It takes two minutes &mdash; just gift ideas and
             things to avoid &mdash; and it makes everything easier for everyone.
           </p>
@@ -275,6 +329,68 @@ function ParentCallout() {
             Create your free profile
           </Link>
         </div>
+        <div className="rounded-2xl border-2 border-[var(--color-lyra-warm-light,#E8DFD3)] bg-[var(--color-lyra-warm-50,#FAF6F0)] p-8 sm:p-10 text-center flex flex-col">
+          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+            Are you a teacher?
+          </h2>
+          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+            Share the gifts you really want and make it easy for parents to venture outside
+            chocolate and wine. End-of-year gifts become easy and more likely to be really
+            needed or appreciated. Two minutes is all it takes.
+          </p>
+          <p className="text-sm text-stone-400 italic mb-6 max-w-md mx-auto">
+            &ldquo;Thanks for thinking of me! Here&apos;s a quick Lyra profile of things I&apos;d love.&rdquo;
+          </p>
+          <Link
+            href="/signup"
+            className="inline-block px-8 py-3 rounded-full bg-[var(--color-lyra-warm,#B89F7A)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
+          >
+            Create your free profile
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * KAN-159: two motivational sections — passive sharing ("wish people just
+ * knew") and active discovery ("want to find first hand"). Sit below the
+ * parent/teacher cards.
+ */
+function WishKnowFindFirstHand() {
+  const cards = [
+    {
+      title: "Wish people just knew?",
+      desc: "If there is something you want others to know but it feels awkward to deliver unrequested, add it here and send a hint.",
+      bgVar: "var(--color-lyra-blush-50, #FCF3F2)",
+      borderVar: "var(--color-lyra-blush-light, #F2D9D5)",
+    },
+    {
+      title: "Want to find information first hand?",
+      desc: "No longer depend on guesses or others to find out what matters to someone you want to please. Ask them for their Lyra profile.",
+      bgVar: "var(--color-lyra-sage-50)",
+      borderVar: "var(--color-lyra-sage-light)",
+    },
+  ];
+
+  return (
+    <section className="py-16 px-6">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        {cards.map((c) => (
+          <div
+            key={c.title}
+            className="rounded-2xl border-2 p-8 sm:p-10 text-center flex flex-col"
+            style={{ borderColor: c.borderVar, backgroundColor: c.bgVar }}
+          >
+            <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+              {c.title}
+            </h2>
+            <p className="text-stone-500 leading-relaxed max-w-lg mx-auto">
+              {c.desc}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -340,12 +456,14 @@ export default function Home() {
       <Nav />
       <main role="main">
         <Hero />
+        <AboutLyra />
         <ProfilePreview />
         <HowItWorks />
         <Sections />
         <UseCases />
         <WhatLyraIsNot />
-        <ParentCallout />
+        <ParentTeacherCallout />
+        <WishKnowFindFirstHand />
         <CTA />
       </main>
       <Footer />

@@ -1,0 +1,157 @@
+name: Auto-promote develop → staging (weekly)
+on:
+  schedule:
+    # Sunday 23:00 UTC. Lands in time for the Monday 07:00 UTC weekly
+    # report so the drift counter and last-auto-promote status are fresh.
+    - cron: "0 23 * * 0"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force-promote even if soak/CI checks would normally skip (for hotfixes only)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  SOAK_HOURS: "24"
+
+jobs:
+  preconditions:
+    name: Check preconditions for auto-promote
+    runs-on: ubuntu-latest
+    outputs:
+      should_promote: ${{ steps.check.outputs.should_promote }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+      develop_sha: ${{ steps.check.outputs.develop_sha }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: develop
+      - name: Evaluate preconditions
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          DEVELOP_SHA=$(git rev-parse HEAD)
+          DEVELOP_SHORT="${DEVELOP_SHA:0:8}"
+          echo "develop HEAD: $DEVELOP_SHA"
+          echo "develop_sha=$DEVELOP_SHA" >> "$GITHUB_OUTPUT"
+
+          # KAN-173 / KAN-167: every skip path emits a clear ::warning:: with
+          # a reason, and writes the reason into the workflow output so the
+          # weekly report can surface it. Skip is NOT the same as failure —
+          # we still exit 0 — but the reason MUST be surfaced.
+          should_skip() {
+            local reason="$1"
+            echo "::warning::auto-promote skipped: $reason"
+            echo "should_promote=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "## Skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Reason: $reason" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+
+          # Precondition 1: develop CI must be green at this exact SHA.
+          # Filtered by headSha (BUGS-4 lesson) to avoid matching a stale run.
+          # If FORCE is set, we still check but only warn — never skip on it.
+          RUN_INFO=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --branch develop \
+            --workflow deploy-dev.yml \
+            --limit 10 \
+            --json status,conclusion,headSha \
+            | python3 -c "
+          import json, sys
+          target = '$DEVELOP_SHA'
+          for r in json.load(sys.stdin):
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}\")
+                  break
+          else:
+              print('NONE|')
+          ")
+          STATUS=$(echo "$RUN_INFO" | cut -d'|' -f1)
+          CONCLUSION=$(echo "$RUN_INFO" | cut -d'|' -f2)
+          echo "Develop CI for $DEVELOP_SHORT: $STATUS / $CONCLUSION"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "::notice::FORCE=true — skipping precondition checks"
+          else
+            if [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ]; then
+              should_skip "develop CI not green at $DEVELOP_SHORT (status=$STATUS conclusion=$CONCLUSION)"
+            fi
+
+            # Precondition 2: soak time. The most recent commit must be at
+            # least SOAK_HOURS old. Stops us promoting a commit that just
+            # landed and hasn't had a chance to fail in dev.
+            COMMIT_TS=$(git log -1 --format=%ct "$DEVELOP_SHA")
+            NOW_TS=$(date +%s)
+            AGE_HOURS=$(( (NOW_TS - COMMIT_TS) / 3600 ))
+            echo "develop HEAD age: $AGE_HOURS hours"
+            if [ "$AGE_HOURS" -lt "$SOAK_HOURS" ]; then
+              should_skip "develop HEAD only $AGE_HOURS hours old (need $SOAK_HOURS hours soak time)"
+            fi
+
+            # Precondition 3: develop must be fast-forward into staging.
+            # If staging has commits not on develop, someone hand-edited
+            # staging — needs human attention. We refuse to merge.
+            git fetch origin staging
+            BEHIND=$(git rev-list --count origin/staging..origin/develop || echo 0)
+            AHEAD=$(git rev-list --count origin/develop..origin/staging || echo 0)
+            echo "develop is $BEHIND ahead of staging, $AHEAD behind"
+            if [ "$AHEAD" -gt 0 ]; then
+              should_skip "staging has $AHEAD commits not on develop (manual edit?) — needs human review"
+            fi
+            if [ "$BEHIND" -eq 0 ]; then
+              should_skip "no new commits on develop since last staging promotion (nothing to do)"
+            fi
+          fi
+
+          echo "::notice::All preconditions met — proceeding with promotion"
+          echo "should_promote=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Preconditions OK"
+            echo "- develop SHA: $DEVELOP_SHORT"
+            echo "- develop CI: $STATUS / $CONCLUSION"
+            echo "- HEAD age: ${AGE_HOURS:-FORCE-bypassed} hours"
+            echo "- behind/ahead vs staging: $BEHIND/$AHEAD (force=$FORCE)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: Run promote-to-staging
+    needs: preconditions
+    if: ${{ needs.preconditions.outputs.should_promote == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger promote-to-staging.yml
+        env:
+          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
+          DEVELOP_SHA: ${{ needs.preconditions.outputs.develop_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::LYRA_RELEASE_PAT is required for cross-workflow dispatch"
+            exit 1
+          fi
+          # Dispatch the existing manual workflow with confirm=promote.
+          # We use LYRA_RELEASE_PAT so the dispatched run can in turn
+          # trigger downstream deploy-staging.yml (GITHUB_TOKEN suppresses
+          # those triggers — gotcha #16).
+          gh workflow run promote-to-staging.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            -f confirm=promote
+          echo "::notice::Dispatched promote-to-staging.yml for develop $DEVELOP_SHA"
+          echo "## Promotion dispatched" >> "$GITHUB_STEP_SUMMARY"
+          echo "Watch the run at: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/promote-to-staging.yml" >> "$GITHUB_STEP_SUMMARY"
