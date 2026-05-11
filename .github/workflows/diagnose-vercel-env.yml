@@ -1,0 +1,180 @@
+name: Diagnose Vercel env vars
+# One-shot audit: lists the env-var NAMES (not values) configured in
+# Vercel for each environment, so we can spot-check that beta, staging,
+# dev, prod all have what they need. Read-only — uses `vercel env ls`
+# which never echoes values. Output goes to the run summary.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  audit:
+    name: Audit Vercel env vars across environments
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Link project
+        run: |
+          set -euo pipefail
+          vercel link --yes \
+            --project="$VERCEL_PROJECT_ID" \
+            --scope="$VERCEL_ORG_ID" \
+            --token="$VERCEL_TOKEN"
+      - name: List env scopes (REST API — full picture)
+        run: |
+          set -euo pipefail
+          {
+            echo "## Vercel project env vars — names + scope"
+            echo ""
+            echo "Project: \`$VERCEL_PROJECT_ID\`"
+            echo "Team:    \`$VERCEL_ORG_ID\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # The REST API returns the full env-var list with target +
+          # gitBranch + customEnvironmentIds. Values are decrypted only
+          # if we pass ?decrypt=true (we do NOT — names only).
+          RESP=$(curl -sfS \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID")
+
+          echo "$RESP" | python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, sys, collections
+
+          raw = sys.stdin.read()
+          data = json.loads(raw)
+          envs = data.get("envs", [])
+
+          # Bucket every env-var entry by where it applies.
+          buckets = collections.defaultdict(list)
+          for e in envs:
+              key = e.get("key", "?")
+              targets = e.get("target") or []
+              git_branch = e.get("gitBranch")
+              custom_ids = e.get("customEnvironmentIds") or []
+
+              # Each entry can apply to multiple scopes — record each.
+              if custom_ids:
+                  for cid in custom_ids:
+                      buckets[f"custom:{cid}"].append((key, git_branch))
+              for t in targets:
+                  label = f"{t}@{git_branch}" if (t == "preview" and git_branch) else t
+                  buckets[label].append((key, git_branch))
+              if not custom_ids and not targets:
+                  buckets["(unscoped)"].append((key, git_branch))
+
+          def section(title, rows):
+              print(f"\n### {title}\n")
+              if not rows:
+                  print("_no entries_\n")
+                  return
+              print("| Key | gitBranch |")
+              print("|---|---|")
+              for key, gb in sorted(rows):
+                  print(f"| `{key}` | `{gb or '—'}` |")
+
+          # Render in a logical order.
+          order = [
+              "production",
+              "preview",
+              "preview@develop",
+              "preview@staging",
+              "preview@beta",
+              "development",
+              "(unscoped)",
+          ]
+          shown = set()
+          for label in order:
+              if label in buckets:
+                  section(label, buckets[label])
+                  shown.add(label)
+          # Anything else (e.g. custom environment IDs we didn't expect)
+          for label in sorted(buckets.keys()):
+              if label in shown:
+                  continue
+              section(label, buckets[label])
+              shown.add(label)
+
+          # Cross-env coverage table — does each critical key appear in
+          # the env scopes we care about?
+          print("\n### Coverage matrix — critical keys\n")
+          critical = [
+              "NEXT_PUBLIC_SITE_URL",
+              "NEXT_PUBLIC_SUPABASE_URL",
+              "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+              "SUPABASE_SERVICE_ROLE_KEY",
+              "IS_BETA_DEPLOY",
+              "RESEND_API_KEY",
+              "NEXT_PUBLIC_SENTRY_DSN",
+              "SENTRY_AUTH_TOKEN",
+          ]
+          scopes_to_check = [
+              "production",
+              "preview@develop",
+              "preview@staging",
+              "preview@beta",
+              "preview",
+              "development",
+          ]
+          print("| Key | " + " | ".join(scopes_to_check) + " |")
+          print("|---|" + "|".join(["---"] * len(scopes_to_check)) + "|")
+          for key in critical:
+              row = [f"`{key}`"]
+              for sc in scopes_to_check:
+                  present = any(k == key for (k, _) in buckets.get(sc, []))
+                  row.append("✅" if present else "—")
+              print("| " + " | ".join(row) + " |")
+          PY
+      - name: List custom environments (if any)
+        run: |
+          set -euo pipefail
+          {
+            echo ""
+            echo "## Custom environments"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+          # /v9 doesn't list custom envs as a first-class object yet;
+          # use /v1/projects/{id}/custom-environments via the team scope.
+          RESP=$(curl -sfS \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/custom-environments?teamId=$VERCEL_ORG_ID" \
+            || echo '{"customEnvironments":[]}')
+          echo "$RESP" | python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, sys
+          data = json.loads(sys.stdin.read())
+          envs = data.get("customEnvironments") or data.get("environments") or []
+          if not envs:
+              print("_none defined_\n")
+          else:
+              print("| Name | Slug | Git branch | Domain | ID |")
+              print("|---|---|---|---|---|")
+              for e in envs:
+                  name = e.get("name") or e.get("slug", "?")
+                  slug = e.get("slug", "?")
+                  bm = e.get("branchTracking") or {}
+                  if isinstance(bm, dict):
+                      branch = bm.get("pattern") or bm.get("branch") or "—"
+                  else:
+                      branch = "—"
+                  domains = e.get("domains") or []
+                  domain = ", ".join(d.get("name", "?") if isinstance(d, dict) else str(d) for d in domains) or "—"
+                  cid = e.get("id", "?")
+                  print(f"| {name} | `{slug}` | `{branch}` | `{domain}` | `{cid}` |")
+          PY
