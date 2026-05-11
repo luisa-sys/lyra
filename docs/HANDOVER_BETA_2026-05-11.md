@@ -4,6 +4,21 @@
 **For:** new chat session picking up the beta deploy after KAN-175 stand-up
 **Status:** infrastructure complete, ready for end-to-end smoke testing + first real promotion
 
+## 2026-05-11 — UPDATE after first real promotion attempt
+
+The first `promote-staging-to-beta.yml` run ([25653670221](https://github.com/luisa-sys/lyra/actions/runs/25653670221)) revealed **[BUGS-13](https://checklyra.atlassian.net/browse/BUGS-13)**: `deploy-beta.yml` has never actually produced a `target=beta` Vercel deployment because the deploy step is missing `--target=beta` and the env pull was scoped to `preview` instead of `beta`. All three CI deploy-beta runs since 2026-05-05 have failed at the same step — nobody noticed because the beta domain still resolves (serving an old 404 page).
+
+**What's true vs. what the rest of this doc says:**
+
+- `beta` branch exists, gets promoted, merges succeed — ✅ true
+- `deploy-beta.yml` runs lint, build, deploy steps — ✅ true
+- `beta.checklyra.com` returns HTTP 200 — ✅ true, but **the body is a stale 404 page**, not the beta homepage
+- Beta is gated by `is_beta_eligible` middleware — ✅ true in source, but **the gate has never actually served traffic** because no fresh deploy has landed
+- BUGS-11 will close on the next promotion — ❌ false, because `promote-staging-to-beta.yml` is a direct merge (no PR), so the auto-merge gate isn't exercised. BUGS-11 closes on the next `promote-to-production.yml` run, not the beta one.
+
+**Status now:** PR [#139](https://github.com/luisa-sys/lyra/pull/139) proposes the workflow fix. The Vercel-dashboard side (custom env named `beta` bound to the git branch, with the right env vars + `beta.checklyra.com` aliased to it) must be verified before that PR's effect can be confirmed end-to-end. See BUGS-13 step (b) for the dashboard checklist.
+
+
 ## Context (one paragraph)
 
 Lyra is a Next.js 16 + Supabase profile platform. Repo: `luisa-sys/lyra`. Pipeline is **develop → staging → beta → main**. Beta is a new env (KAN-175) just stood up — `beta.checklyra.com` is publicly reachable but gated by an in-app `is_beta_eligible` flag check in middleware. Non-eligible users redirect to `/waitlist`. Beta uses **production Supabase credentials** (shared `prod-lyra` project), so beta keys are valid prod keys via `mcp.checklyra.com`.
