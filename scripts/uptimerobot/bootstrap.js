@@ -104,10 +104,17 @@ async function main() {
     log(`  ✅ ${u.friendlyName} (id ${u.id})`);
   }
   for (const u of monitorDiff.toUpdate) {
-    log(`  ⚠️  ${u.friendlyName} (id ${u.id}) URL drift: have=${u.currentUrl} want=${u.desiredUrl} — review manually`);
+    if (u.reason === 'url-mismatch') {
+      log(`  ⚠️  ${u.friendlyName} (id ${u.id}) URL drift: have=${u.currentUrl} want=${u.desiredUrl} — review manually`);
+    } else if (u.reason === 'custom-http-statuses-mismatch') {
+      log(`  🔧 ${u.friendlyName} (id ${u.id}) custom_http_statuses drift: have='${u.currentCustomHttpStatuses}' want='${u.desiredCustomHttpStatuses}' — will reconcile on --apply`);
+    } else {
+      log(`  ⚠️  ${u.friendlyName} (id ${u.id}) needs update (reason: ${u.reason})`);
+    }
   }
   for (const c of monitorDiff.toCreate) {
-    log(`  ➕ would create: ${c.friendlyName} → ${c.url}`);
+    const extras = c.customHttpStatuses ? ` (custom_http_statuses=${c.customHttpStatuses})` : '';
+    log(`  ➕ would create: ${c.friendlyName} → ${c.url}${extras}`);
   }
 
   if (APPLY) {
@@ -115,33 +122,61 @@ async function main() {
     // Throttle locally + retry on 429 with longer backoff so the script
     // is reliable end-to-end without operator intervention.
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    for (let i = 0; i < monitorDiff.toCreate.length; i++) {
-      const c = monitorDiff.toCreate[i];
+    const callWithRetry = async (fn, label) => {
       let attempt = 0;
       while (true) {
         try {
-          const res = await client.newMonitor({
-            friendlyName: c.friendlyName,
-            url: c.url,
-            alertContacts: alertContactsParam,
-          });
-          const id = res.monitor?.id;
-          log(`  + created monitor ${c.friendlyName} (id ${id})`);
-          break;
+          return await fn();
         } catch (err) {
           attempt++;
           const msg = err instanceof Error ? err.message : String(err);
           if (msg.includes('429') && attempt <= 4) {
             const wait = 10000 * attempt;
-            log(`  ⏳ 429 from UptimeRobot, sleeping ${wait}ms before retry ${attempt}/4`);
+            log(`  ⏳ 429 from UptimeRobot on ${label}, sleeping ${wait}ms before retry ${attempt}/4`);
             await sleep(wait);
             continue;
           }
           throw err;
         }
       }
-      // Pre-emptive 4s pause between calls.
+    };
+
+    for (let i = 0; i < monitorDiff.toCreate.length; i++) {
+      const c = monitorDiff.toCreate[i];
+      const res = await callWithRetry(
+        () =>
+          client.newMonitor({
+            friendlyName: c.friendlyName,
+            url: c.url,
+            alertContacts: alertContactsParam,
+            customHttpStatuses: c.customHttpStatuses,
+          }),
+        `newMonitor(${c.friendlyName})`
+      );
+      log(`  + created monitor ${c.friendlyName} (id ${res.monitor?.id})`);
       if (i < monitorDiff.toCreate.length - 1) {
+        await sleep(4000);
+      }
+    }
+
+    // Reconcile custom_http_statuses drift (e.g. SSO env was added later
+    // and existing monitors don't have the override). URL drift stays a
+    // manual review — that's intentional per planMonitorDiff's contract.
+    const statusUpdates = monitorDiff.toUpdate.filter(
+      (u) => u.reason === 'custom-http-statuses-mismatch'
+    );
+    for (let i = 0; i < statusUpdates.length; i++) {
+      const u = statusUpdates[i];
+      await callWithRetry(
+        () =>
+          client.editMonitor({
+            id: u.id,
+            customHttpStatuses: u.desiredCustomHttpStatuses,
+          }),
+        `editMonitor(${u.friendlyName} custom_http_statuses)`
+      );
+      log(`  ✏️  edited ${u.friendlyName} (id ${u.id}) custom_http_statuses → ${u.desiredCustomHttpStatuses}`);
+      if (i < statusUpdates.length - 1) {
         await sleep(4000);
       }
     }
