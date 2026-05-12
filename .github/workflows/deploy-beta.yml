@@ -146,9 +146,11 @@ jobs:
               if sha != target_sha:
                   continue
               dep_target = d.get('target') or ''
-              aliases = d.get('alias') or d.get('aliasAssigned') or []
-              if isinstance(aliases, str):
-                  aliases = [aliases]
+              # /v6/deployments returns alias as a list when assigned, but
+              # may return aliasAssigned as a numeric timestamp instead —
+              # only iterate alias if it's a real list (avoid TypeError).
+              alias_field = d.get('alias')
+              aliases = alias_field if isinstance(alias_field, list) else []
               branch = meta.get('githubCommitRef') or ''
               is_beta = (
                   dep_target == 'beta'
