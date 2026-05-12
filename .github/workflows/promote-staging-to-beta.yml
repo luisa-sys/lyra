@@ -218,13 +218,25 @@ jobs:
               "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&limit=10" \
               | python3 -c "
           import json, sys
+          # BUGS-13: custom-env "beta" deployments come back from Vercel
+          # with target=null. Match on alias-list OR branch ref OR target.
           target_sha = '$EXPECTED_SHA'
           data = json.load(sys.stdin)
           for d in data.get('deployments', []):
               meta = d.get('meta', {}) or {}
               sha = meta.get('githubCommitSha') or ''
+              if sha != target_sha:
+                  continue
               dep_target = d.get('target') or ''
-              if sha == target_sha and dep_target == 'beta':
+              alias_field = d.get('alias')
+              aliases = alias_field if isinstance(alias_field, list) else []
+              branch = meta.get('githubCommitRef') or ''
+              is_beta = (
+                  dep_target == 'beta'
+                  or any('beta.checklyra.com' in (a or '') for a in aliases)
+                  or branch == 'beta'
+              )
+              if is_beta:
                   print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
                   break
           else:
