@@ -84,15 +84,21 @@ jobs:
           cache: 'npm'
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
+      # BUGS-13: pull beta env (not preview) so build resolves IS_BETA_DEPLOY,
+      # NEXT_PUBLIC_SITE_URL=https://beta.checklyra.com, and PROD_SUPABASE_*
+      # from the beta custom environment. Without this, Vercel CLI defaults
+      # to preview scope and the resulting deployment is target=preview,
+      # which both serves stale content on beta.checklyra.com and trips the
+      # post-deploy SHA verification (which filters target=='beta').
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=beta --token=${{ secrets.VERCEL_TOKEN }}
       - name: Build project
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --target=beta --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy to Vercel
         id: deploy
         run: |
           set -euo pipefail
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          URL=$(vercel deploy --prebuilt --target=beta --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
@@ -104,11 +110,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Wait for deployment propagation
         run: sleep 20
-      # BUGS-4 / KAN-175: verify Vercel actually deployed our SHA before
-      # health-checking. Custom env "beta" is queried by name in target=beta.
-      # If Vercel API rejects custom env names in this filter, fall back to
-      # listing deployments without the target filter and matching on SHA
-      # AND deployment.target=='beta' Python-side.
+      # BUGS-13 fix: custom-env "beta" deployments come back with target=null
+      # from Vercel's API (custom envs don't populate the legacy target field
+      # the way `production` / `staging` do). The reliable signals are:
+      #   - alias contains "beta.checklyra.com"  (the verified beta alias),
+      #   - meta.githubCommitRef == "beta"       (the git branch we pushed),
+      #   - source == "cli"                      (deployed by this workflow).
+      # We match on SHA + (alias OR branch), which is robust across both the
+      # auto-target case (if Vercel ever populates target='beta') and the
+      # observed custom-env-null case.
       - name: Verify Vercel deployment matches commit SHA
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -123,8 +133,6 @@ jobs:
           DEPLOY_UID=""
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            # Pull last 10 deployments without target filter, then filter
-            # Python-side on both SHA and target=='beta' for robustness.
             DEPLOY_INFO=$(curl -sf \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&limit=10" \
@@ -135,12 +143,25 @@ jobs:
           for d in data.get('deployments', []):
               meta = d.get('meta', {}) or {}
               sha = meta.get('githubCommitSha') or ''
+              if sha != target_sha:
+                  continue
               dep_target = d.get('target') or ''
-              if sha == target_sha and dep_target == 'beta':
-                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}\")
+              # /v6/deployments returns alias as a list when assigned, but
+              # may return aliasAssigned as a numeric timestamp instead —
+              # only iterate alias if it's a real list (avoid TypeError).
+              alias_field = d.get('alias')
+              aliases = alias_field if isinstance(alias_field, list) else []
+              branch = meta.get('githubCommitRef') or ''
+              is_beta = (
+                  dep_target == 'beta'
+                  or any('beta.checklyra.com' in (a or '') for a in aliases)
+                  or branch == 'beta'
+              )
+              if is_beta:
+                  print(f\"{d.get('uid')}|{d.get('readyState')}|{sha}|{dep_target or 'null'}\")
                   break
           else:
-              print('NONE||')
+              print('NONE|||')
           ")
             DEPLOY_UID=$(echo "$DEPLOY_INFO" | cut -d'|' -f1)
             STATE=$(echo "$DEPLOY_INFO" | cut -d'|' -f2)
