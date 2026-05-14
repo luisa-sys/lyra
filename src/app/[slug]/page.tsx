@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { env } from '@/lib/env';
+import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
+import { filterItemsByVisibility } from '@/app/dashboard/profile/visibility';
 
 // Create client per-request, not at module scope
 function getSupabase() {
@@ -27,6 +29,7 @@ interface ProfileItem {
   category: string;
   title: string;
   description: string | null;
+  visibility: string;
 }
 
 interface SchoolAffiliation {
@@ -103,12 +106,35 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const typedProfile = profile as ProfileData;
 
+  // KAN-143 — check viewer's auth state. Authenticated viewers see
+  // public + members_only items; anonymous viewers see public only.
+  // We use the cookie-aware server client for the auth check, then continue
+  // using the service-role client for reads so RLS-equivalent filtering is
+  // done explicitly in code (existing pattern — see ProfileItem fetch).
+  const cookieClient = await createSupabaseServerClient();
+  const { data: { user: viewer } } = await cookieClient.auth.getUser();
+  const isAuthenticated = viewer !== null;
+
+  // Fetch ALL non-draft visibility levels we might show, then filter in
+  // application code. This keeps the visibility decision in one place
+  // (`filterItemsByVisibility`) shared with the unit tests.
+  const allowedVisibility = isAuthenticated
+    ? ['public', 'members_only']
+    : ['public'];
+
   const { data: items } = await getSupabase()
     .from('profile_items')
     .select('*')
     .eq('profile_id', typedProfile.id)
-    .eq('visibility', 'public')
+    .in('visibility', allowedVisibility)
     .order('created_at', { ascending: true });
+
+  // Defence in depth — apply the same filter in application code so a query
+  // bug, a future schema change, or a manually-edited row can't leak a draft.
+  const visibleItems = filterItemsByVisibility(
+    (items || []) as ProfileItem[],
+    isAuthenticated,
+  );
 
   const { data: schools } = await getSupabase()
     .from('school_affiliations')
@@ -120,7 +146,7 @@ export default async function PublicProfilePage({ params }: Props) {
     .select('*')
     .eq('profile_id', typedProfile.id);
 
-  const typedItems = (items || []) as ProfileItem[];
+  const typedItems = visibleItems;
   const typedSchools = (schools || []) as SchoolAffiliation[];
   const typedLinks = (links || []) as ExternalLink[];
 

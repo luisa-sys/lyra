@@ -8,6 +8,7 @@ import {
   updateProfileFields,
   addProfileItem,
   removeProfileItem,
+  updateProfileItemVisibility,
   addSchoolAffiliation,
   removeSchoolAffiliation,
   addExternalLink,
@@ -128,6 +129,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['likes', 'dislikes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 4 && (
@@ -136,6 +138,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['gift_ideas', 'gifts_to_avoid'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 5 && (
@@ -144,6 +147,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['boundaries', 'helpful_to_know'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 6 && (
@@ -152,6 +156,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['favourite_books', 'favourite_media'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 7 && (
@@ -160,6 +165,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['causes', 'quotes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 8 && (
@@ -168,6 +174,7 @@ export function ProfileWizard({
             items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
         {step === 9 && (
