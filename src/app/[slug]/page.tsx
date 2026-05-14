@@ -6,6 +6,10 @@ import type { Metadata } from 'next';
 import { env } from '@/lib/env';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
 import { filterItemsByVisibility } from '@/app/dashboard/profile/visibility';
+import {
+  isManualOfMeEmpty,
+  type ManualOfMe,
+} from '@/app/dashboard/profile/manual-of-me-fields';
 
 // Create client per-request, not at module scope
 function getSupabase() {
@@ -90,6 +94,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** KAN-154: Display helper for a single Manual of Me field on the public
+ * profile. `value` is rendered as JSX text — React escapes it — and is also
+ * pre-sanitised on write via sanitiseText (which strips HTML tags and
+ * collapses whitespace). No dangerouslySetInnerHTML here. */
+function ManualOfMeFieldDisplay({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-1">
+        {label}
+      </p>
+      <p className="text-sm text-[var(--color-ink)] leading-relaxed">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export default async function PublicProfilePage({ params }: Props) {
   const { slug } = await params;
 
@@ -146,6 +167,16 @@ export default async function PublicProfilePage({ params }: Props) {
     .select('*')
     .eq('profile_id', typedProfile.id);
 
+  // KAN-154: Manual of Me (1-1 with profiles). Row may not exist for older
+  // profiles — treat that as "all fields empty" so the section is skipped.
+  const { data: manualOfMeRow } = await getSupabase()
+    .from('profile_manual_of_me')
+    .select('communication_style, working_preferences, energises_me, drains_me')
+    .eq('profile_id', typedProfile.id)
+    .maybeSingle();
+  const manualOfMe = (manualOfMeRow as ManualOfMe | null) ?? null;
+
+  // KAN-143: visibility-filtered items (see filterItemsByVisibility above).
   const typedItems = visibleItems;
   const typedSchools = (schools || []) as SchoolAffiliation[];
   const typedLinks = (links || []) as ExternalLink[];
@@ -272,6 +303,46 @@ export default async function PublicProfilePage({ params }: Props) {
         <div className="max-w-2xl mx-auto px-6 pb-6">
           <div className="bg-white rounded-xl border border-stone-200 p-5">
             <p className="text-[var(--color-ink)] leading-relaxed">{typedProfile.bio_short}</p>
+          </div>
+        </div>
+      )}
+
+      {/* KAN-154: Manual of Me — "How to work with me". Skip entirely if every
+          field is empty. All values are pre-sanitised on write (sanitiseText
+          strips HTML / normalises whitespace) AND rendered as JSX text content,
+          which React auto-escapes — no dangerouslySetInnerHTML here. */}
+      {!isManualOfMeEmpty(manualOfMe) && manualOfMe && (
+        <div className="max-w-2xl mx-auto px-6 pb-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-4">
+              📖 How to work with me
+            </h2>
+            <div className="space-y-4">
+              {manualOfMe.communication_style && (
+                <ManualOfMeFieldDisplay
+                  label="Communication style"
+                  value={manualOfMe.communication_style}
+                />
+              )}
+              {manualOfMe.working_preferences && (
+                <ManualOfMeFieldDisplay
+                  label="Best ways to work with me"
+                  value={manualOfMe.working_preferences}
+                />
+              )}
+              {manualOfMe.energises_me && (
+                <ManualOfMeFieldDisplay
+                  label="What energises me"
+                  value={manualOfMe.energises_me}
+                />
+              )}
+              {manualOfMe.drains_me && (
+                <ManualOfMeFieldDisplay
+                  label="What drains me"
+                  value={manualOfMe.drains_me}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
