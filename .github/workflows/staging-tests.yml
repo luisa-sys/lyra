@@ -1,0 +1,180 @@
+name: Staging Tests
+
+# KAN-176: Broader staging testing program. Runs ADDITIVE test layers
+# on top of the Playwright E2E foundation (KAN-114 / PR #162):
+#   - axe-core accessibility scan (fails on serious/critical)
+#   - Lighthouse budgets (Performance, A11y, Best Practices, SEO)
+#
+# Triggered after every successful staging deploy (workflow_run) AND
+# on a nightly schedule (so regressions in upstream deps are caught
+# even on quiet days). workflow_dispatch is provided for manual reruns.
+#
+# Triggering note: `workflow_run` only fires for workflow definitions
+# that are merged to the default branch. So this file must reach `main`
+# before the `Deploy to Staging` hook actually fires post-deploy. Until
+# then, the schedule + workflow_dispatch are the active triggers.
+
+on:
+  workflow_run:
+    workflows: ['Deploy to Staging']
+    types: [completed]
+  schedule:
+    - cron: '0 5 * * *' # 05:00 UTC nightly
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Override target Vercel deploy URL (e.g. https://lyra-xxx.vercel.app). Leave blank to auto-discover latest staging deploy.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  # Gate the workflow_run trigger so we don't run tests against a FAILED
+  # deploy. For schedule and workflow_dispatch the conditional is true.
+  resolve-target:
+    name: Resolve staging deploy URL
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      deploy_url: ${{ steps.resolve.outputs.deploy_url }}
+    steps:
+      - name: Validate required secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+        run: |
+          set -euo pipefail
+          MISSING=()
+          [ -z "${VERCEL_TOKEN:-}" ] && MISSING+=('VERCEL_TOKEN')
+          [ -z "${VERCEL_BYPASS:-}" ] && MISSING+=('VERCEL_AUTOMATION_BYPASS')
+          [ -z "${VERCEL_ORG_ID:-}" ] && MISSING+=('VERCEL_ORG_ID')
+          [ -z "${VERCEL_PROJECT_ID:-}" ] && MISSING+=('VERCEL_PROJECT_ID')
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Required secrets missing: ${MISSING[*]} — refusing to run staging tests against an unauthenticated target."
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Resolve staging deploy URL
+        id: resolve
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          OVERRIDE_URL: ${{ inputs.target_url }}
+        run: |
+          set -euo pipefail
+          if [ -n "${OVERRIDE_URL:-}" ]; then
+            URL="${OVERRIDE_URL}"
+            echo "Using workflow_dispatch override: $URL"
+          else
+            # Query Vercel for the most recent READY staging deployment.
+            RESPONSE=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=staging&state=READY&limit=1")
+            URL=$(echo "$RESPONSE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          deps = data.get('deployments', [])
+          if not deps:
+              print('')
+          else:
+              host = deps[0].get('url') or ''
+              print(f'https://{host}' if host else '')
+          ")
+            if [ -z "$URL" ]; then
+              echo "::error::Vercel API returned no READY staging deployment. Cannot run staging tests."
+              exit 1
+            fi
+            echo "Resolved latest READY staging deploy: $URL"
+          fi
+          # Normalise: strip trailing slash, ensure https://
+          URL="${URL%/}"
+          case "$URL" in
+            https://*) ;;
+            http://*) echo "::error::Refusing to test plaintext http URL: $URL"; exit 1 ;;
+            *) URL="https://$URL" ;;
+          esac
+          echo "deploy_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "::notice::Staging tests will target $URL"
+
+  axe-accessibility:
+    name: axe-core accessibility scan
+    needs: resolve-target
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ needs.resolve-target.outputs.deploy_url }}
+      VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run axe-core scan against staging
+        run: |
+          set -euo pipefail
+          echo "Running axe scan against: $BASE_URL"
+          npx playwright test tests/e2e/accessibility.spec.ts --project=chromium --reporter=list,html
+
+      - name: Upload Playwright + axe HTML report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: axe-playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  lighthouse:
+    name: Lighthouse budget
+    needs: resolve-target
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LHCI_TARGET_URL: ${{ needs.resolve-target.outputs.deploy_url }}
+      VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lighthouse CI
+        run: |
+          set -euo pipefail
+          echo "Lighthouse target: $LHCI_TARGET_URL"
+          # `autorun` reads lighthouserc.cjs, runs collect, then asserts.
+          # Non-zero exit on assertion failure fails this job.
+          npx --no-install lhci autorun --config=./lighthouserc.cjs
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14
