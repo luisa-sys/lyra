@@ -1,0 +1,187 @@
+name: Email as Prompt (scaffold)
+
+# KAN-165 Phase 2: scaffold for the "email-as-prompt" workflow.
+#
+# An inbound-email service (Resend inbound parsing or a Cloudflare Email
+# Worker — see docs/EMAIL_AS_PROMPT.md) POSTs to GitHub's repository_dispatch
+# API with event_type=email-prompt and a payload containing the email
+# subject and body. This workflow receives that dispatch, takes the body,
+# and posts it as a comment on a designated Jira ticket.
+#
+# This is a SCAFFOLD. The real inbound integration (parsing the email
+# from the actual inbox) is NOT wired up yet — see the follow-up
+# tickets noted in the PR description. Until then, the workflow can
+# also be triggered manually via `workflow_dispatch` for testing.
+#
+# Per KAN-167 workflow integrity policy: `set -euo pipefail` on every
+# multi-line `run:` block, fail-loud on every missing secret, never
+# silent-skip.
+
+on:
+  # Real production trigger: inbound-email service POSTs a dispatch.
+  repository_dispatch:
+    types: [email-prompt]
+  # Test trigger: kick off manually from the Actions UI with a
+  # synthetic subject + body to verify the Jira posting path end-to-end.
+  workflow_dispatch:
+    inputs:
+      subject:
+        description: 'Synthetic email subject (for manual testing)'
+        required: true
+        type: string
+        default: 'Test prompt from email-as-prompt scaffold'
+      body:
+        description: 'Synthetic email body (for manual testing)'
+        required: true
+        type: string
+        default: 'This is a test invocation of the email-as-prompt workflow scaffold.'
+      ticket_key:
+        description: 'Jira ticket key to comment on (default: KAN-165 for scaffold)'
+        required: false
+        type: string
+        default: 'KAN-165'
+
+defaults:
+  run:
+    shell: bash
+
+# Default GITHUB_TOKEN permissions: read-only repo metadata. This
+# workflow does not touch git refs.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  post-to-jira:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve trigger payload
+        id: payload
+        env:
+          # When triggered by repository_dispatch, the inbound service
+          # populates client_payload. When triggered manually for testing,
+          # inputs.* are populated instead. We unify them here.
+          DISPATCH_SUBJECT: ${{ github.event.client_payload.subject }}
+          DISPATCH_BODY: ${{ github.event.client_payload.body }}
+          DISPATCH_TICKET: ${{ github.event.client_payload.ticket_key }}
+          INPUT_SUBJECT: ${{ inputs.subject }}
+          INPUT_BODY: ${{ inputs.body }}
+          INPUT_TICKET: ${{ inputs.ticket_key }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            SUBJECT="${DISPATCH_SUBJECT:-}"
+            BODY="${DISPATCH_BODY:-}"
+            TICKET="${DISPATCH_TICKET:-KAN-165}"
+          else
+            SUBJECT="${INPUT_SUBJECT:-}"
+            BODY="${INPUT_BODY:-}"
+            TICKET="${INPUT_TICKET:-KAN-165}"
+          fi
+
+          if [ -z "$SUBJECT" ]; then
+            echo "::error::Subject is empty — refusing to post a Jira comment without context."
+            exit 1
+          fi
+          if [ -z "$BODY" ]; then
+            echo "::error::Body is empty — refusing to post an empty Jira comment."
+            exit 1
+          fi
+          if [ -z "$TICKET" ]; then
+            echo "::error::Ticket key is empty — refusing to post to an unspecified ticket."
+            exit 1
+          fi
+
+          # Persist for the next step. Use the multi-line env var pattern
+          # so newlines in the body are preserved.
+          {
+            echo "SUBJECT=$SUBJECT"
+            echo "TICKET=$TICKET"
+            echo "BODY<<EOF_BODY_KAN_165"
+            printf '%s' "$BODY"
+            echo
+            echo "EOF_BODY_KAN_165"
+          } >> "$GITHUB_ENV"
+
+          echo "::notice::Resolved payload — ticket=$TICKET subject=\"$SUBJECT\" body_length=${#BODY}"
+
+      - name: Post comment to Jira via REST API
+        env:
+          ATLASSIAN_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN_READONLY }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_USER_EMAIL }}
+          ATLASSIAN_DOMAIN: ${{ secrets.ATLASSIAN_DOMAIN }}
+        run: |
+          set -euo pipefail
+
+          # Note: we re-use the read-only token name for now; in production
+          # this workflow needs a WRITE-scoped token (KAN-XXX follow-up).
+          # Until then, fail loud so the operator knows to provision it.
+          MISSING=()
+          [ -z "${ATLASSIAN_TOKEN:-}" ] && MISSING+=("ATLASSIAN_API_TOKEN_READONLY")
+          [ -z "${ATLASSIAN_EMAIL:-}" ] && MISSING+=("ATLASSIAN_USER_EMAIL")
+          [ -z "${ATLASSIAN_DOMAIN:-}" ] && MISSING+=("ATLASSIAN_DOMAIN")
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::Missing required secrets: ${MISSING[*]}. Cannot post Jira comment."
+            exit 1
+          fi
+
+          AUTH=$(printf '%s' "${ATLASSIAN_EMAIL}:${ATLASSIAN_TOKEN}" | base64 | tr -d '\n')
+
+          # Build the ADF (Atlassian Document Format) comment body. The
+          # email subject becomes the first paragraph (in bold) for easy
+          # scanning; the email body follows as plain text.
+          COMMENT_JSON=$(python3 <<'PY'
+          import json, os
+          subject = os.environ['SUBJECT']
+          body = os.environ['BODY']
+          adf = {
+              "body": {
+                  "type": "doc",
+                  "version": 1,
+                  "content": [
+                      {
+                          "type": "paragraph",
+                          "content": [
+                              {"type": "text", "text": "📧 Email-as-prompt: ", "marks": [{"type": "strong"}]},
+                              {"type": "text", "text": subject, "marks": [{"type": "strong"}]},
+                          ],
+                      },
+                      {
+                          "type": "paragraph",
+                          "content": [{"type": "text", "text": body}],
+                      },
+                      {
+                          "type": "paragraph",
+                          "content": [
+                              {
+                                  "type": "text",
+                                  "text": "(Auto-posted by .github/workflows/email-as-prompt.yml — KAN-165 scaffold.)",
+                                  "marks": [{"type": "em"}],
+                              }
+                          ],
+                      },
+                  ],
+              }
+          }
+          print(json.dumps(adf))
+          PY
+          )
+
+          RESPONSE=$(curl -s -w "\n__HTTP_CODE__%{http_code}" --max-time 20 \
+            -X POST "https://${ATLASSIAN_DOMAIN}/rest/api/3/issue/${TICKET}/comment" \
+            -H "Authorization: Basic ${AUTH}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT_JSON" 2>&1 || echo "__HTTP_CODE__000")
+
+          HTTP=$(echo "$RESPONSE" | grep -oE '__HTTP_CODE__[0-9]+' | sed 's/__HTTP_CODE__//')
+          BODY_OUT=$(echo "$RESPONSE" | sed 's/__HTTP_CODE__[0-9]*$//')
+
+          if [ "$HTTP" = "201" ] || [ "$HTTP" = "200" ]; then
+            COMMENT_ID=$(echo "$BODY_OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id','no-id'))" 2>/dev/null || echo "no-id")
+            echo "✓ Posted comment $COMMENT_ID to $TICKET"
+          else
+            echo "::error::Jira API returned HTTP $HTTP. Body: $(echo "$BODY_OUT" | head -c 400)"
+            exit 1
+          fi
