@@ -25,10 +25,10 @@ describe('KAN-137: Wizard supports new section categories', () => {
     expect(fs.existsSync(wizardPath)).toBe(true);
   });
 
-  test('wizard has 11 steps (up from 8)', () => {
+  test('wizard has 12 steps (was 11; KAN-154 added Manual of Me)', () => {
     const stepMatches = wizardContent.match(/\{ id: '/g);
     expect(stepMatches).not.toBeNull();
-    expect(stepMatches.length).toBe(11);
+    expect(stepMatches.length).toBe(12);
   });
 
   test('wizard includes Books & Media step', () => {
