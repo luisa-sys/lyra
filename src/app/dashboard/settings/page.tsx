@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SettingsClient } from './settings-client';
+import { DiscoverabilityClient } from './discoverability-client';
 
 export const metadata = {
   title: 'Account Settings — Lyra',
@@ -45,6 +46,8 @@ export default async function SettingsPage() {
             </div>
           </div>
         </div>
+
+        <DiscoverabilityClient />
 
         <SettingsClient />
 
