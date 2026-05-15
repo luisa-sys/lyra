@@ -37,7 +37,9 @@ export function CookieConsent() {
       <div className="max-w-4xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <p className="text-sm text-[var(--color-muted)] flex-1">
           Lyra uses essential cookies for authentication. We also use anonymous analytics to improve the service.
-          Read our <Link href="/privacy" className="text-[var(--color-sage)] hover:underline">Privacy Policy</Link>.
+          {/* KAN-180: underline always on so the link is distinguishable
+              without relying on colour (axe link-in-text-block rule). */}
+          Read our <Link href="/privacy" className="text-[var(--color-sage)] underline underline-offset-2 hover:no-underline">Privacy Policy</Link>.
         </p>
         <div className="flex gap-2 shrink-0">
           <button onClick={decline} className="px-4 py-2 text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
