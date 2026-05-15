@@ -22,9 +22,11 @@
     --color-lyra-sage: #5F7256;       /* 5.13:1 vs #FFFFFF, 4.91:1 vs #FAFAF9 */
     --color-lyra-sage-hover: #4F5E47; /* deeper hover state, 7.0:1 vs #FFFFFF */
 
-    --color-lyra-warm: #D4A574;
+    /* Warm — darkened from #D4A574 (2.22:1) to pass AA on white. */
+    --color-lyra-warm: #8E5A22;      /* 5.65:1 vs #FFFFFF — bronze/amber */
     --color-lyra-warm-light: #F0DCC8;
-    --color-lyra-blush: #C9A0A0;
+    /* Blush — darkened from #C9A0A0 (2.32:1) to pass AA on white. */
+    --color-lyra-blush: #9B5757;     /* 5.78:1 vs #FFFFFF — warm rose */
     --color-lyra-ink: #2C2C2A;        /* 13.4:1 vs #FAFAF9 — primary text */
     --color-lyra-muted: #6B6B66;      /* 5.20:1 vs #FAFAF9 — passes AA */
     --color-lyra-cloud: #FAF9F7;
