@@ -69,7 +69,9 @@ The reasoning is asymmetric:
 
 - KAN-173 (this policy): <https://checklyra.atlassian.net/browse/KAN-173>
 - KAN-167 (workflow integrity, the prior art for false-positive prevention): <https://checklyra.atlassian.net/browse/KAN-167>
-- BUGS-11 (auto-merge BLOCKED, the failure mode that triggered the rebase fix): <https://checklyra.atlassian.net/browse/BUGS-11>
+- BUGS-11 (auto-merge BLOCKED, originally attributed to strict-ancestry): <https://checklyra.atlassian.net/browse/BUGS-11>
+- BUGS-16 (auto-merge real root cause — phantom Vercel check_suite): <https://checklyra.atlassian.net/browse/BUGS-16>
 - `docs/RUNBOOK.md` — operational procedures
 - `.github/workflows/promote-to-staging.yml` — the manual workflow (auto-promote calls the same logic)
+- `.github/workflows/promote-to-production.yml` — direct-merge flow as of 2026-05-15 (BUGS-16 fix)
 - `.github/workflows/auto-promote-to-staging.yml` — the scheduled wrapper
