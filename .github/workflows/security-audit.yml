@@ -5,6 +5,10 @@ on:
     - cron: '0 7 * * 3'  # Wednesday 07:00 UTC
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -22,6 +26,7 @@ jobs:
       - name: Run npm audit
         id: audit
         run: |
+          set -euo pipefail
           npm audit --json > /tmp/audit-results.json 2>&1 || true
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -53,11 +58,13 @@ jobs:
       - name: Generate audit report
         id: report
         run: |
+          set -euo pipefail
           python3 scripts/audit-to-email.py /tmp/audit-results.json > /tmp/audit-email.json
           echo "has_vulns=$(python3 -c "import json; d=json.load(open('/tmp/audit-email.json')); print('true' if d.get('has_vulnerabilities') else 'false')")" >> $GITHUB_OUTPUT
 
       - name: Output to step summary
         run: |
+          set -euo pipefail
           echo "## 🔒 Weekly Security Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
@@ -102,6 +109,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
+          set -euo pipefail
           if [ -z "$RESEND_API_KEY" ]; then
             echo "⚠️ RESEND_API_KEY not configured — skipping email"
             exit 0
@@ -130,6 +138,7 @@ jobs:
       - name: Fail if high/critical vulnerabilities found
         if: steps.audit.outputs.high_critical_count != '0'
         run: |
+          set -euo pipefail
           echo "❌ ${{ steps.audit.outputs.high_critical_count }} high/critical vulnerabilities detected"
           echo "Run 'npm audit' locally and fix before next deploy"
           exit 1

@@ -12,6 +12,10 @@ permissions:
   contents: read
   security-events: write
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   analyze:
     name: CodeQL Analysis
