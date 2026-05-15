@@ -5,6 +5,10 @@ on:
     - cron: '0 5 * * 0'  # Sunday 05:00 UTC (after backups at 02:00-02:30, mutation at 04:00)
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   restore-test:
     runs-on: ubuntu-latest
@@ -13,6 +17,7 @@ jobs:
 
       - name: Install PostgreSQL 17 client
         run: |
+          set -euo pipefail
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
           sudo apt-get update && sudo apt-get install -y postgresql-client-17
@@ -22,6 +27,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          set -euo pipefail
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "SUPABASE_DB_URL not configured — skipping"
             exit 0
@@ -34,6 +40,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          set -euo pipefail
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "Skipping — no DB URL"
             exit 0

@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [develop, staging, main]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   checks:
     name: PR Quality Gate
@@ -42,6 +46,7 @@ jobs:
         run: npm audit --audit-level=high
       - name: Check for lint/type bypasses without Jira reference
         run: |
+          set -euo pipefail
           echo "Scanning for eslint-disable, ts-ignore, ts-nocheck, ts-expect-error..."
           VIOLATIONS=""
           while IFS= read -r line; do
@@ -65,6 +70,7 @@ jobs:
           fi
       - name: Check architecture doc freshness
         run: |
+          set -euo pipefail
           # Get list of changed files in this PR
           CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null || echo "")
           

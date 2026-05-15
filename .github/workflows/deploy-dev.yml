@@ -5,6 +5,11 @@ on:
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   lint-and-test:
     name: Lint & Unit Tests
@@ -54,10 +59,12 @@ jobs:
       - name: Deploy to Vercel
         id: deploy
         run: |
+          set -euo pipefail
           URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "deploy_url=$URL" >> $GITHUB_OUTPUT
       - name: Post-deploy health check
         run: |
+          set -euo pipefail
           echo "Waiting 15s for deployment to propagate..."
           sleep 15
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "${{ steps.deploy.outputs.deploy_url }}" || echo "000")
@@ -71,7 +78,7 @@ jobs:
           VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
           DEPLOY_URL: ${{ steps.deploy.outputs.deploy_url }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           # KAN-175: Cloudflare bot challenge blocks CI runner IPs from
           # reaching dev.checklyra.com directly (returns 403 + JS challenge
           # page). Solution: hit the Vercel deployment URL directly
