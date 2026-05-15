@@ -17,7 +17,7 @@ function Nav() {
           </Link>
           <Link
             href="/signup"
-            className="text-sm font-medium px-5 py-2.5 rounded-full bg-[var(--color-lyra-sage)] text-white hover:bg-[#7A8E6D] transition-colors"
+            className="text-sm font-medium px-5 py-2.5 rounded-full bg-[var(--color-lyra-sage)] text-white hover:bg-[var(--color-lyra-sage-hover)] transition-colors"
           >
             Create your profile
           </Link>
@@ -43,7 +43,7 @@ function Hero() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/signup"
-            className="px-8 py-4 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-base hover:bg-[#7A8E6D] transition-colors shadow-sm"
+            className="px-8 py-4 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-base hover:bg-[var(--color-lyra-sage-hover)] transition-colors shadow-sm"
           >
             Create your profile
           </Link>
@@ -324,7 +324,7 @@ function ParentTeacherCallout() {
           </p>
           <Link
             href="/signup"
-            className="inline-block px-8 py-3 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-sm hover:bg-[#7A8E6D] transition-colors"
+            className="inline-block px-8 py-3 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-sm hover:bg-[var(--color-lyra-sage-hover)] transition-colors"
           >
             Create your free profile
           </Link>
@@ -408,7 +408,7 @@ function CTA() {
         </p>
         <Link
           href="/signup"
-          className="inline-block px-8 py-4 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-base hover:bg-[#7A8E6D] transition-colors shadow-sm"
+          className="inline-block px-8 py-4 rounded-full bg-[var(--color-lyra-sage)] text-white font-medium text-base hover:bg-[var(--color-lyra-sage-hover)] transition-colors shadow-sm"
         >
           Create your profile
         </Link>

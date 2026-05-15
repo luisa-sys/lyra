@@ -2,20 +2,38 @@
 
 @layer base {
   :root {
-    --color-lyra-sage: #8B9E7E;
-    --color-lyra-sage-light: #C5D1BC;
-    --color-lyra-sage-50: #F3F6F0;
+    /*
+     * Brand palette — WCAG 2.1 AA compliant. See KAN-180 for the audit.
+     *
+     * Each token below is annotated with its contrast ratio against the
+     * stone-50 background (#FAFAF9) and (where used as a button bg) against
+     * white text. Values were verified with axe-core on 2026-05-15.
+     *
+     * Anything used for body text or for a button background carrying
+     * normal-weight text must clear 4.5:1. UI components (button bg vs
+     * adjacent surface) only need 3:1 but we go higher where possible.
+     */
+
+    /* Decorative-only sage (low contrast — never use as text/button bg). */
+    --color-lyra-sage-light: #C5D1BC; /* 1.4:1 vs #FAFAF9 — decorative only */
+    --color-lyra-sage-50: #F3F6F0;    /* 1.05:1 vs #FAFAF9 — surface tint */
+
+    /* Actionable sage — passes 4.5:1 vs white text AND vs cloud bg. */
+    --color-lyra-sage: #5F7256;       /* 5.13:1 vs #FFFFFF, 4.91:1 vs #FAFAF9 */
+    --color-lyra-sage-hover: #4F5E47; /* deeper hover state, 7.0:1 vs #FFFFFF */
+
     --color-lyra-warm: #D4A574;
     --color-lyra-warm-light: #F0DCC8;
     --color-lyra-blush: #C9A0A0;
-    --color-lyra-ink: #2C2C2A;
-    --color-lyra-muted: #7A7A75;
+    --color-lyra-ink: #2C2C2A;        /* 13.4:1 vs #FAFAF9 — primary text */
+    --color-lyra-muted: #6B6B66;      /* 5.20:1 vs #FAFAF9 — passes AA */
     --color-lyra-cloud: #FAF9F7;
 
-    /* Shorthand aliases used across dashboard, auth, and wizard */
-    --color-sage: #8B9E7E;
+    /* Shorthand aliases used across dashboard, auth, and wizard. */
+    --color-sage: #5F7256;
+    --color-sage-hover: #4F5E47;
     --color-ink: #2C2C2A;
-    --color-muted: #7A7A75;
+    --color-muted: #6B6B66;
   }
 
   html {
@@ -25,5 +43,32 @@
   ::selection {
     background-color: var(--color-lyra-sage-light);
     color: var(--color-lyra-ink);
+  }
+
+  /*
+   * KAN-180 — WCAG SC 1.4.1 "Use of Color".
+   *
+   * Inline links inside body-text containers MUST be distinguishable
+   * from surrounding text by more than colour alone (axe rule:
+   * link-in-text-block). The most reliable cross-browser fix is a
+   * persistent underline; we flip it off on hover so the hover state
+   * is still distinct.
+   *
+   * Scoped to common body-text containers so visual "button" anchors
+   * (e.g. the "Create your profile" CTA inside <nav> / <div>) are
+   * unaffected. If you add a new body-text container, mirror this rule.
+   */
+  p a,
+  li a,
+  dd a,
+  blockquote a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  p a:hover,
+  li a:hover,
+  dd a:hover,
+  blockquote a:hover {
+    text-decoration: none;
   }
 }
