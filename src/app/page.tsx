@@ -9,10 +9,10 @@ function Nav() {
           <Image src="/lyra-logo.png" alt="Lyra" width={80} height={80} className="h-20 w-auto" priority />
         </Link>
         <div className="flex items-center gap-6">
-          <Link href="/search" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+          <Link href="/search" className="text-sm text-stone-600 hover:text-stone-800 transition-colors">
             Find someone
           </Link>
-          <Link href="/login" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+          <Link href="/login" className="text-sm text-stone-600 hover:text-stone-800 transition-colors">
             Sign in
           </Link>
           <Link
@@ -36,7 +36,7 @@ function Hero() {
         <h1 className="font-[family-name:var(--font-serif)] text-5xl sm:text-6xl lg:text-7xl text-stone-800 leading-[1.1] mb-8">
           Let people<br />know you
         </h1>
-        <p className="text-lg sm:text-xl text-stone-500 leading-relaxed max-w-xl mx-auto mb-12">
+        <p className="text-lg sm:text-xl text-stone-600 leading-relaxed max-w-xl mx-auto mb-12">
           Share your preferences, gift ideas, and boundaries in one place
           — so the people in your life never have to guess.
         </p>
@@ -70,7 +70,7 @@ function ProfilePreview() {
             <div className="flex-1 space-y-6">
               <div>
                 <h3 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800">Sarah Ashworth</h3>
-                <p className="text-stone-500 mt-1">Mum of two, book lover, based in Manchester</p>
+                <p className="text-stone-600 mt-1">Mum of two, book lover, based in Manchester</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
@@ -91,7 +91,7 @@ function ProfilePreview() {
             </div>
           </div>
         </div>
-        <p className="text-center text-sm text-stone-400 mt-6">
+        <p className="text-center text-sm text-stone-600 mt-6">
           An example Lyra profile — yours will be uniquely you
         </p>
       </div>
@@ -126,7 +126,7 @@ function HowItWorks() {
         <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
           Three steps to being understood
         </h2>
-        <p className="text-stone-500 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
           No accounts needed to view your profile. No social features. Just a quiet page that helps.
         </p>        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           {steps.map((step) => (
@@ -138,7 +138,7 @@ function HowItWorks() {
                 {step.number}
               </div>
               <h3 className="text-lg font-medium text-stone-800 mb-2">{step.title}</h3>
-              <p className="text-stone-500 text-sm leading-relaxed">{step.description}</p>
+              <p className="text-stone-600 text-sm leading-relaxed">{step.description}</p>
             </div>
           ))}
         </div>
@@ -162,7 +162,7 @@ function Sections() {
         <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
           Everything in one place
         </h2>
-        <p className="text-stone-500 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
           Your profile has space for all the things people should know — organised into sections that make sense.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -170,7 +170,7 @@ function Sections() {
             <div key={s.title} className="bg-white rounded-2xl border border-stone-200/80 p-6 hover:shadow-sm transition-shadow">
               <div className="text-2xl mb-3">{s.icon}</div>
               <h3 className="font-medium text-stone-800 mb-1">{s.title}</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">{s.desc}</p>
+              <p className="text-sm text-stone-600 leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>
@@ -204,14 +204,14 @@ function UseCases() {
         <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
           Who it&apos;s for
         </h2>
-        <p className="text-stone-500 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
           Anyone who&apos;s ever thought &ldquo;I wish they just knew what I wanted.&rdquo; Which is everyone.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 max-w-3xl mx-auto">
           {cases.map((c) => (
             <div key={c.title}>
               <h3 className="font-medium text-stone-800 mb-2">{c.title}</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">{c.desc}</p>
+              <p className="text-sm text-stone-600 leading-relaxed">{c.desc}</p>
             </div>
           ))}
         </div>
@@ -245,7 +245,7 @@ function WhatLyraIsNot() {
               className="flex items-center gap-3 text-left max-w-md mx-auto"
             >
               <span className="text-[var(--color-lyra-blush)] font-semibold text-sm shrink-0">No</span>
-              <span className="text-stone-500 text-sm">{item.replace(/^No /, "")}</span>
+              <span className="text-stone-600 text-sm">{item.replace(/^No /, "")}</span>
             </div>
           ))}
           {/* KAN-156: positive counterpoint to the No list. */}
@@ -282,7 +282,7 @@ function AboutLyra() {
         <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-6">
           For real-life relationships, not screen time
         </h2>
-        <p className="text-stone-500 leading-relaxed mb-12 max-w-xl mx-auto">
+        <p className="text-stone-600 leading-relaxed mb-12 max-w-xl mx-auto">
           Lyra exists to improve people&apos;s relationships in real life — not to make them
           spend time online. There&apos;s nothing to scroll, no feed to refresh, no metrics to chase.
           Just a quiet profile that helps the people you care about know you a little better.
@@ -313,12 +313,12 @@ function ParentTeacherCallout() {
           <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
             Are you a parent?
           </h2>
-          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+          <p className="text-stone-600 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
             End of year is coming. Instead of guessing what your children&apos;s teachers would like,
             invite them to create a Lyra profile. It takes two minutes &mdash; just gift ideas and
             things to avoid &mdash; and it makes everything easier for everyone.
           </p>
-          <p className="text-sm text-stone-400 italic mb-6 max-w-md mx-auto">
+          <p className="text-sm text-stone-600 italic mb-6 max-w-md mx-auto">
             &ldquo;Hi! I&apos;m using Lyra to help people know what I&apos;d appreciate.
             It only takes a couple of minutes. Here&apos;s where you can create yours&hellip;&rdquo;
           </p>
@@ -333,12 +333,12 @@ function ParentTeacherCallout() {
           <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
             Are you a teacher?
           </h2>
-          <p className="text-stone-500 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+          <p className="text-stone-600 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
             Share the gifts you really want and make it easy for parents to venture outside
             chocolate and wine. End-of-year gifts become easy and more likely to be really
             needed or appreciated. Two minutes is all it takes.
           </p>
-          <p className="text-sm text-stone-400 italic mb-6 max-w-md mx-auto">
+          <p className="text-sm text-stone-600 italic mb-6 max-w-md mx-auto">
             &ldquo;Thanks for thinking of me! Here&apos;s a quick Lyra profile of things I&apos;d love.&rdquo;
           </p>
           <Link
@@ -386,7 +386,7 @@ function WishKnowFindFirstHand() {
             <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
               {c.title}
             </h2>
-            <p className="text-stone-500 leading-relaxed max-w-lg mx-auto">
+            <p className="text-stone-600 leading-relaxed max-w-lg mx-auto">
               {c.desc}
             </p>
           </div>
@@ -403,7 +403,7 @@ function CTA() {
         <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-4">
           Ready to be understood?
         </h2>
-        <p className="text-stone-500 mb-8 max-w-md mx-auto">
+        <p className="text-stone-600 mb-8 max-w-md mx-auto">
           Create your Lyra profile in minutes. It&apos;s free, calm, and entirely yours.
         </p>
         <Link
@@ -422,7 +422,7 @@ function Footer() {
     <footer role="contentinfo" className="py-12 px-6 border-t border-stone-200">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto opacity-40" />
-        <div className="flex items-center gap-4 text-sm text-stone-400">
+        <div className="flex items-center gap-4 text-sm text-stone-600">
           <Link href="/privacy" className="hover:text-stone-600 transition-colors">Privacy</Link>
           <Link href="/terms" className="hover:text-stone-600 transition-colors">Terms</Link>
           <Link href="/cookies" className="hover:text-stone-600 transition-colors">Cookies</Link>
