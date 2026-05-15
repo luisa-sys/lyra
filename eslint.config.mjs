@@ -26,6 +26,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // KAN-180: ignore agent-sandbox worktrees so a local `npm run lint`
+    // doesn't drown in errors from snapshots of older code. CI never
+    // sees `.claude/`; this is purely a local-DX fix.
+    ".claude/**",
   ]),
 ]);
 

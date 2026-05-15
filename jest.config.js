@@ -7,6 +7,10 @@ const config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  // KAN-180: ignore agent-sandbox worktrees + build output so a local
+  // `npm test` doesn't double-run every test from each worktree
+  // snapshot. CI never sees `.claude/`; this is purely a local-DX fix.
+  testPathIgnorePatterns: ['/node_modules/', '/\\.claude/', '/\\.next/'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

@@ -243,6 +243,35 @@ DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
+### Staging testing program (KAN-176)
+
+Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E suite that runs inline in `deploy-staging.yml` (KAN-114).
+
+| Layer | What it does | Failure threshold |
+|---|---|---|
+| axe-core accessibility | Scans homepage, login, signup, privacy, terms, waitlist using `@axe-core/playwright` with WCAG 2.1 A/AA + best-practice tags | Any `serious` or `critical` violation fails the run. `moderate`/`minor` are logged to the step summary and uploaded as the `axe-playwright-report` artifact, but do NOT fail. |
+| Lighthouse budget | Single Lighthouse desktop run via `lhci autorun` against the staging Vercel direct URL | Performance < 80 OR Accessibility < 90 OR Best Practices < 90 OR SEO < 90 fails the run. |
+
+**Triggers:**
+
+- `workflow_run` on successful completion of `Deploy to Staging` — so the suite runs after every staging deploy. (Note: `workflow_run` only fires when the workflow definition is on the default branch, so this needs to reach `main` before the post-deploy hook activates. See CLAUDE.md gotcha #1.)
+- `schedule: 0 5 * * *` — nightly 05:00 UTC, catches upstream regressions on quiet days.
+- `workflow_dispatch` with optional `target_url` override — for manual reruns and ad-hoc testing of arbitrary Vercel deploy URLs.
+
+**SSO bypass:** all requests carry `x-vercel-protection-bypass: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}` and target the direct Vercel deploy URL (`lyra-xxx.vercel.app`), not `stage.checklyra.com`. Same pattern as `deploy-staging.yml`'s `/api/health` step — Cloudflare bot challenge would otherwise block CI runner IPs.
+
+**Where the results go:**
+
+- GitHub Actions run page → `Staging Tests` workflow, with `::error::` / `::notice::` annotations inline.
+- Artifacts (retained 14 days): `axe-playwright-report` (HTML + per-page JSON) and `lighthouse-reports` (raw `.lighthouseci/` directory).
+- Lighthouse summary also uploads to `temporary-public-storage` and the URL is printed in the job log.
+
+**Reading a failure:**
+
+1. `axe-accessibility` red → open the `axe-playwright-report` artifact, look at `axe-<page>.json`. The `impact` field tells you `critical`/`serious`. Fix the offending elements; do NOT relax the threshold.
+2. `lighthouse` red → check the assertion line at the end of the job (`categories:performance: expected >= 0.80, got 0.XX`). Open the `lighthouse-reports` artifact for the full HTML report including opportunities and diagnostics. A regression usually traces to a new heavy dependency, a layout shift introduced by a copy change, or a missing image alt/`<meta description>`.
+3. `resolve-target` red → the missing-secret guard tripped, OR the Vercel API returned no READY staging deploy. The latter usually means a deploy is in-flight; rerun once it's READY.
+
 ### Security Audit (Wednesday 07:00 UTC)
 
 - Runs `npm audit --json` against lockfile

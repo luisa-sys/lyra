@@ -636,6 +636,299 @@ jobs:
             echo "::error::Section 13 — backup integrity check failed (rc=$INTEGRITY_RC). The latest backup contains placeholder data."
           fi
 
+      # ── Section 15: Release Cadence ────────────────────────
+      # KAN-165: extends the develop→main drift check from
+      # scripts/check-release-drift.sh (KAN-173) with the latest tag,
+      # tag date, and days-since-release. Drift status emoji 🟢/🟡/🔴
+      # comes straight from the script's bucket logic, then we hand the
+      # JSON to scripts/dashboard-shapers.py for rendering.
+      - name: Section 15 — Release Cadence
+        if: always()
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/15-release-cadence.md"
+
+          # Make sure we have develop and main refs locally (fetch-depth: 0
+          # gives us tags but the named branches may not be fetched).
+          git fetch --quiet origin develop main 2>/dev/null || true
+
+          # Drift fields from the existing script. set +e so a 'red' exit
+          # (rc=1) doesn't trip our pipefail — drift=red is data, not error.
+          set +e
+          DRIFT_OUT=$(bash scripts/check-release-drift.sh 2>"$RUNNER_TEMP/drift.err")
+          DRIFT_RC=$?
+          set -e
+
+          # Latest tag + its commit date. fetch-depth: 0 on checkout means
+          # tags are present. We still distinguish "no tags found" from
+          # "git error" rather than silent-defaulting to empty.
+          LATEST_TAG=""
+          LATEST_TAG_DATE=""
+          if LATEST_TAG=$(git describe --tags --abbrev=0 origin/main 2>"$RUNNER_TEMP/tag.err"); then
+            if [ -n "$LATEST_TAG" ]; then
+              LATEST_TAG_DATE=$(git log -1 --format=%cI "$LATEST_TAG" 2>/dev/null || echo "")
+            fi
+          else
+            echo "::warning::Section 15 — git describe failed: $(head -c 200 "$RUNNER_TEMP/tag.err")"
+          fi
+
+          # Parse the drift key=value output into JSON. We pipe DRIFT_OUT
+          # to Python on stdin (not via shell interpolation) so that any
+          # special characters in the script's summary line — quotes, $,
+          # newlines — can't break the heredoc or get expanded by bash.
+          DRIFT_FILE="$RUNNER_TEMP/drift-out.txt"
+          printf '%s' "$DRIFT_OUT" > "$DRIFT_FILE"
+          PAYLOAD=$(DRIFT_FILE="$DRIFT_FILE" LATEST_TAG="$LATEST_TAG" LATEST_TAG_DATE="$LATEST_TAG_DATE" python3 <<'PY'
+          import json, os, sys
+          drift = {}
+          with open(os.environ['DRIFT_FILE']) as fh:
+              for line in fh:
+                  line = line.strip()
+                  if '=' in line:
+                      k, v = line.split('=', 1)
+                      drift[k] = v
+          out = {
+              'latest_tag': os.environ.get('LATEST_TAG', ''),
+              'latest_tag_date': os.environ.get('LATEST_TAG_DATE', ''),
+              'drift': {
+                  'commits_ahead': drift.get('commits_ahead', 'DATA_UNAVAILABLE'),
+                  'days_since_last_commit': drift.get('days_since_last_commit', 'DATA_UNAVAILABLE'),
+                  'status': drift.get('status', 'unknown'),
+              },
+          }
+          print(json.dumps(out))
+          PY
+          )
+
+          # Render via shaper. stdout = markdown body, stderr = `section-15=<status>`.
+          echo "$PAYLOAD" | python3 scripts/dashboard-shapers.py release_cadence > "$OUT" 2> "$RUNNER_TEMP/shaper-15.err"
+          grep "^section-15=" "$RUNNER_TEMP/shaper-15.err" >> "$QUALITY_FILE"
+
+          echo "::notice::Section 15 — latest tag=$LATEST_TAG, drift rc=$DRIFT_RC"
+
+      # ── Section 16: In-Flight Work (Jira: In Progress) ─────
+      # KAN-165: pulls open "In Progress" Jira tickets via the REST API.
+      # Requires ATLASSIAN_API_TOKEN_READONLY + ATLASSIAN_USER_EMAIL +
+      # ATLASSIAN_DOMAIN secrets. If any is missing, the section emits
+      # `skipped_reason` so the shaper can render DATA UNAVAILABLE — never
+      # silent-skipped.
+      - name: Section 16 — In-Flight Work
+        if: always()
+        env:
+          ATLASSIAN_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN_READONLY }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_USER_EMAIL }}
+          ATLASSIAN_DOMAIN: ${{ secrets.ATLASSIAN_DOMAIN }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/16-in-flight.md"
+          PAYLOAD_FILE="$RUNNER_TEMP/in-flight-payload.json"
+
+          if [ -z "${ATLASSIAN_TOKEN:-}" ] || [ -z "${ATLASSIAN_EMAIL:-}" ] || [ -z "${ATLASSIAN_DOMAIN:-}" ]; then
+            echo "::warning::Section 16 (In-Flight) — Atlassian secrets not fully configured (ATLASSIAN_API_TOKEN_READONLY / ATLASSIAN_USER_EMAIL / ATLASSIAN_DOMAIN)"
+            # Emit a payload with error= so the shaper renders DATA
+            # UNAVAILABLE with the specific reason.
+            python3 -c "import json; print(json.dumps({'error': 'Atlassian secrets not configured (need ATLASSIAN_API_TOKEN_READONLY, ATLASSIAN_USER_EMAIL, ATLASSIAN_DOMAIN)'}))" > "$PAYLOAD_FILE"
+          else
+            JQL='project = KAN AND status = "In Progress"'
+            JQL_ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$JQL")
+            AUTH=$(printf '%s' "${ATLASSIAN_EMAIL}:${ATLASSIAN_TOKEN}" | base64 | tr -d '\n')
+            RESPONSE=$(curl -s -w "\n__HTTP_CODE__%{http_code}" --max-time 20 \
+              "https://${ATLASSIAN_DOMAIN}/rest/api/3/search?jql=${JQL_ENCODED}&fields=summary,status,updated,assignee&maxResults=50" \
+              -H "Authorization: Basic ${AUTH}" \
+              -H "Accept: application/json" 2>&1 || echo "__HTTP_CODE__000")
+            HTTP=$(echo "$RESPONSE" | grep -oE '__HTTP_CODE__[0-9]+' | sed 's/__HTTP_CODE__//')
+            BODY=$(echo "$RESPONSE" | sed 's/__HTTP_CODE__[0-9]*$//')
+            if [ "$HTTP" = "200" ]; then
+              # Re-shape Jira response into our payload format. Use stdin
+              # to avoid argv quoting issues with large/special-char bodies.
+              printf '%s' "$BODY" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          out = {'issues': d.get('issues', [])}
+          print(json.dumps(out))
+          " > "$PAYLOAD_FILE"
+            else
+              echo "::warning::Section 16 (In-Flight) — Jira API returned HTTP $HTTP"
+              HTTP="$HTTP" python3 -c "import json,os; print(json.dumps({'error': f\"Jira API returned HTTP {os.environ['HTTP']}\"}))" > "$PAYLOAD_FILE"
+            fi
+          fi
+
+          python3 scripts/dashboard-shapers.py in_flight < "$PAYLOAD_FILE" > "$OUT" 2> "$RUNNER_TEMP/shaper-16.err"
+          grep "^section-16=" "$RUNNER_TEMP/shaper-16.err" >> "$QUALITY_FILE"
+
+      # ── Section 17: PR Queue Health ────────────────────────
+      - name: Section 17 — PR Queue Health
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/17-pr-queue.md"
+          PAYLOAD_FILE="$RUNNER_TEMP/pr-queue-payload.json"
+
+          if PULLS_JSON=$(gh api "repos/${{ github.repository }}/pulls?state=open&per_page=100" 2>"$RUNNER_TEMP/pulls.err"); then
+            # Pipe JSON via stdin to avoid argv quoting issues.
+            printf '%s' "$PULLS_JSON" | python3 -c "
+          import json, sys
+          pulls = json.load(sys.stdin)
+          # Trim to only the fields the shaper needs (and that we want in logs).
+          slim = [
+              {
+                  'number': p.get('number'),
+                  'title': p.get('title', '')[:80],
+                  'base': {'ref': (p.get('base') or {}).get('ref')},
+                  'draft': bool(p.get('draft')),
+                  'created_at': p.get('created_at'),
+                  'user': {'login': (p.get('user') or {}).get('login')},
+              }
+              for p in pulls
+          ]
+          print(json.dumps({'pulls': slim}))
+          " > "$PAYLOAD_FILE"
+          else
+            ERR=$(head -c 200 "$RUNNER_TEMP/pulls.err")
+            echo "::warning::Section 17 — gh api /pulls failed: $ERR"
+            ERR="$ERR" python3 -c "import json,os; print(json.dumps({'error': os.environ['ERR']}))" > "$PAYLOAD_FILE"
+          fi
+
+          python3 scripts/dashboard-shapers.py pr_queue < "$PAYLOAD_FILE" > "$OUT" 2> "$RUNNER_TEMP/shaper-17.err"
+          grep "^section-17=" "$RUNNER_TEMP/shaper-17.err" >> "$QUALITY_FILE"
+
+      # ── Section 18: CI Flakiness (last 30 runs) ────────────
+      - name: Section 18 — CI Flakiness
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/18-ci-flakiness.md"
+          PAYLOAD_FILE="$RUNNER_TEMP/ci-flakiness-payload.json"
+
+          if RUNS_JSON=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=30" 2>"$RUNNER_TEMP/runs.err"); then
+            # Pipe JSON via stdin to avoid argv quoting issues with large blobs.
+            printf '%s' "$RUNS_JSON" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          slim = [
+              {'name': r.get('name', 'unknown'), 'conclusion': r.get('conclusion')}
+              for r in d.get('workflow_runs', [])
+          ]
+          print(json.dumps({'runs': slim}))
+          " > "$PAYLOAD_FILE"
+          else
+            ERR=$(head -c 200 "$RUNNER_TEMP/runs.err")
+            echo "::warning::Section 18 — gh api /actions/runs failed: $ERR"
+            ERR="$ERR" python3 -c "import json,os; print(json.dumps({'error': os.environ['ERR']}))" > "$PAYLOAD_FILE"
+          fi
+
+          python3 scripts/dashboard-shapers.py ci_flakiness < "$PAYLOAD_FILE" > "$OUT" 2> "$RUNNER_TEMP/shaper-18.err"
+          grep "^section-18=" "$RUNNER_TEMP/shaper-18.err" >> "$QUALITY_FILE"
+
+      # ── Section 19: MCP Server Health (UptimeRobot) ────────
+      # KAN-165: if UPTIMEROBOT_API_KEY is not wired into this workflow,
+      # the section explicitly renders DATA UNAVAILABLE with the reason
+      # AND emits a workflow ::warning::. This is the documented-gap
+      # case from the ticket — not a silent skip.
+      - name: Section 19 — MCP Server Health
+        if: always()
+        env:
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/19-mcp-health.md"
+          PAYLOAD_FILE="$RUNNER_TEMP/mcp-health-payload.json"
+
+          if [ -z "${UPTIMEROBOT_API_KEY:-}" ]; then
+            echo "::warning::Section 19 (MCP Health) — UPTIMEROBOT_API_KEY secret not configured; UptimeRobot data is missing from the dashboard. See docs/UPTIMEROBOT_SETUP.md."
+            python3 -c "import json; print(json.dumps({'skipped_reason': 'UPTIMEROBOT_API_KEY secret not configured — see docs/UPTIMEROBOT_SETUP.md'}))" > "$PAYLOAD_FILE"
+          else
+            RESPONSE=$(curl -s -w "\n__HTTP_CODE__%{http_code}" --max-time 15 \
+              -X POST "https://api.uptimerobot.com/v2/getMonitors" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              --data-urlencode "api_key=${UPTIMEROBOT_API_KEY}" \
+              --data-urlencode "format=json" \
+              --data-urlencode "all_time_uptime_ratio=1" 2>&1 || echo "__HTTP_CODE__000")
+            HTTP=$(echo "$RESPONSE" | grep -oE '__HTTP_CODE__[0-9]+' | sed 's/__HTTP_CODE__//')
+            BODY=$(echo "$RESPONSE" | sed 's/__HTTP_CODE__[0-9]*$//')
+            if [ "$HTTP" = "200" ]; then
+              # Pipe JSON via stdin to avoid argv quoting issues.
+              printf '%s' "$BODY" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          if d.get('stat') != 'ok':
+              print(json.dumps({'error': f\"UptimeRobot returned stat={d.get('stat')}\"}))
+          else:
+              slim = [
+                  {
+                      'friendly_name': m.get('friendly_name'),
+                      'status': m.get('status'),
+                      'all_time_uptime_ratio': m.get('all_time_uptime_ratio'),
+                  }
+                  for m in d.get('monitors', [])
+              ]
+              print(json.dumps({'monitors': slim}))
+          " > "$PAYLOAD_FILE"
+            else
+              echo "::warning::Section 19 — UptimeRobot API returned HTTP $HTTP"
+              HTTP="$HTTP" python3 -c "import json,os; print(json.dumps({'error': f\"UptimeRobot API HTTP {os.environ['HTTP']}\"}))" > "$PAYLOAD_FILE"
+            fi
+          fi
+
+          python3 scripts/dashboard-shapers.py mcp_health < "$PAYLOAD_FILE" > "$OUT" 2> "$RUNNER_TEMP/shaper-19.err"
+          grep "^section-19=" "$RUNNER_TEMP/shaper-19.err" >> "$QUALITY_FILE"
+
+      # ── Section 20: Cost Spotcheck (best-effort) ───────────
+      # KAN-165: optional. Each provider's API is probed; if the relevant
+      # token isn't set, the row renders DATA UNAVAILABLE with the missing
+      # var name. Never silent-skipped.
+      - name: Section 20 — Cost Spotcheck
+        if: always()
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.SUPABASE_MANAGEMENT_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/20-cost-spotcheck.md"
+          PAYLOAD_FILE="$RUNNER_TEMP/cost-payload.json"
+
+          # Build a providers dict. We don't actually consume any of these
+          # APIs deeply yet — for this scaffold, "available" means the
+          # token is present and an HTTP HEAD to the API endpoint returns
+          # a 2xx/4xx (i.e. the API is reachable). Detailed usage parsing
+          # is a follow-up.
+          python3 <<'PY' > "$PAYLOAD_FILE"
+          import os, json, urllib.request, urllib.error
+          providers = {}
+
+          def probe(name, token_env, url, header):
+              tok = os.environ.get(token_env)
+              if not tok:
+                  providers[name] = {'available': False, 'detail': f'{token_env} not set'}
+                  return
+              try:
+                  req = urllib.request.Request(url, headers={header[0]: header[1].format(tok)})
+                  with urllib.request.urlopen(req, timeout=10) as r:
+                      providers[name] = {'available': True, 'detail': f'API reachable (HTTP {r.status}) — usage parsing TBD'}
+              except urllib.error.HTTPError as e:
+                  # 401/403 still means "we hit the API" — token may be scoped wrong.
+                  if e.code in (401, 403):
+                      providers[name] = {'available': False, 'detail': f'API returned HTTP {e.code} — token scope?'}
+                  else:
+                      providers[name] = {'available': True, 'detail': f'API reachable (HTTP {e.code})'}
+              except Exception as e:
+                  providers[name] = {'available': False, 'detail': f'unreachable: {type(e).__name__}'}
+
+          probe('Vercel', 'VERCEL_API_TOKEN', 'https://api.vercel.com/v2/user', ('Authorization', 'Bearer {}'))
+          probe('Supabase', 'SUPABASE_MANAGEMENT_TOKEN', 'https://api.supabase.com/v1/projects', ('Authorization', 'Bearer {}'))
+          probe('Resend', 'RESEND_API_KEY', 'https://api.resend.com/domains', ('Authorization', 'Bearer {}'))
+
+          print(json.dumps({'providers': providers}))
+          PY
+
+          python3 scripts/dashboard-shapers.py cost_spotcheck < "$PAYLOAD_FILE" > "$OUT" 2> "$RUNNER_TEMP/shaper-20.err"
+          grep "^section-20=" "$RUNNER_TEMP/shaper-20.err" >> "$QUALITY_FILE"
+
       # ── Compose final report (Data Quality Summary at top) ─
       - name: Compose final report
         if: always()
@@ -652,16 +945,19 @@ jobs:
             # ── Data Quality Summary ──
             echo "## 0. Data Quality Summary"
             echo ""
-            echo "This report is built from 8 data sources. Per KAN-167 Phase 3+4, each"
-            echo "source either succeeds with real data or shows DATA UNAVAILABLE with"
-            echo "the reason — never a silent placeholder. Section 13 actively checks"
-            echo "the most recent backup artifact for placeholder strings (Phase 4)."
+            echo "This report is built from 14 data sources. Per KAN-167 Phase 3+4 +"
+            echo "KAN-165 dashboard extension, each source either succeeds with real"
+            echo "data or shows DATA UNAVAILABLE with the reason — never a silent"
+            echo "placeholder. Section 13 actively checks the most recent backup"
+            echo "artifact for placeholder strings (Phase 4). Sections 15–20 are the"
+            echo "KAN-165 dashboard extension: release cadence, in-flight work,"
+            echo "PR queue, CI flakiness, MCP server health, and cost spotcheck."
             echo ""
             echo "| Section | Status |"
             echo "|---------|--------|"
 
             ALL_OK=1
-            for n in 1 2 3 4 5 6 7 13; do
+            for n in 1 2 3 4 5 6 7 13 15 16 17 18 19 20; do
               STATUS_LINE=$(grep "^section-$n=" "$QUALITY_FILE" 2>/dev/null || echo "section-$n=missing:section-did-not-run")
               STATUS=$(echo "$STATUS_LINE" | cut -d= -f2)
               case "$STATUS" in
@@ -705,13 +1001,19 @@ jobs:
                 6) NAME="Test Suite" ;;
                 7) NAME="Current Deployment" ;;
                 13) NAME="Backup Integrity" ;;
+                15) NAME="Release Cadence" ;;
+                16) NAME="In-Flight Work" ;;
+                17) NAME="PR Queue Health" ;;
+                18) NAME="CI Flakiness" ;;
+                19) NAME="MCP Server Health" ;;
+                20) NAME="Cost Spotcheck" ;;
               esac
               echo "| $n. $NAME | $ICON $REASON |"
             done
             echo ""
 
             if [ "$ALL_OK" -eq 1 ]; then
-              echo "**All 7 data sources reported clean.**"
+              echo "**All 14 data sources reported clean.**"
             else
               echo "**One or more data sources had issues — see Data Quality Summary above. The relevant section below will show DATA UNAVAILABLE with details.**"
             fi

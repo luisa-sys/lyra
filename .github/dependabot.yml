@@ -15,6 +15,16 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
+    # Group react/react-dom (+ @types) so they always bump together.
+    # react-dom@X peer-depends on react@^X and package.json pins exact
+    # versions — solo react-dom bumps fail install (see PR #91).
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
 
   - package-ecosystem: "github-actions"
     directory: "/"

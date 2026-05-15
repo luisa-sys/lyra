@@ -48,3 +48,10 @@ coverage/
 reports/mutation/*.json
 reports/mutation/*.html
 reports/weekly-report-*.md
+
+# Playwright (KAN-114, KAN-176)
+playwright-report/
+test-results/
+
+# Lighthouse CI output (KAN-176)
+.lighthouseci/

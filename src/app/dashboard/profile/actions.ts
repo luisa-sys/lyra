@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { isAllowedProfileField } from './profile-fields';
+import { coerceVisibility } from './visibility';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -94,8 +95,29 @@ export async function addProfileItem(data: {
       category: sanitiseText(data.category, 50),
       title: sanitiseText(data.title, 200),
       description: data.description ? sanitiseText(data.description, 1000) : null,
-      visibility: data.visibility || 'public',
+      // Coerce to one of the allowed visibility levels — anything else falls
+      // back to 'public'. KAN-143.
+      visibility: coerceVisibility(data.visibility),
     });
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+export async function updateProfileItemVisibility(
+  itemId: string,
+  visibility: string,
+): Promise<ActionResult> {
+  const { supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // RLS confines the UPDATE to items the caller owns — no need to filter
+  // by user_id here. Coerce the input to one of the allowed levels.
+  const { error } = await supabase
+    .from('profile_items')
+    .update({ visibility: coerceVisibility(visibility) })
+    .eq('id', itemId);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');

@@ -3,14 +3,33 @@
 import { useState } from 'react';
 import { Field, SaveButton, type WizardItem } from './types';
 
-export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onNext, isPending }: {
+// KAN-143 — UI-visible visibility levels. Keep in sync with
+// src/app/dashboard/profile/visibility.ts (VISIBILITY_LEVELS).
+const VISIBILITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'public', label: '🌍 Public — anyone with the link' },
+  { value: 'members_only', label: '🔒 Members only — signed-in users' },
+  { value: 'draft', label: '✏️ Draft — only you can see this' },
+];
+
+const visibilityShort: Record<string, string> = {
+  public: '🌍 Public',
+  members_only: '🔒 Members',
+  draft: '✏️ Draft',
+  // 'private' is the legacy enum value (pre-KAN-143). Render as draft.
+  private: '✏️ Draft',
+};
+
+export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
-  onAdd: (data: { category: string; title: string; description?: string }) => void;
-  onRemove: (id: string) => void; onNext: () => void; isPending: boolean;
+  onAdd: (data: { category: string; title: string; description?: string; visibility?: string }) => void;
+  onRemove: (id: string) => void;
+  onUpdateVisibility: (id: string, visibility: string) => void;
+  onNext: () => void; isPending: boolean;
 }) {
   const [category, setCategory] = useState(categories[0]);
   const [itemTitle, setItemTitle] = useState('');
   const [itemDesc, setItemDesc] = useState('');
+  const [itemVisibility, setItemVisibility] = useState<string>('public');
 
   const categoryLabels: Record<string, string> = {
     likes: '💚 Like', dislikes: '💔 Dislike',
@@ -24,9 +43,15 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
 
   const handleAdd = () => {
     if (!itemTitle.trim()) return;
-    onAdd({ category, title: itemTitle, ...(itemDesc ? { description: itemDesc } : {}) });
+    onAdd({
+      category,
+      title: itemTitle,
+      ...(itemDesc ? { description: itemDesc } : {}),
+      visibility: itemVisibility,
+    });
     setItemTitle('');
     setItemDesc('');
+    setItemVisibility('public');
   };
 
   return (
@@ -39,13 +64,28 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
         <div className="space-y-2">
           {items.map((item: WizardItem) => (
             <div key={item.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--color-ink)]">
                   <span className="opacity-60">{categoryLabels[item.category] || item.category}</span> — {item.title}
                 </p>
                 {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
               </div>
-              <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+              <div className="flex items-center gap-2 ml-3">
+                <label className="sr-only" htmlFor={`vis-${item.id}`}>Visibility</label>
+                <select
+                  id={`vis-${item.id}`}
+                  aria-label={`Visibility for ${item.title}`}
+                  value={visibilityShort[item.visibility] ? item.visibility : 'public'}
+                  onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
+                  disabled={isPending}
+                  className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
+                >
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{visibilityShort[opt.value]}</option>
+                  ))}
+                </select>
+                <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+              </div>
             </div>
           ))}
         </div>
@@ -68,6 +108,21 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
           <input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
             placeholder="Any extra detail" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor="new-item-visibility">
+            Visibility
+          </label>
+          <select
+            id="new-item-visibility"
+            value={itemVisibility}
+            onChange={(e) => setItemVisibility(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm"
+          >
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
         <button onClick={handleAdd} disabled={isPending || !itemTitle.trim()}
           className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors">
