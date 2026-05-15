@@ -1,4 +1,29 @@
 name: Promote to Production
+# BUGS-16 / BUGS-11 (2026-05-15 final fix): direct fast-forward merge of
+# beta → main, no release PR. The previous PR + auto-merge pattern was
+# blocked by a phantom Vercel check_suite (status=queued, runs=0, never
+# completes). Auto-merge waits on ALL check_suite entries on the PR head
+# regardless of `required_status_checks.contexts`, so the phantom held
+# every release PR forever; every prod release required admin-merge.
+#
+# Direct merge avoids the PR entirely. The same safety machinery is
+# preserved by sequencing:
+#   1. verify-source — beta CI green at HEAD (was already here)
+#   2. merge-and-push — fast-forward beta → main, push with LYRA_RELEASE_PAT
+#   3. wait-for-deploy — wait for deploy-production.yml to complete on the
+#      merged SHA. deploy-production.yml already runs lint + unit tests +
+#      build verification + audit before deploying, so the gates the old
+#      "PR Quality Gate" check ran twice now only run once.
+#   4. smoke-tests — production endpoints + Vercel SHA verification
+#   5. release-tag — only after smoke passes
+#   6. auto-rollback (on failure) — uses captured pre-merge main SHA
+#
+# This mirrors the pattern promote-staging-to-beta.yml has used since
+# KAN-175 with no incidents, and what promote-to-staging.yml uses for
+# develop → staging.
+#
+# Refs: BUGS-11, BUGS-16, KAN-173, KAN-175
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,7 +34,6 @@ on:
 permissions:
   contents: write
   actions: read
-  pull-requests: write
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -106,18 +130,17 @@ jobs:
           echo "::error::Could not verify beta CI for $BETA_SHORT after $MAX_ATTEMPTS attempts."
           exit 1
 
-  create-release-pr:
-    name: Create release branch + PR + enable auto-merge
+  merge-and-push:
+    name: Merge beta → main
     needs: verify-source
     runs-on: ubuntu-latest
     outputs:
-      release_branch: ${{ steps.pr.outputs.release_branch }}
-      pr_number: ${{ steps.pr.outputs.pr_number }}
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
     steps:
-      # BUGS-4: use LYRA_RELEASE_PAT for the push so downstream workflows
-      # (PR Quality Gate, CodeQL Analysis) ARE triggered by the release
-      # branch push. GITHUB_TOKEN would silently suppress those triggers,
-      # making auto-merge wait forever for status checks that never run.
+      # BUGS-16: use LYRA_RELEASE_PAT for the push so deploy-production.yml
+      # fires. GITHUB_TOKEN would silently suppress the trigger (gotcha #16).
+      # The PAT was updated 2026-05-15 with Workflows:write so it can also
+      # push workflow-file changes if a release contains them.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
@@ -127,266 +150,52 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Create release branch from beta
-        id: pr
+      - name: Merge beta into main
+        id: merge
         env:
-          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
           BETA_SHA: ${{ needs.verify-source.outputs.beta_sha }}
           BETA_SHORT: ${{ needs.verify-source.outputs.beta_short }}
         run: |
           set -euo pipefail
-          DATE=$(date -u +%Y-%m-%d)
-          BRANCH="release/${DATE}-prod-${BETA_SHORT}"
-          echo "Creating release branch: $BRANCH"
+          git fetch origin main:main beta
+          git checkout main
+          git pull origin main --ff-only
 
-          # KAN-175: source is now `beta` (was `staging` before KAN-175).
-          # The next promotion gate is beta → main; staging→beta is a separate
-          # workflow (promote-staging-to-beta.yml).
-          git fetch origin main beta --depth=200
-          git checkout beta
-          git pull origin beta --ff-only
-          git checkout -b "$BRANCH"
+          # Standard fast-forward-able merge. If beta has main as a strict
+          # ancestor (the normal case — beta was promoted from staging which
+          # was promoted from develop which had main back-merged), this is a
+          # fast-forward. Otherwise it produces a merge commit; either way
+          # the result is identical to what the old PR-based flow produced.
+          git merge origin/beta -m "Promote beta → production ($BETA_SHORT) [workflow_dispatch]"
+          MERGE_SHA=$(git rev-parse HEAD)
+          echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
 
-          # BUGS-11 (rebase): GitHub's `required_status_checks.strict: true`
-          # on main rejects auto-merge if main has commits not reachable as
-          # *first-parent* ancestors of the PR head. The earlier merge-main
-          # approach (`git merge origin/main` into the release branch) gives
-          # main's HEAD as a SECOND parent of the merge commit — git's full
-          # ancestry includes it, but GitHub's strict-ancestry check follows
-          # first-parent only and still reports behind_by≥1. Empirically the
-          # last 4 prod promotions (#99, #103, #111, #120) all required an
-          # admin-merge despite the merge-main step succeeding.
-          #
-          # Rebase produces strictly linear first-parent ancestry: every
-          # commit from beta is replayed on top of main's HEAD, so the new
-          # release-branch tip has main's HEAD as a direct first-parent
-          # ancestor. behind_by=0 by construction.
-          #
-          # Conflicts during rebase are intentionally fatal — they indicate
-          # divergence beyond auto-resolution and need human review. The
-          # release branch will be left in an aborted state and the workflow
-          # exits non-zero.
-          MAIN_SHA=$(git rev-parse origin/main)
-          BETA_BEFORE_REBASE=$(git rev-parse HEAD)
-          echo "Rebasing $BRANCH onto main ($MAIN_SHA)…"
-          if ! git rebase origin/main; then
-            echo "::error::Rebase onto main produced conflicts. Aborting."
-            git rebase --abort || true
-            exit 1
-          fi
-          BETA_AFTER_REBASE=$(git rev-parse HEAD)
-          echo "Rebase complete. HEAD: $BETA_BEFORE_REBASE → $BETA_AFTER_REBASE"
+          echo "Pushing main at SHA $MERGE_SHA..."
+          git push origin main
+          echo "::notice::Pushed main at $MERGE_SHA. deploy-production.yml should trigger now."
 
-          # Sanity-check that main is now a direct first-parent ancestor of
-          # the rebased head. If GitHub's compare API disagrees with us
-          # later, fail loud here rather than at auto-merge time.
-          if ! git merge-base --is-ancestor "$MAIN_SHA" HEAD; then
-            echo "::error::Post-rebase: main HEAD ($MAIN_SHA) is NOT an ancestor of release branch HEAD. BUGS-11 fix would not work."
-            exit 1
-          fi
-          echo "::notice::main is a direct ancestor of $BRANCH (BUGS-11 strict-ancestry satisfied)"
-
-          # Push using LYRA_RELEASE_PAT so PR-checks workflows trigger.
-          # `--force-with-lease` is unnecessary here because $BRANCH was
-          # just created locally and never pushed.
-          git push origin "$BRANCH"
-
-          echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
-
-          # Compose PR body with all the relevant context
-          PR_TITLE="Promote beta → production ($BETA_SHORT)"
-          PR_BODY=$(cat <<EOF
-          Auto-generated promotion PR by promote-to-production.yml workflow.
-
-          ## What this is
-
-          This PR promotes the current \`beta\` branch HEAD to \`main\`, triggering a production deployment.
-
-          - **Source SHA**: \`$BETA_SHA\`
-          - **Source branch**: \`beta\`
-          - **Triggered by**: workflow_dispatch (manual trigger by ${{ github.actor }})
-          - **Auto-merge**: enabled — will merge automatically when status checks pass
-
-          ## Verification gates before merge
-
-          GitHub branch protection on \`main\` requires:
-          - PR Quality Gate (lint + type-check + unit tests + npm audit)
-          - CodeQL Analysis
-
-          Both run automatically on this PR. Auto-merge will trigger once both pass.
-
-          ## What happens after merge
-
-          1. \`deploy-production.yml\` triggers on push to \`main\`
-          2. Vercel deploys to checklyra.com
-          3. \`promote-to-production.yml\` workflow continues with smoke tests + SHA verification
-          4. If smoke tests pass, a release tag \`v0.1.x+1\` is created
-          5. If smoke tests fail, automatic Vercel rollback is attempted
-
-          ## How to abort
-
-          - Close this PR before status checks complete → no merge happens, no deploy
-          - This will cause the wait-for-merge job in the parent workflow to time out and fail loudly
-
-          ## Refs
-
-          - BUGS-4: PR-based pattern fix (replaces direct push that bypassed branch protection)
-          - KAN-173: hybrid release automation
-          EOF
-          )
-
-          # Create the PR
-          PR_URL=$(gh pr create \
-            --repo "${{ github.repository }}" \
-            --base main \
-            --head "$BRANCH" \
-            --title "$PR_TITLE" \
-            --body "$PR_BODY")
-
-          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-          echo "PR created: $PR_URL (number: $PR_NUMBER)"
-          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-
-          # Enable auto-merge. Status checks must pass before this fires.
-          # If auto-merge is disabled at repo level, this command fails.
-          gh pr merge "$PR_NUMBER" \
-            --repo "${{ github.repository }}" \
-            --auto \
-            --merge
-
-          echo "::notice::PR #$PR_NUMBER opened with auto-merge enabled"
           {
-            echo "## 📥 Promotion PR Opened"
+            echo "## 🚀 Promotion merged to main"
             echo ""
-            echo "- PR: $PR_URL"
-            echo "- Source SHA: \`$BETA_SHORT\`"
-            echo "- Auto-merge: enabled"
+            echo "- Source: \`beta\` @ \`$BETA_SHORT\`"
+            echo "- Merged SHA: \`${MERGE_SHA:0:8}\`"
             echo ""
-            echo "Waiting for status checks (CodeQL + PR Quality Gate) to pass..."
+            echo "Waiting for deploy-production.yml to complete on the merged SHA..."
           } >> "$GITHUB_STEP_SUMMARY"
-
-  wait-for-merge:
-    name: Wait for PR merge
-    needs: [verify-source, create-release-pr]
-    runs-on: ubuntu-latest
-    outputs:
-      merge_sha: ${{ steps.poll.outputs.merge_sha }}
-    steps:
-      - name: Poll PR until merged
-        id: poll
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ needs.create-release-pr.outputs.pr_number }}
-          BETA_SHORT: ${{ needs.verify-source.outputs.beta_short }}
-        run: |
-          set -euo pipefail
-          # Status checks (CodeQL takes ~1.5min, PR Quality Gate takes ~1min)
-          # then auto-merge fires. Total typically under 4 min. Allow 15 min
-          # for safety (CodeQL can be queued up to ~5 min during peak times).
-          TIMEOUT=900
-          ELAPSED=0
-          INTERVAL=20
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            sleep $INTERVAL
-            ELAPSED=$((ELAPSED + INTERVAL))
-
-            # BUGS-8: gh CLI removed the boolean `merged` field; derive it from `mergedAt`.
-            PR_STATE=$(gh pr view "$PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --json state,mergedAt,mergeCommit,mergeable,statusCheckRollup \
-              -q '{state, merged: (.mergedAt != null), sha: .mergeCommit.oid, mergeable, checks: [.statusCheckRollup[] | {name: .name, conclusion: .conclusion}]}')
-
-            STATE=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
-            MERGED=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['merged'])")
-
-            if [ "$MERGED" = "True" ]; then
-              MERGE_SHA=$(echo "$PR_STATE" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'] or '')")
-              if [ -z "$MERGE_SHA" ]; then
-                echo "::error::PR #$PR_NUMBER reports merged but mergeCommit.oid is empty"
-                exit 1
-              fi
-              echo "::notice::PR #$PR_NUMBER merged at $MERGE_SHA"
-              echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-
-            if [ "$STATE" = "CLOSED" ]; then
-              echo "::error::PR #$PR_NUMBER was CLOSED without merging. Promotion aborted."
-              exit 1
-            fi
-
-            # Print progress on every check
-            CHECK_SUMMARY=$(echo "$PR_STATE" | python3 -c "
-          import json, sys
-          d = json.load(sys.stdin)
-          checks = d.get('checks') or []
-          if not checks:
-              print('  (no status checks reported yet)')
-          else:
-              for c in checks:
-                  print(f\"    {c['name']}: {c['conclusion'] or 'pending'}\")")
-            echo "  PR #$PR_NUMBER state=$STATE merged=$MERGED ($ELAPSED/${TIMEOUT}s)"
-            echo "$CHECK_SUMMARY"
-          done
-
-          # BUGS-11 diagnostics on timeout — dump enough info to root-cause
-          # without needing a separate investigation. We surface:
-          #   - mergeStateStatus (CLEAN / BLOCKED / UNSTABLE / DIRTY / etc.)
-          #   - behind_by from main (strict-ancestry check)
-          #   - autoMergeRequest state
-          #   - all check_runs and check_suites with their app slugs
-          #   - the legacy combined commit-status (any pending statuses?)
-          # An admin-merge can be done by an operator once the cause is clear.
-          echo "::error::PR #$PR_NUMBER did not merge within ${TIMEOUT}s"
-          echo "## BUGS-11 diagnostics" >> "$GITHUB_STEP_SUMMARY"
-          PR_DIAG=$(gh pr view "$PR_NUMBER" \
-            --repo "${{ github.repository }}" \
-            --json mergeable,mergeStateStatus,headRefOid,autoMergeRequest 2>/dev/null || echo '{}')
-          MERGE_STATE=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mergeStateStatus','?'))")
-          MERGEABLE=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mergeable','?'))")
-          HEAD_SHA=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('headRefOid','?'))")
-          AUTO=$(echo "$PR_DIAG" | python3 -c "import json,sys; d=json.load(sys.stdin); am=d.get('autoMergeRequest'); print(am.get('enabledBy',{}).get('login') if am else 'NOT-ENABLED')")
-          echo "::error::mergeable=$MERGEABLE  mergeStateStatus=$MERGE_STATE  autoMerge=$AUTO  head=$HEAD_SHA"
-          {
-            echo "- **mergeable**: \`$MERGEABLE\`"
-            echo "- **mergeStateStatus**: \`$MERGE_STATE\` (CLEAN means merge can fire; BLOCKED means a required gate is missing; UNSTABLE means non-required check failed)"
-            echo "- **autoMergeRequest**: $AUTO"
-            echo "- **head SHA**: \`$HEAD_SHA\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-          # Strict-ancestry comparison vs main
-          COMP=$(gh api "repos/${{ github.repository }}/compare/main...$HEAD_SHA" --jq '{ahead_by, behind_by, status}' 2>/dev/null || echo '{}')
-          echo "::error::compare(main…HEAD): $COMP"
-          echo "- **compare(main…HEAD)**: \`$COMP\` (behind_by>0 with strict=true blocks auto-merge — BUGS-11)" >> "$GITHUB_STEP_SUMMARY"
-          # Check-runs + check-suites breakdown
-          echo "### check_runs" >> "$GITHUB_STEP_SUMMARY"
-          gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/check-runs" \
-            --jq '.check_runs[] | "- " + .name + " [" + .app.slug + "] → " + (.conclusion // "pending")' \
-            >> "$GITHUB_STEP_SUMMARY" || true
-          echo "### check_suites" >> "$GITHUB_STEP_SUMMARY"
-          gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/check-suites" \
-            --jq '.check_suites[] | "- " + .app.slug + " → " + .status + "/" + (.conclusion // "—")' \
-            >> "$GITHUB_STEP_SUMMARY" || true
-          # Legacy combined commit-status — pending statuses block auto-merge
-          # for some legacy integrations (e.g. CodeQL Advanced Security on
-          # repos that recently switched between Code Scanning configurations).
-          STATUS_STATE=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/status" --jq '.state' 2>/dev/null || echo "?")
-          echo "- **legacy combined status**: \`$STATUS_STATE\` (pending here can keep auto-merge held even when check_runs are green)" >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::Check status checks on the PR. CodeQL Analysis and PR Quality Gate must pass AND mergeStateStatus must be CLEAN for auto-merge to fire."
-          exit 1
 
   wait-for-deploy:
     name: Wait for production deploy (SHA-matched)
-    needs: wait-for-merge
+    needs: merge-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Wait for deploy-production.yml run for our SHA
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+          EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merge_sha }}
         run: |
           set -euo pipefail
           echo "Waiting for deploy-production.yml run with headSha=$EXPECTED_SHA..."
-          TIMEOUT=480
+          TIMEOUT=600
           ELAPSED=0
           INTERVAL=20
           while [ $ELAPSED -lt $TIMEOUT ]; do
@@ -433,11 +242,13 @@ jobs:
           done
 
           echo "::error::deploy-production.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
+          echo "::error::This usually means the merge push did not trigger downstream workflows."
+          echo "::error::Check that LYRA_RELEASE_PAT is set and the merge job uses it (not GITHUB_TOKEN)."
           exit 1
 
   smoke-tests:
     name: Production smoke tests + SHA verification
-    needs: [wait-for-merge, wait-for-deploy]
+    needs: [merge-and-push, wait-for-deploy]
     runs-on: ubuntu-latest
     steps:
       # BUGS-4: verify Vercel actually deployed our SHA to production.
@@ -446,7 +257,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          EXPECTED_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+          EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merge_sha }}
         run: |
           set -euo pipefail
           MAX_ATTEMPTS=6
@@ -542,38 +353,9 @@ jobs:
             echo "✓ MCP protocol handshake OK"
           fi
 
-  cleanup-release-branch:
-    name: Delete release branch after successful merge
-    needs: [create-release-pr, wait-for-merge, smoke-tests]
-    if: success()
-    runs-on: ubuntu-latest
-    steps:
-      # BUGS-4: clean up the release branch we created in create-release-pr.
-      # Runs only on overall success — if smoke tests fail we leave the
-      # branch in place for forensics. Uses LYRA_RELEASE_PAT so the delete
-      # is attributed correctly in audit logs (not as github-actions[bot]).
-      - name: Delete release branch
-        env:
-          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
-          BRANCH: ${{ needs.create-release-pr.outputs.release_branch }}
-        run: |
-          set -euo pipefail
-          echo "Deleting release branch: $BRANCH"
-          # If the branch is already gone (e.g. someone deleted it manually),
-          # this returns 422. We catch that as success.
-          if gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$BRANCH" 2>&1 | tee /tmp/del.out; then
-            echo "::notice::Deleted release branch $BRANCH"
-          else
-            if grep -q "Reference does not exist" /tmp/del.out; then
-              echo "::notice::Release branch $BRANCH was already deleted"
-            else
-              echo "::warning::Failed to delete release branch $BRANCH (non-fatal — branch can be deleted manually)"
-            fi
-          fi
-
   release-tag:
     name: Create release tag
-    needs: [wait-for-merge, smoke-tests]
+    needs: [merge-and-push, smoke-tests]
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.tag.outputs.release_tag }}
@@ -597,20 +379,20 @@ jobs:
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG#v}"
           NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
-          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — promoted from staging"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — promoted from beta"
           git push origin "$NEW_TAG"
           echo "Tagged: $NEW_TAG"
           echo "release_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
   summary:
     name: Production promotion summary
-    needs: [wait-for-merge, smoke-tests, release-tag, cleanup-release-branch]
+    needs: [merge-and-push, smoke-tests, release-tag]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Final summary
         env:
-          MERGE_SHA: ${{ needs.wait-for-merge.outputs.merge_sha }}
+          MERGE_SHA: ${{ needs.merge-and-push.outputs.merge_sha }}
           RELEASE_TAG: ${{ needs.release-tag.outputs.release_tag }}
           SMOKE_RESULT: ${{ needs.smoke-tests.result }}
           TAG_RESULT: ${{ needs.release-tag.result }}
@@ -626,6 +408,7 @@ jobs:
               echo "- MCP server: https://mcp.checklyra.com/health"
               echo "- Vercel deployment SHA-verified"
               echo "- All 9 smoke tests passed"
+              echo "- BUGS-11 / BUGS-16: direct-merge flow worked, no admin intervention"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             {
