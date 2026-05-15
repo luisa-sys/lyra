@@ -138,6 +138,11 @@ describe('check-release-drift.sh', () => {
     gitRun(repo, ['checkout', '-q', '-b', 'develop']);
     commit(repo, 'one', '1', 'one');
     const r = runScript(repo, { DEVELOP_REF: 'develop', MAIN_REF: 'main' });
-    expect(r.fields.summary).toMatch(/^develop is \d+ commits \/ \d+ days ahead of main \(green|yellow|red\)$/);
+    // The alternation must be wrapped in a group — without it the regex
+    // parses as three top-level alternatives ("…(green" OR "yellow" OR
+    // "red)$") and the test passes for the wrong reasons (any string
+    // containing "yellow" satisfies the middle alternative). CodeQL
+    // flagged this — see js/regex/missing-regexp-anchor.
+    expect(r.fields.summary).toMatch(/^develop is \d+ commits \/ \d+ days ahead of main \((?:green|yellow|red)\)$/);
   });
 });
