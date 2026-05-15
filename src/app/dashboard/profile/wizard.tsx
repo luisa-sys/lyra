@@ -8,6 +8,7 @@ import {
   updateProfileFields,
   addProfileItem,
   removeProfileItem,
+  updateProfileItemVisibility,
   addSchoolAffiliation,
   removeSchoolAffiliation,
   addExternalLink,
@@ -15,8 +16,10 @@ import {
   publishProfile,
   uploadAvatar,
 } from './actions';
+import { updateManualOfMe } from './manual-of-me-actions';
+import type { ManualOfMe } from './manual-of-me-fields';
 import {
-  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, PreviewStep,
+  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, PreviewStep,
   type WizardProfile, type WizardItem, type WizardSchool, type WizardLink,
 } from './steps';
 
@@ -24,6 +27,7 @@ const STEPS = [
   { id: 'identity', label: 'Identity', icon: '👤' },
   { id: 'school', label: 'School', icon: '🏫' },
   { id: 'bio', label: 'About you', icon: '✏️' },
+  { id: 'manual_of_me', label: 'Manual of Me', icon: '📖' },
   { id: 'likes', label: 'Likes & Dislikes', icon: '💚' },
   { id: 'gifts', label: 'Gift ideas', icon: '🎁' },
   { id: 'boundaries', label: 'Boundaries', icon: '🛑' },
@@ -39,11 +43,13 @@ export function ProfileWizard({
   items,
   schools,
   links,
+  manualOfMe,
 }: {
   profile: WizardProfile;
   items: WizardItem[];
   schools: WizardSchool[];
   links: WizardLink[];
+  manualOfMe: ManualOfMe;
 }) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -123,60 +129,75 @@ export function ProfileWizard({
           }} isPending={isPending} />
         )}
         {step === 3 && (
+          <ManualOfMeStep manualOfMe={manualOfMe} onSave={(data: Record<string, string>) => {
+            startTransition(async () => {
+              await updateManualOfMe(data);
+              router.refresh();
+              next();
+            });
+          }} isPending={isPending} />
+        )}
+        {step === 4 && (
           <ItemsStep title="Likes & Dislikes" description="What do you love? What can't you stand?"
             categories={['likes', 'dislikes']}
             items={items.filter((i) => ['likes', 'dislikes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 4 && (
+        {step === 5 && (
           <ItemsStep title="Gift ideas" description="Help people find the perfect gift for you."
             categories={['gift_ideas', 'gifts_to_avoid']}
             items={items.filter((i) => ['gift_ideas', 'gifts_to_avoid'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 5 && (
+        {step === 6 && (
           <ItemsStep title="Boundaries" description="Things people should know to respect your space."
             categories={['boundaries', 'helpful_to_know']}
             items={items.filter((i) => ['boundaries', 'helpful_to_know'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 6 && (
+        {step === 7 && (
           <ItemsStep title="Books & Media" description="Favourite books, movies, and series — the things that shaped you."
             categories={['favourite_books', 'favourite_media']}
             items={items.filter((i) => ['favourite_books', 'favourite_media'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 7 && (
+        {step === 8 && (
           <ItemsStep title="Causes & Quotes" description="What matters to you — charities, causes, and words that resonate."
             categories={['causes', 'quotes']}
             items={items.filter((i) => ['causes', 'quotes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 8 && (
+        {step === 9 && (
           <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked."
             categories={['proud_of', 'life_hacks', 'questions', 'billboard']}
             items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 9 && (
+        {step === 10 && (
           <LinksStep links={links}
             onAdd={(data) => { startTransition(async () => { await addExternalLink(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeExternalLink(id); router.refresh(); }); }}
             onNext={next} isPending={isPending} />
         )}
-        {step === 10 && (
+        {step === 11 && (
           <PreviewStep profile={profile} items={items} schools={schools} links={links}
             onPublish={() => { startTransition(async () => { await publishProfile(); router.refresh(); router.push('/dashboard'); }); }}
             isPending={isPending} />

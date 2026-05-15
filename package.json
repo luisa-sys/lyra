@@ -17,9 +17,9 @@
     "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.51.0",
-    "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.105.3",
+    "@sentry/nextjs": "^10.53.1",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "next": "16.2.6",
@@ -27,6 +27,8 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.59.1",
     "@swc/core": "^1.15.33",
     "@swc/jest": "^0.2.39",
@@ -38,7 +40,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.6",
     "jest": "^30.3.0",
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4",

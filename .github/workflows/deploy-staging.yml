@@ -220,3 +220,71 @@ jobs:
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
           echo "Staging site: $STATUS"
           [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging site unreachable" && exit 1)
+
+  e2e-tests:
+    name: Playwright E2E Tests on Staging
+    needs: [deploy-staging, post-deploy-checks]
+    runs-on: ubuntu-latest
+    # KAN-114: run the full Playwright suite against the just-deployed
+    # Vercel preview URL. We target the deployment URL directly (not
+    # stage.checklyra.com) because:
+    #   1. Cloudflare bot protection blocks GitHub runner IPs from
+    #      reaching stage.checklyra.com (gotcha #7).
+    #   2. Vercel SSO sits in front of stage.checklyra.com and would
+    #      return 401 for every Playwright request.
+    # The x-vercel-protection-bypass header on the direct deploy URL
+    # bypasses both — same pattern as the /api/health smoke step.
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        # KAN-180: install both chromium and webkit. playwright.config.ts
+        # defines a mobile-safari project (iPhone 14 viewport on webkit);
+        # without webkit installed, every mobile-safari test errors with
+        # "Executable doesn't exist" and the whole job goes red even when
+        # chromium passes. Adds ~50MB but catches mobile-render regressions.
+        run: npx playwright install --with-deps chromium webkit
+      - name: Resolve BASE_URL for Playwright
+        id: base_url
+        env:
+          DEPLOY_URL: ${{ needs.deploy-staging.outputs.deploy_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::error::deploy_url output missing from deploy-staging job; cannot run E2E tests."
+            exit 1
+          fi
+          CLEAN="${DEPLOY_URL#https://}"
+          CLEAN="${CLEAN#http://}"
+          BASE_URL="https://$CLEAN"
+          echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "Playwright BASE_URL: $BASE_URL"
+      - name: Run Playwright tests against staging deploy URL
+        env:
+          BASE_URL: ${{ steps.base_url.outputs.base_url }}
+          VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          # Fail loud if the bypass secret is missing — without it every
+          # request gets a Vercel SSO 401 and the whole suite would fail
+          # with a misleading error. Per the Workflow & Backup Integrity
+          # Policy: no silent-skip.
+          if [ -z "$VERCEL_AUTOMATION_BYPASS" ]; then
+            echo "::error::VERCEL_AUTOMATION_BYPASS secret is required for E2E tests against the protected staging deploy URL."
+            exit 1
+          fi
+          npx playwright test
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

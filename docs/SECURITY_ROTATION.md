@@ -20,6 +20,7 @@
 | SENTRY_AUTH_TOKEN | Vercel env vars (each env) | Annual | Sentry → User Auth Tokens → Create new (scopes: org:read, project:read, project:write, project:releases) → Update in Vercel each env → redeploy → revoke old token. Build-time only — used by `next build` to upload source maps. Missing/wrong token doesn't fail the build (errorHandler swallows it), just means stack traces stay minified in Sentry. | 6 May 2026 |
 | Sentry DSN (NEXT_PUBLIC_SENTRY_DSN) | Vercel env vars (each env) | Only on suspicion | Sentry → Project → Settings → Client Keys (DSN) → "Generate new key". Public-by-design, doesn't expire. Rotate only if leaked into a context that matters (rare — DSN allows ingestion only, not data access). | 6 May 2026 |
 | UptimeRobot Main API key | Local only — never committed | Annual | UptimeRobot → My Settings → API Settings → Create Main API Key → use to re-run `npm run uptimerobot:bootstrap` if needed. Document scope: full account write. KAN-163 docs/UPTIMEROBOT_SETUP.md. | 5 May 2026 |
+| LYRA_SEARCH_PEPPER | Vercel env vars (each env) | Annual or on suspicion | Generate a fresh 32-byte base64 value. Update Vercel env vars for **all three environments** (dev, staging, prod). **Caveat:** rotating the pepper invalidates every stored phone/postcode hash — opted-in users must re-enter their values to remain discoverable. Treat as a break-glass rotation, not routine. See "Rotating LYRA_SEARCH_PEPPER" below. KAN-153. | 14 May 2026 |
 
 ### User-Facing Secrets (user-controlled)
 
@@ -83,6 +84,61 @@
 6. GitHub → luisa-sys/lyra → Settings → Secrets → Update LYRA_BACKUP_PAT (only stored on lyra repo, NOT on lyra-mcp-server)
 7. Test by manually triggering backup-platform.yml — verify all secret listings work and no "(failed to fetch)" appears
 8. Delete the old token
+
+### Rotating LYRA_SEARCH_PEPPER (KAN-153)
+
+`LYRA_SEARCH_PEPPER` is a server-side secret used to hash phone numbers and
+postcodes for opt-in discovery (see KAN-153). It is read by the Next.js
+server runtime only — it is NEVER sent to the client and NEVER stored in
+the database.
+
+**Critical caveat:** rotating the pepper invalidates every existing
+`phone_search_hash` / `postcode_search_hash`. After rotation, opted-in
+users will no longer be findable until they re-enter their value via
+Settings → Discovery. Plan rotation accordingly (e.g. coordinate with a
+maintenance email).
+
+**How to generate a fresh pepper:**
+
+```bash
+# 32 bytes of cryptographic randomness, base64-encoded
+python3 -c 'import os, base64; print(base64.b64encode(os.urandom(32)).decode())'
+# or, equivalently:
+openssl rand -base64 32
+```
+
+**Where to store:**
+
+1. Vercel env vars, scoped to **Server** (not Public):
+   - Production environment of `lyra` project
+   - Preview environment scoped to `develop` branch (use the Vercel CLI —
+     the dashboard cannot scope to a single preview branch, see CLAUDE.md
+     gotcha #2)
+   - Staging (Preview scoped to `staging`)
+2. Do NOT commit the pepper to git. Do NOT add it to `.env.example` with a
+   real value — only the variable name as a stub.
+3. The pepper does NOT need to be added to Supabase project secrets — the
+   hashing is performed by the application server, and the SECURITY DEFINER
+   RPC takes a pre-computed hash as input.
+
+**Rotation procedure (when required):**
+
+1. Generate a fresh pepper as above.
+2. Update Vercel env vars in **all three environments** simultaneously.
+3. Redeploy each environment (push to `develop` → promote staging → promote
+   prod) so the new pepper takes effect.
+4. The DB still contains the old hashes — they will never match the new
+   hashes from any user input, which is the same as if those users were
+   not opted in. Optionally, run:
+   ```sql
+   UPDATE public.profiles
+     SET phone_search_hash = NULL, discoverable_by_phone = false,
+         postcode_search_hash = NULL, discoverable_by_postcode = false
+     WHERE phone_search_hash IS NOT NULL OR postcode_search_hash IS NOT NULL;
+   ```
+   to wipe the stale hashes and force a clean opt-in state. Make sure to
+   notify affected users.
+5. Update the "Last Rotated" date in the table above.
 
 ## Emergency Rotation Playbook
 
