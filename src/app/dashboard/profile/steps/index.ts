@@ -4,5 +4,6 @@ export { SchoolStep } from './school-step';
 export { ItemsStep } from './items-step';
 export { LinksStep } from './links-step';
 export { ManualOfMeStep } from './manual-of-me-step';
+export { FilesStep } from './files-step';
 export { PreviewStep } from './preview-step';
-export type { WizardProfile, WizardItem, WizardSchool, WizardLink } from './types';
+export type { WizardProfile, WizardItem, WizardSchool, WizardLink, WizardFile } from './types';

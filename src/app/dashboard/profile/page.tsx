@@ -52,6 +52,14 @@ export default async function ProfilePage() {
     .eq('profile_id', profile.id)
     .maybeSingle();
 
+  // KAN-142: profile files (up to 10, fetched in display order).
+  const { data: files } = await supabase
+    .from('profile_files')
+    .select('id, storage_path, file_name, mime_type, size_bytes, visibility')
+    .eq('profile_id', profile.id)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
   return (
     <ProfileWizard
       profile={profile}
@@ -59,6 +67,7 @@ export default async function ProfilePage() {
       schools={schools || []}
       links={links || []}
       manualOfMe={(manualOfMeRow as ManualOfMe | null) ?? EMPTY_MANUAL_OF_ME}
+      files={files || []}
     />
   );
 }

@@ -36,6 +36,16 @@ export interface WizardLink {
   description: string | null;
 }
 
+// KAN-142: profile_files row, shaped for the wizard FilesStep.
+export interface WizardFile {
+  id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  visibility: string;
+}
+
 export function Field({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
