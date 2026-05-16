@@ -272,6 +272,12 @@ export default {
       '/privacy',
       '/terms',
       '/cookies',
+      // KAN-184: /partners hosts the Sovrn publisher verification link
+      // (https://sovrn.co/sw3qr9t). Sovrn's crawler must reach this page
+      // on the public domain to complete affiliate-account verification —
+      // the maintenance worker would otherwise return "Coming Soon" and
+      // block the approval flow.
+      '/partners',
       '/auth/',
       '/api/health'
     ];
