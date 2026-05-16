@@ -433,6 +433,7 @@ function Footer() {
           <Link href="/privacy" className="hover:text-stone-600 transition-colors">Privacy</Link>
           <Link href="/terms" className="hover:text-stone-600 transition-colors">Terms</Link>
           <Link href="/cookies" className="hover:text-stone-600 transition-colors">Cookies</Link>
+          <Link href="/partners" className="hover:text-stone-600 transition-colors">Partners</Link>
           <span>&copy; {new Date().getFullYear()} Lyra</span>
         </div>
       </div>

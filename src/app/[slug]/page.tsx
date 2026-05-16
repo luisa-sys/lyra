@@ -12,7 +12,12 @@ import {
 } from '@/app/dashboard/profile/manual-of-me-fields';
 import { getRecommendations } from '@/lib/recommend';
 import RecommendationsSection from './recommendations-section';
+import V2RecommendationsSection from './v2-recommendations-section';
 import ReportButton from './report-button';
+import { headers } from 'next/headers';
+import { isIsoAlpha2, normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
+import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
+import type { ConceptInput } from '@/lib/recommender/v2/types';
 
 /**
  * BUGS-14: profile pages render dynamically per-request.
@@ -269,6 +274,56 @@ export default async function PublicProfilePage({ params }: Props) {
     },
     { limit: 8 },
   );
+
+  // KAN-191 / KAN-200: V2 pipeline — turn V1's concepts into real
+  // monetisable product recommendations. Buyer country is detected from
+  // Cloudflare's CF-IPCountry header (KAN-185 geo design); recipient
+  // delivery country comes off the profile (KAN-186). The Affiliate Link
+  // Service (KAN-188) caches per-URL so repeat profile views don't hammer
+  // Sovrn. When Sovrn isn't configured (current state), buildV2
+  // recommendations returns curated-catalogue entries with un-monetised
+  // raw URLs and the Affiliate badge reflects that honestly.
+  //
+  // We compute V2 unconditionally and let the rendering decide which
+  // section to show — if V2 returns 0 items (sparse profile + nothing in
+  // the curated catalogue) the page falls back to the V1 section so
+  // sparse profiles aren't left empty.
+  const requestHeaders = await headers();
+  const buyerCountryHeader = requestHeaders.get('cf-ipcountry') ?? '';
+  const buyerCountry = isIsoAlpha2(buyerCountryHeader.toUpperCase())
+    ? buyerCountryHeader.toUpperCase()
+    : 'GB';
+  // delivery_country_code is added by KAN-186 (PR #203); the column is
+  // accessed defensively because that PR may not be in develop yet when
+  // this lands.
+  const recipientCountryRaw =
+    (typedProfile as { delivery_country_code?: string | null }).delivery_country_code ?? null;
+  const recipientCountry = normaliseDeliveryCountry(recipientCountryRaw) ?? buyerCountry;
+
+  const v2Concepts: ConceptInput[] = recommendations.map((r) => ({
+    categoryKey: r.categoryKey,
+    conceptTitle: r.title,
+    conceptScore: r.score,
+    reasons: r.reasons,
+    tags: r.tags,
+  }));
+
+  const v2Recommendations = await buildV2Recommendations({
+    concepts: v2Concepts,
+    buyerCountry,
+    recipientCountry,
+    source: 'web',
+    sessionId: null,
+    userId: viewer?.id ?? null,
+    recipientId: typedProfile.id,
+    // recommendationId is intentionally stable per profile, not
+    // per-request: react-compiler rejects Date.now() during render
+    // ("impure function"). The link service's click_id gives us
+    // per-click uniqueness; recommendationId just groups clicks under
+    // the same render context.
+    recommendationId: `web-${typedProfile.id}`,
+    limit: 5,
+  });
 
   const categoryLabels: Record<string, string> = {
     likes: 'Likes',
@@ -636,12 +691,22 @@ export default async function PublicProfilePage({ params }: Props) {
         </div>
       )}
 
-      {/* KAN-139: gift recommendations based on profile data */}
+      {/* KAN-191 / KAN-200: V2 gift recommendations — monetisable when
+          Sovrn is live (KAN-184), un-monetised but click-logged today.
+          Falls back to V1 concept-only section (KAN-139) when V2 has
+          nothing in the curated catalogue for this profile. */}
       <div className="max-w-2xl mx-auto px-6">
-        <RecommendationsSection
-          displayName={typedProfile.display_name}
-          recommendations={recommendations}
-        />
+        {v2Recommendations.length > 0 ? (
+          <V2RecommendationsSection
+            displayName={typedProfile.display_name}
+            recommendations={v2Recommendations}
+          />
+        ) : (
+          <RecommendationsSection
+            displayName={typedProfile.display_name}
+            recommendations={recommendations}
+          />
+        )}
       </div>
 
       {/* Footer */}

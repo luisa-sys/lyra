@@ -157,8 +157,14 @@ jobs:
           BETA_SHORT: ${{ needs.verify-source.outputs.beta_short }}
         run: |
           set -euo pipefail
-          git fetch origin main:main beta
-          git checkout main
+          # The checkout step above lands us on a detached HEAD by default
+          # (refs/remotes/origin/main). Switch to a local 'main' branch
+          # tracking origin/main, then ensure we're up to date. We must NOT
+          # use `git fetch origin main:main` here — that errors with
+          # "refusing to fetch into branch refs/heads/main checked out at"
+          # because once we've created local main below, that ref is in use.
+          git fetch origin beta
+          git checkout -B main origin/main
           git pull origin main --ff-only
 
           # Standard fast-forward-able merge. If beta has main as a strict

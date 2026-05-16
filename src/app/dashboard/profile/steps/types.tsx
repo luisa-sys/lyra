@@ -8,6 +8,10 @@ export interface WizardProfile {
   region: string | null;
   postcode_prefix: string | null;
   country: string | null;
+  // KAN-186: ISO-3166 alpha-2 country where gifts for this profile should
+  // ship. Separate from `country` (which is freeform display text). NULL
+  // means "unknown — fall back to buyer country at recommendation time".
+  delivery_country_code: string | null;
   is_published: boolean;
   avatar_url: string | null;
 }
