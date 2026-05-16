@@ -1,0 +1,156 @@
+name: Activate Sentry env vars (KAN-104)
+# One-shot workflow that upserts NEXT_PUBLIC_SENTRY_DSN and
+# IS_SENTRY_ENABLED across each Vercel env scope so the
+# already-scaffolded Sentry SDK starts capturing events.
+#
+# Re-runnable: uses ?upsert=true so existing entries are updated in
+# place rather than duplicated. Safe to run again to refresh values.
+#
+# The DSN is public-by-design (per Sentry's docs and the comment in
+# instrumentation.ts) — it allows ingestion only, not data access —
+# so we store it as `type: plain` and accept it appearing in the
+# Vercel UI without redaction. The kill-switch flag is also plain.
+#
+# Source-map upload is NOT activated here. That requires a SEPARATE
+# SENTRY_AUTH_TOKEN (sensitive) that Luisa creates manually in the
+# Sentry UI, plus SENTRY_ORG and SENTRY_PROJECT slugs. See
+# docs/SENTRY_SETUP.md "Step 3".
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type ACTIVATE to proceed
+        required: true
+        type: string
+      scopes:
+        description: Which env scopes to activate (comma-separated, or "all")
+        required: true
+        type: string
+        default: "all"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  activate:
+    name: Upsert Sentry env vars
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # DSN is public-by-design (see instrumentation.ts comment).
+      # Documented in docs/SENTRY_SETUP.md. Stored here so the workflow
+      # is self-contained and re-runnable; if it ever needs to rotate
+      # the change goes through PR review.
+      SENTRY_DSN: https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704
+    steps:
+      - name: Validate confirm
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.inputs.confirm }}" != "ACTIVATE" ]]; then
+            echo "::error::Confirm input must be the literal string ACTIVATE"
+            exit 1
+          fi
+
+      - name: Resolve scopes
+        id: scopes
+        run: |
+          set -euo pipefail
+          requested="${{ github.event.inputs.scopes }}"
+          if [[ "$requested" == "all" ]]; then
+            # Order matters: dev → staging → beta → production.
+            # Each entry is "label:target:gitBranch". Empty gitBranch
+            # means the entry isn't branch-scoped.
+            echo "list=development::,preview:preview:develop,preview:preview:staging,preview:preview:beta,production:production:" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=$requested" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Scopes to activate: $(cat "$GITHUB_OUTPUT" | grep ^list= | cut -d= -f2-)"
+
+      - name: Upsert env vars across scopes
+        run: |
+          set -euo pipefail
+
+          # Comma-separated list of "label:target:gitBranch" entries.
+          IFS=',' read -ra ENTRIES <<< "${{ steps.scopes.outputs.list }}"
+
+          {
+            echo "## Sentry activation — KAN-104"
+            echo ""
+            echo "| Scope | Branch | Var | Result |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          upsert_var() {
+            local label="$1"
+            local target="$2"
+            local branch="$3"
+            local key="$4"
+            local value="$5"
+
+            # Build the JSON body. Branch is included only for preview
+            # scope; production/development never need it.
+            if [[ -n "$branch" ]]; then
+              body=$(jq -nc \
+                --arg key "$key" --arg val "$value" \
+                --arg target "$target" --arg branch "$branch" \
+                '{key: $key, value: $val, type: "plain", target: [$target], gitBranch: $branch}')
+            else
+              body=$(jq -nc \
+                --arg key "$key" --arg val "$value" --arg target "$target" \
+                '{key: $key, value: $val, type: "plain", target: [$target]}')
+            fi
+
+            # POST with upsert=true so a re-run replaces the value.
+            resp=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$body" \
+              "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_ORG_ID&upsert=true")
+
+            if [[ "$resp" =~ ^2[0-9][0-9]$ ]]; then
+              echo "| \`$label\` | \`${branch:-—}\` | \`$key\` | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              # Print the error to the run log (NOT the summary, in case
+              # Vercel echoes the value back on conflict).
+              echo "::error::Failed to upsert $key for $label@$branch — HTTP $resp"
+              cat /tmp/resp.json
+              echo "| \`$label\` | \`${branch:-—}\` | \`$key\` | ❌ HTTP $resp |" >> "$GITHUB_STEP_SUMMARY"
+              return 1
+            fi
+          }
+
+          for entry in "${ENTRIES[@]}"; do
+            IFS=':' read -r label target branch <<< "$entry"
+            echo "::group::Upserting Sentry vars for ${label}${branch:+ @ $branch}"
+
+            upsert_var "$label" "$target" "$branch" "NEXT_PUBLIC_SENTRY_DSN" "$SENTRY_DSN"
+            upsert_var "$label" "$target" "$branch" "IS_SENTRY_ENABLED" "true"
+
+            echo "::endgroup::"
+          done
+
+      - name: Next steps reminder
+        if: success()
+        run: |
+          {
+            echo ""
+            echo "### Next steps"
+            echo ""
+            echo "1. Redeploy each env so the new vars reach the build:"
+            echo "   - Dev: \`gh workflow run deploy-dev.yml --ref develop\` (or push to develop)"
+            echo "   - Staging: \`gh workflow run promote-to-staging.yml -f confirm=promote\`"
+            echo "   - Beta: \`gh workflow run promote-staging-to-beta.yml -f confirm=promote\`"
+            echo "   - Prod: \`gh workflow run promote-to-production.yml -f confirm=PRODUCTION\`"
+            echo ""
+            echo "2. Verify event flow on each env — see docs/SENTRY_SETUP.md Step 2."
+            echo ""
+            echo "3. Optional: connect Sentry MCP connector in Claude.ai (Settings → Connectors)."
+          } >> "$GITHUB_STEP_SUMMARY"
