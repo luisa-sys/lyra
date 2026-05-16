@@ -103,6 +103,52 @@ git add tests/unit/my-feature.test.ts   # likewise
 
 This is doubly mandatory if you didn't use a worktree.
 
+### Cleanup — remove your own worktrees, don't leave orphans
+
+Worktrees accumulate quickly across sessions. A worktree whose work is merged is dead weight: it still appears in `git worktree list`, it still locks its branch from deletion, and it confuses future audits ("is this an active in-flight session or an abandoned one?"). Claude is responsible for cleaning up the worktrees it created.
+
+**Mandatory: at the end of every session, audit your worktrees and clean up the ones that are done.**
+
+The audit:
+
+```bash
+git worktree list   # what's on disk
+git fetch --prune   # bring branch state up to date with remote
+```
+
+For each worktree Claude created in this session, decide one of:
+
+- **Merged + Claude is done** → `remove`. Work is in the upstream chain (develop/main); the worktree is dead weight.
+- **In progress, will resume next session** → `keep`. Note in the session summary why it's worth keeping.
+- **Abandoned (no commits, no merge target)** → `remove` with `--force` if needed. Don't leave failed experiments on disk indefinitely.
+
+Removal commands:
+
+```bash
+# Preferred — from inside the main checkout (or any other worktree of the same repo)
+git worktree remove ../<worktree-name>          # work merged + done
+git worktree remove --force ../<worktree-name>  # abandoned, has unmerged commits
+
+# If EnterWorktree created the worktree
+# (call from inside Claude)
+ExitWorktree action="remove"                    # work merged + done
+ExitWorktree action="remove" discard_changes=true  # abandoned
+
+# Stale-reference cleanup — always safe to run periodically
+git worktree prune
+```
+
+**Cleanup decision tree (apply in order):**
+
+1. `git worktree list` — what worktrees did THIS session create?
+2. For each, `gh pr view --json state` (or `git log origin/develop ^<branch>` to check merge state) — has its work landed?
+3. Landed → `git worktree remove`; not landed and still being worked on → keep + note; not landed and abandoned → `git worktree remove --force`.
+4. `git worktree prune` to clear any stale registry entries.
+
+**The summary at end of session must explicitly list which worktrees were removed, which were kept, and why.** This makes the next session's first action (audit) trivial.
+
+**Don't `rm -rf` a worktree directory.** That leaves a stale entry in `.git/worktrees/` and a phantom branch reference. Use `git worktree remove` so git tears down both the tree and its metadata atomically.
+
 ## Jira Ticket Standard
 
 All work must be tracked in Jira. KAN project for design/deployment, BUGS project for bug tracking.
