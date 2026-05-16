@@ -19,10 +19,16 @@ import {
 import { updateManualOfMe } from './manual-of-me-actions';
 import type { ManualOfMe } from './manual-of-me-fields';
 import {
-  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, FilesStep, PreviewStep,
+  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, FilesStep, ConversationStartersStep, PreviewStep,
   type WizardProfile, type WizardItem, type WizardSchool, type WizardLink, type WizardFile,
+  type ConversationPrompt, type ConversationAnswer,
 } from './steps';
 import { uploadProfileFile, removeProfileFile, updateProfileFileVisibility } from './files-actions';
+import {
+  addConversationStarter,
+  updateConversationStarter,
+  removeConversationStarter,
+} from './conversation-starters-actions';
 
 const STEPS = [
   { id: 'identity', label: 'Identity', icon: '👤' },
@@ -39,6 +45,9 @@ const STEPS = [
   // KAN-142: files & media — inserted between links and preview so the
   // user has filled out everything else by the time they upload files.
   { id: 'files', label: 'Files & media', icon: '📎' },
+  // KAN-181: conversation starters — sits late in the flow because it
+  // benefits from the user having warmed up on the easier sections first.
+  { id: 'starters', label: 'Things to ask me', icon: '💬' },
   { id: 'preview', label: 'Preview', icon: '👁️' },
 ];
 
@@ -49,6 +58,8 @@ export function ProfileWizard({
   links,
   manualOfMe,
   files,
+  conversationPrompts,
+  conversationAnswers,
 }: {
   profile: WizardProfile;
   items: WizardItem[];
@@ -56,6 +67,8 @@ export function ProfileWizard({
   links: WizardLink[];
   manualOfMe: ManualOfMe;
   files: WizardFile[];
+  conversationPrompts: ConversationPrompt[];
+  conversationAnswers: ConversationAnswer[];
 }) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -213,6 +226,16 @@ export function ProfileWizard({
           />
         )}
         {step === 12 && (
+          <ConversationStartersStep
+            prompts={conversationPrompts}
+            answers={conversationAnswers}
+            onAdd={(input) => { startTransition(async () => { await addConversationStarter(input); router.refresh(); }); }}
+            onUpdate={(id, answer) => { startTransition(async () => { await updateConversationStarter(id, answer); router.refresh(); }); }}
+            onRemove={(id) => { startTransition(async () => { await removeConversationStarter(id); router.refresh(); }); }}
+            onNext={next} isPending={isPending}
+          />
+        )}
+        {step === 13 && (
           <PreviewStep profile={profile} items={items} schools={schools} links={links}
             onPublish={() => { startTransition(async () => { await publishProfile(); router.refresh(); router.push('/dashboard'); }); }}
             isPending={isPending} />

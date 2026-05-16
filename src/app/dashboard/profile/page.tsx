@@ -60,6 +60,34 @@ export default async function ProfilePage() {
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
+  // KAN-181: conversation starters — the curated prompt library plus the
+  // user's own answers (joined with the prompt text for display).
+  const { data: conversationPrompts } = await supabase
+    .from('conversation_starter_prompts')
+    .select('id, prompt, sort_order')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  const { data: starterRows } = await supabase
+    .from('profile_conversation_starters')
+    .select('id, prompt_id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
+    .eq('profile_id', profile.id)
+    .order('created_at', { ascending: true });
+  const conversationAnswers = (starterRows ?? []).map((r) => {
+    // The Supabase typegen sometimes flattens the joined row to an
+    // object, sometimes to an array. Route through `unknown` to keep
+    // this code resilient to either shape.
+    const promptCandidate = r.prompt as unknown;
+    const joinedPrompt = Array.isArray(promptCandidate)
+      ? ((promptCandidate[0] as { prompt: string } | undefined)?.prompt ?? '')
+      : ((promptCandidate as { prompt: string } | null)?.prompt ?? '');
+    return {
+      id: r.id as string,
+      prompt_id: r.prompt_id as string,
+      answer: r.answer as string,
+      prompt: joinedPrompt,
+    };
+  });
+
   return (
     <ProfileWizard
       profile={profile}
@@ -68,6 +96,8 @@ export default async function ProfilePage() {
       links={links || []}
       manualOfMe={(manualOfMeRow as ManualOfMe | null) ?? EMPTY_MANUAL_OF_ME}
       files={files || []}
+      conversationPrompts={conversationPrompts || []}
+      conversationAnswers={conversationAnswers}
     />
   );
 }

@@ -221,6 +221,32 @@ export default async function PublicProfilePage({ params }: Props) {
       : f.visibility === 'public',
   );
 
+  // KAN-181: conversation-starter answers (joined with the prompt text
+  // so the public profile can render the prompt as a heading). No
+  // visibility filter — all answers on a published profile are public.
+  const { data: starterRowsRaw } = await getSupabase()
+    .from('profile_conversation_starters')
+    .select('id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
+    .eq('profile_id', typedProfile.id)
+    .order('created_at', { ascending: true });
+  const typedStarters = (starterRowsRaw ?? []).map((r) => {
+    // Supabase typegen sometimes flattens the joined row to object,
+    // sometimes array — see same pattern in dashboard/profile/page.tsx.
+    const promptCandidate = r.prompt as unknown;
+    const joined = Array.isArray(promptCandidate)
+      ? (promptCandidate[0] as { prompt: string; sort_order: number } | undefined)
+      : (promptCandidate as { prompt: string; sort_order: number } | null);
+    return {
+      id: r.id as string,
+      answer: r.answer as string,
+      prompt: joined?.prompt ?? '',
+      sort_order: joined?.sort_order ?? 0,
+    };
+  })
+  // Curated prompts are sorted by sort_order in the seed data; preserve
+  // that on the public render so the most "warm-up" prompts come first.
+  .sort((a, b) => a.sort_order - b.sort_order);
+
   // KAN-143: visibility-filtered items (see filterItemsByVisibility above).
   const typedItems = visibleItems;
   const typedSchools = (schools || []) as SchoolAffiliation[];
@@ -529,6 +555,30 @@ export default async function PublicProfilePage({ params }: Props) {
                   <span className="text-[var(--color-ink)] group-hover:text-[var(--color-sage)]">{l.title}</span>
                   <span className="text-xs text-[var(--color-muted)]">↗</span>
                 </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KAN-181: conversation-starter prompts. Each prompt with a
+          user-supplied answer renders as a small Q&A card. Encourages
+          deeper conversations than the items lists alone. Section is
+          hidden if no prompts answered. */}
+      {typedStarters.length > 0 && (
+        <div className="max-w-2xl mx-auto px-6 pb-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-4">💬 Things to ask me about</h2>
+            <div className="space-y-4">
+              {typedStarters.map((s) => (
+                <div key={s.id}>
+                  <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-1">
+                    {s.prompt}
+                  </p>
+                  <p className="text-sm text-[var(--color-ink)] leading-relaxed whitespace-pre-wrap">
+                    {s.answer}
+                  </p>
+                </div>
               ))}
             </div>
           </div>
