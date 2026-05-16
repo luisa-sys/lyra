@@ -161,9 +161,9 @@ If Railway domains must use Cloudflare proxy (for WAF on the MCP endpoint), SSL/
 
 ---
 
-## GitHub Actions orchestrates the develop → staging → main pipeline
+## GitHub Actions orchestrates the develop → staging → beta → main pipeline
 
-Lyra uses a three-branch promotion model with automated workflows for `develop` → `staging` merges and manual `workflow_dispatch` triggers for `staging` → `main` production promotions.
+Lyra uses a four-branch promotion model (KAN-175 added `beta`). The `develop → staging` step has an auto-promote workflow (Sunday 23:00 UTC) plus `workflow_dispatch`; `staging → beta` and `beta → main` are both manual `workflow_dispatch` triggers. The production-promote workflow merges `beta → main`, **not** `staging → main` — promoting to production without first promoting staging→beta is a no-op against the previous beta tip.
 
 The critical architectural constraint is that **events triggered by `GITHUB_TOKEN` do not trigger subsequent workflows** — by design, to prevent recursive loops. When a GitHub Actions workflow merges `develop` into `staging` using `GITHUB_TOKEN`, the merge commit will NOT trigger Railway's "Wait for CI" or Vercel's preview deployment workflow. The solution is **GitHub App tokens**: the `actions/create-github-app-token@v3` action generates a short-lived token from a registered GitHub App, and pushes using this token DO trigger downstream workflows.
 

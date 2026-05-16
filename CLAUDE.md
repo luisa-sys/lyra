@@ -41,6 +41,113 @@ Before starting any task, Claude must:
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
+6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
+
+## Parallel Claude sessions — use git worktrees
+
+**Luisa runs multiple Claude Code instances in parallel** to work on independent features in this repo. The shared main checkout is a single working tree, so two Claude sessions that both `git checkout` or `git commit` on the same tree will trample each other — one session's commits silently end up on top of the other's, mixing two unrelated features into one branch. This is BUGS-17. It was caught in May 2026 because a `gh pr create` errored; if it hadn't, a mixed-feature PR would have shipped contaminated code to production.
+
+### The rule
+
+**Any Claude Code session that is not the only one running against this repo MUST operate in a git worktree, not the shared checkout.** Worktrees are first-class Git: each worktree has its own working directory + index + HEAD, but shares the underlying object database with the main checkout. Two sessions in two worktrees cannot trample each other's HEAD.
+
+### How to isolate
+
+In rough order of preference:
+
+1. **Spawning a sub-agent for a discrete task** → pass `isolation: "worktree"` on the Agent tool call. The agent runs in a clean throwaway worktree and the result merges back to your tree if it made changes. Cleanest option for short-lived tasks.
+
+2. **Continuing your current session in isolation** → use `EnterWorktree` (Claude Code built-in). The current shell moves into a fresh worktree and stays there until `ExitWorktree`. Use this whenever you suspect another session might be active.
+
+3. **Launching a fresh Claude Code instance for parallel work** → before running `claude`, create the worktree manually:
+
+   ```bash
+   git worktree add ../lyra-<branch-name> origin/develop
+   cd ../lyra-<branch-name>
+   claude
+   ```
+
+   Treat that directory as the session's home. When done: `git worktree remove ../lyra-<branch-name>`.
+
+### Mandatory pre-commit safety check
+
+Even with worktrees, run this single-line check immediately before every `git add` / `git commit`:
+
+```bash
+git branch --show-current
+```
+
+The output must equal the branch you believe you are on. If it doesn't, stop, do not commit. The other parallel session has switched your HEAD. Recover via:
+
+```bash
+# 1. Snapshot your work-in-progress so the parallel process can't clobber it
+git stash push --include-untracked -m "wip-rescue-$(date +%s)"
+
+# 2. Checkout the intended branch
+git checkout <intended-branch>
+
+# 3. Restore your work
+git stash pop
+```
+
+If your commit already landed on the wrong branch, see BUGS-17's recovery section — `git reset --hard origin/<intended-base>` then `git cherry-pick <your-commit-sha>`.
+
+### Never use `git add -A` or `git add .` in a shared tree
+
+In a shared checkout, parallel processes may have staged unrelated files in the index. `git add -A` will include them in your commit. Always stage files **explicitly by path**:
+
+```bash
+git add CLAUDE.md docs/RUNBOOK.md   # named files only
+git add tests/unit/my-feature.test.ts   # likewise
+```
+
+This is doubly mandatory if you didn't use a worktree.
+
+### Cleanup — remove your own worktrees, don't leave orphans
+
+Worktrees accumulate quickly across sessions. A worktree whose work is merged is dead weight: it still appears in `git worktree list`, it still locks its branch from deletion, and it confuses future audits ("is this an active in-flight session or an abandoned one?"). Claude is responsible for cleaning up the worktrees it created.
+
+**Mandatory: at the end of every session, audit your worktrees and clean up the ones that are done.**
+
+The audit:
+
+```bash
+git worktree list   # what's on disk
+git fetch --prune   # bring branch state up to date with remote
+```
+
+For each worktree Claude created in this session, decide one of:
+
+- **Merged + Claude is done** → `remove`. Work is in the upstream chain (develop/main); the worktree is dead weight.
+- **In progress, will resume next session** → `keep`. Note in the session summary why it's worth keeping.
+- **Abandoned (no commits, no merge target)** → `remove` with `--force` if needed. Don't leave failed experiments on disk indefinitely.
+
+Removal commands:
+
+```bash
+# Preferred — from inside the main checkout (or any other worktree of the same repo)
+git worktree remove ../<worktree-name>          # work merged + done
+git worktree remove --force ../<worktree-name>  # abandoned, has unmerged commits
+
+# If EnterWorktree created the worktree
+# (call from inside Claude)
+ExitWorktree action="remove"                    # work merged + done
+ExitWorktree action="remove" discard_changes=true  # abandoned
+
+# Stale-reference cleanup — always safe to run periodically
+git worktree prune
+```
+
+**Cleanup decision tree (apply in order):**
+
+1. `git worktree list` — what worktrees did THIS session create?
+2. For each, `gh pr view --json state` (or `git log origin/develop ^<branch>` to check merge state) — has its work landed?
+3. Landed → `git worktree remove`; not landed and still being worked on → keep + note; not landed and abandoned → `git worktree remove --force`.
+4. `git worktree prune` to clear any stale registry entries.
+
+**The summary at end of session must explicitly list which worktrees were removed, which were kept, and why.** This makes the next session's first action (audit) trivial.
+
+**Don't `rm -rf` a worktree directory.** That leaves a stale entry in `.git/worktrees/` and a phantom branch reference. Use `git worktree remove` so git tears down both the tree and its metadata atomically.
 
 ## Jira Ticket Standard
 
@@ -61,12 +168,14 @@ Full details: `docs/JIRA_TICKET_STANDARD.md`
 
 ## Deployment Pipeline
 
-The pipeline is: **develop → staging → main** (promotion-based).
+The pipeline is: **develop → staging → beta → main** (promotion-based, four envs since KAN-175).
 
 - All feature work goes to `develop` via PR
 - Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
-- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated)
-- **Never push directly to staging or main**
+- Promotion to beta: `gh workflow run promote-staging-to-beta.yml -f confirm=promote` (manual — gate for `beta.checklyra.com`, which uses prod Supabase + the in-app beta gate; see KAN-175)
+- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated; merges `beta → main`)
+- **The beta step is easy to miss** — `promote-to-production.yml` merges `beta → main`, so if `beta` is stale the production-promote is a no-op against the previous beta tip. Always promote `staging → beta` before `beta → main`. (Discovered 2026-05-16 during the four-ticket sprint.)
+- **Never push directly to staging, beta, or main**
 - All environments must be kept in sync
 - Commit and push only after verifying code compiles and tests pass
 - Cadence: at least one release/week to flush the chain (see `docs/RELEASE_POLICY.md`)
