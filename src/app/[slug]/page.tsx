@@ -205,6 +205,22 @@ export default async function PublicProfilePage({ params }: Props) {
     .maybeSingle();
   const manualOfMe = (manualOfMeRow as ManualOfMe | null) ?? null;
 
+  // KAN-142: profile files (images + PDFs). Filter to public-only for
+  // anonymous viewers, public+members_only for authenticated. Same
+  // visibility model as profile_items (KAN-143).
+  const { data: filesRaw } = await getSupabase()
+    .from('profile_files')
+    .select('id, storage_path, file_name, mime_type, size_bytes, visibility')
+    .eq('profile_id', typedProfile.id)
+    .in('visibility', allowedVisibility)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  const typedFiles = (filesRaw ?? []).filter((f) =>
+    isAuthenticated
+      ? f.visibility === 'public' || f.visibility === 'members_only'
+      : f.visibility === 'public',
+  );
+
   // KAN-143: visibility-filtered items (see filterItemsByVisibility above).
   const typedItems = visibleItems;
   const typedSchools = (schools || []) as SchoolAffiliation[];
@@ -514,6 +530,57 @@ export default async function PublicProfilePage({ params }: Props) {
                   <span className="text-xs text-[var(--color-muted)]">↗</span>
                 </a>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KAN-142: files & media. Public-only bucket with a permanent
+          URL pattern: {bucket public URL}/{storage_path}. PDFs render
+          as a download link (with `download` attribute and an explicit
+          Content-Disposition hint via the storage layer); images render
+          as a thumbnail next to the filename. */}
+      {typedFiles.length > 0 && (
+        <div className="max-w-2xl mx-auto px-6 pb-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-3">📎 Files & media</h2>
+            <div className="space-y-2">
+              {typedFiles.map((f) => {
+                const url = `${env.supabaseUrl()}/storage/v1/object/public/profile-files/${f.storage_path}`;
+                const isImage = f.mime_type.startsWith('image/');
+                const isPdf = f.mime_type === 'application/pdf';
+                return (
+                  <a
+                    key={f.id}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...(isPdf ? { download: f.file_name } : {})}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-stone-50 transition-colors group"
+                  >
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={url}
+                        alt={f.file_name}
+                        className="w-12 h-12 rounded object-cover shrink-0 bg-stone-100"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-2xl shrink-0" aria-hidden>📄</span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[var(--color-ink)] truncate group-hover:text-[var(--color-sage)]">
+                        {f.file_name}
+                      </p>
+                      <p className="text-xs text-[var(--color-muted)]">
+                        {isPdf ? 'PDF' : isImage ? 'Image' : f.mime_type}
+                      </p>
+                    </div>
+                    <span className="text-xs text-[var(--color-muted)]">{isPdf ? '↓' : '↗'}</span>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>
