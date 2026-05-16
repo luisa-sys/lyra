@@ -17,6 +17,7 @@
  * to the V1 concept-only section gracefully.
  */
 
+import Link from 'next/link';
 import type { V2Recommendation } from '@/lib/recommender/v2/types';
 import AffiliateBadge from '@/components/AffiliateBadge';
 import { formatPriceRange, merchantLabel } from './v2-recommendations-helpers';
@@ -51,9 +52,9 @@ export default function V2RecommendationsSection({
         <p className="text-sm text-[var(--color-muted)] mt-2">
           Selected based on {first}&rsquo;s profile. Lyra may earn a commission on
           some links &mdash;{' '}
-          <a href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
+          <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
             see how this works
-          </a>
+          </Link>
           .
         </p>
       </header>
@@ -97,9 +98,9 @@ export default function V2RecommendationsSection({
 
       <p className="text-xs text-stone-500 mt-6">
         Suggestions are auto-generated &mdash; not endorsements. Read the{' '}
-        <a href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
+        <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
           partners disclosure
-        </a>{' '}
+        </Link>{' '}
         for details on how Lyra works with affiliate networks.
       </p>
     </section>
