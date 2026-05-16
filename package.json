@@ -23,13 +23,13 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
     "@lhci/cli": "^0.15.1",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.60.0",
     "@swc/core": "^1.15.33",
     "@swc/jest": "^0.2.39",
     "@tailwindcss/postcss": "^4",
@@ -41,7 +41,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "jest": "^30.3.0",
+    "jest": "^30.4.2",
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",

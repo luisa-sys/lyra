@@ -25,9 +25,17 @@ Until both env vars are populated, the SDK is **completely inert** — no networ
 
 ## Activating Sentry on an environment
 
-Two steps per env. Recommend doing **dev** first, verifying, then promoting to staging/beta/prod.
+### Fastest path — `activate-sentry.yml` (one shot, all envs)
 
-### Step 1: Vercel env vars
+```bash
+gh workflow run activate-sentry.yml -f confirm=ACTIVATE -f scopes=all
+```
+
+This upserts `NEXT_PUBLIC_SENTRY_DSN` + `IS_SENTRY_ENABLED=true` on every env scope (development, preview/develop, preview/staging, preview/beta, production) via the Vercel REST API. Idempotent — safe to re-run. After it completes, each env still needs a redeploy to pick up the new vars (see "Next steps" in the workflow run summary).
+
+For finer-grained control (single env at a time), pass `-f scopes="development::"` (or similar) instead of `all`.
+
+### Manual path — Vercel UI
 
 Vercel → `lyra` project → Settings → Environment Variables. Add the following, scoped to your target env (Development / Preview / Production):
 
