@@ -25,10 +25,20 @@ describe('KAN-137: Wizard supports new section categories', () => {
     expect(fs.existsSync(wizardPath)).toBe(true);
   });
 
-  test('wizard has 12 steps (was 11; KAN-154 added Manual of Me)', () => {
+  test('wizard has 13 steps (was 12; KAN-142 added Files & media)', () => {
+    // KAN-154 took this from 11 → 12 (Manual of Me).
+    // KAN-142 took it from 12 → 13 (Files & media). Both are deliberate
+    // user-facing additions, not regressions — update the assertion to
+    // match. If a future refactor drops a step accidentally, this test
+    // catches it.
     const stepMatches = wizardContent.match(/\{ id: '/g);
     expect(stepMatches).not.toBeNull();
-    expect(stepMatches.length).toBe(12);
+    expect(stepMatches.length).toBe(13);
+  });
+
+  test('wizard includes Files & media step (KAN-142)', () => {
+    expect(wizardContent).toContain("'files'");
+    expect(wizardContent).toContain('Files & media');
   });
 
   test('wizard includes Books & Media step', () => {
