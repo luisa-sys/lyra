@@ -220,8 +220,9 @@ export function detectSpam(input: string): SpamResult {
   // 4+ consecutive caps words.
   const hasLowerCase = /[a-z]/.test(input);
   const longContiguous = input.match(/[A-Z]{20,}/g) ?? [];
-  if (longContiguous.length > 0 && hasLowerCase) {
-    reasons.push(`caps_block:${longContiguous[0].slice(0, 30)}`);
+  const firstLong = longContiguous[0];
+  if (firstLong && hasLowerCase) {
+    reasons.push(`caps_block:${firstLong.slice(0, 30)}`);
   }
   // Multi-word caps detection — find runs of 4+ consecutive all-caps tokens
   const tokens = input.split(/\s+/);
