@@ -243,6 +243,10 @@ export default async function PublicProfilePage({ params }: Props) {
     life_hacks: 'Life hacks & recommendations',
     questions: 'Questions I wish people asked',
     billboard: 'My billboard',
+    // KAN-182: current projects / challenges the user is working on.
+    // Networking + collaboration hook — "I'm trying to find a local
+    // children's-book illustrator" is more useful than "I like books".
+    current_problems: 'What I\'m working on right now',
   };
 
   const categoryIcons: Record<string, string> = {
@@ -260,6 +264,7 @@ export default async function PublicProfilePage({ params }: Props) {
     life_hacks: '✨',
     questions: '❓',
     billboard: '📢',
+    current_problems: '🧩',
   };
 
   const groupedItems = typedItems.reduce((acc: Record<string, ProfileItem[]>, item) => {
@@ -268,10 +273,13 @@ export default async function PublicProfilePage({ params }: Props) {
     return acc;
   }, {});
 
-  // Display order for categories
+  // Display order for categories.
+  // KAN-182: `current_problems` placed early — it's a strong networking
+  // hook ("looking for an illustrator") that should land before the
+  // softer signals like favourite books or life hacks.
   const categoryOrder = [
     'likes', 'dislikes', 'gift_ideas', 'gifts_to_avoid', 'helpful_to_know', 'boundaries',
-    'favourite_books', 'favourite_media', 'causes', 'proud_of', 'life_hacks', 'questions',
+    'current_problems', 'favourite_books', 'favourite_media', 'causes', 'proud_of', 'life_hacks', 'questions',
   ];
   // quotes and billboard render separately with special styling
 
