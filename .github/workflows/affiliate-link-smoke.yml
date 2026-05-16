@@ -1,0 +1,64 @@
+# KAN-194: hourly cross-country affiliate-link smoke monitor.
+#
+# Runs the scripts/smoke-affiliate-links.ts matrix every hour against
+# production. Exits non-zero (and the workflow fails, surfacing a red dot
+# in the Actions tab + an email to repo admins) when:
+#   - Any merchant has zero successful probes across its supported countries
+#   - Overall failure rate > 10%
+#
+# The smoke summary JSON is uploaded as a workflow artifact so we can
+# look back at trends without standing up a DB table.
+#
+# When this fires:
+# See docs/AFFILIATE_MONETIZATION.md § "When the smoke monitor fires"
+# for the triage runbook.
+
+name: Affiliate link smoke
+
+on:
+  schedule:
+    # Every hour at :17 (offset off the :00 mark to spread load across
+    # other hourly Lyra workflows).
+    - cron: '17 * * * *'
+  workflow_dispatch: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --no-audit
+
+      - name: Run smoke probes
+        env:
+          LYRA_APP_URL: 'https://checklyra.com'
+          SMOKE_OUTPUT_FILE: 'smoke-results.json'
+        run: |
+          set -euo pipefail
+          npx tsx scripts/smoke-affiliate-links.ts
+
+      - name: Upload smoke summary
+        # Always upload, even on failure — that's the whole point of
+        # keeping the artifact when the workflow fails.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results-${{ github.run_id }}
+          path: smoke-results.json
+          retention-days: 30
