@@ -46,6 +46,21 @@ export interface WizardFile {
   visibility: string;
 }
 
+// KAN-181: conversation starters — both the curated prompt library
+// and the user's answers (joined to the prompt for display).
+export interface ConversationPrompt {
+  id: string;
+  prompt: string;
+  sort_order: number;
+}
+
+export interface ConversationAnswer {
+  id: string;
+  prompt_id: string;
+  answer: string;
+  prompt: string; // joined for display
+}
+
 export function Field({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
