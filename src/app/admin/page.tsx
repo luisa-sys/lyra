@@ -167,7 +167,13 @@ export default async function AdminOverviewPage() {
           {recentReports.length === 0 ? (
             <p className="p-5 text-sm text-[var(--color-muted)]">No reports filed.</p>
           ) : recentReports.map((r) => {
-            const prof = r.profile as { slug: string; display_name: string } | null;
+            // Supabase typegen sometimes infers the FK lookup as an array,
+            // sometimes as a single object — depends on the cardinality. We
+            // route through unknown so we don't depend on the inferred type.
+            const profCandidate = r.profile as unknown;
+            const prof = Array.isArray(profCandidate)
+              ? (profCandidate[0] as { slug: string; display_name: string } | undefined) ?? null
+              : (profCandidate as { slug: string; display_name: string } | null);
             return (
               <div key={r.id as string} className="p-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
