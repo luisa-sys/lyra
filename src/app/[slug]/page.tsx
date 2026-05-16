@@ -316,7 +316,12 @@ export default async function PublicProfilePage({ params }: Props) {
     sessionId: null,
     userId: viewer?.id ?? null,
     recipientId: typedProfile.id,
-    recommendationId: `web-${typedProfile.id}-${Date.now()}`,
+    // recommendationId is intentionally stable per profile, not
+    // per-request: react-compiler rejects Date.now() during render
+    // ("impure function"). The link service's click_id gives us
+    // per-click uniqueness; recommendationId just groups clicks under
+    // the same render context.
+    recommendationId: `web-${typedProfile.id}`,
     limit: 5,
   });
 
