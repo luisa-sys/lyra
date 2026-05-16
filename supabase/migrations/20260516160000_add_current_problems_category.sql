@@ -1,0 +1,22 @@
+-- KAN-182: add 'current_problems' to item_category enum.
+--
+-- New profile section: "Problems I'm trying to solve". Users list current
+-- challenges / projects / interests; useful for networking + collaboration.
+-- "Sarah is trying to find a London illustrator" is a much better
+-- conversational hook than "Sarah likes books".
+--
+-- Lightest possible change: reuses the existing profile_items table, RLS,
+-- visibility (KAN-143), sanitiser, and MCP exposure. No new table, no new
+-- server action. Same pattern as KAN-137 (20260330080000_add_missing_item_categories.sql).
+--
+-- Applied to all 3 envs on 2026-05-16:
+--   dev    (ilprytcrnqyrsbsrfujj): ✓ via apply_migration
+--   stage  (uobmlkzrjkptwhttzmmi): ✓ via apply_migration
+--   prod   (llzkgprqewuwkiwclowi): ✓ via apply_migration
+--
+-- Rollback: enum values can't be dropped in Postgres without recreating
+-- the type. If we ever need to remove this, the procedure is
+-- documented at https://www.postgresql.org/docs/current/sql-altertype.html
+-- — but practically we'd just stop using it in code and leave the value.
+
+alter type item_category add value if not exists 'current_problems';

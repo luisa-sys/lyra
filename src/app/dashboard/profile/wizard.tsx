@@ -19,9 +19,10 @@ import {
 import { updateManualOfMe } from './manual-of-me-actions';
 import type { ManualOfMe } from './manual-of-me-fields';
 import {
-  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, PreviewStep,
-  type WizardProfile, type WizardItem, type WizardSchool, type WizardLink,
+  IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, FilesStep, PreviewStep,
+  type WizardProfile, type WizardItem, type WizardSchool, type WizardLink, type WizardFile,
 } from './steps';
+import { uploadProfileFile, removeProfileFile, updateProfileFileVisibility } from './files-actions';
 
 const STEPS = [
   { id: 'identity', label: 'Identity', icon: '👤' },
@@ -35,6 +36,9 @@ const STEPS = [
   { id: 'values', label: 'Causes & Quotes', icon: '💛' },
   { id: 'more', label: 'More about you', icon: '✨' },
   { id: 'links', label: 'Links', icon: '🔗' },
+  // KAN-142: files & media — inserted between links and preview so the
+  // user has filled out everything else by the time they upload files.
+  { id: 'files', label: 'Files & media', icon: '📎' },
   { id: 'preview', label: 'Preview', icon: '👁️' },
 ];
 
@@ -44,12 +48,14 @@ export function ProfileWizard({
   schools,
   links,
   manualOfMe,
+  files,
 }: {
   profile: WizardProfile;
   items: WizardItem[];
   schools: WizardSchool[];
   links: WizardLink[];
   manualOfMe: ManualOfMe;
+  files: WizardFile[];
 }) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -183,9 +189,9 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 9 && (
-          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked."
-            categories={['proud_of', 'life_hacks', 'questions', 'billboard']}
-            items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard'].includes(i.category))}
+          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked, problems you're currently working on."
+            categories={['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems']}
+            items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
             onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}
@@ -198,6 +204,15 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 11 && (
+          <FilesStep
+            files={files}
+            onUpload={(formData) => { startTransition(async () => { await uploadProfileFile(formData); router.refresh(); }); }}
+            onRemove={(id) => { startTransition(async () => { await removeProfileFile(id); router.refresh(); }); }}
+            onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileFileVisibility(id, visibility); router.refresh(); }); }}
+            onNext={next} isPending={isPending}
+          />
+        )}
+        {step === 12 && (
           <PreviewStep profile={profile} items={items} schools={schools} links={links}
             onPublish={() => { startTransition(async () => { await publishProfile(); router.refresh(); router.push('/dashboard'); }); }}
             isPending={isPending} />
