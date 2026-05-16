@@ -169,9 +169,9 @@ All operations run via GitHub Actions — no local machine needed:
 - **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference
 
 ### OAuth Security — partially configured
-- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in **Testing mode** — only allow-listed emails can sign in. **Must move to Production mode before beta launch (KAN-125).** Google verification takes days/weeks — submit early.
+- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in **Testing mode** — only allow-listed emails can sign in. **Must move to Production mode before beta launch (KAN-125), which is itself gated by removing Cloudflare lockdown on prod so the Google verifier can reach the consent screen URLs.** Google verification takes days/weeks — submit early.
 - **Apple Sign-In**: Deferred (no Apple Developer account)
-- **Action needed (KAN-90)**: Verify redirect URIs, JavaScript origins, scopes, 2FA on owning Google account
+- **Audit checklist (KAN-90)**: see `docs/CYBER_LOCKDOWN.md` — quarterly verification of redirect URIs, JavaScript origins, scopes, 2FA on owning Google account, consent screen branding, test users allow-list, IAM members. Re-run the Google Cloud Console section of that doc before each beta/prod launch.
 
 ### Known gaps — tracked in Jira
 - Google OAuth consent screen in Testing mode — **beta blocker** (KAN-125)
