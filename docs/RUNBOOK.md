@@ -323,3 +323,20 @@ ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.
 curl https://mcp.checklyra.com/health      # Production
 curl https://mcp-dev.checklyra.com/health   # Dev
 ```
+
+### MCP-main lockstep cadence (KAN-222)
+
+The MCP server and the main web app are two surfaces of the same product. Drift between them is a long-running platform risk — agents over-promise to users when the MCP exposes less than the web does. Policy:
+
+- **Lockstep epics.** Every user-facing feature that touches data exposable by MCP ships MCP tool coverage in the same epic. Cross-repo PRs (`luisa-sys/lyra` + `luisa-sys/lyra-mcp-server`) are the norm. Linked in PR descriptions.
+- **Deferral annotation.** When coverage is intentionally not in scope, the parent KAN ticket must carry `MCP coverage: deferred — <reason> (follow-up: KAN-XYZ)`, and the follow-up ticket must exist before merge.
+- **Reviewer checklist** at the bottom of `CLAUDE.md` → "MCP-main lockstep policy".
+
+When deploying a feature with MCP changes:
+
+1. Merge the MCP server PR first (Railway auto-deploys from `main`).
+2. Wait for `mcp-dev.checklyra.com/health` to report the new build.
+3. Then merge the main-app PR to `develop` (Vercel auto-deploys to `dev.checklyra.com`).
+4. End-to-end test exercises the MCP tool from a real agent on `dev.checklyra.com`.
+
+Reverse the order on rollback (web first, then MCP).
