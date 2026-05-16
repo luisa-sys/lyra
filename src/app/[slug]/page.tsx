@@ -79,6 +79,10 @@ interface SchoolAffiliation {
   school_name: string;
   school_location: string | null;
   relationship: string;
+  // KAN-220: one of school|organisation|community (column added by
+  // migration 20260517010000_affiliation_type.sql). Older rows from
+  // before the migration default to 'school' at the DB level.
+  affiliation_type: string;
 }
 
 interface ExternalLink {
@@ -503,22 +507,52 @@ export default async function PublicProfilePage({ params }: Props) {
         </div>
       )}
 
-      {/* Schools */}
-      {typedSchools.length > 0 && (
-        <div className="max-w-2xl mx-auto px-6 pb-6">
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-3">🏫 Schools</h2>
-            <div className="space-y-2">
-              {typedSchools.map((s) => (
-                <div key={s.id} className="flex items-baseline justify-between">
-                  <span className="text-[var(--color-ink)] font-medium">{s.school_name}</span>
-                  <span className="text-sm text-[var(--color-muted)]">{s.relationship}</span>
+      {/* KAN-220: Schools / Organisations / Communities — three groups
+          rendered from one table (`school_affiliations`). Older rows
+          default to 'school' at the DB level, so a profile that pre-dates
+          the migration still renders correctly under the Schools heading. */}
+      {typedSchools.length > 0 && (() => {
+        const groups: Array<{ key: string; label: string; icon: string }> = [
+          { key: 'school', label: 'Schools', icon: '🏫' },
+          { key: 'organisation', label: 'Organisations', icon: '🏢' },
+          { key: 'community', label: 'Communities', icon: '👥' },
+        ];
+        const byType = groups.map((g) => ({
+          ...g,
+          items: typedSchools.filter((s) => (s.affiliation_type || 'school') === g.key),
+        })).filter((g) => g.items.length > 0);
+        if (byType.length === 0) return null;
+        return (
+          <div className="max-w-2xl mx-auto px-6 pb-6">
+            <div className="bg-white rounded-xl border border-stone-200 p-5 space-y-4">
+              {byType.map((g) => (
+                <div key={g.key}>
+                  <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-2">
+                    {g.icon} {g.label}
+                  </h2>
+                  <div className="space-y-2">
+                    {g.items.map((s) => (
+                      <div key={s.id} className="flex items-baseline justify-between">
+                        <span className="text-[var(--color-ink)] font-medium">
+                          {s.school_name}
+                          {s.school_location && (
+                            <span className="ml-2 text-xs text-[var(--color-muted)] font-normal">
+                              · {s.school_location}
+                            </span>
+                          )}
+                        </span>
+                        {s.relationship && (
+                          <span className="text-sm text-[var(--color-muted)]">{s.relationship}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Profile items by category */}
       {categoryOrder.map((cat) => {
