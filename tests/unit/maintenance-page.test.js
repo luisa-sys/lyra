@@ -161,4 +161,13 @@ describe('KAN-129: Worker code file integrity', () => {
     expect(content).toContain('href="https://checklyra.com/privacy"');
     expect(content).toMatch(/>Privacy Policy</);
   });
+
+  // KAN-184: /partners must be in the worker allowlist so Sovrn's
+  // publisher-verification crawler can reach the page hosting
+  // https://sovrn.co/sw3qr9t. Without this entry the worker serves the
+  // "Coming Soon" maintenance page and Sovrn approval is blocked.
+  test('worker allowlist includes /partners (Sovrn verification crawler)', () => {
+    const content = fs.readFileSync(workerPath, 'utf8');
+    expect(content).toMatch(/allowedPaths\s*=\s*\[[\s\S]*?['"]\/partners['"][\s\S]*?\]/);
+  });
 });
