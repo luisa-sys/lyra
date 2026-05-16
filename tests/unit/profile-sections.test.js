@@ -25,20 +25,26 @@ describe('KAN-137: Wizard supports new section categories', () => {
     expect(fs.existsSync(wizardPath)).toBe(true);
   });
 
-  test('wizard has 13 steps (was 12; KAN-142 added Files & media)', () => {
+  test('wizard has 14 steps (was 13; KAN-181 added Things to ask me)', () => {
     // KAN-154 took this from 11 → 12 (Manual of Me).
-    // KAN-142 took it from 12 → 13 (Files & media). Both are deliberate
-    // user-facing additions, not regressions — update the assertion to
-    // match. If a future refactor drops a step accidentally, this test
-    // catches it.
+    // KAN-142 took it from 12 → 13 (Files & media).
+    // KAN-181 took it from 13 → 14 (Things to ask me / conversation
+    // starters). Each is a deliberate user-facing addition, not a
+    // regression — update the assertion to match. If a future refactor
+    // drops a step accidentally, this test catches it.
     const stepMatches = wizardContent.match(/\{ id: '/g);
     expect(stepMatches).not.toBeNull();
-    expect(stepMatches.length).toBe(13);
+    expect(stepMatches.length).toBe(14);
   });
 
   test('wizard includes Files & media step (KAN-142)', () => {
     expect(wizardContent).toContain("'files'");
     expect(wizardContent).toContain('Files & media');
+  });
+
+  test('wizard includes Things to ask me step (KAN-181)', () => {
+    expect(wizardContent).toContain("'starters'");
+    expect(wizardContent).toContain('Things to ask me');
   });
 
   test('wizard includes Books & Media step', () => {
