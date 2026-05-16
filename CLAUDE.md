@@ -166,6 +166,54 @@ Large tasks must be broken into subtasks with one concern per ticket. When picki
 
 Full details: `docs/JIRA_TICKET_STANDARD.md`
 
+## MCP-main lockstep policy (KAN-222)
+
+**Every user-facing feature must ship MCP-tool coverage in the same epic, or carry an explicit deferral annotation.** The Lyra web app and the MCP server (`luisa-sys/lyra-mcp-server`) are two surfaces of the same product — anything an authenticated user can read or write on `checklyra.com` should be reachable by an agent through `mcp.checklyra.com`. Drift between the two erodes platform value and confuses users who assume parity.
+
+### What this means in practice
+
+For any KAN ticket that touches user-facing data:
+
+1. **Same epic, same cadence.** New MCP tool(s) ship in the same epic as the main-app feature. Cross-repo PRs are the norm, not the exception (one PR per repo, linked in description).
+2. **Read tools are non-negotiable.** Every new entity an agent could enumerate, search, or fetch must have a corresponding `lyra_list_*` / `lyra_get_*` / `lyra_search_*` read tool. These are public (no auth) per existing convention.
+3. **Write tools follow user-action parity.** Every form-action or API-mutation the main app exposes to the user should have a corresponding write tool. Auth via the current API-key (post-KAN-88: bearer-JWT) scheme.
+4. **Deferral path.** When MCP coverage is intentionally not in scope, the parent ticket description must include the literal line:
+   ```
+   MCP coverage: deferred — <reason> (follow-up: KAN-XYZ)
+   ```
+   The follow-up ticket must exist before merge.
+
+### When this kicks in
+
+- Any new MCP-relevant table (anything an agent would reasonably want to read).
+- Any new public API route under `src/app/api/` that mutates user data.
+- Any new server action under `src/app/.../actions.ts` that mutates user data.
+- Profile-data changes (new `profile_items` category, new visibility level, etc.).
+- Anything explicitly user-visible that an agent should mirror.
+
+### When it doesn't apply
+
+- Internal-only routes (admin, ops, monitoring).
+- Pure UI changes with no data-model impact.
+- Infrastructure / CI / docs work.
+- Maintenance worker code, scheduled jobs, audit pipelines.
+
+### Reviewer checklist
+
+Before approving any user-facing feature PR:
+
+1. Does the PR description list the MCP tools added/changed, OR carry the `MCP coverage: deferred — …` line?
+2. If MCP changes are claimed, is there a linked PR in `luisa-sys/lyra-mcp-server` ready for review?
+3. If deferred, is a follow-up KAN ticket linked and ready?
+
+Failure to do one of the above is a blocking review comment.
+
+### Why this exists
+
+Before KAN-222, MCP tools shipped opportunistically and the surfaces drifted. File uploads (KAN-142), conversation-starter prompts (KAN-181), problem-tracking (KAN-182) all landed in the main app first; MCP coverage was opened as separate follow-ups that sat in the backlog for weeks. By the time the Convene epic (KAN-203) arrives — with its 14+ planned MCP tools — drift would have been intractable. Make the lockstep explicit before the gap reopens.
+
+Mirror in `lyra-mcp-server/CLAUDE.md` — that file points back here as the source of truth.
+
 ## Deployment Pipeline
 
 The pipeline is: **develop → staging → beta → main** (promotion-based, four envs since KAN-175).
@@ -186,7 +234,7 @@ The pipeline is: **develop → staging → beta → main** (promotion-based, fou
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **330 tests** (27 suites) in lyra, **64 tests** (2 suites) in lyra-mcp-server
+- Current test floor: **800 tests** (60 suites) in lyra (unit + scripts; E2E + integration not counted), **91 tests** (5 suites) in lyra-mcp-server
 
 ## Test Integrity Policy
 
@@ -349,7 +397,15 @@ These have caused real bugs. Read before making related changes:
 
     Symptoms when this is wrong: write tool returns `"Invalid API key"` even though the key looks valid in the issuing app's Settings page. Fix: regenerate the key against the env whose MCP you intend to use. **Read tools** (`get_profile`, `search_profiles`, etc.) are public — they don't validate the key at all, so they appear to "work" with any key. Only **write tools** (`update_profile`, `add_item`, etc.) actually exercise auth. Tracked under BUGS-1 (2026-05-04). Will be obsoleted by KAN-88 (MCP OAuth 2.1).
 
-20. **Cloudflare Workers Builds posts a check on every PR by default**: The `lyra-maintenance` Workers Builds Git integration triggers on every push to any branch and posts a "Workers Builds: lyra-maintenance" check to GitHub. The build fails on PRs that don't change worker code (no-op build) and — even though the check is NOT in branch-protection required-checks — its failure status blocks GitHub auto-merge, forcing admin-merge. Fix: in Cloudflare dashboard → Workers & Pages → `lyra-maintenance` → Settings → Build → Build watch paths, set Include paths to `wrangler.toml, scripts/lyra-maintenance-worker.js`. With watch paths set, pushes that don't touch those files skip the build entirely and no GitHub check is posted. Caveats from the docs: watch-path matching is bypassed (i.e. build always runs) for empty pushes, pushes with 3000+ file changes, or pushes with 20+ commits — so very large bulk merges will still trigger a no-op build. Discovered 2026-05-04 from PR #98. **Verified post-fix behaviour (KAN-174, 2026-05-04)**: on a doc-only commit (5d5ee1f, CLAUDE.md only) the check still posts but with `conclusion: success` and `started_at == completed_at` (zero duration — build skipped at source). Auto-merge therefore not blocked. The fix changes the check from FAILURE → SUCCESS rather than removing it entirely.
+20. **Cloudflare Workers Builds posts a check on every PR by default**: The `lyra-maintenance` Workers Builds Git integration triggers on every push to any branch and posts a "Workers Builds: lyra-maintenance" check to GitHub. The build fails on PRs that don't change worker code (no-op build) and — even though the check is NOT in branch-protection required-checks — its failure status blocks GitHub auto-merge, forcing admin-merge.
+
+    **Fix layer 1 (watch paths, KAN-174 2026-05-04):** in Cloudflare dashboard → Workers & Pages → `lyra-maintenance` → Settings → Build → Build watch paths, set Include paths to `wrangler.toml, scripts/lyra-maintenance-worker.js`. Pushes that don't touch those files skip the build at source — check posts with `conclusion: success` and `started_at == completed_at` (zero duration). Caveat from the docs: watch-path matching is **bypassed** (build always runs) for empty pushes, pushes with 3000+ file changes, or **pushes with 20+ commits** — so very large bulk merges still trigger a real build.
+
+    **Fix layer 2 (non-production-branch builds disabled, BUGS-18/19 session 2026-05-16):** in the same Build settings → **Branch control** → **"Builds for non-production branches"** is now **unchecked**. This second fix is what made the recurring email-on-every-push problem stop in May 2026. A parallel Claude worktree had been branched off `origin/main` instead of `origin/develop`, accumulating 57 prod-promote merge commits and tripping the 20-commit watch-path bypass on every push, which then failed the build for some unrelated reason and emailed every time. Turning off non-prod-branch builds means: only pushes to `main` ever trigger a Cloudflare build at all. Watch paths still apply on main, so doc-only merges still skip to success.
+
+    **What this means in practice:** feature-branch pushes will never trigger a Workers Build, never post a GitHub check_suite, never email. Merges to main are the only build trigger; touch a worker file or `wrangler.toml` and a real build runs.
+
+    **Don't turn non-prod-branch builds back on** without re-doing the BUGS-19 work (find + fix the real build-failure root cause). The lyra-maintenance worker is a single static-HTML file; there's no value in building it on feature branches. Tracked under BUGS-19.
 
 ## Supabase Migration Rules
 
