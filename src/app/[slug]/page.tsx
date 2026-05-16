@@ -559,7 +559,7 @@ export default async function PublicProfilePage({ params }: Props) {
                     className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-stone-50 transition-colors group"
                   >
                     {isImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
+                      // eslint-disable-next-line @next/next/no-img-element -- KAN-142: profile_files bucket is on Supabase Storage, not the Vercel asset pipeline, so Next/Image's optimizer doesn't apply. Direct <img> is the right tool here; thumbnails are small (max 10MB enforced at upload).
                       <img
                         src={url}
                         alt={f.file_name}
