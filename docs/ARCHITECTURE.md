@@ -49,16 +49,20 @@ Lyra is a calm, structured public profile platform where users share preferences
 
 ### Promotion Flow
 ```
-develop → staging → main (production)
+develop → staging → beta → main (production)
 ```
 
 1. **Push to develop**: lint → typecheck → unit tests → deploy to dev.checklyra.com → health check
 2. **Promote to staging**: GitHub Actions workflow_dispatch → verifies dev pipeline passed → merge develop→staging → full test suite → deploy → health checks
-3. **Promote to production**: GitHub Actions workflow_dispatch (type "PRODUCTION" to confirm) → verifies staging pipeline passed → merge staging→main → full test suite → deploy → 9-point smoke test → MCP handshake → Git tag
+3. **Promote to beta** (KAN-175): GitHub Actions workflow_dispatch → merge staging→beta → deploy-beta.yml triggers full lint/type/unit/audit/build chain → beta.checklyra.com (uses prod Supabase + in-app beta gate)
+4. **Promote to production**: GitHub Actions workflow_dispatch (type "PRODUCTION" to confirm) → verifies beta pipeline passed → merge beta→main → full test suite → deploy → 9-point smoke test → MCP handshake → Git tag
+
+**Beta step is easy to miss** — `promote-to-production.yml` merges `beta → main` (not `staging → main`), so a stale `beta` makes the production-promote a no-op. Always run `promote-staging-to-beta.yml` before `promote-to-production.yml`. Discovered 2026-05-16 during the four-ticket sprint.
 
 ### Cloud-Native Operations (no desktop required)
 All operations run via GitHub Actions — no local machine needed:
 - **Promote to staging**: Actions tab → "Promote to Staging" → Run workflow → type "promote"
+- **Promote staging → beta**: Actions tab → "Promote Staging to Beta" → Run workflow → type "promote"
 - **Promote to production**: Actions tab → "Promote to Production" → Run workflow → type "PRODUCTION"
 - **Health checks**: Run automatically every 6 hours; create GitHub Issue on failure
 - **Backups**: Run automatically weekly (Sunday 02:00 UTC)
@@ -66,7 +70,8 @@ All operations run via GitHub Actions — no local machine needed:
 
 ### Enforcement Rules
 - Promotion to staging is blocked if the last dev pipeline failed
-- Promotion to production is blocked if the last staging pipeline failed
+- Promotion to beta is blocked if the staging pipeline failed
+- Promotion to production is blocked if the last beta pipeline failed
 - All deployments require passing: lint, typecheck, unit tests, build verification
 - Post-deploy health checks verify site availability and MCP server connectivity
 

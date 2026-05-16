@@ -61,12 +61,14 @@ Full details: `docs/JIRA_TICKET_STANDARD.md`
 
 ## Deployment Pipeline
 
-The pipeline is: **develop → staging → main** (promotion-based).
+The pipeline is: **develop → staging → beta → main** (promotion-based, four envs since KAN-175).
 
 - All feature work goes to `develop` via PR
 - Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
-- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated)
-- **Never push directly to staging or main**
+- Promotion to beta: `gh workflow run promote-staging-to-beta.yml -f confirm=promote` (manual — gate for `beta.checklyra.com`, which uses prod Supabase + the in-app beta gate; see KAN-175)
+- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated; merges `beta → main`)
+- **The beta step is easy to miss** — `promote-to-production.yml` merges `beta → main`, so if `beta` is stale the production-promote is a no-op against the previous beta tip. Always promote `staging → beta` before `beta → main`. (Discovered 2026-05-16 during the four-ticket sprint.)
+- **Never push directly to staging, beta, or main**
 - All environments must be kept in sync
 - Commit and push only after verifying code compiles and tests pass
 - Cadence: at least one release/week to flush the chain (see `docs/RELEASE_POLICY.md`)
