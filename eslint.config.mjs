@@ -30,6 +30,12 @@ const eslintConfig = defineConfig([
     // doesn't drown in errors from snapshots of older code. CI never
     // sees `.claude/`; this is purely a local-DX fix.
     ".claude/**",
+    // KAN-154: test-artifact directories created by `jest --coverage`
+    // and Playwright runs. Pure local-DX — CI starts from a clean
+    // checkout so these never appear in CI lint runs.
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

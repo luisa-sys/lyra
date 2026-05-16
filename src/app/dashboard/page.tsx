@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
+import ShareProfile from './share-profile';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -102,6 +103,16 @@ export default async function DashboardPage() {
             <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity text-center">
               Set up your profile →
             </Link>
+          )}
+
+          {/* KAN-154-B: shareable invite. Only shown once the profile has
+              a slug — before that there's nothing to share, and the
+              fallback CTA would just point at the public landing page. */}
+          {profile?.slug && (
+            <ShareProfile
+              profileUrl={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`}
+              displayName={profile.display_name}
+            />
           )}
         </div>
       </div>
