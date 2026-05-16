@@ -14,6 +14,31 @@ import { getRecommendations } from '@/lib/recommend';
 import RecommendationsSection from './recommendations-section';
 import ReportButton from './report-button';
 
+/**
+ * BUGS-14: profile pages render dynamically per-request.
+ *
+ * Two reasons:
+ *
+ *  1. The page reads the viewer's session cookie via
+ *     `createSupabaseServerClient()` (for the KAN-143 members-only
+ *     visibility decision). Cookie reads are inherently per-request,
+ *     so this page can never be statically pre-rendered — `force-dynamic`
+ *     just makes the contract explicit and stops Next.js trying to
+ *     optimise it.
+ *
+ *  2. With `force-dynamic`, the `notFound()` throw resolves to an
+ *     HTTP 404 response status instead of the streaming-SSR-default
+ *     200 + in-band marker. SEO crawlers and link-checkers will now
+ *     see typo'd slugs as the real 404s they are.
+ *
+ * No measurable cost: every profile request already pays for a Supabase
+ * round-trip (profile lookup + items + manual-of-me + links + schools)
+ * plus a cookie read for the viewer's auth state. There was no ISR to
+ * lose. Verified by checking that `vercel-cdn-cache-control: PRIVATE`
+ * is already set on prod profile responses.
+ */
+export const dynamic = 'force-dynamic';
+
 // Create client per-request, not at module scope
 function getSupabase() {
   return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
