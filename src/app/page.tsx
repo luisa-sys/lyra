@@ -221,8 +221,15 @@ function UseCases() {
 }
 
 function WhatLyraIsNot() {
-  // KAN-156: anti-social features expanded.
+  // KAN-156: anti-social features.
+  // KAN-154-A: explicit privacy trust signal — surfaces the no-contact-display
+  // promise alongside the existing anti-social "no" list. Sits at the top of
+  // the list because contact-detail privacy is the question most new visitors
+  // arrive with ("is my number going to be on this?"). Pairs with KAN-153's
+  // opt-in hashed discovery: phone/postcode are NEVER displayed, only used
+  // server-side for opt-in match lookup if the user explicitly enables it.
   const items = [
+    "No display of email, phone, or contact details (opt-in discovery only)",
     "No likes, followers, or feeds",
     "No friend requests, direct or group messages",
     "No algorithms deciding what you see",

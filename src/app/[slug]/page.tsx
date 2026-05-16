@@ -10,6 +10,9 @@ import {
   isManualOfMeEmpty,
   type ManualOfMe,
 } from '@/app/dashboard/profile/manual-of-me-fields';
+import { getRecommendations } from '@/lib/recommend';
+import RecommendationsSection from './recommendations-section';
+import ReportButton from './report-button';
 
 // Create client per-request, not at module scope
 function getSupabase() {
@@ -18,6 +21,7 @@ function getSupabase() {
 
 interface ProfileData {
   id: string;
+  user_id: string;
   display_name: string;
   slug: string;
   headline: string | null;
@@ -180,6 +184,24 @@ export default async function PublicProfilePage({ params }: Props) {
   const typedItems = visibleItems;
   const typedSchools = (schools || []) as SchoolAffiliation[];
   const typedLinks = (links || []) as ExternalLink[];
+
+  // KAN-139: build gift / experience recommendations from the items the
+  // current viewer can see. Anonymous viewers therefore get recommendations
+  // computed against the public subset only — members_only items influence
+  // the engine only when a logged-in viewer is reading the profile, which
+  // matches the visibility intent (private signals stay private).
+  const recommendations = getRecommendations(
+    {
+      bio: typedProfile.bio_short,
+      headline: typedProfile.headline,
+      items: typedItems.map((i) => ({
+        category: i.category,
+        title: i.title,
+        description: i.description,
+      })),
+    },
+    { limit: 8 },
+  );
 
   const categoryLabels: Record<string, string> = {
     likes: 'Likes',
@@ -464,11 +486,26 @@ export default async function PublicProfilePage({ params }: Props) {
         </div>
       )}
 
+      {/* KAN-139: gift recommendations based on profile data */}
+      <div className="max-w-2xl mx-auto px-6">
+        <RecommendationsSection
+          displayName={typedProfile.display_name}
+          recommendations={recommendations}
+        />
+      </div>
+
       {/* Footer */}
-      <div className="max-w-2xl mx-auto px-6 py-8 text-center">
+      <div className="max-w-2xl mx-auto px-6 py-8 text-center space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           This is a <Link href="/" className="text-[var(--color-sage)] hover:underline">Lyra</Link> profile
         </p>
+        {/* KAN-141: inline report button — never shown for the profile's owner */}
+        {viewer?.id !== typedProfile.user_id && (
+          <ReportButton
+            profileSlug={typedProfile.slug}
+            isAuthenticated={isAuthenticated}
+          />
+        )}
       </div>
     </main>
     </>
