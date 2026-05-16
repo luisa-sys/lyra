@@ -41,6 +41,67 @@ Before starting any task, Claude must:
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
+6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
+
+## Parallel Claude sessions — use git worktrees
+
+**Luisa runs multiple Claude Code instances in parallel** to work on independent features in this repo. The shared main checkout is a single working tree, so two Claude sessions that both `git checkout` or `git commit` on the same tree will trample each other — one session's commits silently end up on top of the other's, mixing two unrelated features into one branch. This is BUGS-17. It was caught in May 2026 because a `gh pr create` errored; if it hadn't, a mixed-feature PR would have shipped contaminated code to production.
+
+### The rule
+
+**Any Claude Code session that is not the only one running against this repo MUST operate in a git worktree, not the shared checkout.** Worktrees are first-class Git: each worktree has its own working directory + index + HEAD, but shares the underlying object database with the main checkout. Two sessions in two worktrees cannot trample each other's HEAD.
+
+### How to isolate
+
+In rough order of preference:
+
+1. **Spawning a sub-agent for a discrete task** → pass `isolation: "worktree"` on the Agent tool call. The agent runs in a clean throwaway worktree and the result merges back to your tree if it made changes. Cleanest option for short-lived tasks.
+
+2. **Continuing your current session in isolation** → use `EnterWorktree` (Claude Code built-in). The current shell moves into a fresh worktree and stays there until `ExitWorktree`. Use this whenever you suspect another session might be active.
+
+3. **Launching a fresh Claude Code instance for parallel work** → before running `claude`, create the worktree manually:
+
+   ```bash
+   git worktree add ../lyra-<branch-name> origin/develop
+   cd ../lyra-<branch-name>
+   claude
+   ```
+
+   Treat that directory as the session's home. When done: `git worktree remove ../lyra-<branch-name>`.
+
+### Mandatory pre-commit safety check
+
+Even with worktrees, run this single-line check immediately before every `git add` / `git commit`:
+
+```bash
+git branch --show-current
+```
+
+The output must equal the branch you believe you are on. If it doesn't, stop, do not commit. The other parallel session has switched your HEAD. Recover via:
+
+```bash
+# 1. Snapshot your work-in-progress so the parallel process can't clobber it
+git stash push --include-untracked -m "wip-rescue-$(date +%s)"
+
+# 2. Checkout the intended branch
+git checkout <intended-branch>
+
+# 3. Restore your work
+git stash pop
+```
+
+If your commit already landed on the wrong branch, see BUGS-17's recovery section — `git reset --hard origin/<intended-base>` then `git cherry-pick <your-commit-sha>`.
+
+### Never use `git add -A` or `git add .` in a shared tree
+
+In a shared checkout, parallel processes may have staged unrelated files in the index. `git add -A` will include them in your commit. Always stage files **explicitly by path**:
+
+```bash
+git add CLAUDE.md docs/RUNBOOK.md   # named files only
+git add tests/unit/my-feature.test.ts   # likewise
+```
+
+This is doubly mandatory if you didn't use a worktree.
 
 ## Jira Ticket Standard
 
