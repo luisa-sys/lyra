@@ -65,9 +65,11 @@ jobs:
           requested="${{ github.event.inputs.scopes }}"
           if [[ "$requested" == "all" ]]; then
             # Order matters: dev → staging → beta → production.
-            # Each entry is "label:target:gitBranch". Empty gitBranch
-            # means the entry isn't branch-scoped.
-            echo "list=development::,preview:preview:develop,preview:preview:staging,preview:preview:beta,production:production:" >> "$GITHUB_OUTPUT"
+            # Each entry is "label:target:gitBranch". The Vercel REST
+            # API rejects an empty `target`, so unbranched scopes need
+            # the label and target equal (development:development:,
+            # production:production:). gitBranch is empty for those.
+            echo "list=development:development:,preview:preview:develop,preview:preview:staging,preview:preview:beta,production:production:" >> "$GITHUB_OUTPUT"
           else
             echo "list=$requested" >> "$GITHUB_OUTPUT"
           fi
