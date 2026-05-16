@@ -31,7 +31,7 @@
 ## Repositories
 | Repo | URL | Branch Model |
 |------|-----|-------------|
-| Web app | https://github.com/luisa-sys/lyra | develop → staging → main |
+| Web app | https://github.com/luisa-sys/lyra | develop → staging → beta → main |
 | MCP server | https://github.com/luisa-sys/lyra-mcp-server | main (single branch) |
 
 ## Infrastructure IDs

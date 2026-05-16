@@ -81,7 +81,7 @@ The workflow uses a PR-based pattern (because `main` requires PR per branch prot
 Every release tag MUST be paired with a `package.json` version bump. The pipeline currently produces the tag automatically (step 10 above) AFTER the merge to main has landed; the bump is the operator's responsibility on the originating PR. Workflow:
 
 1. On the PR that will be promoted, run `npm version <patch|minor|major> --no-git-tag-version` to bump `package.json` AND `package-lock.json`. Commit on the same PR.
-2. Promote develop → staging → main as normal. The post-merge tag step (`v0.1.x+1`) will match.
+2. Promote develop → staging → beta → main as normal (three workflow_dispatches; see the section above). The post-merge tag step (`v0.1.x+1`) will match.
 3. The CI test `tests/unit/version-drift.test.js` fails any future PR where `package.json` version doesn't match an existing tag — drift is caught fast, not silently.
 
 **Don't** create a tag without bumping `package.json`, or vice versa. The drift test will reject the next PR until the pair is reunited.
