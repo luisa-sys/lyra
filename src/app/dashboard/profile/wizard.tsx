@@ -183,9 +183,9 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 9 && (
-          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked."
-            categories={['proud_of', 'life_hacks', 'questions', 'billboard']}
-            items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard'].includes(i.category))}
+          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked, problems you're currently working on."
+            categories={['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems']}
+            items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
             onRemove={(id) => { startTransition(async () => { await removeProfileItem(id); router.refresh(); }); }}
             onUpdateVisibility={(id, visibility) => { startTransition(async () => { await updateProfileItemVisibility(id, visibility); router.refresh(); }); }}

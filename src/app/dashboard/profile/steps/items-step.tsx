@@ -39,6 +39,9 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     causes: '🌍 Cause', quotes: '💬 Quote',
     proud_of: '🏆 Proud of', life_hacks: '💡 Life hack',
     questions: '❓ Question', billboard: '📢 Billboard',
+    // KAN-182: "Problems I'm trying to solve" — current
+    // challenges / projects / interests for networking + collaboration.
+    current_problems: '🧩 Currently solving',
   };
 
   const handleAdd = () => {
