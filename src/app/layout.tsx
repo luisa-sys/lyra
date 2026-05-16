@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieConsent } from "./cookie-consent";
+import { InstallPrompt } from "./install-prompt";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -65,6 +66,31 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     apple: "/lyra-icon-180.png",
   },
+  // KAN-69a: PWA manifest wiring. Next.js 16 emits a `<link rel="manifest">`
+  // automatically when this field is set.
+  manifest: "/manifest.webmanifest",
+  // Apple's PWA conventions are separate from the W3C manifest. Without
+  // these, iOS Safari opens the home-screen icon in a browser tab rather
+  // than standalone mode.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Lyra",
+  },
+};
+
+// KAN-69a: viewport + themeColor live in their own export per Next 16's
+// Metadata vs Viewport split. The themeColor maps to the manifest's
+// theme_color (sage) so the browser chrome / status bar tint matches the
+// installed app icon's background.
+export const viewport: Viewport = {
+  themeColor: "#5F7256",
+  // PWA install prompts on iOS require viewport-fit=cover so the app
+  // can paint under the notch / Dynamic Island. Safe-area insets in
+  // globals.css handle the actual layout adjustment.
+  viewportFit: "cover",
+  width: "device-width",
+  initialScale: 1,
 };
 export default function RootLayout({
   children,
@@ -76,6 +102,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-stone-50 text-stone-800 font-[family-name:var(--font-sans)] antialiased">
         {children}
         <CookieConsent />
+        <InstallPrompt />
         <Analytics />
         <SpeedInsights />
       </body>

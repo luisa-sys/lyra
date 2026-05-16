@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "Lyra",
+  "short_name": "Lyra",
+  "description": "A calm profile where you share preferences, gift ideas, and boundaries — so people in your life never have to guess.",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#fafaf9",
+  "theme_color": "#5F7256",
+  "categories": ["lifestyle", "social", "productivity"],
+  "lang": "en-GB",
+  "icons": [
+    {
+      "src": "/lyra-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lyra-icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lyra-icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lyra-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lyra-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My profile",
+      "short_name": "Profile",
+      "description": "Edit your Lyra profile",
+      "url": "/dashboard/profile?source=pwa",
+      "icons": [{ "src": "/lyra-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Find someone",
+      "short_name": "Search",
+      "description": "Search published Lyra profiles",
+      "url": "/search?source=pwa",
+      "icons": [{ "src": "/lyra-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
