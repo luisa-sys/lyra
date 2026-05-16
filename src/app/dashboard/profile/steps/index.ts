@@ -5,5 +5,14 @@ export { ItemsStep } from './items-step';
 export { LinksStep } from './links-step';
 export { ManualOfMeStep } from './manual-of-me-step';
 export { FilesStep } from './files-step';
+export { ConversationStartersStep } from './conversation-starters-step';
 export { PreviewStep } from './preview-step';
-export type { WizardProfile, WizardItem, WizardSchool, WizardLink, WizardFile } from './types';
+export type {
+  WizardProfile,
+  WizardItem,
+  WizardSchool,
+  WizardLink,
+  WizardFile,
+  ConversationPrompt,
+  ConversationAnswer,
+} from './types';
