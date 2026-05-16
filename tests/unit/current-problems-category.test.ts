@@ -55,7 +55,9 @@ describe('KAN-182 current_problems category — surface-area regression guards',
       'utf-8',
     );
     // categoryOrder is an array of category strings — check for the entry.
-    expect(src).toMatch(/categoryOrder\s*=\s*\[[^\]]*['"`]current_problems['"`]/s);
+    // No `s` regex flag (tsconfig target ES2017); `[^\]]` already accepts
+    // newlines so dotall isn't needed.
+    expect(src).toMatch(/categoryOrder\s*=\s*\[[^\]]*['"`]current_problems['"`]/);
   });
 
   test('migration file exists and adds the enum value', () => {
