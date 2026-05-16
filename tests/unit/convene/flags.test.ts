@@ -6,21 +6,23 @@ import { isConveneEnabled, isConveneSpikeAllowed } from '@/lib/convene/flags';
 
 describe('convene/flags', () => {
   const originalEnabled = process.env.CONVENE_ENABLED;
-  const originalNodeEnv = process.env.NODE_ENV;
+  const originalVercelEnv = process.env.VERCEL_ENV;
 
   afterEach(() => {
     process.env.CONVENE_ENABLED = originalEnabled;
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: originalNodeEnv,
-      configurable: true,
-    });
+    if (originalVercelEnv === undefined) {
+      delete process.env.VERCEL_ENV;
+    } else {
+      process.env.VERCEL_ENV = originalVercelEnv;
+    }
   });
 
-  function setNodeEnv(value: string) {
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value,
-      configurable: true,
-    });
+  function setVercelEnv(value: string | undefined) {
+    if (value === undefined) {
+      delete process.env.VERCEL_ENV;
+    } else {
+      process.env.VERCEL_ENV = value;
+    }
   }
 
   describe('isConveneEnabled', () => {
@@ -48,28 +50,36 @@ describe('convene/flags', () => {
   });
 
   describe('isConveneSpikeAllowed', () => {
-    it('is allowed when enabled and NODE_ENV=development', () => {
+    it('is allowed when enabled and VERCEL_ENV=preview (Vercel preview deploys, incl. dev.checklyra.com)', () => {
       process.env.CONVENE_ENABLED = 'true';
-      setNodeEnv('development');
+      setVercelEnv('preview');
       expect(isConveneSpikeAllowed()).toBe(true);
     });
 
-    it('is allowed when enabled and NODE_ENV=test', () => {
+    it('is allowed when enabled and VERCEL_ENV=development (Vercel `vercel dev`)', () => {
       process.env.CONVENE_ENABLED = 'true';
-      setNodeEnv('test');
+      setVercelEnv('development');
       expect(isConveneSpikeAllowed()).toBe(true);
     });
 
-    it('is REFUSED in production even when enabled', () => {
+    it('is allowed when enabled and VERCEL_ENV is unset (local Next.js dev / jest)', () => {
       process.env.CONVENE_ENABLED = 'true';
-      setNodeEnv('production');
+      setVercelEnv(undefined);
+      expect(isConveneSpikeAllowed()).toBe(true);
+    });
+
+    it('is REFUSED on Vercel production even when enabled', () => {
+      process.env.CONVENE_ENABLED = 'true';
+      setVercelEnv('production');
       expect(isConveneSpikeAllowed()).toBe(false);
     });
 
-    it('is refused when feature flag is off', () => {
+    it('is refused when feature flag is off (any VERCEL_ENV)', () => {
       delete process.env.CONVENE_ENABLED;
-      setNodeEnv('development');
-      expect(isConveneSpikeAllowed()).toBe(false);
+      for (const v of ['production', 'preview', 'development', undefined]) {
+        setVercelEnv(v);
+        expect(isConveneSpikeAllowed()).toBe(false);
+      }
     });
   });
 });
