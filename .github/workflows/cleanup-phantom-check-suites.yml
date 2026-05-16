@@ -1,0 +1,104 @@
+name: Cleanup phantom check_suites
+# BUGS-16 follow-up: walks the HEADs of all 4 pipeline branches looking
+# for stuck-queued check_suites with zero check runs (the Vercel pattern
+# discovered during BUGS-16) and POSTs `/rerequest` on each one. The
+# rerequest re-sends the webhook to the owning GitHub App; the app then
+# either re-creates the phantom (no worse than before), marks it
+# neutral/success (best case), or ignores it.
+#
+# Runs on:
+#   - workflow_run after the production promote workflow completes
+#     (so phantoms get nudged right after each release)
+#   - daily cron at 06:00 UTC (so phantoms on stale PRs / dormant
+#     branches don't accumulate without bounds)
+#   - manual workflow_dispatch (for ad-hoc cleanups + verification)
+#
+# Always exits zero on phantom findings — that's the expected steady
+# state, not an error. Only API / network failures fail the workflow.
+
+on:
+  workflow_run:
+    workflows: ["Promote to Production"]
+    types: [completed]
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: Branches to scan (space-separated)
+        required: false
+        type: string
+        default: "develop main staging beta"
+      dry_run:
+        description: Dry-run only (report but don't rerequest)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # `checks: write` is required by the GitHub `/rerequest` API even for
+  # external apps' suites (we don't own the suite but we're asking GitHub
+  # to re-send the webhook to its owner).
+  checks: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cleanup:
+    name: Walk branch HEADs and rerequest phantom check_suites
+    runs-on: ubuntu-latest
+    # Don't run after a FAILED production promote — running this on top
+    # of an incident would just add noise. workflow_run.conclusion is
+    # only populated for the `workflow_run` trigger, so guard accordingly.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v6
+        with:
+          python-version: '3.12'
+
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          set -euo pipefail
+          # workflow_dispatch supplies branches via input; cron + workflow_run
+          # use the default set. Default lives in one place: here.
+          BRANCHES="${{ github.event.inputs.branches }}"
+          if [[ -z "$BRANCHES" ]]; then
+            BRANCHES="develop main staging beta"
+          fi
+          DRY_RUN_FLAG=""
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          echo "branches=$BRANCHES" >> "$GITHUB_OUTPUT"
+          echo "dry_run_flag=$DRY_RUN_FLAG" >> "$GITHUB_OUTPUT"
+          echo "Scanning branches: $BRANCHES (dry-run: ${{ github.event.inputs.dry_run || 'false' }})"
+
+      - name: Run cleanup script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 scripts/cleanup-phantom-check-suites.py \
+            --repo "${{ github.repository }}" \
+            --branches ${{ steps.inputs.outputs.branches }} \
+            ${{ steps.inputs.outputs.dry_run_flag }} \
+            | tee /tmp/cleanup-output.txt
+
+          # Promote the script's summary into the Job Summary so it's
+          # readable without expanding the log.
+          {
+            echo "## Phantom check_suite cleanup"
+            echo ""
+            echo '```'
+            cat /tmp/cleanup-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
