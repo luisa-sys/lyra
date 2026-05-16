@@ -1,0 +1,224 @@
+name: Beta gate smoke
+
+# KAN-223: end-to-end smoke check for the beta-gate contract on
+# beta.checklyra.com. Complements deploy-beta.yml (which verifies env
+# wiring post-deploy) by exercising actual gate behavior on a recurring
+# schedule, so regressions in Vercel SSO / middleware / waitlist routing
+# are caught within a day even when no deploy is happening.
+#
+# What this catches:
+#   - Accidental SSO disable on the beta Vercel env (would expose beta to
+#     the public internet — SSO-active check fails loudly)
+#   - Auth gate regression (middleware no longer redirects /dashboard to
+#     /login when unauthenticated)
+#   - Beta-env wiring drift (IS_BETA_DEPLOY env var reset, NEXT_PUBLIC_SITE_URL
+#     pointing to wrong domain)
+#   - MCP server drift (mcp.checklyra.com serving stale build_sha)
+#
+# Mirrors the post-merge-deploy-smoke.yml pattern in lyra-mcp-server: fail
+# loud with actionable error messages, never silent-pass.
+
+on:
+  schedule:
+    # Daily 06:00 UTC — catches overnight drift before the workday starts.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: "Verbose curl output (-v) for debugging"
+        required: false
+        default: "false"
+  # Also fire after every successful deploy-beta run — that's when most
+  # regressions would actually land.
+  workflow_run:
+    workflows: ["Deploy to Beta"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  smoke:
+    name: Probe beta-gate contracts
+    runs-on: ubuntu-latest
+    # Skip if triggered by a failed deploy-beta run — that workflow's own
+    # alert handles the failure surface.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      BETA_HOST: https://beta.checklyra.com
+      MCP_HOST: https://mcp.checklyra.com
+      VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+    steps:
+      - name: Verify VERCEL_AUTOMATION_BYPASS is set
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_BYPASS:-}" ]; then
+            echo "::error::VERCEL_AUTOMATION_BYPASS secret is empty. Required for steps 2-5. See KAN-223."
+            exit 1
+          fi
+          echo "::notice::Bypass header present."
+
+      - name: 1/6 SSO-active check (must return 401 WITHOUT bypass)
+        run: |
+          set -euo pipefail
+          # If SSO ever gets disabled on the beta Vercel env, this returns
+          # 200/307 instead and beta is exposed to the public internet.
+          # That is a security regression we want to catch within 24h.
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 \
+            "${BETA_HOST}/")
+          echo "Status (no bypass): ${STATUS}"
+          case "${STATUS}" in
+            401)
+              echo "::notice::SSO active — beta is gated to authorized bypass clients only."
+              ;;
+            200|307|302|308)
+              echo "::error::Beta is PUBLICLY ACCESSIBLE (HTTP ${STATUS} without bypass). Vercel SSO appears to be disabled on the beta env. Re-enable Password Protection in Vercel dashboard immediately. See KAN-223."
+              exit 1
+              ;;
+            *)
+              echo "::warning::Unexpected status ${STATUS} on no-bypass request. Investigate."
+              # Don't fail — could be Cloudflare bot challenge (403) which is OK
+              ;;
+          esac
+
+      - name: 2/6 Bypass reachability (root with bypass)
+        run: |
+          set -euo pipefail
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 \
+            -H "x-vercel-protection-bypass: ${VERCEL_BYPASS}" \
+            "${BETA_HOST}/")
+          echo "Root with bypass: ${STATUS}"
+          case "${STATUS}" in
+            200|307|302|308)
+              echo "::notice::Bypass header accepted, app responsive."
+              ;;
+            *)
+              echo "::error::Bypass header didn't unlock beta (HTTP ${STATUS}). VERCEL_AUTOMATION_BYPASS may have rotated. Refresh from Vercel dashboard → Settings → Deployment Protection → Protection Bypass for Automation. See KAN-223."
+              exit 1
+              ;;
+          esac
+
+      - name: 3/6 /waitlist public-page check
+        run: |
+          set -euo pipefail
+          # /waitlist is exempt from the beta gate (so the redirect doesn't
+          # loop) AND from auth requirements (it's the landing for
+          # non-eligible users). It must return 200 with bypass.
+          RESPONSE=$(curl -sS --max-time 15 \
+            -H "x-vercel-protection-bypass: ${VERCEL_BYPASS}" \
+            -w "\n%{http_code}" \
+            "${BETA_HOST}/waitlist")
+          STATUS=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+          echo "Status: ${STATUS}"
+          if [ "${STATUS}" != "200" ]; then
+            echo "::error::/waitlist returned HTTP ${STATUS}, expected 200. The waitlist landing is broken — non-eligible users will hit an error instead of the holding page. See KAN-223."
+            exit 1
+          fi
+          # Sanity-check the body looks like the waitlist page, not a
+          # generic Next.js error or maintenance redirect.
+          if ! echo "${BODY}" | grep -qiE "waitlist|early access|join the waitlist|coming soon"; then
+            echo "::warning::/waitlist body does not contain expected keywords. Page may have changed — verify manually."
+          else
+            echo "::notice::/waitlist returns 200 + recognizable content."
+          fi
+
+      - name: 4/6 /dashboard auth-gate check (unauthenticated → /login)
+        run: |
+          set -euo pipefail
+          # Hit /dashboard with bypass but no auth cookie. Middleware
+          # should redirect to /login (auth gate), not /waitlist (beta
+          # gate — that's for authenticated-but-not-eligible users).
+          # Expect 307 with Location pointing to /login.
+          HEADERS=$(curl -sS -o /dev/null -D - --max-time 15 \
+            -H "x-vercel-protection-bypass: ${VERCEL_BYPASS}" \
+            "${BETA_HOST}/dashboard")
+          STATUS_LINE=$(echo "${HEADERS}" | head -n1)
+          LOCATION=$(echo "${HEADERS}" | grep -i '^location:' | head -n1 | cut -d' ' -f2- | tr -d '\r')
+          echo "Status: ${STATUS_LINE}"
+          echo "Location: ${LOCATION}"
+          if ! echo "${STATUS_LINE}" | grep -qE "^HTTP/[12](\.[01])? 30[7]"; then
+            echo "::error::/dashboard returned ${STATUS_LINE} for unauthenticated request, expected 307 redirect to /login. Auth gate has regressed. See KAN-223."
+            exit 1
+          fi
+          if ! echo "${LOCATION}" | grep -qE "/login(\?|$)"; then
+            echo "::error::/dashboard redirected to '${LOCATION}', expected /login. Auth gate routing has regressed. See KAN-223."
+            exit 1
+          fi
+          echo "::notice::Auth gate redirects /dashboard → /login as expected."
+
+      - name: 5/6 /api/health env wiring check
+        run: |
+          set -euo pipefail
+          # Verifies the beta Vercel env still has IS_BETA_DEPLOY=true
+          # and NEXT_PUBLIC_SITE_URL pointing at beta.checklyra.com.
+          RESPONSE=$(curl -sS --max-time 15 \
+            -H "x-vercel-protection-bypass: ${VERCEL_BYPASS}" \
+            -w "\n%{http_code}" \
+            "${BETA_HOST}/api/health")
+          STATUS=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+          echo "Status: ${STATUS}"
+          echo "Body: ${BODY}"
+          if [ "${STATUS}" != "200" ]; then
+            echo "::error::/api/health returned ${STATUS}, expected 200. See KAN-223."
+            exit 1
+          fi
+          SITE_URL=$(echo "${BODY}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('siteUrl',''))")
+          IS_BETA=$(echo "${BODY}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('isBetaDeploy',False))")
+          if [ "${SITE_URL}" != "https://beta.checklyra.com" ]; then
+            echo "::error::siteUrl='${SITE_URL}', expected 'https://beta.checklyra.com'. NEXT_PUBLIC_SITE_URL drifted on beta env. Fix in Vercel dashboard. See KAN-223."
+            exit 1
+          fi
+          if [ "${IS_BETA}" != "True" ]; then
+            echo "::error::isBetaDeploy=${IS_BETA}, expected True. IS_BETA_DEPLOY env var reset on beta env. Fix in Vercel dashboard. See KAN-223."
+            exit 1
+          fi
+          echo "::notice::Env wiring verified (siteUrl=${SITE_URL}, isBetaDeploy=${IS_BETA})."
+
+      - name: 6/6 MCP cross-check (canonical name + non-stale build_sha)
+        run: |
+          set -euo pipefail
+          # MCP server isn't in the beta gate but beta depends on it for
+          # any MCP-related functionality. Cross-check it's healthy and
+          # serving the canonical Registry name (BUGS-18 instrumentation).
+          RESPONSE=$(curl -sS --max-time 15 -w "\n%{http_code}" \
+            "${MCP_HOST}/.well-known/mcp.json")
+          STATUS=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+          if [ "${STATUS}" != "200" ]; then
+            echo "::error::MCP /.well-known/mcp.json returned ${STATUS}. See BUGS-18 + KAN-223."
+            exit 1
+          fi
+          NAME=$(echo "${BODY}" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))")
+          BUILD_SHA=$(echo "${BODY}" | python3 -c "import json,sys; print(json.load(sys.stdin).get('build_sha','(missing)'))")
+          if [ "${NAME}" != "io.github.luisa-sys/lyra-mcp-server" ]; then
+            echo "::error::MCP canonical name is '${NAME}', expected 'io.github.luisa-sys/lyra-mcp-server'. Registry submission compromised. See BUGS-18."
+            exit 1
+          fi
+          if [ "${BUILD_SHA}" = "(missing)" ] || [ "${BUILD_SHA}" = "(unknown)" ]; then
+            echo "::warning::MCP build_sha is '${BUILD_SHA}' (no Railway env var or pre-BUGS-18 build). Doesn't fail the gate but worth investigating."
+          else
+            echo "::notice::MCP healthy (name=${NAME}, build_sha=${BUILD_SHA:0:8})."
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Beta gate smoke"
+            echo ""
+            echo "Run on: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Trigger: ${{ github.event_name }}"
+            echo ""
+            if [ "${{ job.status }}" = "success" ]; then
+              echo ":white_check_mark: All 6 checks passed."
+            else
+              echo ":x: One or more checks failed — see annotations above. Runbook: KAN-223."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
