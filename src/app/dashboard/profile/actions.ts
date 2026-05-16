@@ -80,6 +80,7 @@ export async function addProfileItem(data: {
   category: string;
   title: string;
   description?: string;
+  url?: string;
   visibility?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
@@ -88,6 +89,19 @@ export async function addProfileItem(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
+  // KAN-219 — optional URL on items (Python `lyra-app` parity). If absent or
+  // empty, insert NULL. If provided, `sanitiseUrl` returns '' on anything
+  // that's not http(s) — surface that as an error rather than silently
+  // dropping the field so the user knows their input was rejected.
+  let sanitisedUrl: string | null = null;
+  if (data.url && data.url.trim() !== '') {
+    const cleaned = sanitiseUrl(data.url);
+    if (!cleaned) {
+      return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+    }
+    sanitisedUrl = cleaned;
+  }
+
   const { error } = await supabase
     .from('profile_items')
     .insert({
@@ -95,6 +109,7 @@ export async function addProfileItem(data: {
       category: sanitiseText(data.category, 50),
       title: sanitiseText(data.title, 200),
       description: data.description ? sanitiseText(data.description, 1000) : null,
+      url: sanitisedUrl,
       // Coerce to one of the allowed visibility levels — anything else falls
       // back to 'public'. KAN-143.
       visibility: coerceVisibility(data.visibility),

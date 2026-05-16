@@ -67,6 +67,10 @@ interface ProfileItem {
   category: string;
   title: string;
   description: string | null;
+  // KAN-219 — optional URL on items (Python `lyra-app` parity). Already
+  // selected by the `*` query; surfaced in the chip + Q&A rendering as a
+  // clickable link when present.
+  url: string | null;
   visibility: string;
 }
 
@@ -530,7 +534,23 @@ export default async function PublicProfilePage({ params }: Props) {
                 <div className="space-y-3">
                   {catItems.map((item) => (
                     <div key={item.id} className="border-l-3 border-[var(--color-sage)] bg-stone-50 rounded-r-lg pl-4 pr-4 py-3">
-                      <p className="text-sm font-medium text-[var(--color-ink)]">{item.title}</p>
+                      {/* KAN-219: when an item has a URL, the title becomes a
+                          clickable link. Server-side sanitiseUrl restricts
+                          to http(s); React escapes attribute values; we add
+                          rel="noopener noreferrer" to prevent tab-nabbing. */}
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-[var(--color-sage)] hover:underline"
+                        >
+                          {item.title}
+                          <span aria-hidden className="ml-1 text-xs opacity-70">↗</span>
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium text-[var(--color-ink)]">{item.title}</p>
+                      )}
                       {item.description && (
                         <p className="text-sm text-[var(--color-muted)] mt-1 leading-relaxed">{item.description}</p>
                       )}
@@ -541,9 +561,23 @@ export default async function PublicProfilePage({ params }: Props) {
                 <div className="flex flex-wrap gap-2">
                   {catItems.map((item) => (
                     <div key={item.id} className="group relative">
-                      <span className="inline-block px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-sm text-[var(--color-ink)]">
-                        {item.title}
-                      </span>
+                      {/* KAN-219: linked chip when URL present; plain
+                          chip otherwise. Hover preserves the same styling. */}
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-sm text-[var(--color-ink)] hover:border-[var(--color-sage)] hover:text-[var(--color-sage)] transition-colors"
+                        >
+                          {item.title}
+                          <span aria-hidden className="ml-1 text-xs opacity-70">↗</span>
+                        </a>
+                      ) : (
+                        <span className="inline-block px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-full text-sm text-[var(--color-ink)]">
+                          {item.title}
+                        </span>
+                      )}
                       {item.description && (
                         <div className="hidden group-hover:block absolute bottom-full left-0 mb-1 px-3 py-2 bg-[var(--color-ink)] text-white text-xs rounded-lg max-w-xs z-10">
                           {item.description}
