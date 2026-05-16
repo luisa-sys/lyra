@@ -12,6 +12,7 @@ import {
 } from '@/app/dashboard/profile/manual-of-me-fields';
 import { getRecommendations } from '@/lib/recommend';
 import RecommendationsSection from './recommendations-section';
+import ReportButton from './report-button';
 
 // Create client per-request, not at module scope
 function getSupabase() {
@@ -20,6 +21,7 @@ function getSupabase() {
 
 interface ProfileData {
   id: string;
+  user_id: string;
   display_name: string;
   slug: string;
   headline: string | null;
@@ -493,10 +495,17 @@ export default async function PublicProfilePage({ params }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="max-w-2xl mx-auto px-6 py-8 text-center">
+      <div className="max-w-2xl mx-auto px-6 py-8 text-center space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           This is a <Link href="/" className="text-[var(--color-sage)] hover:underline">Lyra</Link> profile
         </p>
+        {/* KAN-141: inline report button — never shown for the profile's owner */}
+        {viewer?.id !== typedProfile.user_id && (
+          <ReportButton
+            profileSlug={typedProfile.slug}
+            isAuthenticated={isAuthenticated}
+          />
+        )}
       </div>
     </main>
     </>
