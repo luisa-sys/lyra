@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useTransition } from 'react';
 import { Field, SaveButton, type WizardProfile } from './types';
+import { SUPPORTED_DELIVERY_COUNTRIES } from '@/lib/affiliate/country-codes';
+import { updateDeliveryCountry } from '../delivery-country-actions';
 
 export function IdentityStep({ profile, onSave, onUploadAvatar, isPending }: {
   profile: WizardProfile;
@@ -13,6 +15,13 @@ export function IdentityStep({ profile, onSave, onUploadAvatar, isPending }: {
   const [headline, setHeadline] = useState(profile.headline || '');
   const [city, setCity] = useState(profile.city || '');
   const [country, setCountry] = useState(profile.country || 'GB');
+  // KAN-186: separate from `country` (freeform display) — this is the
+  // strict ISO-2 used by the recommender's eligibility filter.
+  const [deliveryCountry, setDeliveryCountry] = useState<string>(
+    profile.delivery_country_code || '',
+  );
+  const [deliveryCountryError, setDeliveryCountryError] = useState<string | null>(null);
+  const [savingDeliveryCountry, startSavingDeliveryCountry] = useTransition();
   const [preview, setPreview] = useState<string | null>(profile.avatar_url || null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -95,6 +104,45 @@ export function IdentityStep({ profile, onSave, onUploadAvatar, isPending }: {
         <Field label="Headline" value={headline} onChange={setHeadline} placeholder="Mum, teacher, coffee lover" />
         <Field label="City" value={city} onChange={setCity} placeholder="London" />
         <Field label="Country" value={country} onChange={setCountry} placeholder="GB" />
+
+        {/* KAN-186: delivery country — separate from the freeform `country`
+            field above; this one is the strict ISO-2 the recommender uses to
+            filter products that can ship to you. */}
+        <div>
+          <label htmlFor="delivery-country" className="block text-sm font-medium text-[var(--color-ink)]">
+            Delivery country
+          </label>
+          <p className="text-xs text-[var(--color-muted)] mt-0.5">
+            Where gift recommendations should be able to ship to. Leave blank to use the buyer&apos;s country.
+          </p>
+          <select
+            id="delivery-country"
+            value={deliveryCountry}
+            onChange={(e) => {
+              const next = e.target.value;
+              setDeliveryCountry(next);
+              setDeliveryCountryError(null);
+              startSavingDeliveryCountry(async () => {
+                const result = await updateDeliveryCountry(next || null);
+                if (!result.success) {
+                  setDeliveryCountryError(result.error ?? 'Could not save');
+                }
+              });
+            }}
+            disabled={savingDeliveryCountry}
+            className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
+          >
+            <option value="">— Use buyer&apos;s country —</option>
+            {SUPPORTED_DELIVERY_COUNTRIES.map(({ code, name: countryName }) => (
+              <option key={code} value={code}>
+                {countryName} ({code})
+              </option>
+            ))}
+          </select>
+          {deliveryCountryError && (
+            <p className="text-xs text-red-500 mt-0.5">{deliveryCountryError}</p>
+          )}
+        </div>
       </div>
       <SaveButton
         onClick={() => onSave({ display_name: name, headline, city, country })}
