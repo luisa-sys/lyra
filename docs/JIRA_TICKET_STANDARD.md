@@ -15,6 +15,7 @@
 - Files to create/modify
 - Code snippets where helpful
 - NEEDS DESKTOP flag if local machine access is required
+- **MCP coverage line (KAN-222)** — for any user-facing feature, list the MCP tools added/changed in the same epic, or include the literal line `MCP coverage: deferred — <reason> (follow-up: KAN-XYZ)`. The follow-up ticket must exist before merge. See `CLAUDE.md` → "MCP-main lockstep policy".
 
 ### 3. Tests Required
 **This section is mandatory. No ticket ships without tests.**
@@ -41,6 +42,7 @@
 - New API endpoints or routes
 - Database schema changes (migration SQL required)
 - Impact on existing tests (will any break?)
+- **MCP surface delta** — explicitly list new/changed MCP tools (or note `none` with rationale). Cross-link to PR(s) in `lyra-mcp-server` if applicable. KAN-222 enforces this for user-facing features.
 
 ### 6. Acceptance Criteria
 - Specific, testable conditions that must be true when done

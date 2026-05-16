@@ -166,6 +166,54 @@ Large tasks must be broken into subtasks with one concern per ticket. When picki
 
 Full details: `docs/JIRA_TICKET_STANDARD.md`
 
+## MCP-main lockstep policy (KAN-222)
+
+**Every user-facing feature must ship MCP-tool coverage in the same epic, or carry an explicit deferral annotation.** The Lyra web app and the MCP server (`luisa-sys/lyra-mcp-server`) are two surfaces of the same product — anything an authenticated user can read or write on `checklyra.com` should be reachable by an agent through `mcp.checklyra.com`. Drift between the two erodes platform value and confuses users who assume parity.
+
+### What this means in practice
+
+For any KAN ticket that touches user-facing data:
+
+1. **Same epic, same cadence.** New MCP tool(s) ship in the same epic as the main-app feature. Cross-repo PRs are the norm, not the exception (one PR per repo, linked in description).
+2. **Read tools are non-negotiable.** Every new entity an agent could enumerate, search, or fetch must have a corresponding `lyra_list_*` / `lyra_get_*` / `lyra_search_*` read tool. These are public (no auth) per existing convention.
+3. **Write tools follow user-action parity.** Every form-action or API-mutation the main app exposes to the user should have a corresponding write tool. Auth via the current API-key (post-KAN-88: bearer-JWT) scheme.
+4. **Deferral path.** When MCP coverage is intentionally not in scope, the parent ticket description must include the literal line:
+   ```
+   MCP coverage: deferred — <reason> (follow-up: KAN-XYZ)
+   ```
+   The follow-up ticket must exist before merge.
+
+### When this kicks in
+
+- Any new MCP-relevant table (anything an agent would reasonably want to read).
+- Any new public API route under `src/app/api/` that mutates user data.
+- Any new server action under `src/app/.../actions.ts` that mutates user data.
+- Profile-data changes (new `profile_items` category, new visibility level, etc.).
+- Anything explicitly user-visible that an agent should mirror.
+
+### When it doesn't apply
+
+- Internal-only routes (admin, ops, monitoring).
+- Pure UI changes with no data-model impact.
+- Infrastructure / CI / docs work.
+- Maintenance worker code, scheduled jobs, audit pipelines.
+
+### Reviewer checklist
+
+Before approving any user-facing feature PR:
+
+1. Does the PR description list the MCP tools added/changed, OR carry the `MCP coverage: deferred — …` line?
+2. If MCP changes are claimed, is there a linked PR in `luisa-sys/lyra-mcp-server` ready for review?
+3. If deferred, is a follow-up KAN ticket linked and ready?
+
+Failure to do one of the above is a blocking review comment.
+
+### Why this exists
+
+Before KAN-222, MCP tools shipped opportunistically and the surfaces drifted. File uploads (KAN-142), conversation-starter prompts (KAN-181), problem-tracking (KAN-182) all landed in the main app first; MCP coverage was opened as separate follow-ups that sat in the backlog for weeks. By the time the Convene epic (KAN-203) arrives — with its 14+ planned MCP tools — drift would have been intractable. Make the lockstep explicit before the gap reopens.
+
+Mirror in `lyra-mcp-server/CLAUDE.md` — that file points back here as the source of truth.
+
 ## Deployment Pipeline
 
 The pipeline is: **develop → staging → beta → main** (promotion-based, four envs since KAN-175).
