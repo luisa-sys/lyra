@@ -1,0 +1,134 @@
+name: Anomaly detect (KAN-63-A)
+# Rolling-window vs trailing-30d-baseline anomaly detection for the
+# four operator-impact metrics: signups, publishes, items, reports.
+#
+# Fires on schedule (every 15 min) and on workflow_dispatch. On any
+# anomaly finding, the workflow uses `gh issue` to open or update a
+# single labelled issue — idempotent via a deterministic title — so
+# operator alerts don't pile up to one-per-occurrence.
+#
+# This is the first KAN-63 sub-ticket (autonomous monitoring + content
+# moderation + self-healing). Future sub-tickets layer real moderation
+# action (KAN-63-B) and CI self-heal (KAN-63-C) on top of the metrics
+# shipped here.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # every 15 minutes
+  workflow_dispatch:
+    inputs:
+      baseline_days:
+        description: Trailing days to compute the baseline from
+        required: false
+        default: '30'
+        type: string
+      sigma_threshold:
+        description: Sigma threshold (default 3.0 ≈ 99.7th percentile)
+        required: false
+        default: '3.0'
+        type: string
+
+permissions:
+  contents: read
+  issues: write  # the script's findings are written into a labelled issue
+
+defaults:
+  run:
+    shell: bash
+
+# Concurrency: only one anomaly check at a time. If a previous one is
+# still running when the cron fires, skip the new run rather than
+# stack — anomalies don't move that fast and double-firing would just
+# duplicate the GitHub-issue update.
+concurrency:
+  group: anomaly-detect
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Compare windows against 30d baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v6
+        with:
+          python-version: '3.12'
+
+      - name: Run anomaly-detect.py
+        id: detect
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          BASELINE_DAYS="${{ github.event.inputs.baseline_days || '30' }}"
+          SIGMA="${{ github.event.inputs.sigma_threshold || '3.0' }}"
+
+          # Tee output so we can use both:
+          #   * the GitHub log (for ::warning:: / ::notice:: annotations)
+          #   * the captured stdout (for issue body assembly below)
+          python3 scripts/anomaly-detect.py \
+            --baseline-days "$BASELINE_DAYS" \
+            --sigma-threshold "$SIGMA" \
+            | tee /tmp/anomaly-detect.out
+
+          # Count anomalies by looking for the ANOMALY prefix the script
+          # emits. The summary line at the bottom also tells us, but
+          # grep'ing the body is more robust to format changes.
+          ANOMALY_COUNT="$(grep -c '^::warning::ANOMALY ' /tmp/anomaly-detect.out || true)"
+          echo "anomaly_count=$ANOMALY_COUNT" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Anomaly detect"
+            echo ""
+            echo '```'
+            cat /tmp/anomaly-detect.out
+            echo '```'
+            echo ""
+            echo "Anomalies: $ANOMALY_COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the anomaly issue
+        if: steps.detect.outputs.anomaly_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TITLE="Anomaly detected — please review"
+          BODY_FILE=/tmp/anomaly-body.md
+          {
+            echo "Automated alert from \`.github/workflows/anomaly-detect.yml\`."
+            echo ""
+            echo "## Findings"
+            echo ""
+            echo '```'
+            grep '^::warning::ANOMALY ' /tmp/anomaly-detect.out || true
+            echo '```'
+            echo ""
+            echo "## Full output"
+            echo ""
+            echo '```'
+            cat /tmp/anomaly-detect.out
+            echo '```'
+            echo ""
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Acknowledge by closing this issue once you've investigated."
+          } > "$BODY_FILE"
+
+          # Idempotent: look for an existing open issue with this exact
+          # title + label. If one exists, comment on it; else open a new
+          # one. This keeps the inbox to one issue per ongoing anomaly
+          # rather than one per cron run.
+          EXISTING="$(gh issue list --search "in:title \"$TITLE\"" --state open --label anomaly --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing anomaly issue #$EXISTING"
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+          else
+            echo "Opening new anomaly issue"
+            gh issue create --title "$TITLE" --label anomaly --body-file "$BODY_FILE"
+          fi
