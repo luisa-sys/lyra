@@ -34,6 +34,34 @@ describe('admin drain-queue route (KAN-209)', () => {
     expect(src).not.toMatch(/export async function GET/);
   });
 
+  test('accepts api_key in JSON body as fallback when Authorization header absent (KAN-240 symmetry)', () => {
+    const src = fs.readFileSync(routePath, 'utf8');
+    // Body parse + api_key extraction.
+    expect(src).toMatch(/await req\.json\(\)/);
+    expect(src).toMatch(/api_key\?:\s*unknown/);
+    expect(src).toMatch(/typeof apiKey === ['"]string['"] && apiKey\.length > 0/);
+    // The fallback re-runs Bearer auth with the body value wrapped as a Bearer.
+    expect(src).toMatch(/authenticateBearerApiKey\(`Bearer \$\{apiKey\}`\)/);
+  });
+
+  test('header path is preferred over body — header is tried first', () => {
+    const src = fs.readFileSync(routePath, 'utf8');
+    // Implementation order matters: header path runs before body path.
+    const headerIdx = src.indexOf("req.headers.get('authorization')");
+    const bodyIdx = src.indexOf('await req.json()');
+    expect(headerIdx).toBeGreaterThan(-1);
+    expect(bodyIdx).toBeGreaterThan(-1);
+    expect(headerIdx).toBeLessThan(bodyIdx);
+  });
+
+  test('body-parse errors do not crash the route', () => {
+    const src = fs.readFileSync(routePath, 'utf8');
+    // try/catch around req.json() so non-JSON bodies just fall through
+    // to the header-auth error.
+    expect(src).toMatch(/try\s*\{\s*body\s*=\s*await req\.json\(\)/);
+    expect(src).toMatch(/\}\s*catch\b/);
+  });
+
   test('dispatcher is called with hostUserId filter (per-user scoping)', () => {
     const src = fs.readFileSync(routePath, 'utf8');
     expect(src).toMatch(/dispatchQueuedInvites\(\s*\{\s*hostUserId:\s*auth\.userId\s*\}/);

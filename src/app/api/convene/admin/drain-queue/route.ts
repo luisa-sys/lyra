@@ -7,26 +7,59 @@
  * this route lets the lyra_drain_invite_queue MCP tool call it on
  * behalf of an authenticated user.
  *
- * Auth: `Authorization: Bearer lyra_…` (a user-owned API key, same
- * format as every other MCP-callable). The drain is filtered to that
- * user's gatherings only — one user cannot drain another's queue.
+ * Auth accepts two equivalent forms (KAN-240 symmetry with the MCP
+ * server's middleware):
+ *
+ *   1. `Authorization: Bearer lyra_…` header — preferred.
+ *   2. `{ "api_key": "lyra_…" }` in the JSON body — fallback for clients
+ *      that cannot set custom headers (form posts, simple curl, etc).
+ *
+ * The drain is filtered to the calling user's gatherings only — one
+ * user cannot drain another's queue.
  *
  * Gate: `CONVENE_ENABLED` must be 'true' or the route 404s.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { isConveneEnabled } from '@/lib/convene/flags';
-import { authenticateBearerApiKey } from '@/lib/convene/auth-bearer';
+import {
+  authenticateBearerApiKey,
+  type BearerAuthResult,
+  type BearerAuthError,
+} from '@/lib/convene/auth-bearer';
 import { dispatchQueuedInvites } from '@/lib/convene/invites/dispatch';
 
 export const maxDuration = 60;
+
+async function resolveAuth(
+  req: NextRequest
+): Promise<BearerAuthResult | BearerAuthError> {
+  // Header path — preferred (matches MCP-server middleware).
+  const headerAuth = await authenticateBearerApiKey(req.headers.get('authorization'));
+  if (headerAuth.ok) return headerAuth;
+
+  // Body fallback — for clients that can't set headers. Reading the
+  // body here consumes the stream, but the route doesn't read the body
+  // elsewhere, so this is safe.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return headerAuth;
+  }
+  const apiKey = (body as { api_key?: unknown } | null)?.api_key;
+  if (typeof apiKey === 'string' && apiKey.length > 0) {
+    return authenticateBearerApiKey(`Bearer ${apiKey}`);
+  }
+  return headerAuth;
+}
 
 export async function POST(req: NextRequest) {
   if (!isConveneEnabled()) {
     return NextResponse.json({ ok: false, error: 'convene_disabled' }, { status: 404 });
   }
 
-  const auth = await authenticateBearerApiKey(req.headers.get('authorization'));
+  const auth = await resolveAuth(req);
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
   }

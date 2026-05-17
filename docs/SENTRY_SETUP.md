@@ -1,16 +1,25 @@
 # Sentry Setup (KAN-104)
 
-> The SDK is scaffolded behind a two-flag gate. This doc walks through activating it on each environment.
+> The SDK is scaffolded behind a flag-based gate, asymmetric between server and browser by Next.js's `NEXT_PUBLIC_` env-var rules. This doc walks through activating it on each environment.
 
 ## What's already shipped (PR #136)
 
 - `@sentry/nextjs` installed
 - `instrumentation.ts` — server + edge runtime init, gated on `NEXT_PUBLIC_SENTRY_DSN` AND `IS_SENTRY_ENABLED='true'`
-- `instrumentation-client.ts` — browser init, same gate
+- `instrumentation-client.ts` — browser init, gated on `NEXT_PUBLIC_SENTRY_DSN` presence only (see "Why the gate asymmetry" below — KAN-104 follow-up 2026-05-17)
 - `next.config.ts` wrapped with `withSentryConfig` (source-map upload + tunnel-route off + DE-region CSP)
-- 8 unit tests guarding the gate + CSP + auth-token-never-NEXT_PUBLIC
+- Build uses Webpack (`next build --webpack`) because Sentry's plugin doesn't fully thread `instrumentation-client.ts` through Turbopack in `@sentry/nextjs@10.x` (revisit when v11 ships Turbopack-complete)
+- 8 unit tests guarding the gates + CSP + auth-token-never-NEXT_PUBLIC
 
-Until both env vars are populated, the SDK is **completely inert** — no network calls, no event capture, no overhead.
+Until the env vars are populated, the SDK is **completely inert** — no network calls, no event capture, no overhead.
+
+## Why the gate asymmetry (KAN-104 follow-up, 2026-05-17)
+
+The original design used `NEXT_PUBLIC_SENTRY_DSN` AND `IS_SENTRY_ENABLED='true'` for both server and browser. **The two-flag gate doesn't work in the browser** because Webpack/Next.js only inlines `process.env.NEXT_PUBLIC_*` env vars into client bundles. `IS_SENTRY_ENABLED` (no `NEXT_PUBLIC_` prefix) resolves to `undefined` at browser runtime, which means `"true" === undefined` was always false and Sentry never initialised in the browser regardless of what was set in Vercel.
+
+Fix: the browser gate now checks DSN presence only. Set the DSN var to empty (or unset it) to disable Sentry in the browser. Equivalent safety to the original design, just expressed through one visible env var instead of two.
+
+The server-side gate retains the two-flag combo because Node has access to all env vars at runtime.
 
 ## Account snapshot (filled in on first activation)
 
@@ -42,7 +51,7 @@ Vercel → `lyra` project → Settings → Environment Variables. Add the follow
 | Variable | Value | Sensitive? | Purpose |
 |---|---|---|---|
 | `NEXT_PUBLIC_SENTRY_DSN` | `https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704` | No | Where the SDK sends events. The `NEXT_PUBLIC_` prefix exposes it to the browser, which is correct — DSN is public-by-design. |
-| `IS_SENTRY_ENABLED` | `true` | No | The kill switch. Setting to `false` (or removing) disables Sentry entirely on that env without touching code. |
+| `IS_SENTRY_ENABLED` | `true` | No | **Server kill switch only.** Setting to `false` (or removing) disables Sentry on the server runtime. Browser is gated on `NEXT_PUBLIC_SENTRY_DSN` presence — see "Why the gate asymmetry" above. To kill Sentry in the browser, clear `NEXT_PUBLIC_SENTRY_DSN` instead. |
 
 After saving, redeploy that environment (push a commit or manually trigger via Vercel UI) so the new vars reach the build.
 

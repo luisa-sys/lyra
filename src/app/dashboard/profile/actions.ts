@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
+import { checkModeration } from '@/lib/moderation-policy';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -66,6 +67,19 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     };
   }
 
+  // KAN-241 — content moderation. Runs AFTER sanitiseText so the moderator
+  // sees the post-strip text (a profanity inside <script>profanity</script>
+  // gets stripped to plain `profanity` first, then caught). Public field
+  // type for everything in `profiles` (display_name, bio_short, etc all
+  // appear on the public profile page).
+  for (const [key, val] of Object.entries(sanitised)) {
+    if (typeof val !== 'string') continue;
+    const mod = checkModeration(val, 'public', `profiles.${key}`);
+    if (!mod.ok) {
+      return { success: false, error: mod.error };
+    }
+  }
+
   // If after filtering there's nothing to write, treat as a no-op success
   // rather than firing a meaningless UPDATE with empty SET.
   if (Object.keys(sanitised).length === 0) {
@@ -116,13 +130,27 @@ export async function addProfileItem(data: {
     ? coerceVisibility(data.visibility)
     : null;
 
+  // KAN-241 — content moderation on profile-item text fields. Sanitise
+  // first, then moderate the cleaned text. Profile items render on the
+  // public profile, so 'public' fieldType applies.
+  const sanitisedTitle = sanitiseText(data.title, 200);
+  const sanitisedDesc = data.description
+    ? sanitiseText(data.description, 1000)
+    : null;
+  const titleMod = checkModeration(sanitisedTitle, 'public', 'profile_items.title');
+  if (!titleMod.ok) return { success: false, error: titleMod.error };
+  if (sanitisedDesc) {
+    const descMod = checkModeration(sanitisedDesc, 'public', 'profile_items.description');
+    if (!descMod.ok) return { success: false, error: descMod.error };
+  }
+
   const { error } = await supabase
     .from('profile_items')
     .insert({
       profile_id: profile.id,
       category: sanitiseText(data.category, 50),
-      title: sanitiseText(data.title, 200),
-      description: data.description ? sanitiseText(data.description, 1000) : null,
+      title: sanitisedTitle,
+      description: sanitisedDesc,
       url: sanitisedUrl,
       visibility,
     });
@@ -188,12 +216,24 @@ export async function addSchoolAffiliation(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
+  // KAN-241 — content moderation. Affiliations show on the public profile.
+  const sanitisedName = sanitiseText(data.school_name, 200);
+  const sanitisedLoc = data.school_location
+    ? sanitiseText(data.school_location, 200)
+    : null;
+  const nameMod = checkModeration(sanitisedName, 'public', 'school_affiliations.school_name');
+  if (!nameMod.ok) return { success: false, error: nameMod.error };
+  if (sanitisedLoc) {
+    const locMod = checkModeration(sanitisedLoc, 'public', 'school_affiliations.school_location');
+    if (!locMod.ok) return { success: false, error: locMod.error };
+  }
+
   const { error } = await supabase
     .from('school_affiliations')
     .insert({
       profile_id: profile.id,
-      school_name: sanitiseText(data.school_name, 200),
-      school_location: data.school_location ? sanitiseText(data.school_location, 200) : null,
+      school_name: sanitisedName,
+      school_location: sanitisedLoc,
       relationship: data.relationship || 'parent',
       affiliation_type: coerceAffiliationType(data.affiliation_type),
     });
@@ -231,11 +271,18 @@ export async function addExternalLink(data: {
   const sanitisedUrl = sanitiseUrl(data.url);
   if (!sanitisedUrl) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
 
+  // KAN-241 — content moderation on link title (link itself is already
+  // sanitiseUrl-restricted to http(s); only the user-visible title text
+  // needs the wordlist + PII pass).
+  const sanitisedLinkTitle = sanitiseText(data.title, 200);
+  const linkTitleMod = checkModeration(sanitisedLinkTitle, 'public', 'external_links.title');
+  if (!linkTitleMod.ok) return { success: false, error: linkTitleMod.error };
+
   const { error } = await supabase
     .from('external_links')
     .insert({
       profile_id: profile.id,
-      title: sanitiseText(data.title, 200),
+      title: sanitisedLinkTitle,
       url: sanitisedUrl,
       link_type: data.link_type || 'general',
     });

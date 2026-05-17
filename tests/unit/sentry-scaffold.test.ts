@@ -54,10 +54,20 @@ describe('KAN-104 Sentry scaffold', () => {
     expect(src).toContain('Sentry.captureRequestError');
   });
 
-  test('client instrumentation gates on both env flags + has reasonable defaults', () => {
+  test('client instrumentation gates on DSN presence + has reasonable defaults', () => {
+    // KAN-104 follow-up (2026-05-17): the client gate dropped the
+    // `IS_SENTRY_ENABLED === 'true'` check because Webpack/Next.js only
+    // inlines `NEXT_PUBLIC_*` env vars into browser bundles — the
+    // non-prefixed flag always resolved to `undefined` at runtime,
+    // making the gate a no-op-that-always-failed. DSN presence is now
+    // the single source of truth for "Sentry on/off in the browser";
+    // set the DSN var to empty to disable.
+    //
+    // The server-side gate stays two-flag (asserted in the
+    // `server instrumentation gates on both env flags` test above).
     const src = readFileSync(resolve(ROOT, 'instrumentation-client.ts'), 'utf-8');
     expect(src).toContain('NEXT_PUBLIC_SENTRY_DSN');
-    expect(src).toContain("IS_SENTRY_ENABLED === 'true'");
+    expect(src).toMatch(/if \(dsn\)/);
     expect(src).toContain('replaysSessionSampleRate: 0');
     expect(src).toContain('sendDefaultPii: false');
   });
