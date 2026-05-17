@@ -132,9 +132,25 @@ Same pattern under `src/lib/convene/venues/<source>.ts` for venue providers (Goo
 - _P6_: pg_cron vs Supabase Edge Function scheduled invocation for silence policy timer — TBD.
 - _P9_: VAPID key rotation strategy — TBD.
 
+## Environment variables (Convene-specific)
+
+Per-env (set on Vercel for the lyra app; mirrored on Railway for the MCP servers as noted).
+
+| Var | Where | Required on | Notes |
+|---|---|---|---|
+| `CONVENE_ENABLED` | Vercel | develop (preview) | Master flag. Set to `true` only where Convene UI/routes should respond — otherwise every Convene route 404s by design. Currently set only on `develop` branch preview scope. |
+| `CONVENE_INVITE_ALLOWLIST` | Vercel | develop (preview) | Comma-separated email addresses (or `*`) that the send-worker will actually email. Empty/unset → all sends blocked at the email-layer gate (safety default). |
+| `CONVENE_INVITE_FROM_EMAIL` | Vercel | optional | Default `invites@checklyra.com`. Domain must be verified in Resend. |
+| `RESEND_API_KEY` | Vercel | wherever invites send | The send-worker calls Resend's REST API with this. If unset, the dispatcher correctly marks rows `failed` with `bounce_reason='RESEND_API_KEY not set'`. Already used by the prod weekly report and security audit emails. |
+| `GOOGLE_CALENDAR_CLIENT_ID` / `_CLIENT_SECRET` / `_REDIRECT_URI` | Vercel | develop (preview) | Google OAuth 2.0 credentials for the calendar adapter (KAN-206). |
+| `GOOGLE_PLACES_API_KEY` | Vercel | develop + production | Places API v1 for venue suggestions (KAN-207). |
+| `CRON_SECRET` | Vercel | wherever cron should fire | Vercel auto-attaches this as `Authorization: Bearer …` on cron invocations. The cron route 401s without it. Vercel Cron only schedules Production deployments — see CLAUDE.md note. |
+| `LYRA_SITE_URL` | Railway (MCP services) | both dev + prod MCP services | The MCP `lyra_drain_invite_queue` tool POSTs to `${LYRA_SITE_URL}/api/convene/admin/drain-queue`. Dev MCP → `https://dev.checklyra.com`. Prod MCP → `https://checklyra.com`. Wrong value → 400s from unrelated pages. |
+
 ## Change log
 
 | Date | Author | Change |
 |---|---|---|
 | 2026-05-16 | Claude | Initial doc; P0 in flight. |
 | 2026-05-16 | Claude | P0 closed (KAN-204 Done); P1 schema migrations 1-6 applied; spike dropped; MCP tools paired-PR'd. |
+| 2026-05-17 | Claude | P5 part 2 — send-invite cron worker + admin drain route + `lyra_drain_invite_queue` MCP tool. End-to-end smoke-tested on dev: row queued via MCP, drained, dispatcher marks row `failed` with correct `bounce_reason`. Added env var table. |
