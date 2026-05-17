@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { checkModeration } from '@/lib/moderation-policy';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -46,6 +47,10 @@ async function getUserProfile(supabase: Awaited<ReturnType<typeof createClient>>
 export async function updateProfileFields(data: Record<string, string | boolean | number | null>): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (KAN-63 Tier 2-D).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
 
   // Reject any key not in the allowlist — prevents remote property injection.
   // We collect rejected keys rather than failing on the first one so the
@@ -105,6 +110,10 @@ export async function addProfileItem(data: {
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
 
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
@@ -213,6 +222,10 @@ export async function addSchoolAffiliation(data: {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
@@ -264,6 +277,10 @@ export async function addExternalLink(data: {
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
 
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
@@ -392,6 +409,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (avatars are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
 
   const file = formData.get('avatar') as File | null;
   if (!file || file.size === 0) return { success: false, error: 'No file provided' };

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
 import { checkModeration } from '@/lib/moderation-policy';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 
 /**
  * KAN-181: server actions for `profile_conversation_starters`.
@@ -27,6 +28,7 @@ const ANSWER_MAX = 500;
 interface AuthedRequest {
   supabase: Awaited<ReturnType<typeof createClient>>;
   profileId: string;
+  userId: string;
 }
 
 async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
@@ -39,7 +41,7 @@ async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
     .eq('user_id', user.id)
     .single();
   if (!profile) return { error: 'No profile for current user' };
-  return { supabase, profileId: profile.id as string };
+  return { supabase, profileId: profile.id as string, userId: user.id };
 }
 
 export async function addConversationStarter(input: {
@@ -48,7 +50,11 @@ export async function addConversationStarter(input: {
 }): Promise<ActionResult> {
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
-  const { supabase, profileId } = authed;
+  const { supabase, profileId, userId } = authed;
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(userId);
+  if (!rl.allowed) return rl.result;
 
   // UUID-ish sanity check on the prompt_id — DB will FK-validate either
   // way, but a clear application-level error is friendlier than a 22P02.
@@ -96,7 +102,11 @@ export async function updateConversationStarter(
 ): Promise<ActionResult> {
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
-  const { supabase, profileId } = authed;
+  const { supabase, profileId, userId } = authed;
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(userId);
+  if (!rl.allowed) return rl.result;
 
   const cleaned = sanitiseText(answer ?? '').slice(0, ANSWER_MAX);
   if (cleaned.trim().length === 0) {

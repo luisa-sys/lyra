@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { coerceVisibility } from './visibility';
 import {
   validateFileMagicBytes,
@@ -60,6 +61,10 @@ export async function uploadProfileFile(formData: FormData): Promise<ActionResul
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
   const { user, supabase, profileId } = authed;
+
+  // KAN-231 — profile-save rate limiting (file uploads are expensive — cap them).
+  const rl = await checkProfileWriteRateLimit(user.id);
+  if (!rl.allowed) return rl.result;
 
   const file = formData.get('file');
   if (!(file instanceof File)) {

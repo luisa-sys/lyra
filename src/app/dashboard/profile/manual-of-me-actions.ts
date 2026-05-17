@@ -21,6 +21,7 @@ import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
 import { checkModeration } from '@/lib/moderation-policy';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
@@ -40,6 +41,10 @@ export async function updateManualOfMe(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Not authenticated' };
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user.id);
+  if (!rl.allowed) return rl.result;
 
   // 1. Allowlist enforcement — collect ALL rejected keys for a useful error.
   const rejected: string[] = [];
