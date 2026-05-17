@@ -44,7 +44,13 @@ import {
   addExternalLink,
   removeExternalLink,
   publishProfile,
+  updateSectionVisibility,
 } from './actions';
+import {
+  isControllableSectionKey,
+  coerceSectionVisibility,
+  type SectionVisibility,
+} from './section-visibility';
 import {
   ItemsStep,
   LinksStep,
@@ -146,6 +152,13 @@ export function EditProfileForm({
     });
   };
 
+  // KAN-234: derived once per render — section visibility defaults the
+  // section-header toggles display. Defence in depth: coerceSectionVisibility
+  // drops unknown keys/values from the JSONB column.
+  const currentSectionVisibility: SectionVisibility = coerceSectionVisibility(
+    profile.section_visibility,
+  );
+
   const renderItemsSection = (
     sectionId: string,
     title: string,
@@ -241,20 +254,56 @@ export function EditProfileForm({
                 id={s.id}
                 className="bg-white rounded-lg border border-stone-200 overflow-hidden scroll-mt-4"
               >
-                <button
-                  type="button"
-                  aria-expanded={isOpen}
-                  aria-controls={`${s.id}-body`}
-                  onClick={() => toggleSection(s.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-stone-50 transition-colors"
-                >
-                  <span className="text-base font-medium text-[var(--color-ink)]">
-                    <span className="mr-2">{s.icon}</span> {s.label}
-                  </span>
-                  <span aria-hidden className="text-[var(--color-muted)] text-sm">
-                    {isOpen ? '▾' : '▸'}
-                  </span>
-                </button>
+                <div className="flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-controls={`${s.id}-body`}
+                    onClick={() => toggleSection(s.id)}
+                    className="flex items-center text-left flex-1 cursor-pointer"
+                  >
+                    <span className="text-base font-medium text-[var(--color-ink)]">
+                      <span className="mr-2">{s.icon}</span> {s.label}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* KAN-234: section-level visibility toggle for the 6
+                        controllable sections (likes / gifts / boundaries /
+                        books-media / causes-quotes / more). Items in these
+                        sections that have NULL visibility inherit this
+                        default at render time. */}
+                    {isControllableSectionKey(s.id) && (
+                      <label className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="sr-only">Visibility for {s.label}</span>
+                        <select
+                          value={currentSectionVisibility[s.id] ?? 'public'}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            startTransition(async () => {
+                              await updateSectionVisibility(s.id, next);
+                              router.refresh();
+                            });
+                          }}
+                          disabled={isPending}
+                          aria-label={`Section visibility for ${s.label}`}
+                          className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
+                        >
+                          <option value="public">🌍 Public</option>
+                          <option value="members_only">🔒 Members</option>
+                          <option value="draft">✏️ Draft</option>
+                        </select>
+                      </label>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(s.id)}
+                      aria-label={isOpen ? `Collapse ${s.label}` : `Expand ${s.label}`}
+                      className="text-[var(--color-muted)] text-sm px-1"
+                    >
+                      {isOpen ? '▾' : '▸'}
+                    </button>
+                  </div>
+                </div>
                 {isOpen && (
                   <div id={`${s.id}-body`} className="px-4 pb-5 pt-1 border-t border-stone-200">
                     {s.id === 'basic-info' && <BasicInfoSection profile={profile} />}
