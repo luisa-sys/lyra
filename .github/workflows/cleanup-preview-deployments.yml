@@ -1,0 +1,178 @@
+# KAN-237 — Auto-delete Vercel preview deployments when a PR closes.
+#
+# Why this exists:
+#   After KAN-82/KAN-85 closed out, Vercel Authentication was disabled
+#   project-wide so that Cloudflare Access could be the sole gate on
+#   stage.checklyra.com and beta.checklyra.com. Side effect: every PR
+#   preview URL Vercel generates is now publicly viewable to anyone
+#   holding the link, and Vercel keeps every SHA-pinned deployment URL
+#   live indefinitely on the Pro plan. This workflow deletes both the
+#   branch-alias and SHA-pinned URLs as soon as the PR closes (merged
+#   or abandoned), closing the long-tail exposure.
+#
+# Residual risk for OPEN PRs is tracked under BUGS-22.
+#
+# Required secrets (already present in luisa-sys/lyra):
+#   - VERCEL_TOKEN      (scope: luisa-sys team only; rotate every 90 days)
+#   - VERCEL_ORG_ID     (= team ID)
+#   - VERCEL_PROJECT_ID
+#
+# Behavior:
+#   - On pull_request: closed (any close, including merge), look up
+#     every Vercel deployment for the PR's head branch and DELETE it.
+#   - If zero deployments are found, log a GitHub ::warning:: and exit 0
+#     (this is fine — not every PR generates a Vercel preview).
+#   - If the Vercel API errors, fail loud with a ::error:: annotation.
+#   - Branch names are validated against ^[A-Za-z0-9._/-]+$ before being
+#     sent to the Vercel API, defense against odd branch names.
+
+name: Cleanup preview deployments
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate branch name
+        id: branch
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PR_BRANCH}" ]]; then
+            echo "::error::PR head ref is empty — refusing to proceed"
+            exit 1
+          fi
+          # Only allow GitHub-permitted branch-name chars. Defense
+          # against shell-injection via odd branch names.
+          if ! [[ "${PR_BRANCH}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::PR head ref contains disallowed characters: ${PR_BRANCH}"
+            exit 1
+          fi
+          echo "branch=${PR_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Will clean up deployments for branch: ${PR_BRANCH}"
+
+      - name: Delete Vercel preview deployments for branch
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PR_BRANCH: ${{ steps.branch.outputs.branch }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_TOKEN}" || -z "${VERCEL_ORG_ID}" || -z "${VERCEL_PROJECT_ID}" ]]; then
+            echo "::error::One or more Vercel secrets (VERCEL_TOKEN/VERCEL_ORG_ID/VERCEL_PROJECT_ID) are missing"
+            exit 1
+          fi
+
+          echo "PR #${PR_NUMBER} closed (merged=${PR_MERGED}). Looking up Vercel deployments for branch '${PR_BRANCH}'..."
+
+          # Paginate through deployments and collect IDs whose
+          # meta.githubCommitRef matches the PR branch. Vercel returns
+          # at most 100 per page; we use the documented `until` cursor
+          # (millisecond epoch) to walk older pages. Cap at 10 pages =
+          # 1000 deployments — any branch with more than that has
+          # bigger problems than cleanup latency.
+          IDS=()
+          UNTIL=""
+          PAGE=0
+          MAX_PAGES=10
+          while [[ "${PAGE}" -lt "${MAX_PAGES}" ]]; do
+            PAGE=$((PAGE + 1))
+            URL="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=100"
+            if [[ -n "${UNTIL}" ]]; then
+              URL="${URL}&until=${UNTIL}"
+            fi
+
+            RESPONSE=$(curl -sf \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "${URL}") || {
+                echo "::error::Vercel API list call failed (page ${PAGE}). URL: ${URL}"
+                exit 1
+              }
+
+            # Extract deployment IDs whose meta.githubCommitRef matches.
+            # Also extract the oldest 'createdAt' on this page for the
+            # next pagination cursor.
+            PAGE_IDS=$(echo "${RESPONSE}" | python3 -c "
+          import json, sys
+          want = '${PR_BRANCH}'
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              meta = d.get('meta', {}) or {}
+              if meta.get('githubCommitRef') == want:
+                  print(d['uid'])
+          ")
+            if [[ -n "${PAGE_IDS}" ]]; then
+              while IFS= read -r id; do
+                IDS+=("${id}")
+              done <<< "${PAGE_IDS}"
+            fi
+
+            # Compute next cursor = oldest createdAt on this page minus 1ms.
+            NEXT_UNTIL=$(echo "${RESPONSE}" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          deps = data.get('deployments', [])
+          if not deps:
+              print('')
+          else:
+              ts = min(int(d.get('createdAt', 0)) for d in deps)
+              print(ts - 1 if ts else '')
+          ")
+            COUNT=$(echo "${RESPONSE}" | python3 -c "
+          import json, sys
+          print(len(json.load(sys.stdin).get('deployments', [])))
+          ")
+
+            if [[ "${COUNT}" -lt 100 || -z "${NEXT_UNTIL}" ]]; then
+              # Fewer than a full page = exhausted.
+              break
+            fi
+            UNTIL="${NEXT_UNTIL}"
+          done
+
+          TOTAL=${#IDS[@]}
+          echo "Found ${TOTAL} deployment(s) for branch '${PR_BRANCH}'."
+
+          if [[ "${TOTAL}" -eq 0 ]]; then
+            echo "::warning::No Vercel deployments found for branch '${PR_BRANCH}'. Either this PR never produced a preview, or they were already deleted. Nothing to do."
+            exit 0
+          fi
+
+          DELETED=0
+          FAILED=0
+          for ID in "${IDS[@]}"; do
+            # v13 is the documented DELETE endpoint as of 2026.
+            HTTP=$(curl -s -o /tmp/vercel_del_response -w '%{http_code}' \
+              -X DELETE \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_ORG_ID}") || HTTP="000"
+
+            if [[ "${HTTP}" == "200" || "${HTTP}" == "202" || "${HTTP}" == "204" ]]; then
+              echo "  ✓ deleted ${ID}"
+              DELETED=$((DELETED + 1))
+            else
+              echo "::error::Failed to delete ${ID} (HTTP ${HTTP}): $(cat /tmp/vercel_del_response 2>/dev/null || echo '<no body>')"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo ""
+          echo "Cleanup summary for branch '${PR_BRANCH}': ${DELETED} deleted, ${FAILED} failed (total ${TOTAL})."
+
+          if [[ "${FAILED}" -gt 0 ]]; then
+            echo "::error::${FAILED} deployment(s) failed to delete — see log above."
+            exit 1
+          fi

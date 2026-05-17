@@ -69,7 +69,18 @@ jobs:
             # API rejects an empty `target`, so unbranched scopes need
             # the label and target equal (development:development:,
             # production:production:). gitBranch is empty for those.
-            echo "list=development:development:,preview:preview:develop,preview:preview:staging,preview:preview:beta,production:production:" >> "$GITHUB_OUTPUT"
+            #
+            # KAN-104 follow-up (2026-05-17 verification pass): the
+            # branch-scoped preview entries (preview:preview:develop|
+            # staging|beta) get IGNORED by the deploy-dev/staging/beta
+            # workflows because those call `vercel pull --environment=preview`
+            # WITHOUT a `--git-branch` flag, so they only see vars set on
+            # the un-scoped preview target. Adding a plain `preview:preview:`
+            # entry ensures the SDK env vars actually reach the build for
+            # all preview deploys, regardless of branch. The branch-scoped
+            # entries remain so a future deploy workflow that DOES pass
+            # `--git-branch` would still find them.
+            echo "list=development:development:,preview:preview:,preview:preview:develop,preview:preview:staging,preview:preview:beta,production:production:" >> "$GITHUB_OUTPUT"
           else
             echo "list=$requested" >> "$GITHUB_OUTPUT"
           fi
