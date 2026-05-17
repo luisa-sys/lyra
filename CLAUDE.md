@@ -228,6 +228,15 @@ The pipeline is: **develop → staging → beta → main** (promotion-based, fou
 - Commit and push only after verifying code compiles and tests pass
 - Cadence: at least one release/week to flush the chain (see `docs/RELEASE_POLICY.md`)
 
+### PR preview deployment lifecycle (KAN-237)
+
+- Every push to a PR branch generates a Vercel preview deployment with two URLs:
+  - A branch-alias URL (`lyra-git-<branch>-luisa-sys-projects.vercel.app`), which is repointed on each push.
+  - A SHA-pinned URL (`lyra-<deployhash>-luisa-sys-projects.vercel.app`), which is immutable.
+- Since the KAN-82/KAN-85 closeout (Vercel Authentication globally disabled in favour of Cloudflare Access on stage/beta), these preview URLs are **publicly viewable to anyone holding the link**. They are unguessable hashes but not gated.
+- The `.github/workflows/cleanup-preview-deployments.yml` workflow runs on every `pull_request: closed` event and deletes every Vercel deployment whose `meta.githubCommitRef` matches the PR's head branch — both URL types. Deletion is permanent; you cannot recover a preview after a PR closes.
+- Open-PR window risk (someone capturing a preview URL while the PR is still open) is tracked under BUGS-22; see that ticket for the residual risk model and Option A/B/C decision.
+
 ## Testing Requirements
 
 - All deployments to dev must pass unit and build tests
