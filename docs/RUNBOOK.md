@@ -107,6 +107,52 @@ curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
 
 Both SHAs should match. If they don't, suspect the CodeQL alert dashboard mismatch (alerts only auto-resolve against `main`'s state, may take 24h after merge to refresh).
 
+## Self-Healing Flows (KAN-233)
+
+The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.
+
+### Smoke-failure auto-rollback (Part A — shipped)
+
+**What fires it:** `promote-to-production.yml` `smoke-tests` job fails (post-deploy smoke against `checklyra.com` or `mcp.checklyra.com` returned an unexpected response).
+
+**What happens:**
+
+1. `auto-rollback` job runs (lives at the bottom of `promote-to-production.yml`).
+2. `scripts/rollback-to-sha.py` promotes the **pre-merge** SHA back to production on Vercel using the captured `verify-source.outputs.main_sha_before_merge`.
+3. An alert email is sent via Resend to `luisa@santos-stephens.com` with the SHA, the rollback step's outcome, and a link to the workflow run.
+
+**What you do when it fires:**
+
+1. Read the email. If status was `success`, production is back on the previous green SHA — proceed to step 2.
+2. Investigate the failing smoke test in the workflow run (linked from the email).
+3. Fix on `develop` → promote `develop → staging → beta` and verify the smoke test passes locally / on beta.
+4. Re-run `promote-to-production.yml` once you're confident.
+
+**If the rollback itself fails** (`status: failure` in the email): production is in an inconsistent state. Follow "Deployment Rollback → Via Vercel Dashboard" below to roll back manually, then file a Highest-priority BUGS ticket so the root-cause of the failed auto-rollback is fixed.
+
+**Reference:** BUGS-9 captured the original auto-rollback, KAN-233 added the alerting layer.
+
+### Tier-2 abuse-detection logging (Part of KAN-232, shipped)
+
+Every MCP request now writes a row to `public.mcp_tool_call_log` on the Supabase project the MCP server points at. Aggregated as `mcp_per_ip_recent_count` (rolling 1-hour count per IP). The MCP server gates this behind `MCP_TOOL_CALL_LOG_ENABLED=true` — default OFF; flip the env var on Railway per environment after the migration is promoted.
+
+To inspect:
+
+```sql
+-- Top noisy IPs in the last hour (on the relevant Supabase project)
+select ip, request_count, last_seen
+from public.mcp_per_ip_recent_count
+order by request_count desc limit 20;
+```
+
+### MCP restart on health-check failure (Part B — deferred, KAN-246)
+
+Not yet shipped. The current `health-check.yml` cron creates a GitHub issue on failure but does not auto-restart the Railway service. Tracked under KAN-246; needs a `RAILWAY_API_TOKEN` secret scoped to restart on the `lyra-mcp-server` project.
+
+### Cloudflare auto-block on abuse threshold (Part C — deferred, KAN-247)
+
+Not yet shipped. KAN-232 built the logging foundation; KAN-247 will consume `mcp_per_ip_recent_count` and add Cloudflare WAF rules for IPs over the threshold. Needs a `CLOUDFLARE_API_TOKEN` with `Zone WAF:Edit` on `checklyra.com`.
+
 ## Deployment Rollback
 
 ### Via Vercel Dashboard (recommended)
