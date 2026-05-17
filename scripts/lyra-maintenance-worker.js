@@ -279,7 +279,16 @@ export default {
       // block the approval flow.
       '/partners',
       '/auth/',
-      '/api/health'
+      '/api/health',
+      // KAN-184: the affiliate recommendation API needs to be reachable
+      // from outside the gate so the lyra-mcp-server (at mcp.checklyra.com)
+      // can call it server-side. Without this allowlist entry, the MCP
+      // server's fetch of /api/recommendations/v2/{slug} gets the
+      // "Coming Soon" HTML and falls back to legacy (v1) mode.
+      // V1 (/api/recommendations/{slug}) is covered by the same prefix so
+      // both endpoints work; both are read-only, public, and return data
+      // that's already public via /[slug] anyway.
+      '/api/recommendations/'
     ];
 
     const path = url.pathname;
