@@ -92,6 +92,20 @@ export type V2Recommendation = {
   score: number;
 };
 
+/** Top-level pipeline output — recommendations + telemetry meta. */
+export type PipelineResult = {
+  recommendations: V2Recommendation[];
+  /**
+   * True when the pipeline used the evergreen safe-default concepts
+   * because the profile was too sparse (V1 produced 0 concepts) OR no
+   * Tier-1/2/3 candidates were sourced from the user's concepts. Surfaced
+   * to consumers so the web UI can soften the heading ("Some thoughtful
+   * defaults" vs "Gift ideas for Anna") and reporting can track how
+   * often we fall back.
+   */
+  fellBackToEvergreen: boolean;
+};
+
 /** Inputs to the top-level pipeline call. */
 export type PipelineRequest = {
   /** The concepts V1 produced for this profile, in descending V1 score order. */

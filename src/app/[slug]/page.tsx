@@ -341,7 +341,7 @@ export default async function PublicProfilePage({ params }: Props) {
     tags: r.tags,
   }));
 
-  const v2Recommendations = await buildV2Recommendations({
+  const v2Result = await buildV2Recommendations({
     concepts: v2Concepts,
     buyerCountry,
     recipientCountry,
@@ -357,6 +357,8 @@ export default async function PublicProfilePage({ params }: Props) {
     recommendationId: `web-${typedProfile.id}`,
     limit: 5,
   });
+  const v2Recommendations = v2Result.recommendations;
+  const v2FellBackToEvergreen = v2Result.fellBackToEvergreen;
 
   const categoryLabels: Record<string, string> = {
     likes: 'Likes',
@@ -793,6 +795,7 @@ export default async function PublicProfilePage({ params }: Props) {
           <V2RecommendationsSection
             displayName={typedProfile.display_name}
             recommendations={v2Recommendations}
+            fellBackToEvergreen={v2FellBackToEvergreen}
           />
         ) : (
           <RecommendationsSection
