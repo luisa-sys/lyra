@@ -76,8 +76,15 @@ describe('KAN-143 — public profile page filters by visibility', () => {
   const pagePath = path.join(root, 'src/app/[slug]/page.tsx');
   const content = fs.readFileSync(pagePath, 'utf8');
 
-  test('imports the shared visibility filter', () => {
-    expect(content).toMatch(/import\s*{[^}]*filterItemsByVisibility[^}]*}/);
+  // KAN-234: filter helper switched to `isItemVisibleUnderHybridModel`
+  // (resolves item.visibility against the section default before applying
+  // the anonymous/authenticated test). The KAN-143 security guarantees are
+  // preserved — defence in depth still runs application-side. The DB-level
+  // `.in('visibility', …)` query filter is intentionally removed because
+  // the hybrid model needs to fetch NULL-visibility rows too (they inherit
+  // from the section default).
+  test('imports the hybrid visibility filter (KAN-234 replaces KAN-143 filter)', () => {
+    expect(content).toMatch(/import\s*{[^}]*isItemVisibleUnderHybridModel[^}]*}/);
   });
 
   test('checks viewer auth state before fetching items', () => {
@@ -85,16 +92,18 @@ describe('KAN-143 — public profile page filters by visibility', () => {
     expect(content).toMatch(/isAuthenticated/);
   });
 
-  test('fetches members_only for authenticated viewers, public-only otherwise', () => {
+  test('references the two visibility levels viewers can see', () => {
+    // 'draft' is never visible to viewers; the page renders 'public' for
+    // anonymous and 'public'+'members_only' for authenticated. KAN-234
+    // moved the filter from a DB query to an app-side call; the literal
+    // strings still appear in the page for the allowed-visibility list
+    // computation and for the section-default fallback.
     expect(content).toContain("'members_only'");
     expect(content).toContain("'public'");
-    // The narrow query filter uses .in('visibility', ...) so draft rows are
-    // never even returned by the DB.
-    expect(content).toMatch(/\.in\(\s*['"]visibility['"]/);
   });
 
-  test('applies application-level filter in addition to the DB query (defence in depth)', () => {
-    expect(content).toMatch(/filterItemsByVisibility\(/);
+  test('applies application-level filter via the hybrid helper (defence in depth, KAN-234)', () => {
+    expect(content).toMatch(/isItemVisibleUnderHybridModel\(/);
   });
 });
 
@@ -119,8 +128,11 @@ describe('KAN-143 — items step UI exposes visibility selector', () => {
     expect(content).not.toMatch(/value:\s*['"]private['"]/);
   });
 
-  test('default visibility for new items is "public"', () => {
-    expect(content).toMatch(/useState<string>\(['"]public['"]\)/);
+  test('default visibility for new items is "" (inherit from section default — KAN-234)', () => {
+    // KAN-234: new items default to '' (inherit) so they pick up whatever
+    // the user has set as the section visibility default. Existing items
+    // keep their stored value. Pre-KAN-234 this defaulted to 'public'.
+    expect(content).toMatch(/useState<string>\(['"]['"]\)/);
   });
 
   test('exposes an onUpdateVisibility callback so existing items can be re-classified', () => {
@@ -146,7 +158,12 @@ describe('KAN-143 — actions.ts wiring', () => {
   test('addProfileItem coerces visibility through the shared helper', () => {
     // No more raw `data.visibility || 'public'` — that would let an attacker
     // write any string into the column.
-    expect(content).toMatch(/visibility:\s*coerceVisibility\(/);
+    //
+    // KAN-234: the pattern is now wrapped in a ternary so empty/null values
+    // become NULL (= inherit from section). The security guarantee is
+    // unchanged: any non-empty value flows through coerceVisibility, which
+    // rejects strings outside the allowlist.
+    expect(content).toMatch(/coerceVisibility\(data\.visibility\)/);
     expect(content).not.toMatch(/visibility:\s*data\.visibility\s*\|\|\s*['"]public['"]/);
   });
 });

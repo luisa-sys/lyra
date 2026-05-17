@@ -11,7 +11,7 @@ export const metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; message?: string }>;
 }) {
   const params = await searchParams;
 
@@ -33,6 +33,14 @@ export default async function LoginPage({
         {params.error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
             {params.error}
+          </div>
+        )}
+
+        {/* KAN-225: post-reset confirmation message lands here (the
+            updateRecoveryPassword action redirects to /login?message=…). */}
+        {params.message && (
+          <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            {params.message}
           </div>
         )}
 
@@ -82,7 +90,15 @@ export default async function LoginPage({
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-[var(--color-muted)]">
+        {/* KAN-225: forgot-password escape hatch. Kept under the form
+            so users who know their password aren't distracted by it. */}
+        <p className="mt-4 text-center text-sm">
+          <Link href="/forgot-password" className="text-[var(--color-muted)] hover:text-[var(--color-sage)] hover:underline">
+            Forgot password?
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-sm text-[var(--color-muted)]">
           Don&apos;t have an account?{' '}
           <Link href="/signup" className="text-[var(--color-sage)] hover:underline">
             Create one
