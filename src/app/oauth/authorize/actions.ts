@@ -20,16 +20,7 @@ import { issueAuthCode } from '@/lib/oauth/codes';
 import { recordConsent } from '@/lib/oauth/consents';
 import { getOauthClient } from '@/lib/oauth/clients';
 import { buildSuccessRedirect, buildErrorRedirect } from '@/lib/oauth/authorize';
-
-export interface DecideInput {
-  client_id: string;
-  redirect_uri: string;
-  scope: string;
-  state: string;
-  code_challenge: string;
-  code_challenge_method: string;
-  decision: 'allow' | 'deny';
-}
+import type { DecideInput } from './types';
 
 export async function submitConsent(input: DecideInput): Promise<void> {
   // Re-validate the client + redirect URI on the action side. A
