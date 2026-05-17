@@ -14,6 +14,10 @@ export interface WizardProfile {
   delivery_country_code: string | null;
   is_published: boolean;
   avatar_url: string | null;
+  // KAN-234 / KAN-221: hybrid visibility. Per-section default ({} when
+  // unset) that items inherit when their own `visibility` is NULL.
+  // Keys live in `section-visibility.ts → CONTROLLABLE_SECTION_KEYS`.
+  section_visibility: Record<string, string> | null;
 }
 
 export interface WizardItem {
@@ -22,7 +26,10 @@ export interface WizardItem {
   title: string;
   description: string | null;
   url: string | null;
-  visibility: string;
+  // KAN-234 / KAN-221: nullable to allow "inherit from section default".
+  // Older rows from before KAN-221 always had an explicit value; new items
+  // default to NULL when the form chooses "Use section default".
+  visibility: string | null;
 }
 
 export interface WizardSchool {

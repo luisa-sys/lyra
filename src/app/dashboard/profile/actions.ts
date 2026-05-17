@@ -108,6 +108,14 @@ export async function addProfileItem(data: {
     sanitisedUrl = cleaned;
   }
 
+  // KAN-234: empty / null / undefined visibility → NULL in the DB, which
+  // means "inherit from section default" per the hybrid visibility model
+  // (see section-visibility.ts → getEffectiveItemVisibility). Otherwise
+  // coerce to one of the three real values (KAN-143).
+  const visibility = data.visibility && data.visibility !== ''
+    ? coerceVisibility(data.visibility)
+    : null;
+
   const { error } = await supabase
     .from('profile_items')
     .insert({
@@ -116,9 +124,7 @@ export async function addProfileItem(data: {
       title: sanitiseText(data.title, 200),
       description: data.description ? sanitiseText(data.description, 1000) : null,
       url: sanitisedUrl,
-      // Coerce to one of the allowed visibility levels — anything else falls
-      // back to 'public'. KAN-143.
-      visibility: coerceVisibility(data.visibility),
+      visibility,
     });
 
   if (error) return { success: false, error: error.message };
@@ -134,10 +140,17 @@ export async function updateProfileItemVisibility(
   if (authError) return { success: false, error: authError };
 
   // RLS confines the UPDATE to items the caller owns — no need to filter
-  // by user_id here. Coerce the input to one of the allowed levels.
+  // by user_id here.
+  //
+  // KAN-234: empty string → NULL = "inherit from section default" (hybrid
+  // visibility model). Otherwise coerce to one of the three real values.
+  const visibilityValue = visibility && visibility !== ''
+    ? coerceVisibility(visibility)
+    : null;
+
   const { error } = await supabase
     .from('profile_items')
-    .update({ visibility: coerceVisibility(visibility) })
+    .update({ visibility: visibilityValue })
     .eq('id', itemId);
 
   if (error) return { success: false, error: error.message };

@@ -5,7 +5,13 @@ import { Field, SaveButton, type WizardItem } from './types';
 
 // KAN-143 — UI-visible visibility levels. Keep in sync with
 // src/app/dashboard/profile/visibility.ts (VISIBILITY_LEVELS).
+//
+// KAN-234: extended with a 4th "inherit" option (value=''). When chosen,
+// the server writes NULL to profile_items.visibility, and the item's
+// effective visibility is computed from the section default at render
+// time (see section-visibility.ts → getEffectiveItemVisibility).
 const VISIBILITY_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '↗ Use section default' },
   { value: 'public', label: '🌍 Public — anyone with the link' },
   { value: 'members_only', label: '🔒 Members only — signed-in users' },
   { value: 'draft', label: '✏️ Draft — only you can see this' },
@@ -18,6 +24,9 @@ const visibilityShort: Record<string, string> = {
   // 'private' is the legacy enum value (pre-KAN-143). Render as draft.
   private: '✏️ Draft',
 };
+
+// KAN-234: short label for the NULL/inherit case in the per-item selector.
+const INHERIT_SHORT = '↗ Inherit';
 
 export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
@@ -34,7 +43,8 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   const [itemTitle, setItemTitle] = useState('');
   const [itemDesc, setItemDesc] = useState('');
   const [itemUrl, setItemUrl] = useState('');
-  const [itemVisibility, setItemVisibility] = useState<string>('public');
+  // KAN-234: new items default to '' (inherit from section default).
+  const [itemVisibility, setItemVisibility] = useState<string>('');
 
   const categoryLabels: Record<string, string> = {
     likes: '💚 Like', dislikes: '💔 Dislike',
@@ -62,7 +72,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     setItemTitle('');
     setItemDesc('');
     setItemUrl('');
-    setItemVisibility('public');
+    setItemVisibility(''); // KAN-234: reset to inherit
   };
 
   return (
@@ -99,13 +109,23 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
                 <select
                   id={`vis-${item.id}`}
                   aria-label={`Visibility for ${item.title}`}
-                  value={visibilityShort[item.visibility] ? item.visibility : 'public'}
+                  // KAN-234: NULL stored visibility → '' in the form = inherit.
+                  // Known string → its real value. Unknown string → 'public' (defence).
+                  value={
+                    item.visibility == null || item.visibility === ''
+                      ? ''
+                      : visibilityShort[item.visibility]
+                        ? item.visibility
+                        : 'public'
+                  }
                   onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
                   disabled={isPending}
                   className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
                 >
                   {VISIBILITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{visibilityShort[opt.value]}</option>
+                    <option key={opt.value || 'inherit'} value={opt.value}>
+                      {opt.value === '' ? INHERIT_SHORT : visibilityShort[opt.value]}
+                    </option>
                   ))}
                 </select>
                 <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
