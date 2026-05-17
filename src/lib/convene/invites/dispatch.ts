@@ -279,7 +279,7 @@ async function processOne(
 }
 
 export async function dispatchQueuedInvites(
-  opts: { batchSize?: number; concurrency?: number } = {}
+  opts: { batchSize?: number; concurrency?: number; hostUserId?: string } = {}
 ): Promise<DispatchSummary> {
   const sb = admin();
   const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
@@ -294,15 +294,40 @@ export async function dispatchQueuedInvites(
     errors: [],
   };
 
-  const { data: rows, error } = await sb
-    .from('gathering_invite_messages')
-    .select('id, gathering_id, invitee_id, channel, template_name')
-    .eq('delivery_status', 'queued')
-    .eq('channel', 'email')
-    .order('created_at', { ascending: true })
-    .limit(batchSize);
-  if (error) throw new Error(`queue scan failed: ${error.message}`);
-  const queue = [...((rows as QueuedRow[]) ?? [])];
+  // When hostUserId is given, narrow to that user's gatherings only.
+  // The MCP admin tool relies on this so one user can't drain another's queue.
+  let queuedRows: QueuedRow[];
+  if (opts.hostUserId) {
+    const { data: gatherings, error: gErr } = await sb
+      .from('gatherings')
+      .select('id')
+      .eq('host_user_id', opts.hostUserId)
+      .is('deleted_at', null);
+    if (gErr) throw new Error(`gathering scan failed: ${gErr.message}`);
+    const gatheringIds = (gatherings ?? []).map((g: { id: string }) => g.id);
+    if (gatheringIds.length === 0) return summary;
+    const { data, error } = await sb
+      .from('gathering_invite_messages')
+      .select('id, gathering_id, invitee_id, channel, template_name')
+      .eq('delivery_status', 'queued')
+      .eq('channel', 'email')
+      .in('gathering_id', gatheringIds)
+      .order('created_at', { ascending: true })
+      .limit(batchSize);
+    if (error) throw new Error(`queue scan failed: ${error.message}`);
+    queuedRows = (data as QueuedRow[]) ?? [];
+  } else {
+    const { data, error } = await sb
+      .from('gathering_invite_messages')
+      .select('id, gathering_id, invitee_id, channel, template_name')
+      .eq('delivery_status', 'queued')
+      .eq('channel', 'email')
+      .order('created_at', { ascending: true })
+      .limit(batchSize);
+    if (error) throw new Error(`queue scan failed: ${error.message}`);
+    queuedRows = (data as QueuedRow[]) ?? [];
+  }
+  const queue = [...queuedRows];
   summary.scanned = queue.length;
 
   const workers: Promise<void>[] = [];
