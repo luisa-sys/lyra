@@ -1,5 +1,11 @@
 {
   "github": {
     "enabled": false
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/convene/cron/token-health",
+      "schedule": "30 3 * * *"
+    }
+  ]
 }
