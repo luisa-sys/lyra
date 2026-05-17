@@ -142,7 +142,7 @@ export async function GET(
   const budgetMaxMinor = parseIntegerParam(url.searchParams.get('budget_max'));
 
   // 4. Build V2 recommendations.
-  const recommendations = await buildV2Recommendations({
+  const result = await buildV2Recommendations({
     concepts,
     buyerCountry,
     recipientCountry,
@@ -163,13 +163,15 @@ export async function GET(
       version: 'v2',
       buyerCountry,
       recipientCountry,
-      recommendations,
-      // The recommender will surface fewer than `limit` items if the curated
-      // catalogue + Sovrn (when live) can't satisfy more concepts. That's
-      // intentional — better to be sparse-but-accurate than padded.
+      recommendations: result.recommendations,
+      // The recommender's evergreen fallback (KAN-recommender) substitutes
+      // safe-default concepts when the buyer's own concepts produce zero
+      // candidates. Surfaced here so clients (web cards, MCP) can soften
+      // the heading or label the cards appropriately.
       meta: {
         conceptsConsidered: concepts.length,
         sovrnLive: !!process.env.SOVRN_API_KEY,
+        fellBackToEvergreen: result.fellBackToEvergreen,
       },
     },
     {
