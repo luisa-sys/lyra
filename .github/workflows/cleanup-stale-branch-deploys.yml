@@ -166,6 +166,11 @@ jobs:
           scoped_branches = {"develop", "staging", "beta"}
           with open("${ALL_PATH}") as f:
               all_deps = json.load(f)
+          # Vercel's v6 /deployments list returns the unique deployment
+          # identifier as "uid". Other endpoints use "id". Accept either,
+          # preferring "uid" because that's what /v6 actually emits.
+          def dep_id(d):
+              return d.get("uid") or d.get("id")
           # Identify newest deploy per scoped branch (rollback carve-out).
           newest_per_branch = {}
           for d in all_deps:
@@ -178,20 +183,20 @@ jobs:
               cur = newest_per_branch.get(ref)
               if cur is None or created > int(cur.get("createdAt", 0)):
                   newest_per_branch[ref] = d
-          newest_ids = {v["id"] for v in newest_per_branch.values()}
+          newest_ids = {dep_id(v) for v in newest_per_branch.values() if dep_id(v)}
 
           for d in all_deps:
               meta = d.get("meta") or {}
               ref = meta.get("githubCommitRef")
               created = int(d.get("createdAt", 0))
-              age_days = (1000 * 60 * 60 * 24)
               age_days = max(0, ( ${NOW_MS} - created) // 86400000)
+              this_id = dep_id(d)
               decision = None
               if d.get("target") == "production":
                   decision = "keep-prod"
               elif ref not in scoped_branches:
                   decision = "keep-out-of-scope"
-              elif d["id"] in newest_ids:
+              elif this_id in newest_ids:
                   decision = "keep-newest"
               else:
                   aliases = d.get("alias") or []
@@ -202,7 +207,7 @@ jobs:
                   else:
                       decision = "delete"
               print(json.dumps({
-                  "id": d["id"],
+                  "id": this_id,
                   "branch": ref or "(none)",
                   "target": d.get("target"),
                   "decision": decision,
