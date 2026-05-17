@@ -6,6 +6,10 @@
     {
       "path": "/api/convene/cron/token-health",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/convene/cron/send-invites",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
