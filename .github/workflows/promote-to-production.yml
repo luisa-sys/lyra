@@ -86,7 +86,16 @@ jobs:
 
           # BUGS-4: filter by headSha to avoid matching stale runs.
           # KAN-175: source is now `beta` and CI workflow is `deploy-beta.yml`.
-          MAX_ATTEMPTS=10
+          # BUGS-20 (2026-05-17): budget raised 10→30 attempts. Beta CI
+          # (build + lint + unit + audit + deploy) typically takes 3–5
+          # minutes. With sleep 15s the previous 10-attempt budget gave
+          # only 150s, which was tight enough that a same-day chain
+          # promote often timed out on the first try. 30 attempts × 15s
+          # = 7.5 min budget — comfortably covers a normal beta CI run
+          # without making real failures wait unreasonably long. If beta
+          # CI ever genuinely takes >7.5 min, fix the build, not this
+          # budget.
+          MAX_ATTEMPTS=30
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
