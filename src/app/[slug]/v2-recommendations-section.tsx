@@ -27,15 +27,29 @@ interface V2RecommendationsSectionProps {
   displayName: string;
   /** Output of the V2 pipeline. */
   recommendations: V2Recommendation[];
+  /**
+   * True when the pipeline used evergreen safe-default concepts because
+   * the profile was too sparse / no Tier-1 catalogue matches. Softens
+   * the section heading + copy so viewers know these aren't tailored.
+   */
+  fellBackToEvergreen?: boolean;
 }
 
 export default function V2RecommendationsSection({
   displayName,
   recommendations,
+  fellBackToEvergreen = false,
 }: V2RecommendationsSectionProps) {
   if (recommendations.length === 0) return null;
 
   const first = displayName.split(/\s+/)[0] ?? displayName;
+
+  const heading = fellBackToEvergreen
+    ? 'A few thoughtful defaults'
+    : `Gift ideas for ${first}`;
+  const subhead = fellBackToEvergreen
+    ? `${first}'s profile is light on detail, so these are safe defaults rather than tailored picks. Lyra may earn a commission on some links — `
+    : `Selected based on ${first}’s profile. Lyra may earn a commission on some links — `;
 
   return (
     <section
@@ -47,11 +61,10 @@ export default function V2RecommendationsSection({
           id="v2-recommendations-heading"
           className="text-2xl font-medium text-[var(--color-ink)] font-[family-name:var(--font-serif)]"
         >
-          Gift ideas for {first}
+          {heading}
         </h2>
         <p className="text-sm text-[var(--color-muted)] mt-2">
-          Selected based on {first}&rsquo;s profile. Lyra may earn a commission on
-          some links &mdash;{' '}
+          {subhead}
           <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
             see how this works
           </Link>
