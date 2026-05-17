@@ -151,26 +151,78 @@ jobs:
             exit 0
           fi
 
+          # Vercel's DELETE endpoint enforces a "now-rm" rate limit of 200
+          # per 10 minutes. PR-close cleanup rarely hits 200 (one PR's
+          # worth of previews is usually <50), but we add the same backoff
+          # as the daily cron for consistency. Tracked under KAN-240.
+
+          # Helper: parse rate-limit reset epoch from response body on stdin,
+          # write wait seconds to stdout (capped at 900s).
+          cat > /tmp/wait_seconds.py <<'WS_PY'
+          import json, sys, time, math
+          try:
+              body = json.load(sys.stdin)
+              reset_ms = (body.get("error") or {}).get("limit", {}).get("reset", 0)
+              if not reset_ms:
+                  print(60)
+              else:
+                  now_ms = int(time.time() * 1000)
+                  delta_s = math.ceil((reset_ms - now_ms) / 1000.0) + 5
+                  print(min(max(delta_s, 5), 900))
+          except Exception:
+              print(60)
+          WS_PY
+
           DELETED=0
           FAILED=0
-          for ID in "${IDS[@]}"; do
-            # v13 is the documented DELETE endpoint as of 2026.
-            HTTP=$(curl -s -o /tmp/vercel_del_response -w '%{http_code}' \
+          RATE_LIMITED=0
+          RETRY_SUCCEEDED=0
+          RETRY_FAILED=0
+
+          do_delete() {
+            local id="$1"
+            local http
+            http=$(curl -s -o /tmp/vercel_del_response -w '%{http_code}' \
               -X DELETE \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_ORG_ID}") || HTTP="000"
+              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_ORG_ID}") || http="000"
+            echo "${http}"
+          }
+
+          for ID in "${IDS[@]}"; do
+            HTTP=$(do_delete "${ID}")
 
             if [[ "${HTTP}" == "200" || "${HTTP}" == "202" || "${HTTP}" == "204" ]]; then
               echo "  ✓ deleted ${ID}"
               DELETED=$((DELETED + 1))
-            else
-              echo "::error::Failed to delete ${ID} (HTTP ${HTTP}): $(cat /tmp/vercel_del_response 2>/dev/null || echo '<no body>')"
-              FAILED=$((FAILED + 1))
+              continue
             fi
+
+            if [[ "${HTTP}" == "429" ]]; then
+              RATE_LIMITED=$((RATE_LIMITED + 1))
+              WAIT_S=$(python3 /tmp/wait_seconds.py < /tmp/vercel_del_response)
+              echo "::warning::429 rate-limited on ${ID}; sleeping ${WAIT_S}s then retrying once"
+              sleep "${WAIT_S}"
+              RETRY_HTTP=$(do_delete "${ID}")
+              if [[ "${RETRY_HTTP}" == "200" || "${RETRY_HTTP}" == "202" || "${RETRY_HTTP}" == "204" ]]; then
+                echo "  ✓ deleted ${ID} (on retry)"
+                DELETED=$((DELETED + 1))
+                RETRY_SUCCEEDED=$((RETRY_SUCCEEDED + 1))
+              else
+                echo "::warning::retry of ${ID} still failed (HTTP ${RETRY_HTTP})"
+                RETRY_FAILED=$((RETRY_FAILED + 1))
+                FAILED=$((FAILED + 1))
+              fi
+              continue
+            fi
+
+            echo "::error::Failed to delete ${ID} (HTTP ${HTTP}): $(cat /tmp/vercel_del_response 2>/dev/null || echo '<no body>')"
+            FAILED=$((FAILED + 1))
           done
 
           echo ""
           echo "Cleanup summary for branch '${PR_BRANCH}': ${DELETED} deleted, ${FAILED} failed (total ${TOTAL})."
+          echo "Rate-limit handling: ${RATE_LIMITED} 429s, ${RETRY_SUCCEEDED} retries succeeded, ${RETRY_FAILED} retries failed"
 
           if [[ "${FAILED}" -gt 0 ]]; then
             echo "::error::${FAILED} deployment(s) failed to delete — see log above."

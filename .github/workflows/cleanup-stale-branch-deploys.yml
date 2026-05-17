@@ -274,29 +274,86 @@ jobs:
           fi
 
           # Live mode — execute deletes.
+          #
+          # Vercel's DELETE endpoint enforces a "now-rm" rate limit of 200
+          # deletes per 10 minutes (observed during KAN-238 first live run,
+          # 2026-05-17 — undocumented but visible in 429 response bodies).
+          # When we hit it, parse error.limit.reset (epoch ms), sleep
+          # until then (capped at 900s), and retry the same deletion
+          # once. Tracked under KAN-240.
+
+          # Helper script writes the rate-limit-reset wait seconds to stdout.
+          # Reads response body from stdin.
+          cat > /tmp/wait_seconds.py <<'WS_PY'
+          import json, sys, time, math
+          try:
+              body = json.load(sys.stdin)
+              reset_ms = (body.get("error") or {}).get("limit", {}).get("reset", 0)
+              if not reset_ms:
+                  print(60)
+              else:
+                  now_ms = int(time.time() * 1000)
+                  delta_s = math.ceil((reset_ms - now_ms) / 1000.0) + 5
+                  print(min(max(delta_s, 5), 900))
+          except Exception:
+              print(60)
+          WS_PY
+
+          RATE_LIMITED=0
+          RETRY_SUCCEEDED=0
+          RETRY_FAILED=0
+
+          do_delete() {
+            local id="$1"
+            local http
+            http=$(curl -s -o /tmp/del_resp -w '%{http_code}' \
+              -X DELETE \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_ORG_ID}") || http="000"
+            echo "${http}"
+          }
+
           while IFS= read -r line; do
             DECISION=$(echo "${line}" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['decision'])")
             if [[ "${DECISION}" != "delete" ]]; then
               continue
             fi
             ID=$(echo "${line}" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['id'])")
-            HTTP=$(curl -s -o /tmp/del_resp -w '%{http_code}' \
-              -X DELETE \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v13/deployments/${ID}?teamId=${VERCEL_ORG_ID}") || HTTP="000"
+            HTTP=$(do_delete "${ID}")
+
             if [[ "${HTTP}" == "200" || "${HTTP}" == "202" || "${HTTP}" == "204" ]]; then
               DELETED=$((DELETED + 1))
-            else
-              echo "::error::Failed to delete ${ID} (HTTP ${HTTP}): $(cat /tmp/del_resp 2>/dev/null || echo '<no body>')"
-              FAILED=$((FAILED + 1))
+              continue
             fi
+
+            if [[ "${HTTP}" == "429" ]]; then
+              RATE_LIMITED=$((RATE_LIMITED + 1))
+              WAIT_S=$(python3 /tmp/wait_seconds.py < /tmp/del_resp)
+              echo "::warning::429 rate-limited on ${ID}; sleeping ${WAIT_S}s then retrying once"
+              sleep "${WAIT_S}"
+              RETRY_HTTP=$(do_delete "${ID}")
+              if [[ "${RETRY_HTTP}" == "200" || "${RETRY_HTTP}" == "202" || "${RETRY_HTTP}" == "204" ]]; then
+                DELETED=$((DELETED + 1))
+                RETRY_SUCCEEDED=$((RETRY_SUCCEEDED + 1))
+              else
+                echo "::warning::retry of ${ID} still failed (HTTP ${RETRY_HTTP}); next cron will retry"
+                RETRY_FAILED=$((RETRY_FAILED + 1))
+                FAILED=$((FAILED + 1))
+              fi
+              continue
+            fi
+
+            echo "::error::Failed to delete ${ID} (HTTP ${HTTP}): $(cat /tmp/del_resp 2>/dev/null || echo '<no body>')"
+            FAILED=$((FAILED + 1))
           done < "${DEC_PATH}"
 
           echo ""
           echo "Live cleanup: ${DELETED} deleted, ${FAILED} failed (of ${SCHEDULED} scheduled)"
+          echo "Rate-limit handling: ${RATE_LIMITED} 429s, ${RETRY_SUCCEEDED} retries succeeded, ${RETRY_FAILED} retries failed"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Live deletes: ${DELETED}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Failed deletes: ${FAILED}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 429s encountered: ${RATE_LIMITED} (retries: ${RETRY_SUCCEEDED} ok, ${RETRY_FAILED} failed)" >> "$GITHUB_STEP_SUMMARY"
           if [[ "${FAILED}" -gt 0 ]]; then
             echo "::error::${FAILED} deployment(s) failed to delete"
             exit 1
