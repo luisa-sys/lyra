@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { checkModeration } from '@/lib/moderation-policy';
 
 /**
  * KAN-181: server actions for `profile_conversation_starters`.
@@ -60,6 +61,10 @@ export async function addConversationStarter(input: {
     return { success: false, error: 'Answer cannot be empty' };
   }
 
+  // KAN-241 — content moderation. Answers render on the public profile.
+  const mod = checkModeration(cleaned, 'public', 'profile_conversation_starters.answer');
+  if (!mod.ok) return { success: false, error: mod.error };
+
   const { error } = await supabase
     .from('profile_conversation_starters')
     .insert({
@@ -97,6 +102,10 @@ export async function updateConversationStarter(
   if (cleaned.trim().length === 0) {
     return { success: false, error: 'Answer cannot be empty' };
   }
+
+  // KAN-241 — content moderation, same as the add path.
+  const mod = checkModeration(cleaned, 'public', 'profile_conversation_starters.answer');
+  if (!mod.ok) return { success: false, error: mod.error };
 
   const { error } = await supabase
     .from('profile_conversation_starters')

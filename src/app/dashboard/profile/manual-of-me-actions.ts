@@ -20,6 +20,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { checkModeration } from '@/lib/moderation-policy';
 import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
@@ -70,6 +71,18 @@ export async function updateManualOfMe(
       success: false,
       error: `Field(s) not permitted: ${rejected.join(', ')}`,
     };
+  }
+
+  // 1b. KAN-241 — content moderation. Manual of Me fields appear on the
+  // public profile via [slug]/page.tsx, so 'public' fieldType applies.
+  // Moderate the sanitised text (post-strip, post-trim) so HTML wrappers
+  // can't hide profanity from the word-boundary matcher.
+  for (const [key, val] of Object.entries(sanitised)) {
+    if (!val) continue;
+    const mod = checkModeration(val, 'public', `profile_manual_of_me.${key}`);
+    if (!mod.ok) {
+      return { success: false, error: mod.error };
+    }
   }
 
   // 2. Resolve the owning profile (server-side, not client-supplied).
