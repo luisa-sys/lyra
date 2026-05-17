@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // KAN-88: OAuth 2.1 well-known discovery endpoints. Next.js doesn't route
+  // folder names starting with '.' reliably, so we serve the canonical
+  // /.well-known/* paths via internal /api/well-known/* routes.
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/oauth-authorization-server',
+        destination: '/api/well-known/oauth-authorization-server',
+      },
+    ];
+  },
   async headers() {
     return [
       {
