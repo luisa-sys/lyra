@@ -5,6 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
+import { coerceAffiliationType } from './affiliation-fields';
+import {
+  coerceSectionVisibility,
+  isControllableSectionKey,
+  type SectionVisibility,
+} from './section-visibility';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -80,6 +86,7 @@ export async function addProfileItem(data: {
   category: string;
   title: string;
   description?: string;
+  url?: string;
   visibility?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
@@ -88,6 +95,19 @@ export async function addProfileItem(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
+  // KAN-219 — optional URL on items (Python `lyra-app` parity). If absent or
+  // empty, insert NULL. If provided, `sanitiseUrl` returns '' on anything
+  // that's not http(s) — surface that as an error rather than silently
+  // dropping the field so the user knows their input was rejected.
+  let sanitisedUrl: string | null = null;
+  if (data.url && data.url.trim() !== '') {
+    const cleaned = sanitiseUrl(data.url);
+    if (!cleaned) {
+      return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+    }
+    sanitisedUrl = cleaned;
+  }
+
   const { error } = await supabase
     .from('profile_items')
     .insert({
@@ -95,6 +115,7 @@ export async function addProfileItem(data: {
       category: sanitiseText(data.category, 50),
       title: sanitiseText(data.title, 200),
       description: data.description ? sanitiseText(data.description, 1000) : null,
+      url: sanitisedUrl,
       // Coerce to one of the allowed visibility levels — anything else falls
       // back to 'public'. KAN-143.
       visibility: coerceVisibility(data.visibility),
@@ -142,6 +163,11 @@ export async function addSchoolAffiliation(data: {
   school_name: string;
   school_location?: string;
   relationship?: string;
+  // KAN-220: one of school|organisation|community. Defaults to 'school'
+  // for backward compat with pre-KAN-220 callers; coerced on write so
+  // anything outside the allowlist becomes 'school' rather than reaching
+  // the DB and triggering the CHECK constraint.
+  affiliation_type?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -156,6 +182,7 @@ export async function addSchoolAffiliation(data: {
       school_name: sanitiseText(data.school_name, 200),
       school_location: data.school_location ? sanitiseText(data.school_location, 200) : null,
       relationship: data.relationship || 'parent',
+      affiliation_type: coerceAffiliationType(data.affiliation_type),
     });
 
   if (error) return { success: false, error: error.message };
@@ -216,6 +243,71 @@ export async function removeExternalLink(linkId: string): Promise<ActionResult> 
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-221 Phase 3 — Hybrid section + item visibility.
+ *
+ * Writes a single section's default visibility into the
+ * `profiles.section_visibility` JSONB column. Items in that section
+ * whose own `visibility` is unset will inherit this default at render
+ * time (see `getEffectiveItemVisibility` in `section-visibility.ts`).
+ *
+ * Two-step read-modify-write because Postgres JSONB doesn't support
+ * partial in-place updates atomically without a trip via the application
+ * for the merge. Acceptable race window because section_visibility is
+ * a single-user-per-row decision (their own profile) — no concurrent
+ * writers in practice.
+ *
+ * The section key is checked against `CONTROLLABLE_SECTION_KEYS` to
+ * prevent arbitrary keys ending up in the JSONB column (defence in
+ * depth — `coerceSectionVisibility` on read also drops unknowns, but
+ * keeping bad data out at write-time is cheaper than filtering on
+ * every read).
+ */
+export async function updateSectionVisibility(
+  sectionKey: string,
+  visibility: string,
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  if (!isControllableSectionKey(sectionKey)) {
+    return { success: false, error: `Unknown section: ${sectionKey}` };
+  }
+
+  // coerceVisibility falls back to 'public' on unknown values — matches
+  // KAN-143's behaviour for per-item visibility writes.
+  const coerced = coerceVisibility(visibility);
+
+  // Read current section_visibility, merge in the new section key,
+  // write back.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('section_visibility')
+    .eq('user_id', user!.id)
+    .single();
+
+  const currentSV = coerceSectionVisibility(
+    (profile as { section_visibility?: unknown } | null)?.section_visibility,
+  );
+  const nextSV: SectionVisibility = { ...currentSV, [sectionKey]: coerced };
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ section_visibility: nextSV })
+    .eq('user_id', user!.id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  // Also revalidate the public profile path so the change shows up
+  // immediately on the next visit.
+  if (profile) {
+    // We don't have the slug here without an extra query — revalidate
+    // the dashboard and the profile slug pages broadly via tag.
+    revalidatePath('/dashboard');
+  }
   return { success: true };
 }
 

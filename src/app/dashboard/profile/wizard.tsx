@@ -38,6 +38,10 @@ const STEPS = [
   { id: 'likes', label: 'Likes & Dislikes', icon: '💚' },
   { id: 'gifts', label: 'Gift ideas', icon: '🎁' },
   { id: 'boundaries', label: 'Boundaries', icon: '🛑' },
+  // KAN-219: chip labels + section titles unchanged; the richer Python
+  // `lyra-app` copy is lifted onto each ItemsStep's `description` prop
+  // below, where the user actually reads it. Phase 2's single-page
+  // form will revisit the headings as part of the layout rewrite.
   { id: 'interests', label: 'Books & Media', icon: '📚' },
   { id: 'values', label: 'Causes & Quotes', icon: '💛' },
   { id: 'more', label: 'More about you', icon: '✨' },
@@ -157,7 +161,8 @@ export function ProfileWizard({
           }} isPending={isPending} />
         )}
         {step === 4 && (
-          <ItemsStep title="Likes & Dislikes" description="What do you love? What can't you stand?"
+          // KAN-219: lift richer Python `lyra-app` prompt.
+          <ItemsStep title="Likes & Dislikes" description="Tastes, interests, and favourites — plus the things you'd rather steer clear of."
             categories={['likes', 'dislikes']}
             items={items.filter((i) => ['likes', 'dislikes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
@@ -166,7 +171,8 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 5 && (
-          <ItemsStep title="Gift ideas" description="Help people find the perfect gift for you."
+          // KAN-219: lift richer Python `lyra-app` prompt.
+          <ItemsStep title="Gift ideas" description="Things you'd love to receive, luxuries you don't give yourself, things you can't have enough of — and gifts that aren't for you."
             categories={['gift_ideas', 'gifts_to_avoid']}
             items={items.filter((i) => ['gift_ideas', 'gifts_to_avoid'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
@@ -175,7 +181,9 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 6 && (
-          <ItemsStep title="Boundaries" description="Things people should know to respect your space."
+          // KAN-219: lift richer Python `lyra-app` prompt onto description;
+          // title kept as-is to keep nav/section heading consistent.
+          <ItemsStep title="Boundaries" description="Practical preferences, boundaries, and things that help people respect your space."
             categories={['boundaries', 'helpful_to_know']}
             items={items.filter((i) => ['boundaries', 'helpful_to_know'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
@@ -184,7 +192,9 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 7 && (
-          <ItemsStep title="Books & Media" description="Favourite books, movies, and series — the things that shaped you."
+          // KAN-219: lift richer Python `lyra-app` prompt onto description;
+          // title kept as-is to keep nav/section heading consistent.
+          <ItemsStep title="Books & Media" description="Books you love and the screen favourites that shaped you."
             categories={['favourite_books', 'favourite_media']}
             items={items.filter((i) => ['favourite_books', 'favourite_media'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
@@ -193,7 +203,9 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 8 && (
-          <ItemsStep title="Causes & Quotes" description="What matters to you — charities, causes, and words that resonate."
+          // KAN-219: lift richer Python `lyra-app` prompt onto description;
+          // title kept as-is to keep nav/section heading consistent.
+          <ItemsStep title="Causes & Quotes" description="Causes and charities you care about, and the words that resonate with you."
             categories={['causes', 'quotes']}
             items={items.filter((i) => ['causes', 'quotes'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
@@ -202,7 +214,11 @@ export function ProfileWizard({
             onNext={next} isPending={isPending} />
         )}
         {step === 9 && (
-          <ItemsStep title="More about you" description="What makes you proud, life hacks, questions you wish people asked, problems you're currently working on."
+          // KAN-219: lift richer Python `lyra-app` prompts. Combines the five
+          // Python sections (proud_of, life_hacks, questions, billboard,
+          // current_problems) under one wizard step; Phase 2 will split them
+          // out as collapsible blocks in the single-page form.
+          <ItemsStep title="More about you" description="What you're most proud of, life hacks worth sharing, places you'd recommend, questions you wish people asked, problems you're working on, and your billboard message."
             categories={['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems']}
             items={items.filter((i) => ['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems'].includes(i.category))}
             onAdd={(data) => { startTransition(async () => { await addProfileItem(data); router.refresh(); }); }}
