@@ -96,7 +96,17 @@ jobs:
 
           # Paginate through every deployment. Cap at 100 pages to prevent
           # runaway in pathological cases — 100 × 100 = 10 000 deploys.
+          #
+          # Implementation note: curl writes each page directly to a temp
+          # file and python reads it from disk. Earlier attempts that
+          # captured the response into a shell variable and interpolated
+          # it into a python heredoc broke when commit messages contained
+          # characters that conflicted with heredoc string-quoting (e.g.
+          # apostrophes inside ${RESP}). Files-on-disk avoid every
+          # quoting hazard.
           ALL_PATH=/tmp/vercel-deploys-all.json
+          PAGES_DIR=/tmp/vercel-pages
+          mkdir -p "${PAGES_DIR}"
           echo '[]' > "${ALL_PATH}"
           UNTIL=""
           PAGE=0
@@ -107,37 +117,44 @@ jobs:
             if [[ -n "${UNTIL}" ]]; then
               URL="${URL}&until=${UNTIL}"
             fi
-            RESP=$(curl -sf -H "Authorization: Bearer ${VERCEL_TOKEN}" "${URL}") || {
-              echo "::error::Vercel API list failed on page ${PAGE}"
+            PAGE_FILE="${PAGES_DIR}/page-${PAGE}.json"
+            HTTP=$(curl -s -o "${PAGE_FILE}" -w '%{http_code}' \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" "${URL}") || HTTP="000"
+            if [[ "${HTTP}" != "200" ]]; then
+              echo "::error::Vercel API list failed on page ${PAGE} (HTTP ${HTTP})"
               exit 1
-            }
-            # Append this page's deploys to the running array.
-            python3 - <<PY
-          import json
-          with open("${ALL_PATH}") as f:
+            fi
+            # Merge this page into the running list + extract the page count
+            # and next cursor in one python pass, never via shell interpolation.
+            ALL_PATH="${ALL_PATH}" PAGE_FILE="${PAGE_FILE}" \
+              python3 <<'PY' > /tmp/page-meta
+          import json, os
+          all_path = os.environ["ALL_PATH"]
+          page_path = os.environ["PAGE_FILE"]
+          with open(all_path) as f:
               acc = json.load(f)
-          page = json.loads('''${RESP}''').get("deployments", [])
+          with open(page_path) as f:
+              page = json.load(f).get("deployments", []) or []
           acc.extend(page)
-          with open("${ALL_PATH}", "w") as f:
+          with open(all_path, "w") as f:
               json.dump(acc, f)
+          count = len(page)
+          oldest = min((int(d.get("createdAt", 0)) for d in page), default=0)
+          next_until = oldest - 1 if (count and oldest) else ""
+          print(f"{count}|{next_until}")
           PY
-            COUNT=$(echo "${RESP}" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('deployments', [])))")
+            META=$(cat /tmp/page-meta)
+            COUNT="${META%%|*}"
+            NEXT_UNTIL="${META##*|}"
             if [[ "${COUNT}" -lt 100 ]]; then
               break
             fi
-            NEXT_UNTIL=$(echo "${RESP}" | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          deps = data.get('deployments', [])
-          ts = min(int(d.get('createdAt', 0)) for d in deps) if deps else 0
-          print(ts - 1 if ts else '')
-          ")
             if [[ -z "${NEXT_UNTIL}" ]]; then
               break
             fi
             UNTIL="${NEXT_UNTIL}"
           done
-          TOTAL=$(python3 -c "import json; print(len(json.load(open('${ALL_PATH}'))))")
+          TOTAL=$(ALL_PATH="${ALL_PATH}" python3 -c "import json,os; print(len(json.load(open(os.environ['ALL_PATH']))))")
           echo "Total deployments scanned: ${TOTAL}"
 
           # Compute the deletion decision per deploy. Emits JSON lines:

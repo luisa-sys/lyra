@@ -53,9 +53,48 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        # KAN-104 diagnostic: also pass --git-branch=develop so branch-scoped
+        # vars (if Vercel's CLI requires explicit branch context to pick them
+        # up) are guaranteed to be included alongside the unscoped preview
+        # vars. Revert once we know which Vercel CLI behaviour applies.
+        run: vercel pull --yes --environment=preview --git-branch=develop --token=${{ secrets.VERCEL_TOKEN }}
+      - name: DIAG (KAN-104) — inspect pulled env files for Sentry vars
+        # Diagnostic only — prints which files vercel pull produced and
+        # whether SENTRY-prefixed keys are present (values masked).
+        # Remove this step once Sentry is confirmed loading on dev.
+        run: |
+          set -euo pipefail
+          echo "::group::.vercel/ listing"
+          ls -la .vercel/ || echo "(no .vercel directory)"
+          echo "::endgroup::"
+          echo "::group::SENTRY keys in pulled env files (values masked)"
+          for f in .vercel/.env*.local .vercel/.env*; do
+            [ -f "$f" ] || continue
+            echo "--- $f ---"
+            grep -i "SENTRY\|IS_SENTRY" "$f" | sed 's/=.*$/=<value-redacted>/' || echo "(no SENTRY keys present)"
+          done
+          echo "::endgroup::"
       - name: Build project
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: DIAG (KAN-104) — inspect built bundle for the DSN string
+        # If the pulled env had the DSN but the built bundle doesn't,
+        # vercel build / next build is dropping it (Hypothesis B or C).
+        # If the pulled env didn't have it, vercel pull is the culprit.
+        run: |
+          set -euo pipefail
+          echo "::group::Search build output for DSN domain marker"
+          # The DSN ingestion host: o4511340602523648.ingest.de.sentry.io
+          # The leading numeric host segment is a stable fingerprint —
+          # if it's in the bundle, init code is wired up.
+          if grep -r "o4511340602523648" .vercel/output/ >/dev/null 2>&1; then
+            echo "✅ DSN marker found in built bundle"
+          else
+            echo "❌ DSN marker NOT in built bundle"
+            echo ""
+            echo "Top-level bundle structure (for context):"
+            ls -la .vercel/output/ 2>/dev/null || echo "(no .vercel/output)"
+          fi
+          echo "::endgroup::"
       - name: Deploy to Vercel
         id: deploy
         run: |
