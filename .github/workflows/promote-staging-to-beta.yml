@@ -55,7 +55,11 @@ jobs:
           echo "staging HEAD: $STAGING_SHA"
           echo "staging_sha=$STAGING_SHA" >> "$GITHUB_OUTPUT"
 
-          MAX_ATTEMPTS=10
+          # BUGS-20 (2026-05-17): budget raised 10→30 attempts. Staging CI
+          # takes 3–5 minutes; the prior 10×15s = 150s budget was tight
+          # enough to time out same-day promotes. 30×15s = 7.5 min is
+          # comfortable. Mirror of the fix on promote-to-production.yml.
+          MAX_ATTEMPTS=30
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))

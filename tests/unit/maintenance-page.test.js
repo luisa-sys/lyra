@@ -170,4 +170,14 @@ describe('KAN-129: Worker code file integrity', () => {
     const content = fs.readFileSync(workerPath, 'utf8');
     expect(content).toMatch(/allowedPaths\s*=\s*\[[\s\S]*?['"]\/partners['"][\s\S]*?\]/);
   });
+
+  // KAN-184: /api/recommendations/ must be in the worker allowlist so the
+  // lyra-mcp-server can call it server-side from mcp.checklyra.com.
+  // Without this entry the MCP server's fetch falls back to legacy v1 mode
+  // and AI assistants get raw profile data instead of monetised
+  // recommendations.
+  test('worker allowlist includes /api/recommendations/ (MCP server end-to-end)', () => {
+    const content = fs.readFileSync(workerPath, 'utf8');
+    expect(content).toMatch(/allowedPaths\s*=\s*\[[\s\S]*?['"]\/api\/recommendations\/['"][\s\S]*?\]/);
+  });
 });

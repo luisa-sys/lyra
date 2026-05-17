@@ -48,7 +48,11 @@ jobs:
           # previous (since-superseded) commit. The previous code took
           # --limit 1 unconditionally, which means a green run for an OLD
           # commit could mask CI failures or non-runs for the current HEAD.
-          MAX_ATTEMPTS=10
+          # BUGS-20 (2026-05-17): budget raised 10→30 attempts. Dev CI
+          # takes 3–5 minutes; the prior 10×15s = 150s budget was tight
+          # enough to time out same-day promotes. 30×15s = 7.5 min is
+          # comfortable. Mirror of the fix on promote-to-production.yml.
+          MAX_ATTEMPTS=30
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
