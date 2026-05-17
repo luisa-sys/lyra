@@ -428,6 +428,56 @@ These have caused real bugs. Read before making related changes:
 
 See `docs/ARCHITECTURE.md` for the full environment table. Three environments: dev, staging, production — each with independent Supabase projects, Vercel deployments, and DNS entries.
 
+## Smoke-testing MCP tools end-to-end
+
+Convene write-tools (and any future MCP tool) can be smoke-tested without leaving Claude Code, by combining three pieces:
+
+1. **The Claude Code MCP connector** (`mcp__9f554c80-…__lyra_*` namespace) — fast, type-safe, but the tool list is fetched at connector-start and **cached**. Newly-shipped tools (e.g. `lyra_send_invite`, `lyra_record_rsvp`) won't appear in this list until the connector is reconnected. Use this for tools that *are* in the cache: `lyra_list_my_gatherings`, `lyra_list_my_contacts`, `lyra_create_gathering`, `lyra_finalise_gathering`, `lyra_get_gathering`, etc.
+2. **Direct JSON-RPC POST to the MCP server** — bypasses the cached tool list. Works against `mcp-dev.checklyra.com` (dev MCP, dev Supabase project) or `mcp.checklyra.com` (prod), using the same Bearer API key auth. Use this for tools that were added since the connector last reconnected.
+3. **The Supabase MCP** (`mcp__0ad2c807-…__execute_sql`) — for direct DB reads (verifying a row updated, looking up auth.users IDs) and for seeding test data that has no MCP tool yet (e.g. inserting a contact + contact_methods row, since there is currently no `lyra_add_contact` tool).
+
+**The direct JSON-RPC call shape:**
+
+```bash
+curl -sS -N --max-time 30 \
+  -X POST https://mcp-dev.checklyra.com/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "lyra_send_invite",
+      "arguments": { "api_key": "lyra_…", "gathering_id": "…", "invitee_id": "…", "channel": "email" }
+    }
+  }'
+```
+
+The response is a single SSE `event: message` line whose `data:` is the same JSON-RPC envelope the connector returns. Parse the `result.content[0].text` to get the tool's payload.
+
+**Worked example — P5 invite send (2026-05-17):**
+
+1. `lyra_list_my_gatherings` (via connector) → confirms env + finds `0f4f8220-9cb6-…` (status=`live`, 0 invitees).
+2. Seed contact + email + invitee via Supabase MCP `execute_sql` (allowlisted email so the send-worker won't block it).
+3. `lyra_send_invite` via direct JSON-RPC (tool not in connector cache) → returns `message_id` + `rsvp_url`, row in `gathering_invite_messages` with `delivery_status=queued`.
+4. Wait for next `*/10` cron fire (Vercel `/api/convene/cron/send-invites` on develop).
+5. Re-query `gathering_invite_messages` via Supabase MCP → confirm `delivery_status=sent` + `external_message_id` populated; `gathering_events_log` shows a `gathering_invite_delivered` row.
+
+**Pre-requisites for a successful end-to-end:**
+
+- `CONVENE_ENABLED=true` on develop Vercel scope (the cron 404s otherwise).
+- `CONVENE_INVITE_ALLOWLIST` set on develop Vercel scope with the recipient address (or `*`). Missing/empty → every send blocked at the email-layer gate.
+- The sender domain on `CONVENE_INVITE_FROM_EMAIL` (default `invites@checklyra.com`) must be **verified in Resend** — otherwise Resend's API returns 422 and the row goes to `failed`.
+- Dev MCP API key (`lyra_…`) issued from `dev.checklyra.com/dashboard/settings`. Keys are env-scoped (BUGS-1 / Gotcha #19): a key from dev cannot auth against the prod MCP server and vice versa. Read-tools accept any key (no auth on read); write-tools enforce.
+
+**Vercel Cron does NOT fire on develop (or any Preview branch).** Cron jobs are scheduled only against Production deployments — by default that's `main`. So the cron at `/api/convene/cron/send-invites` will never invoke automatically on `develop`. To drive the dispatcher on dev there are two paths:
+
+1. **`lyra_drain_invite_queue` MCP tool** (preferred). Authenticated by the same API key as every other write tool; only drains the calling user's own gatherings. Calls `POST /api/convene/admin/drain-queue` on lyra under the hood. Use this for any manual smoke test — it works on dev without a Vercel cron, and on prod once Convene ships there.
+2. **Manual `curl` to `/api/convene/cron/send-invites`** with `Authorization: Bearer ${CRON_SECRET}`. Requires `CRON_SECRET` to be set on the relevant Vercel scope. Fine for one-off ops debugging; not the everyday tool.
+
+The cron route is still wired in `vercel.json` because Production (once Convene flips on) WILL want a periodic background drain — it's just inert on Preview, which is expected.
+
 ## Scheduled Workflows
 
 See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
