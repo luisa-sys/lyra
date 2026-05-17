@@ -191,8 +191,8 @@ function FatalError({ code, description }: { code: string; description: string }
       </p>
       <p style={{ color: '#555' }}>{description}</p>
       <p style={{ color: '#888', fontSize: 14, marginTop: 32 }}>
-        This usually means the app sending you here misconfigured its OAuth client. There's nothing
-        wrong with your Lyra account — just close this tab.
+        This usually means the app sending you here misconfigured its OAuth client. There&apos;s
+        nothing wrong with your Lyra account — just close this tab.
       </p>
     </main>
   );
