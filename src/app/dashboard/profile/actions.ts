@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
+import { coerceAffiliationType } from './affiliation-fields';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -157,6 +158,11 @@ export async function addSchoolAffiliation(data: {
   school_name: string;
   school_location?: string;
   relationship?: string;
+  // KAN-220: one of school|organisation|community. Defaults to 'school'
+  // for backward compat with pre-KAN-220 callers; coerced on write so
+  // anything outside the allowlist becomes 'school' rather than reaching
+  // the DB and triggering the CHECK constraint.
+  affiliation_type?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -171,6 +177,7 @@ export async function addSchoolAffiliation(data: {
       school_name: sanitiseText(data.school_name, 200),
       school_location: data.school_location ? sanitiseText(data.school_location, 200) : null,
       relationship: data.relationship || 'parent',
+      affiliation_type: coerceAffiliationType(data.affiliation_type),
     });
 
   if (error) return { success: false, error: error.message };

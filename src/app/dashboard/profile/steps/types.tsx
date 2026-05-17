@@ -30,6 +30,10 @@ export interface WizardSchool {
   school_name: string;
   school_location: string | null;
   relationship: string;
+  // KAN-220: one of school|organisation|community. Backward-compatible
+  // default — older rows from before migration 20260517010000 have this
+  // column with the default value 'school'.
+  affiliation_type: string;
 }
 
 export interface WizardLink {
