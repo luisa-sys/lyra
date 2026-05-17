@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase-browser';
 
 interface ConnectionRow {
@@ -74,12 +75,12 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
       <div className="bg-white rounded-xl border border-stone-200 p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">No connections yet</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">Connect a calendar so Lyra can help you find time for gatherings.</p>
-        <a
+        <Link
           href="/api/convene/oauth/google/initiate"
           className="inline-block px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90"
         >
           Connect Google
-        </a>
+        </Link>
       </div>
     );
   }
@@ -150,12 +151,12 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
       <div className="bg-white rounded-xl border border-stone-200 p-6">
         <h3 className="text-base font-medium text-[var(--color-ink)] mb-1">Connect another</h3>
         <p className="text-sm text-[var(--color-muted)] mb-4">More providers coming in Phase 7 (Microsoft, Apple, CalDAV).</p>
-        <a
+        <Link
           href="/api/convene/oauth/google/initiate"
           className="inline-block px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90"
         >
           Connect Google
-        </a>
+        </Link>
       </div>
     </div>
   );
