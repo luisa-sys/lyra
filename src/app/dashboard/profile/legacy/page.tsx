@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { EditProfileForm } from './edit-profile-form';
-import type { ManualOfMe } from './manual-of-me-fields';
+import { ProfileWizard } from '../wizard';
+import type { ManualOfMe } from '../manual-of-me-fields';
 
 export const metadata = {
-  title: 'Edit your profile — Lyra',
-  description: 'Set up your Lyra profile so people in your life can get to know you better.',
+  title: 'Edit your profile (legacy) — Lyra',
+  description: 'Step-by-step profile editor — kept for one release as a rollback path. The new single-page editor at /dashboard/profile is the default.',
+  robots: { index: false, follow: false },
 };
 
 const EMPTY_MANUAL_OF_ME: ManualOfMe = {
@@ -16,14 +17,15 @@ const EMPTY_MANUAL_OF_ME: ManualOfMe = {
 };
 
 /**
- * KAN-220 — single-page profile editor. Replaces the 14-step wizard,
- * which is preserved one route over at `/dashboard/profile/legacy` for
- * one release as a rollback path. Data fetching duplicated across both
- * routes by design (small price for keeping each route independent —
- * also matches `conversation_starter_prompts` / `profile_conversation_starters`
- * regression guard in `tests/unit/conversation-starters.test.ts`).
+ * KAN-220 — preserved legacy wizard route. The new single-page editor
+ * at `/dashboard/profile` is the default; this route exists for one
+ * release as a rollback path in case the new layout reveals a regression.
+ *
+ * Data fetching duplicated from `page.tsx` by design — see comment there.
+ *
+ * Will be removed in a follow-up after one stable release on prod.
  */
-export default async function ProfilePage() {
+export default async function LegacyProfilePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -76,8 +78,6 @@ export default async function ProfilePage() {
     .eq('profile_id', profile.id)
     .order('created_at', { ascending: true });
   const conversationAnswers = (starterRows ?? []).map((r) => {
-    // Supabase typegen sometimes flattens the joined row to an object,
-    // sometimes to an array — handle both shapes.
     const promptCandidate = r.prompt as unknown;
     const joinedPrompt = Array.isArray(promptCandidate)
       ? ((promptCandidate[0] as { prompt: string } | undefined)?.prompt ?? '')
@@ -91,7 +91,7 @@ export default async function ProfilePage() {
   });
 
   return (
-    <EditProfileForm
+    <ProfileWizard
       profile={profile}
       items={items || []}
       schools={schools || []}

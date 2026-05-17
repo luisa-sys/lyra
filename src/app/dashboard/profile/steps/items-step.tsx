@@ -21,7 +21,11 @@ const visibilityShort: Record<string, string> = {
 
 export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
-  onAdd: (data: { category: string; title: string; description?: string; visibility?: string }) => void;
+  // KAN-219 — items now carry an optional URL (Python `lyra-app` parity).
+  // Server-side `addProfileItem` runs the value through `sanitiseUrl`, which
+  // rejects anything not http(s). UI emits the trimmed string; empty is
+  // treated as "no URL".
+  onAdd: (data: { category: string; title: string; description?: string; url?: string; visibility?: string }) => void;
   onRemove: (id: string) => void;
   onUpdateVisibility: (id: string, visibility: string) => void;
   onNext: () => void; isPending: boolean;
@@ -29,6 +33,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   const [category, setCategory] = useState(categories[0]);
   const [itemTitle, setItemTitle] = useState('');
   const [itemDesc, setItemDesc] = useState('');
+  const [itemUrl, setItemUrl] = useState('');
   const [itemVisibility, setItemVisibility] = useState<string>('public');
 
   const categoryLabels: Record<string, string> = {
@@ -46,14 +51,17 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
 
   const handleAdd = () => {
     if (!itemTitle.trim()) return;
+    const trimmedUrl = itemUrl.trim();
     onAdd({
       category,
       title: itemTitle,
       ...(itemDesc ? { description: itemDesc } : {}),
+      ...(trimmedUrl ? { url: trimmedUrl } : {}),
       visibility: itemVisibility,
     });
     setItemTitle('');
     setItemDesc('');
+    setItemUrl('');
     setItemVisibility('public');
   };
 
@@ -70,6 +78,19 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--color-ink)]">
                   <span className="opacity-60">{categoryLabels[item.category] || item.category}</span> — {item.title}
+                  {/* KAN-219: ↗ chip when an item has a URL. Open in new tab
+                      with noopener+noreferrer to prevent tab-nabbing. */}
+                  {item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-1.5 text-xs text-[var(--color-sage)] hover:underline"
+                      aria-label={`Open link for ${item.title}`}
+                    >
+                      ↗
+                    </a>
+                  )}
                 </p>
                 {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
               </div>
@@ -111,6 +132,22 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
           <input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
             placeholder="Any extra detail" />
+        </div>
+        {/* KAN-219: optional URL on items (Python lyra-app parity).
+            Server-side sanitiseUrl rejects anything that's not http(s);
+            the user gets a clear error rather than silent drop. */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor="new-item-url">
+            Link (optional)
+          </label>
+          <input
+            id="new-item-url"
+            type="url"
+            value={itemUrl}
+            onChange={(e) => setItemUrl(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
+            placeholder="https://example.com/this-book"
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor="new-item-visibility">
