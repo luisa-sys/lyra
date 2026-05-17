@@ -416,6 +416,16 @@ These have caused real bugs. Read before making related changes:
 
     **Don't turn non-prod-branch builds back on** without re-doing the BUGS-19 work (find + fix the real build-failure root cause). The lyra-maintenance worker is a single static-HTML file; there's no value in building it on feature branches. Tracked under BUGS-19.
 
+21. **Vercel env var changes don't auto-redeploy preview branches**: When you add or update an env var on Vercel (e.g. via the dashboard) scoped to a specific git branch (`gitBranch=develop` on the Preview target), Vercel does NOT automatically redeploy the most recent build to pick it up. The dashboard has no "Redeploy with latest env" button for branch-scoped Preview deployments — only Production deploys can be redeployed from the UI. The new env value only flows into the running app on the **next push** to that branch.
+
+    Symptoms: you set `RESEND_API_KEY` / `OAUTH_JWT_SIGNING_SECRET` / similar, refresh the app, env var still reads undefined inside server-rendered routes or API functions.
+
+    **Fix when you can't push code**: open a tiny chore PR with a no-op change (touch a doc, bump a comment, add a changelog line) and merge it. The merge push triggers `deploy-develop.yml` (or equivalent), Vercel builds with the new env, the variable takes effect.
+
+    **Fix when CLI auth works**: use the Vercel REST API to trigger a redeploy on the latest preview deployment (POST `/v13/deployments` with `deploymentId` + `gitMetadata`). Mid-2026 the Vercel CLI auth token has been unstable (auto-invalidated between sessions), so a chore PR is often faster.
+
+    First hit: KAN-209 (2026-05-17) after adding `RESEND_API_KEY` to develop scope — invite dispatcher kept failing with `RESEND_API_KEY not set` until a doc-only chore PR triggered a redeploy. Second hit: KAN-88 (2026-05-17) `OAUTH_JWT_SIGNING_SECRET` — same fix. **Bake the chore-PR-to-redeploy pattern in any time you set a branch-scoped env var as part of getting a feature live on dev.**
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
