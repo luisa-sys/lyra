@@ -5,7 +5,16 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { env } from '@/lib/env';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
-import { filterItemsByVisibility } from '@/app/dashboard/profile/visibility';
+// KAN-234: replaced `filterItemsByVisibility` (KAN-143) with the
+// hybrid-visibility filter from `section-visibility.ts`. The new helper
+// resolves item.visibility against the section default before applying
+// the anonymous/authenticated test. The KAN-143 helper is still exported
+// (other modules and the unit suite use it directly) but isn't needed
+// here any more.
+import {
+  coerceSectionVisibility,
+  isItemVisibleUnderHybridModel,
+} from '@/app/dashboard/profile/section-visibility';
 import {
   isManualOfMeEmpty,
   type ManualOfMe,
@@ -60,6 +69,10 @@ interface ProfileData {
   country: string | null;
   is_published: boolean;
   avatar_url: string | null;
+  // KAN-234 / KAN-221: hybrid visibility — per-section defaults that items
+  // inherit when their own `visibility` is NULL. Already selected by the
+  // `*` query above; coerced via `coerceSectionVisibility` before use.
+  section_visibility: Record<string, string> | null;
 }
 
 interface ProfileItem {
@@ -71,7 +84,10 @@ interface ProfileItem {
   // selected by the `*` query; surfaced in the chip + Q&A rendering as a
   // clickable link when present.
   url: string | null;
-  visibility: string;
+  // KAN-234: nullable to allow "inherit from section default". When NULL,
+  // effective visibility comes from `profile.section_visibility[sectionKey]`
+  // — see `isItemVisibleUnderHybridModel`.
+  visibility: string | null;
 }
 
 interface SchoolAffiliation {
@@ -178,9 +194,18 @@ export default async function PublicProfilePage({ params }: Props) {
   const { data: { user: viewer } } = await cookieClient.auth.getUser();
   const isAuthenticated = viewer !== null;
 
-  // Fetch ALL non-draft visibility levels we might show, then filter in
-  // application code. This keeps the visibility decision in one place
-  // (`filterItemsByVisibility`) shared with the unit tests.
+  // KAN-234: with hybrid visibility, items with NULL `visibility` must
+  // ALSO be considered (they inherit from the section default — which
+  // could be 'public', 'members_only', or 'draft'). The previous
+  // `.in('visibility', ['public', 'members_only'])` query filter would
+  // wrongly exclude every NULL row, hiding inherited items. Fetch all,
+  // filter in application code via the hybrid helper. Per-profile item
+  // counts are bounded (low hundreds at most), so the extra rows are
+  // negligible.
+  //
+  // The non-item resources (profile_files, conversation_starters, etc.)
+  // still use the KAN-143 explicit-visibility query filter because they
+  // don't participate in the hybrid model.
   const allowedVisibility = isAuthenticated
     ? ['public', 'members_only']
     : ['public'];
@@ -189,14 +214,14 @@ export default async function PublicProfilePage({ params }: Props) {
     .from('profile_items')
     .select('*')
     .eq('profile_id', typedProfile.id)
-    .in('visibility', allowedVisibility)
     .order('created_at', { ascending: true });
 
-  // Defence in depth — apply the same filter in application code so a query
-  // bug, a future schema change, or a manually-edited row can't leak a draft.
-  const visibleItems = filterItemsByVisibility(
-    (items || []) as ProfileItem[],
-    isAuthenticated,
+  // KAN-234: defence in depth — application-side filter using the hybrid
+  // visibility model. `coerceSectionVisibility` drops unknown keys/values
+  // before we use the map, so a malformed JSONB cell can't leak items.
+  const sectionVisibility = coerceSectionVisibility(typedProfile.section_visibility);
+  const visibleItems = ((items || []) as ProfileItem[]).filter((item) =>
+    isItemVisibleUnderHybridModel(item, sectionVisibility, isAuthenticated),
   );
 
   const { data: schools } = await getSupabase()
