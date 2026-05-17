@@ -110,7 +110,7 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
           className="relative w-20 h-20 rounded-full overflow-hidden bg-[var(--color-sage)] flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50"
         >
           {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- preview is a FileReader data: URL or Supabase Storage public URL; not an asset that benefits from the Next/Image optimizer.
+            // eslint-disable-next-line @next/next/no-img-element -- KAN-220: preview is a FileReader data: URL or Supabase Storage public URL; not an asset that benefits from the Next/Image optimizer.
             <img src={preview} alt="Profile photo" className="w-full h-full object-cover" />
           ) : (
             <span className="text-2xl text-white font-[family-name:var(--font-serif)]">

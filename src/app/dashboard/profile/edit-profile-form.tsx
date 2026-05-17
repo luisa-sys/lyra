@@ -132,7 +132,7 @@ export function EditProfileForm({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.matchMedia('(max-width: 767px)').matches) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount-only matchMedia detection. Empty deps array prevents cascading renders; this is the standard pattern for hydration-time viewport-dependent state. Alternative (useSyncExternalStore) would also subscribe to viewport changes, which we deliberately don't want here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- KAN-220: one-time mount-only matchMedia detection. Empty deps array prevents cascading renders; this is the standard pattern for hydration-time viewport-dependent state. Alternative (useSyncExternalStore) would also subscribe to viewport changes, which we deliberately don't want here.
       setOpenSections(new Set([SECTIONS[0].id]));
     }
   }, []);

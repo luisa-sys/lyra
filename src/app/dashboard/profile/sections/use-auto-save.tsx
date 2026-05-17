@@ -64,7 +64,7 @@ export function useAutoSave<T>(
       }
     }, debounceMs);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveRef intentionally not a dep; see file comment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- KAN-220: saveRef intentionally not a dep; re-creating the save function on every parent render would otherwise re-trigger the effect. See file comment.
   }, [value, debounceMs]);
 
   return status;
