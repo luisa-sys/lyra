@@ -58,6 +58,20 @@
       "description": "Search published Lyra profiles",
       "url": "/search?source=pwa",
       "icons": [{ "src": "/lyra-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My gatherings",
+      "short_name": "Gatherings",
+      "description": "Convene — gatherings you're hosting",
+      "url": "/dashboard/convene/gatherings?source=pwa",
+      "icons": [{ "src": "/lyra-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calendar connections",
+      "short_name": "Calendars",
+      "description": "Manage your connected calendars",
+      "url": "/dashboard/convene/connections?source=pwa",
+      "icons": [{ "src": "/lyra-icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

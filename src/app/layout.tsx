@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieConsent } from "./cookie-consent";
 import { InstallPrompt } from "./install-prompt";
+import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -103,6 +104,7 @@ export default function RootLayout({
         {children}
         <CookieConsent />
         <InstallPrompt />
+        <ServiceWorkerRegister />
         <Analytics />
         <SpeedInsights />
       </body>
