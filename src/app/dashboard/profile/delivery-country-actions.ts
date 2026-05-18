@@ -24,6 +24,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { type ActionResult } from '@/lib/sanitise';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
 
 export async function updateDeliveryCountry(
@@ -34,6 +35,10 @@ export async function updateDeliveryCountry(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Not authenticated' };
+
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user.id);
+  if (!rl.allowed) return rl.result;
 
   // Normalise: trim, uppercase, restrict to supported allowlist.
   // null / empty after normalisation means "clear the field" — the recommender

@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
-import { checkModeration } from '@/lib/moderation-policy';
+import { moderateAndAudit } from '@/lib/moderation-audit';
+import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -47,6 +48,10 @@ export async function updateProfileFields(data: Record<string, string | boolean 
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-231 — profile-save rate limiting (KAN-63 Tier 2-D).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
   // Reject any key not in the allowlist — prevents remote property injection.
   // We collect rejected keys rather than failing on the first one so the
   // error message is useful for debugging legitimate callers.
@@ -67,14 +72,21 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     };
   }
 
-  // KAN-241 — content moderation. Runs AFTER sanitiseText so the moderator
-  // sees the post-strip text (a profanity inside <script>profanity</script>
-  // gets stripped to plain `profanity` first, then caught). Public field
-  // type for everything in `profiles` (display_name, bio_short, etc all
-  // appear on the public profile page).
+  // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
+  // Runs AFTER sanitiseText so the moderator sees the post-strip text
+  // (a profanity inside <script>profanity</script> gets stripped to plain
+  // `profanity` first, then caught). All `profiles` fields are 'public'.
+  const profile = await getUserProfile(supabase, user!.id);
+  const profileId = profile?.id ?? null;
   for (const [key, val] of Object.entries(sanitised)) {
     if (typeof val !== 'string') continue;
-    const mod = checkModeration(val, 'public', `profiles.${key}`);
+    const mod = await moderateAndAudit(supabase, {
+      text: val,
+      fieldType: 'public',
+      field: `profiles.${key}`,
+      profileId,
+      source: 'web_app',
+    });
     if (!mod.ok) {
       return { success: false, error: mod.error };
     }
@@ -106,6 +118,10 @@ export async function addProfileItem(data: {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
@@ -130,17 +146,27 @@ export async function addProfileItem(data: {
     ? coerceVisibility(data.visibility)
     : null;
 
-  // KAN-241 — content moderation on profile-item text fields. Sanitise
-  // first, then moderate the cleaned text. Profile items render on the
-  // public profile, so 'public' fieldType applies.
+  // KAN-241 + KAN-244 — content moderation + audit log on item text fields.
   const sanitisedTitle = sanitiseText(data.title, 200);
   const sanitisedDesc = data.description
     ? sanitiseText(data.description, 1000)
     : null;
-  const titleMod = checkModeration(sanitisedTitle, 'public', 'profile_items.title');
+  const titleMod = await moderateAndAudit(supabase, {
+    text: sanitisedTitle,
+    fieldType: 'public',
+    field: 'profile_items.title',
+    profileId: profile.id,
+    source: 'web_app',
+  });
   if (!titleMod.ok) return { success: false, error: titleMod.error };
   if (sanitisedDesc) {
-    const descMod = checkModeration(sanitisedDesc, 'public', 'profile_items.description');
+    const descMod = await moderateAndAudit(supabase, {
+      text: sanitisedDesc,
+      fieldType: 'public',
+      field: 'profile_items.description',
+      profileId: profile.id,
+      source: 'web_app',
+    });
     if (!descMod.ok) return { success: false, error: descMod.error };
   }
 
@@ -213,18 +239,35 @@ export async function addSchoolAffiliation(data: {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
-  // KAN-241 — content moderation. Affiliations show on the public profile.
+  // KAN-241 + KAN-244 — content moderation + audit log. Affiliations
+  // show on the public profile.
   const sanitisedName = sanitiseText(data.school_name, 200);
   const sanitisedLoc = data.school_location
     ? sanitiseText(data.school_location, 200)
     : null;
-  const nameMod = checkModeration(sanitisedName, 'public', 'school_affiliations.school_name');
+  const nameMod = await moderateAndAudit(supabase, {
+    text: sanitisedName,
+    fieldType: 'public',
+    field: 'school_affiliations.school_name',
+    profileId: profile.id,
+    source: 'web_app',
+  });
   if (!nameMod.ok) return { success: false, error: nameMod.error };
   if (sanitisedLoc) {
-    const locMod = checkModeration(sanitisedLoc, 'public', 'school_affiliations.school_location');
+    const locMod = await moderateAndAudit(supabase, {
+      text: sanitisedLoc,
+      fieldType: 'public',
+      field: 'school_affiliations.school_location',
+      profileId: profile.id,
+      source: 'web_app',
+    });
     if (!locMod.ok) return { success: false, error: locMod.error };
   }
 
@@ -265,17 +308,27 @@ export async function addExternalLink(data: {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-231 — profile-save rate limiting.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
   const sanitisedUrl = sanitiseUrl(data.url);
   if (!sanitisedUrl) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
 
-  // KAN-241 — content moderation on link title (link itself is already
-  // sanitiseUrl-restricted to http(s); only the user-visible title text
-  // needs the wordlist + PII pass).
+  // KAN-241 + KAN-244 — content moderation + audit log on link title.
+  // The URL itself is already sanitiseUrl-restricted to http(s); only
+  // the user-visible title needs the wordlist + PII pass.
   const sanitisedLinkTitle = sanitiseText(data.title, 200);
-  const linkTitleMod = checkModeration(sanitisedLinkTitle, 'public', 'external_links.title');
+  const linkTitleMod = await moderateAndAudit(supabase, {
+    text: sanitisedLinkTitle,
+    fieldType: 'public',
+    field: 'external_links.title',
+    profileId: profile.id,
+    source: 'web_app',
+  });
   if (!linkTitleMod.ok) return { success: false, error: linkTitleMod.error };
 
   const { error } = await supabase
@@ -392,6 +445,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (avatars are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
 
   const file = formData.get('avatar') as File | null;
   if (!file || file.size === 0) return { success: false, error: 'No file provided' };

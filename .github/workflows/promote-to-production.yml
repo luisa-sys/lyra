@@ -439,6 +439,10 @@ jobs:
 
   auto-rollback:
     name: Auto-rollback on failure
+    # BUGS-9 + KAN-233: triggers on any failure in the smoke-tests OR the
+    # earlier pipeline (verify-source). `failure()` is true when any
+    # ancestor in `needs` has status=failure, so a smoke-test failure
+    # alone is enough to fire — even though merge-and-push succeeded.
     needs: [verify-source, smoke-tests]
     if: failure()
     runs-on: ubuntu-latest
@@ -447,6 +451,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Roll production back to pre-merge SHA (BUGS-9)
+        id: rollback
         env:
           TARGET_SHA: ${{ needs.verify-source.outputs.main_sha_before_merge }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -458,3 +463,59 @@ jobs:
         # string "NONE", then swallowed the error with `|| echo ::warning::`,
         # producing a false-positive success. See run 25324541577.
         run: python3 scripts/rollback-to-sha.py
+
+      # KAN-233 — alert the human on a self-healed rollback. Without this,
+      # an auto-rollback that fires at 03:00 UTC could go unnoticed for
+      # hours. Resend is already wired for weekly-report + security-audit.
+      - name: Email rollback alert via Resend
+        if: always()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ROLLBACK_STATUS: ${{ steps.rollback.outcome }}
+          ROLLBACK_TARGET_SHA: ${{ needs.verify-source.outputs.main_sha_before_merge }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RESEND_API_KEY:-}" ]; then
+            # KAN-167: missing-secret must be loud, not silent. Emit an
+            # ::error:: annotation but don't fail the rollback itself —
+            # the email is advisory; the rollback already ran.
+            echo "::error::RESEND_API_KEY not set — rollback fired but no email alert was sent"
+            exit 0
+          fi
+
+          STATUS_EMOJI="✅"
+          STATUS_WORD="succeeded"
+          if [ "$ROLLBACK_STATUS" != "success" ]; then
+            STATUS_EMOJI="❌"
+            STATUS_WORD="FAILED (manual intervention required)"
+          fi
+
+          export SUBJECT="$STATUS_EMOJI Lyra auto-rollback $STATUS_WORD — production"
+          export BODY_HTML="<p><strong>The Lyra production deploy was auto-rolled back.</strong></p><ul><li>Target SHA: <code>$ROLLBACK_TARGET_SHA</code></li><li>Rollback step status: <strong>$ROLLBACK_STATUS</strong></li><li><a href=\"$GITHUB_RUN_URL\">View the workflow run for details</a></li></ul><p>If status=success, production is back on the pre-merge SHA. Investigate the failing smoke test, fix on develop, re-promote.</p><p>If status=failure, the rollback itself failed — production may be in an inconsistent state. See <code>docs/RUNBOOK.md</code> &rarr; \"Self-healing flows\" for the manual recovery procedure.</p>"
+
+          python3 -c "
+          import json, os
+          payload = {
+              'from': 'Lyra Ops <ops@checklyra.com>',
+              'to': ['luisa@santos-stephens.com'],
+              'subject': os.environ['SUBJECT'],
+              'html': os.environ['BODY_HTML'],
+          }
+          with open('/tmp/rollback-email.json', 'w') as f:
+              json.dump(payload, f)
+          " || { echo "::error::failed to build email payload"; exit 1; }
+
+          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST 'https://api.resend.com/emails' \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H 'Content-Type: application/json' \
+            -d @/tmp/rollback-email.json)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ Rollback alert sent (Resend id: $(echo "$BODY" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id","?"))'))"
+          else
+            echo "::error::Resend returned HTTP $HTTP_CODE: $(echo "$BODY" | head -c 300)"
+            exit 1
+          fi

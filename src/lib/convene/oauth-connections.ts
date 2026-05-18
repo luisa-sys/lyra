@@ -8,7 +8,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
-import { refreshAccessToken } from '@/lib/convene/google/oauth';
+import { refreshAccessToken as refreshGoogleAccessToken } from '@/lib/convene/google/oauth';
+import { refreshAccessToken as refreshMicrosoftAccessToken } from '@/lib/convene/microsoft/oauth';
 import {
   vaultReadRefreshToken,
   vaultStoreRefreshToken,
@@ -73,7 +74,7 @@ export async function getConnectionForUser(
 
 interface UpsertConnectionInput {
   userId: string;
-  provider: 'google';
+  provider: 'google' | 'microsoft';
   providerAccountId: string;
   displayName?: string;
   refreshToken: string;
@@ -184,11 +185,11 @@ export async function getFreshAccessToken(
   // For now, always refresh — refresh tokens are cheap and we want simplicity.
   const refreshToken = await vaultReadRefreshToken(conn.refresh_token_secret_id);
 
-  if (conn.provider !== 'google') {
-    throw new Error(`Provider ${conn.provider} not yet implemented (P7)`);
+  if (conn.provider !== 'google' && conn.provider !== 'microsoft') {
+    throw new Error(`Provider ${conn.provider} not yet implemented`);
   }
 
-  const tokens = await refreshWithBackoff(refreshToken);
+  const tokens = await refreshWithBackoff(refreshToken, conn.provider);
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
   // Update last_used_at + expires (best-effort).
@@ -204,11 +205,16 @@ export async function getFreshAccessToken(
   return { accessToken: tokens.access_token, expiresAt };
 }
 
-async function refreshWithBackoff(refreshToken: string, attempts = 3) {
+async function refreshWithBackoff(
+  refreshToken: string,
+  provider: 'google' | 'microsoft',
+  attempts = 3
+) {
+  const refresher = provider === 'google' ? refreshGoogleAccessToken : refreshMicrosoftAccessToken;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await refreshAccessToken(refreshToken);
+      return await refresher(refreshToken);
     } catch (e) {
       lastErr = e;
       // Exponential backoff: 200ms, 800ms, 3.2s
