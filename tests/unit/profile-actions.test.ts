@@ -39,11 +39,24 @@ jest.mock('@/lib/supabase-server', () => ({
         data: { user: { id: 'test-user-id' } },
       }),
     },
+    // KAN-244: `updateProfileFields` now also calls `getUserProfile()` to
+    // get a `profile_id` for the moderation-audit row. The chain
+    // `from('profiles').select('id').eq('user_id', x).single()` must
+    // resolve to a row. The chain `from('profiles').update(...).eq(...)`
+    // remains the path the test asserts on via mockUpdateCapture.
+    // `from('content_moderation_flags').insert(...)` no-ops here — the
+    // audit table is verified in moderation-audit.test.ts.
     from: jest.fn().mockImplementation(() => ({
+      select: () => ({
+        eq: () => ({
+          single: jest.fn().mockResolvedValue({ data: { id: 'test-profile-id' }, error: null }),
+        }),
+      }),
       update: (data: unknown) => {
         mockUpdateCapture(data);
         return { eq: mockEqResolve };
       },
+      insert: jest.fn().mockResolvedValue({ error: null }),
     })),
   }),
 }));

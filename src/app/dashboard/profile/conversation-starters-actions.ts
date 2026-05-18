@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
-import { checkModeration } from '@/lib/moderation-policy';
+import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 
 /**
@@ -67,8 +67,14 @@ export async function addConversationStarter(input: {
     return { success: false, error: 'Answer cannot be empty' };
   }
 
-  // KAN-241 — content moderation. Answers render on the public profile.
-  const mod = checkModeration(cleaned, 'public', 'profile_conversation_starters.answer');
+  // KAN-241 + KAN-244 — content moderation + audit log.
+  const mod = await moderateAndAudit(supabase, {
+    text: cleaned,
+    fieldType: 'public',
+    field: 'profile_conversation_starters.answer',
+    profileId,
+    source: 'web_app',
+  });
   if (!mod.ok) return { success: false, error: mod.error };
 
   const { error } = await supabase
@@ -113,8 +119,14 @@ export async function updateConversationStarter(
     return { success: false, error: 'Answer cannot be empty' };
   }
 
-  // KAN-241 — content moderation, same as the add path.
-  const mod = checkModeration(cleaned, 'public', 'profile_conversation_starters.answer');
+  // KAN-241 + KAN-244 — content moderation + audit, same as the add path.
+  const mod = await moderateAndAudit(supabase, {
+    text: cleaned,
+    fieldType: 'public',
+    field: 'profile_conversation_starters.answer',
+    profileId,
+    source: 'web_app',
+  });
   if (!mod.ok) return { success: false, error: mod.error };
 
   const { error } = await supabase
