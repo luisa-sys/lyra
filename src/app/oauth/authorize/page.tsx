@@ -11,9 +11,8 @@
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
-import { validateAuthorizeRequest, buildErrorRedirect, buildSuccessRedirect } from '@/lib/oauth/authorize';
-import { issueAuthCode } from '@/lib/oauth/codes';
-import { getConsent, recordConsent } from '@/lib/oauth/consents';
+import { validateAuthorizeRequest, buildErrorRedirect } from '@/lib/oauth/authorize';
+import { getConsent } from '@/lib/oauth/consents';
 import { submitConsent } from './actions';
 import type { Metadata } from 'next';
 
@@ -85,22 +84,25 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
 
   // Auto-skip consent if user has already granted the same (or wider)
   // scopes to this client. Reconsent only fires for new scopes.
-  const existing = await getConsent(user!.id, req.client.client_id);
-  if (existing && !existing.revoked_at && existing.scopes === req.scope) {
-    // Touch the consent (refresh granted_at) and issue the code.
-    await recordConsent(user!.id, req.client.client_id, req.scope);
-    const { code } = await issueAuthCode({
-      clientId: req.client.client_id,
-      userId: user!.id,
-      redirectUri: req.redirectUri,
-      scope: req.scope,
-      codeChallenge: req.codeChallenge,
-      codeChallengeMethod: 'S256',
-    });
-    redirect(buildSuccessRedirect(req.redirectUri, code, req.state));
-  }
+  // Note: we intentionally show the consent screen on every authorize
+  // request, even when a prior grant exists for this client. claude.ai's
+  // MCP OAuth client (as of 2026-05-17) does not exchange auth codes that
+  // arrive via the auto-skip-consent fast-path — the popup receives the
+  // 307 to `redirect_uri?code=…&state=…` but its callback handler never
+  // POSTs to /oauth/token. Showing the consent screen every time keeps
+  // the flow within the spec-standard interaction shape every client
+  // tests against. (Standard OAuth flows always re-show consent unless
+  // the client explicitly sends prompt=none.)
+  //
+  // We still write/update the consent row when the user clicks Allow —
+  // it's the audit trail of when they granted access, not a fast-path
+  // optimisation.
+  const _priorConsent = await getConsent(user!.id, req.client.client_id);
+  void _priorConsent; // referenced for the audit-table read; surfaced
+                     // to the consent screen UI in a follow-up so users
+                     // can see "previously granted on …".
 
-  // Otherwise — show the consent screen.
+  // Show the consent screen.
   return (
     <main style={{ maxWidth: 560, margin: '64px auto', padding: '0 24px', fontFamily: 'system-ui' }}>
       <h1 style={{ fontSize: 24, marginBottom: 8 }}>Authorize access</h1>
