@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/lib/oauth/authorize';
 import { getConsent } from '@/lib/oauth/consents';
-import { submitConsent } from './actions';
+import { submitConsent, switchAccountAndContinue } from './actions';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -102,6 +102,18 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
                      // to the consent screen UI in a follow-up so users
                      // can see "previously granted on …".
 
+  // Build the exact authorize URL we're currently rendering, so that the
+  // "switch account" link can preserve the OAuth state through a re-login.
+  const currentAuthorizeUrl = new URL('/oauth/authorize', 'https://placeholder');
+  currentAuthorizeUrl.searchParams.set('client_id', req.client.client_id);
+  currentAuthorizeUrl.searchParams.set('redirect_uri', req.redirectUri);
+  currentAuthorizeUrl.searchParams.set('response_type', 'code');
+  currentAuthorizeUrl.searchParams.set('scope', req.scope);
+  if (req.state) currentAuthorizeUrl.searchParams.set('state', req.state);
+  currentAuthorizeUrl.searchParams.set('code_challenge', req.codeChallenge);
+  currentAuthorizeUrl.searchParams.set('code_challenge_method', req.codeChallengeMethod);
+  const authorizePathWithQuery = currentAuthorizeUrl.pathname + currentAuthorizeUrl.search;
+
   // Show the consent screen.
   return (
     <main style={{ maxWidth: 560, margin: '64px auto', padding: '0 24px', fontFamily: 'system-ui' }}>
@@ -109,6 +121,55 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
       <p style={{ color: '#555' }}>
         <strong>{req.client.client_name}</strong> wants access to your Lyra account.
       </p>
+
+      {/*
+        Prominent account banner (KAN-88 follow-up, 2026-05-18). Earlier
+        we displayed "Signed in as …" in dim grey at #777, which a real
+        user missed and ended up granting Claude access to the wrong
+        account. Now: a yellow-background banner with bold email + an
+        in-line server-action button that signs out + bounces back to the
+        login screen, preserving this authorize URL through the round-trip.
+      */}
+      <div
+        style={{
+          background: '#fef9e7',
+          border: '1px solid #f0d97d',
+          padding: 16,
+          borderRadius: 8,
+          margin: '24px 0',
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          You will be granting access as{' '}
+          <strong style={{ fontSize: 16 }}>{user!.email}</strong>.
+        </p>
+        <p style={{ margin: '8px 0 0', fontSize: 13, color: '#666' }}>
+          If this isn&apos;t the right account, switch before clicking Allow.
+        </p>
+        <form
+          action={async () => {
+            'use server';
+            await switchAccountAndContinue(authorizePathWithQuery);
+          }}
+          style={{ marginTop: 12 }}
+        >
+          <button
+            type="submit"
+            style={{
+              background: 'transparent',
+              border: '1px solid #c79b1b',
+              color: '#5a4310',
+              padding: '6px 14px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            Switch account
+          </button>
+        </form>
+      </div>
 
       <div style={{ background: '#f5f4ef', padding: 16, borderRadius: 8, margin: '24px 0' }}>
         <p style={{ margin: 0, fontWeight: 600 }}>This will let it:</p>
@@ -120,8 +181,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
       </div>
 
       <p style={{ fontSize: 14, color: '#777' }}>
-        Signed in as <strong>{user!.email}</strong>. You can revoke this access anytime from your
-        Lyra settings.
+        You can revoke this access anytime from your Lyra settings.
       </p>
 
       <form
