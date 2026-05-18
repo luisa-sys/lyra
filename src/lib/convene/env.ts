@@ -27,4 +27,13 @@ export const conveneEnv = {
   googleClientSecret: () => requireEnv('GOOGLE_CALENDAR_CLIENT_SECRET'),
   googleRedirectUri: () =>
     requireEnv('GOOGLE_CALENDAR_REDIRECT_URI'),
+
+  // Microsoft Graph OAuth client used for Outlook Calendar (KAN-211 P7).
+  // Register at https://portal.azure.com → Azure AD → App registrations.
+  // Set redirect_uri to https://<deploy>/api/convene/oauth/microsoft/callback.
+  // Required delegated permissions: offline_access, User.Read,
+  // Calendars.ReadWrite.
+  microsoftClientId: () => requireEnv('MICROSOFT_CALENDAR_CLIENT_ID'),
+  microsoftClientSecret: () => requireEnv('MICROSOFT_CALENDAR_CLIENT_SECRET'),
+  microsoftRedirectUri: () => requireEnv('MICROSOFT_CALENDAR_REDIRECT_URI'),
 };
