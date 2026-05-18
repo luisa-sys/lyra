@@ -20,6 +20,7 @@ const { buildSendInputs } = _internal;
 describe('buildSendInputs (KAN-209)', () => {
   const ctx = {
     recipientEmail: 'ben@example.com',
+    recipientPhone: null as string | null,
     recipientName: 'Ben Stephens',
     rsvpToken: 'tok_abc123',
     rsvpExpires: '2026-07-01T00:00:00Z',
@@ -28,7 +29,7 @@ describe('buildSendInputs (KAN-209)', () => {
     gatheringType: 'coffee',
     startISO: '2026-06-01T10:00:00Z',
     endISO: '2026-06-01T11:00:00Z',
-    venueLabel: 'Caravan — London',
+    venueLabel: 'Caravan — London' as string | null,
     hostUserId: '22222222-2222-2222-2222-222222222222',
     hostEmail: 'luisa@example.com',
     hostDisplayName: 'Luisa',
