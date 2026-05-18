@@ -102,7 +102,7 @@ describe('KAN-241: addProfileItem moderation', () => {
     }));
   });
 
-  test('profane title → blocked, no DB write', async () => {
+  test('profane title → blocked, no write to profile_items', async () => {
     const result = await addProfileItem({
       category: 'likes',
       title: 'fuck this',
@@ -111,17 +111,20 @@ describe('KAN-241: addProfileItem moderation', () => {
     if (!result.success) {
       expect(result.error).toMatch(/inappropriate language/i);
     }
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    // KAN-244: audit-row writes to `content_moderation_flags` are
+    // expected on a block; the original intent was "no write to the
+    // *target* table" — assert against the target table specifically.
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
   });
 
-  test('profane description → blocked, no DB write', async () => {
+  test('profane description → blocked, no write to profile_items', async () => {
     const result = await addProfileItem({
       category: 'likes',
       title: 'Coffee',
       description: 'this fuck is great',
     });
     expect(result.success).toBe(false);
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
   });
 
   test('PII in description (international phone) → blocked', async () => {
@@ -134,7 +137,7 @@ describe('KAN-241: addProfileItem moderation', () => {
     if (!result.success) {
       expect(result.error).toMatch(/personal information/i);
     }
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
   });
 });
 
@@ -153,12 +156,14 @@ describe('KAN-241: updateProfileFields moderation', () => {
     }));
   });
 
-  test('profane bio → blocked, no DB write', async () => {
+  test('profane bio → blocked, no write to profiles', async () => {
     const result = await updateProfileFields({
       bio_short: 'I love fuck and other things',
     });
     expect(result.success).toBe(false);
-    expect(mockUpdateCapture).not.toHaveBeenCalled();
+    // KAN-244: audit-row writes to `content_moderation_flags` are
+    // expected on block; assert against the target table specifically.
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profiles', expect.anything());
   });
 
   test('PII in display_name (email) → blocked', async () => {
@@ -166,7 +171,7 @@ describe('KAN-241: updateProfileFields moderation', () => {
       display_name: 'Contact me at sarah@example.com',
     });
     expect(result.success).toBe(false);
-    expect(mockUpdateCapture).not.toHaveBeenCalled();
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profiles', expect.anything());
   });
 });
 
@@ -184,12 +189,12 @@ describe('KAN-241: addSchoolAffiliation moderation', () => {
     }));
   });
 
-  test('profane school name → blocked', async () => {
+  test('profane school name → blocked, no write to school_affiliations', async () => {
     const result = await addSchoolAffiliation({
       school_name: 'fuck primary school',
     });
     expect(result.success).toBe(false);
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('school_affiliations', expect.anything());
   });
 });
 
@@ -207,13 +212,13 @@ describe('KAN-241: addExternalLink moderation', () => {
     }));
   });
 
-  test('profane link title → blocked', async () => {
+  test('profane link title → blocked, no write to external_links', async () => {
     const result = await addExternalLink({
       title: 'fuck this is my blog',
       url: 'https://example.com/blog',
     });
     expect(result.success).toBe(false);
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('external_links', expect.anything());
   });
 });
 
@@ -231,12 +236,12 @@ describe('KAN-241: updateManualOfMe moderation', () => {
     }));
   });
 
-  test('profane communication_style → blocked', async () => {
+  test('profane communication_style → blocked, no upsert to profile_manual_of_me', async () => {
     const result = await updateManualOfMe({
       communication_style: 'fuck calls, only email',
     });
     expect(result.success).toBe(false);
-    expect(mockUpsertCapture).not.toHaveBeenCalled();
+    expect(mockUpsertCapture).not.toHaveBeenCalledWith('profile_manual_of_me', expect.anything());
   });
 });
 
@@ -256,19 +261,19 @@ describe('KAN-241: conversation starter moderation', () => {
     }));
   });
 
-  test('profane answer → blocked on add', async () => {
+  test('profane answer → blocked on add, no insert to profile_conversation_starters', async () => {
     const result = await addConversationStarter({
       promptId: VALID_PROMPT_ID,
       answer: 'fuck this question',
     });
     expect(result.success).toBe(false);
-    expect(mockInsertCapture).not.toHaveBeenCalled();
+    expect(mockInsertCapture).not.toHaveBeenCalledWith('profile_conversation_starters', expect.anything());
   });
 
   test('profane answer → blocked on update too', async () => {
     const result = await updateConversationStarter('item-id', 'fuck this');
     expect(result.success).toBe(false);
-    expect(mockUpdateCapture).not.toHaveBeenCalled();
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profile_conversation_starters', expect.anything());
   });
 });
 
@@ -281,26 +286,30 @@ describe('KAN-241: surface-area regression guards', () => {
     expect(src).toMatch(/moderateContent/); // pulls from content-moderation
   });
 
-  test('actions.ts imports + calls checkModeration', () => {
+  // KAN-244: callers now route via the `moderateAndAudit` wrapper (which
+  // internally calls `checkModeration` + writes a `content_moderation_flags`
+  // row). The guards accept either entry point — the original intent
+  // ("moderation is wired in this file") is preserved.
+  test('actions.ts imports + calls moderation (checkModeration or moderateAndAudit)', () => {
     const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/actions.ts'), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*checkModeration\s*\}\s*from\s*['"]@\/lib\/moderation-policy['"]/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
     // Used in at least 4 places (updateProfileFields, addProfileItem,
     // addSchoolAffiliation, addExternalLink)
-    const callCount = (src.match(/checkModeration\(/g) || []).length;
+    const callCount = (src.match(/(?:checkModeration|moderateAndAudit)\(/g) || []).length;
     expect(callCount).toBeGreaterThanOrEqual(4);
   });
 
-  test('manual-of-me-actions.ts imports + calls checkModeration', () => {
+  test('manual-of-me-actions.ts imports + calls moderation', () => {
     const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/manual-of-me-actions.ts'), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*checkModeration\s*\}\s*from\s*['"]@\/lib\/moderation-policy['"]/);
-    expect(src).toMatch(/checkModeration\(/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
+    expect(src).toMatch(/(?:checkModeration|moderateAndAudit)\(/);
   });
 
-  test('conversation-starters-actions.ts imports + calls checkModeration in both add + update', () => {
+  test('conversation-starters-actions.ts imports + calls moderation in both add + update', () => {
     const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*checkModeration\s*\}\s*from\s*['"]@\/lib\/moderation-policy['"]/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
     // One call in add path, one in update path
-    const callCount = (src.match(/checkModeration\(/g) || []).length;
+    const callCount = (src.match(/(?:checkModeration|moderateAndAudit)\(/g) || []).length;
     expect(callCount).toBeGreaterThanOrEqual(2);
   });
 

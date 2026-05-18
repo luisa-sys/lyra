@@ -20,7 +20,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
-import { checkModeration } from '@/lib/moderation-policy';
+import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import {
   MANUAL_OF_ME_FIELDS,
@@ -78,19 +78,9 @@ export async function updateManualOfMe(
     };
   }
 
-  // 1b. KAN-241 — content moderation. Manual of Me fields appear on the
-  // public profile via [slug]/page.tsx, so 'public' fieldType applies.
-  // Moderate the sanitised text (post-strip, post-trim) so HTML wrappers
-  // can't hide profanity from the word-boundary matcher.
-  for (const [key, val] of Object.entries(sanitised)) {
-    if (!val) continue;
-    const mod = checkModeration(val, 'public', `profile_manual_of_me.${key}`);
-    if (!mod.ok) {
-      return { success: false, error: mod.error };
-    }
-  }
-
   // 2. Resolve the owning profile (server-side, not client-supplied).
+  // Fetched BEFORE moderation so the audit-row gets a profile_id (owner
+  // can see own flags via RLS).
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
     .select('id')
@@ -98,6 +88,24 @@ export async function updateManualOfMe(
     .single();
   if (profileErr || !profile) {
     return { success: false, error: 'Profile not found' };
+  }
+
+  // 1b. KAN-241 + KAN-244 — content moderation + audit log. Manual of Me
+  // fields appear on the public profile via [slug]/page.tsx, so 'public'
+  // fieldType applies. Moderate the sanitised text (post-strip, post-trim)
+  // so HTML wrappers can't hide profanity from the word-boundary matcher.
+  for (const [key, val] of Object.entries(sanitised)) {
+    if (!val) continue;
+    const mod = await moderateAndAudit(supabase, {
+      text: val,
+      fieldType: 'public',
+      field: `profile_manual_of_me.${key}`,
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!mod.ok) {
+      return { success: false, error: mod.error };
+    }
   }
 
   // 3. Empty input → no-op success (don't fire a meaningless UPDATE).
