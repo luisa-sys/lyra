@@ -11,12 +11,20 @@
  * this, every request would 401 and every score would be ~0.
  *
  * Budgets (assert thresholds):
- *   - Performance     >= 80
- *   - Accessibility   >= 90
- *   - Best Practices  >= 90
- *   - SEO             >= 90
+ *   - Performance     >= 80    (error)
+ *   - Accessibility   >= 90    (error)
+ *   - Best Practices  >= 90    (error)
+ *   - SEO             >= 90    (error on indexable hosts only — see below)
  *
- * Any regression below these thresholds fails the workflow.
+ * SEO assertion is conditional on the target being indexable. Per KAN-175,
+ * staging/dev/Vercel-preview URLs emit `<meta name="robots" content=
+ * "noindex,…">` by design (the `is-page-indexable` audit then drops the
+ * SEO category to ~0.69). Asserting SEO ≥ 0.9 on a deliberately-noindex
+ * target is a false-positive failure that fired daily through May 2026.
+ * We only enforce SEO when LHCI_TARGET_URL is on `checklyra.com` (prod
+ * + beta); on Vercel preview hosts SEO drops to `warn` (reported, not
+ * failing). A separate prod-Lighthouse job is the right place for hard
+ * SEO assertions and is tracked as a follow-up.
  *
  * CommonJS (.cjs) because the rest of the repo is ESM-by-default
  * (`"type": "module"` would otherwise force ESM parsing) and lhci's
@@ -40,6 +48,19 @@ if (!bypass) {
   );
 }
 
+// Is the target an indexable host? Only checklyra.com (prod + beta) is.
+// Vercel preview URLs and dev/staging custom domains are noindex by design.
+let targetIsIndexable = false;
+try {
+  targetIsIndexable = new URL(targetUrl).hostname.endsWith('checklyra.com');
+} catch {
+  // Malformed URL — let lhci's collect step surface that error; for the
+  // assertion gate, treat as non-indexable to avoid a false positive.
+  targetIsIndexable = false;
+}
+
+const seoAssertLevel = targetIsIndexable ? 'error' : 'warn';
+
 module.exports = {
   ci: {
     collect: {
@@ -61,7 +82,7 @@ module.exports = {
         'categories:performance': ['error', { minScore: 0.8 }],
         'categories:accessibility': ['error', { minScore: 0.9 }],
         'categories:best-practices': ['error', { minScore: 0.9 }],
-        'categories:seo': ['error', { minScore: 0.9 }],
+        'categories:seo': [seoAssertLevel, { minScore: 0.9 }],
       },
     },
     upload: {
