@@ -1,0 +1,25 @@
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6796767Z 
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6797953Z 1 result(s) for ^[[1mhttps://lyra-rfgj4k15s-luisa-sys-projects.vercel.app/^[[0m :
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6798871Z 
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6799993Z   ^[[31m✘^[[0m  ^[[1mcategories^[[0m.seo failure for ^[[1mminScore^[[0m assertion
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6800730Z         expected: >=^[[32m0.9^[[0m
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6801198Z            found: ^[[31m0.69^[[0m
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6801731Z       ^[[2mall values: 0.69^[[0m
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6801997Z 
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6802281Z Assertion failed. Exiting with status code 1.
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:09.6851660Z 
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1661352Z Uploading median LHR of https://lyra-rfgj4k15s-luisa-sys-projects.vercel.app/...success!
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1662554Z Open the report at https://storage.googleapis.com/lighthouse-infrastructure.appspot.com/reports/1779870850918-48152.report.html
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1714297Z No GitHub token set, skipping GitHub status check.
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1825601Z assert command failed. Exiting with status code 1.
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1825988Z 
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.1956602Z ##[error]Process completed with exit code 1.
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2038365Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2038792Z with:
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2039008Z   name: lighthouse-reports
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2039259Z   path: .lighthouseci/
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2039499Z   retention-days: 14
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2039716Z   if-no-files-found: warn
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2039957Z   compression-level: 6
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2040162Z   overwrite: false
+Lighthouse budget	UNKNOWN STEP	2026-05-27T08:34:11.2040376Z   include-hidden-files: false

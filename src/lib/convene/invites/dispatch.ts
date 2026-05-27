@@ -16,12 +16,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { sendInviteEmail, type SendResult } from './email';
+import { sendTwilioMessage, type SendResult as TwilioSendResult } from './twilio';
 import { buildICS } from './ics';
 import {
   renderInviteSubject,
   renderInvitePlainText,
   renderInviteHtml,
 } from './templates';
+import { renderSmsBody } from './sms-templates';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;
@@ -45,7 +47,8 @@ interface QueuedRow {
 }
 
 interface JoinedContext {
-  recipientEmail: string;
+  recipientEmail: string | null;
+  recipientPhone: string | null; // E.164, KAN-214 P10
   recipientName: string;
   rsvpToken: string;
   rsvpExpires: string | null;
@@ -89,15 +92,22 @@ async function loadContext(
   if (!inv.contact) return { ok: false, reason: 'contact link missing' };
   if (!inv.rsvp_token) return { ok: false, reason: 'rsvp_token missing — re-queue from MCP' };
 
-  // 2. Primary email for the contact.
+  // 2. Contact methods — pull email + phone in one query, pick primary of each.
   const { data: methods } = await sb
     .from('contact_methods')
-    .select('value, is_primary')
+    .select('value, kind, is_primary')
     .eq('contact_id', inv.contact.id)
-    .eq('kind', 'email');
-  const allEmails = (methods ?? []) as Array<{ value: string; is_primary: boolean }>;
-  const primary = allEmails.find((m) => m.is_primary) ?? allEmails[0];
-  if (!primary) return { ok: false, reason: 'no email on contact' };
+    .in('kind', ['email', 'phone', 'whatsapp', 'imessage']);
+  const all = (methods ?? []) as Array<{ value: string; kind: string; is_primary: boolean }>;
+  const emails = all.filter((m) => m.kind === 'email');
+  const phones = all.filter(
+    (m) => m.kind === 'phone' || m.kind === 'whatsapp' || m.kind === 'imessage'
+  );
+  const primaryEmail = (emails.find((m) => m.is_primary) ?? emails[0])?.value ?? null;
+  const primaryPhone = (phones.find((m) => m.is_primary) ?? phones[0])?.value ?? null;
+  if (!primaryEmail && !primaryPhone) {
+    return { ok: false, reason: 'no contact methods (email or phone) on contact' };
+  }
 
   // 3. Gathering + venue + host.
   const { data: g, error: gErr } = await sb
@@ -139,7 +149,8 @@ async function loadContext(
   return {
     ok: true,
     ctx: {
-      recipientEmail: primary.value,
+      recipientEmail: primaryEmail,
+      recipientPhone: primaryPhone,
       recipientName: inv.contact.display_name,
       rsvpToken: inv.rsvp_token,
       rsvpExpires: inv.rsvp_token_expires_at,
@@ -171,6 +182,7 @@ export function buildSendInputs(ctx: JoinedContext) {
   const subject = renderInviteSubject(tpl);
   const plainText = renderInvitePlainText(tpl);
   const html = renderInviteHtml(tpl);
+  const recipientEmail = ctx.recipientEmail ?? '';
   const ics = buildICS({
     uid: `gathering-${ctx.gatheringId}@checklyra.com`,
     title: ctx.gatheringTitle,
@@ -179,17 +191,30 @@ export function buildSendInputs(ctx: JoinedContext) {
     location: ctx.venueLabel ?? undefined,
     organizerEmail: ctx.hostEmail,
     organizerName: ctx.hostDisplayName,
-    attendeeEmail: ctx.recipientEmail,
+    attendeeEmail: recipientEmail,
     attendeeName: ctx.recipientName,
   });
   return {
-    to: ctx.recipientEmail,
+    to: recipientEmail,
     fromName: `${ctx.hostDisplayName} via Lyra Convene`,
     subject,
     html,
     plainText,
     icsContent: ics,
   };
+}
+
+/**
+ * Render a one-line SMS / WhatsApp body for a queued invite — KAN-214 P10.
+ */
+export function buildSmsBody(ctx: JoinedContext): string {
+  return renderSmsBody({
+    hostName: ctx.hostDisplayName,
+    recipientName: ctx.recipientName,
+    gatheringTitle: ctx.gatheringTitle,
+    startISO: ctx.startISO,
+    rsvpUrl: `${SITE_URL}/r/${ctx.rsvpToken}`,
+  });
 }
 
 async function processOne(
@@ -219,10 +244,47 @@ async function processOne(
     return;
   }
 
-  const send = buildSendInputs(loaded.ctx);
-  let result: SendResult;
+  const ctx = loaded.ctx;
+  let result: SendResult | TwilioSendResult;
   try {
-    result = await sendInviteEmail(send);
+    if (row.channel === 'sms' || row.channel === 'whatsapp') {
+      if (!ctx.recipientPhone) {
+        await sb
+          .from('gathering_invite_messages')
+          .update({ delivery_status: 'failed', bounce_reason: 'no phone on contact' })
+          .eq('id', row.id);
+        summary.failed++;
+        summary.errors.push(`${row.id}: no phone on contact`);
+        return;
+      }
+      result = await sendTwilioMessage({
+        to: ctx.recipientPhone,
+        channel: row.channel,
+        body: buildSmsBody(ctx),
+      });
+    } else if (row.channel === 'email') {
+      if (!ctx.recipientEmail) {
+        await sb
+          .from('gathering_invite_messages')
+          .update({ delivery_status: 'failed', bounce_reason: 'no email on contact' })
+          .eq('id', row.id);
+        summary.failed++;
+        summary.errors.push(`${row.id}: no email on contact`);
+        return;
+      }
+      result = await sendInviteEmail(buildSendInputs(ctx));
+    } else {
+      await sb
+        .from('gathering_invite_messages')
+        .update({
+          delivery_status: 'failed',
+          bounce_reason: `unsupported channel: ${row.channel}`,
+        })
+        .eq('id', row.id);
+      summary.failed++;
+      summary.errors.push(`${row.id}: unsupported channel ${row.channel}`);
+      return;
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     summary.failed++;
@@ -310,7 +372,7 @@ export async function dispatchQueuedInvites(
       .from('gathering_invite_messages')
       .select('id, gathering_id, invitee_id, channel, template_name')
       .eq('delivery_status', 'queued')
-      .eq('channel', 'email')
+      .in('channel', ['email', 'sms', 'whatsapp'])
       .in('gathering_id', gatheringIds)
       .order('created_at', { ascending: true })
       .limit(batchSize);
@@ -321,7 +383,7 @@ export async function dispatchQueuedInvites(
       .from('gathering_invite_messages')
       .select('id, gathering_id, invitee_id, channel, template_name')
       .eq('delivery_status', 'queued')
-      .eq('channel', 'email')
+      .in('channel', ['email', 'sms', 'whatsapp'])
       .order('created_at', { ascending: true })
       .limit(batchSize);
     if (error) throw new Error(`queue scan failed: ${error.message}`);

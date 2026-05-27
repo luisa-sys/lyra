@@ -22,6 +22,27 @@ import { getOauthClient } from '@/lib/oauth/clients';
 import { buildSuccessRedirect, buildErrorRedirect } from '@/lib/oauth/authorize';
 import type { DecideInput } from './types';
 
+/**
+ * Switch the signed-in account for a pending OAuth consent — KAN-88
+ * follow-up (2026-05-18 ben/luisa account mix-up).
+ *
+ * Sign out the current Supabase session and bounce the user to /login
+ * with the full /oauth/authorize URL preserved in ?next=… so they
+ * return to the same authorize prompt once signed in as the right
+ * account.
+ */
+export async function switchAccountAndContinue(authorizePathWithQuery: string): Promise<void> {
+  const sb = await createSupabaseServer();
+  await sb.auth.signOut();
+  // The caller passes the exact authorize path + query that they're
+  // currently on. We only use it as the post-login `next` target.
+  // Guard against open-redirect: only accept a relative path that starts
+  // with /oauth/authorize? — anything else falls back to /login.
+  const safeNext =
+    authorizePathWithQuery.startsWith('/oauth/authorize?') ? authorizePathWithQuery : '/login';
+  redirect(`/login?next=${encodeURIComponent(safeNext)}`);
+}
+
 export async function submitConsent(input: DecideInput): Promise<void> {
   // Re-validate the client + redirect URI on the action side. A
   // malicious caller might POST directly to the action with crafted

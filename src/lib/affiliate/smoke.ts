@@ -24,8 +24,19 @@
 
 export type MerchantSmokeProbe = {
   merchantId: string;
-  /** A real product URL that won't 404 — used as the link-service input. */
+  /** A real product URL that won't 404 — used as the link-service input.
+   *  Falls back to this when `representativeUrlsByCountry` has no entry
+   *  for the buyer-country (single-locale merchants). */
   representativeUrl: string;
+  /**
+   * Per-country source URL. Required for multi-locale merchants (Amazon,
+   * eBay, Bookshop.org) because pre-Sovrn the runner HEAD-probes the source
+   * URL directly — a US user sent to `amazon.co.uk` will NOT be redirected
+   * to `amazon.com` by `Accept-Language` alone, so the probe must already
+   * point at the locale-correct storefront. Post-Sovrn this still matters:
+   * starting from the wrong region produces unnecessary cross-redirect noise.
+   */
+  representativeUrlsByCountry?: Readonly<Record<string, string>>;
   /**
    * For each (buyer-country) entry, the expected final hostname suffixes
    * the smoke check accepts. When the link service falls back to a raw URL
@@ -39,7 +50,20 @@ export type MerchantSmokeProbe = {
 export const SMOKE_PROBES: readonly MerchantSmokeProbe[] = [
   {
     merchantId: 'amazon',
-    representativeUrl: 'https://www.amazon.co.uk/dp/0241988055', // Atomic Habits
+    representativeUrl: 'https://www.amazon.co.uk/', // GB fallback
+    representativeUrlsByCountry: {
+      GB: 'https://www.amazon.co.uk/',
+      IE: 'https://www.amazon.co.uk/', // IE buyers commonly use the UK store; expectedHosts also allows amazon.de
+      US: 'https://www.amazon.com/',
+      DE: 'https://www.amazon.de/',
+      FR: 'https://www.amazon.fr/',
+      IT: 'https://www.amazon.it/',
+      ES: 'https://www.amazon.es/',
+      NL: 'https://www.amazon.nl/',
+      CA: 'https://www.amazon.ca/',
+      AU: 'https://www.amazon.com.au/',
+      JP: 'https://www.amazon.co.jp/',
+    },
     expectedHostsByCountry: {
       GB: ['amazon.co.uk'],
       IE: ['amazon.co.uk', 'amazon.de'],
@@ -73,7 +97,18 @@ export const SMOKE_PROBES: readonly MerchantSmokeProbe[] = [
   },
   {
     merchantId: 'ebay',
-    representativeUrl: 'https://www.ebay.co.uk/',
+    representativeUrl: 'https://www.ebay.co.uk/', // GB fallback
+    representativeUrlsByCountry: {
+      GB: 'https://www.ebay.co.uk/',
+      US: 'https://www.ebay.com/',
+      DE: 'https://www.ebay.de/',
+      FR: 'https://www.ebay.fr/',
+      IT: 'https://www.ebay.it/',
+      ES: 'https://www.ebay.es/',
+      IE: 'https://www.ebay.co.uk/', // IE has no dedicated eBay; expectedHosts allows .co.uk + .com
+      CA: 'https://www.ebay.ca/',
+      AU: 'https://www.ebay.com.au/',
+    },
     expectedHostsByCountry: {
       GB: ['ebay.co.uk'],
       US: ['ebay.com'],
@@ -103,7 +138,12 @@ export const SMOKE_PROBES: readonly MerchantSmokeProbe[] = [
   },
   {
     merchantId: 'bookshop_org',
-    representativeUrl: 'https://uk.bookshop.org/gift-cards',
+    representativeUrl: 'https://uk.bookshop.org/gift-cards', // GB fallback
+    representativeUrlsByCountry: {
+      GB: 'https://uk.bookshop.org/gift-cards',
+      IE: 'https://uk.bookshop.org/gift-cards',
+      US: 'https://bookshop.org/gift-cards',
+    },
     expectedHostsByCountry: {
       GB: ['uk.bookshop.org', 'bookshop.org'],
       IE: ['uk.bookshop.org', 'bookshop.org'],
@@ -128,14 +168,17 @@ export type SmokeMatrixEntry = {
   expectedHosts: readonly string[];
 };
 
-/** Expand SMOKE_PROBES into a flat list of test cases. */
+/** Expand SMOKE_PROBES into a flat list of test cases. The per-entry
+ *  source URL prefers `representativeUrlsByCountry[country]` when present
+ *  (multi-locale merchants) and falls back to `representativeUrl`. */
 export function buildSmokeMatrix(): SmokeMatrixEntry[] {
   const out: SmokeMatrixEntry[] = [];
   for (const probe of SMOKE_PROBES) {
     for (const [country, hosts] of Object.entries(probe.expectedHostsByCountry)) {
+      const perCountry = probe.representativeUrlsByCountry?.[country];
       out.push({
         merchantId: probe.merchantId,
-        representativeUrl: probe.representativeUrl,
+        representativeUrl: perCountry ?? probe.representativeUrl,
         buyerCountry: country,
         expectedHosts: hosts,
       });
