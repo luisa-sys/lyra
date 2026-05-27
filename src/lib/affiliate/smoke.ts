@@ -138,11 +138,14 @@ export const SMOKE_PROBES: readonly MerchantSmokeProbe[] = [
   },
   {
     merchantId: 'bookshop_org',
-    representativeUrl: 'https://uk.bookshop.org/gift-cards', // GB fallback
+    // `/gift-cards` returned 404 across all locales in May 2026 — the page
+    // was deprecated. Switch the probe to the regional homepage, which
+    // 200s on HEAD and reliably resolves to the correct locale.
+    representativeUrl: 'https://uk.bookshop.org/', // GB fallback
     representativeUrlsByCountry: {
-      GB: 'https://uk.bookshop.org/gift-cards',
-      IE: 'https://uk.bookshop.org/gift-cards',
-      US: 'https://bookshop.org/gift-cards',
+      GB: 'https://uk.bookshop.org/',
+      IE: 'https://uk.bookshop.org/',
+      US: 'https://bookshop.org/',
     },
     expectedHostsByCountry: {
       GB: ['uk.bookshop.org', 'bookshop.org'],
