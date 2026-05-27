@@ -1,0 +1,25 @@
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3015349Z ^[[36;1m    echo "::notice::Bypass header accepted, app responsive."^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3015976Z ^[[36;1m    ;;^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3016341Z ^[[36;1m  *)^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3017828Z ^[[36;1m    echo "::error::Bypass header didn't unlock beta (HTTP ${STATUS}). VERCEL_AUTOMATION_BYPASS may have rotated. Refresh from Vercel dashboard → Settings → Deployment Protection → Protection Bypass for Automation. See KAN-223."^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3019374Z ^[[36;1m    exit 1^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3019762Z ^[[36;1m    ;;^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3020136Z ^[[36;1mesac^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3053838Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3054448Z env:
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3055137Z   BETA_HOST: https://beta.checklyra.com
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3055715Z   MCP_HOST: https://mcp.checklyra.com
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3056389Z   VERCEL_BYPASS: ***
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3056794Z ##[endgroup]
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3505883Z Root with bypass: 403
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3595922Z ##[error]Bypass header didn't unlock beta (HTTP 403). VERCEL_AUTOMATION_BYPASS may have rotated. Refresh from Vercel dashboard → Settings → Deployment Protection → Protection Bypass for Automation. See KAN-223.
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3599849Z ##[error]Process completed with exit code 1.
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3683348Z ##[group]Run set -euo pipefail
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3683888Z ^[[36;1mset -euo pipefail^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3684314Z ^[[36;1m{^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3684697Z ^[[36;1m  echo "## Beta gate smoke"^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3685492Z ^[[36;1m  echo ""^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3685967Z ^[[36;1m  echo "Run on: $(date -u +%Y-%m-%dT%H:%M:%SZ)"^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3686552Z ^[[36;1m  echo "Trigger: schedule"^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3687027Z ^[[36;1m  echo ""^[[0m
+Probe beta-gate contracts	UNKNOWN STEP	2026-05-27T09:00:39.3687457Z ^[[36;1m  if [ "failure" = "success" ]; then^[[0m

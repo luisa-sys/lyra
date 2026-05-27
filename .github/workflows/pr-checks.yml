@@ -27,6 +27,14 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
+        # Verify every entry in scripts/auto-fix-patterns.json still
+        # matches its fixture under tests/fixtures/auto-fix-logs/, and
+        # that no pattern's regex false-positives on a sibling fixture
+        # in the same workflow. This is the regression guard that
+        # prevents the auto-fix workflow from silently breaking when
+        # someone edits a pattern.
+        run: python3 scripts/auto-fix-known-failures.py --self-test
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:

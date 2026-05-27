@@ -1,0 +1,17 @@
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9528773Z ^[[36;1m# those triggers — gotcha #16).^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9529497Z ^[[36;1mgh workflow run promote-to-staging.yml \^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9530168Z ^[[36;1m  --repo "luisa-sys/lyra" \^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9530731Z ^[[36;1m  --ref main \^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9531415Z ^[[36;1m  -f confirm=promote^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9532558Z ^[[36;1mecho "::notice::Dispatched promote-to-staging.yml for develop $DEVELOP_SHA"^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9533626Z ^[[36;1mecho "## Promotion dispatched" >> "$GITHUB_STEP_SUMMARY"^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9534863Z ^[[36;1mecho "Watch the run at: https://github.com/luisa-sys/lyra/actions/workflows/promote-to-staging.yml" >> "$GITHUB_STEP_SUMMARY"^[[0m
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9986097Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9987131Z env:
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9987785Z   SOAK_HOURS: 24
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9988907Z   GH_TOKEN: ***
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9989447Z   DEVELOP_SHA: 5f257902e3bfacf75f1035152820688963706aa7
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:06.9990219Z ##[endgroup]
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:07.6685773Z could not create workflow dispatch event: HTTP 403: Resource not accessible by personal access token (https://api.github.com/repos/luisa-sys/lyra/actions/workflows/252840555/dispatches)
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:07.6706619Z ##[error]Process completed with exit code 1.
+Run promote-to-staging	UNKNOWN STEP	2026-05-24T23:49:07.6823665Z Cleaning up orphan processes
