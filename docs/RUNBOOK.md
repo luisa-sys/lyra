@@ -153,6 +153,29 @@ Not yet shipped. The current `health-check.yml` cron creates a GitHub issue on f
 
 Not yet shipped. KAN-232 built the logging foundation; KAN-247 will consume `mcp_per_ip_recent_count` and add Cloudflare WAF rules for IPs over the threshold. Needs a `CLOUDFLARE_API_TOKEN` with `Zone WAF:Edit` on `checklyra.com`.
 
+### CI workflow auto-triage and self-heal (Tier 4 — shipped)
+
+`.github/workflows/auto-fix-known-failures.yml` reacts to `workflow_run.completed` events from the recurring failure-prone workflows (Anomaly detect, Beta gate smoke, Staging Tests, Affiliate link smoke, Auto-promote develop→staging) and runs `scripts/auto-fix-known-failures.py` to classify the failure against `scripts/auto-fix-patterns.json` and apply one of four remediations:
+
+| Remediation kind | What it does | Idempotent? |
+|---|---|---|
+| `create_label` | Creates a missing GitHub label; re-runs the failed workflow | Yes (label_exists check) |
+| `alert_secret_rotation` | Files (or updates) a deduped issue labeled `autoheal-tracked` + `autoheal/needs-human` listing the rotation steps | Yes (issue_upsert) |
+| `pr_pending` | Finds the open PR carrying the fix (by branch substring) and posts a one-time marker comment so the daily failure surfaces on the PR | Yes (marker dedup) |
+| `unknown` (fallback) | Files a deduped issue with the log excerpt under label `autoheal/unknown-pattern` so a new pattern can be added | Yes (issue_upsert) |
+
+**Regression guard:** `scripts/auto-fix-known-failures.py --self-test` runs against fixtures in `tests/fixtures/auto-fix-logs/` on every PR via `pr-checks.yml`. It verifies every catalogued pattern still matches its anchor fixture and no pattern false-positives on a sibling fixture within the same workflow. Adding a new pattern requires adding a fixture in the same commit.
+
+**Adding a new pattern:**
+1. Save the failing log to `tests/fixtures/auto-fix-logs/<workflow-slug>.log` (or augment an existing fixture if the workflow is already covered).
+2. Add a pattern entry to `scripts/auto-fix-patterns.json` — pick a `remediation.kind` from the table above.
+3. Add the (fixture, pattern_id) tuple to `FIXTURE_EXPECTATIONS` in both `scripts/auto-fix-known-failures.py` and `tests/unit/auto-fix-patterns.test.js`.
+4. Run `python3 scripts/auto-fix-known-failures.py --self-test` and `npx jest tests/unit/auto-fix-patterns.test.js` — both must pass before merge.
+
+**Manual replay** (e.g. to test a new pattern against a real run): `gh workflow run auto-fix-known-failures.yml -f run_id=<id> -f workflow_name="<display name>" -f dry_run=true`.
+
+**What it deliberately does NOT do:** edit code, open PRs with code changes, merge anything, push to any branch, restart any external service. The auto-fix layer is bounded to GitHub-native actions (labels, issues, comments, re-runs). Anything beyond that is a follow-up ticket.
+
 ## Deployment Rollback
 
 ### Via Vercel Dashboard (recommended)

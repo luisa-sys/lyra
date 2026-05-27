@@ -1,0 +1,25 @@
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1431435Z ^[[36;1m  echo "Opening new anomaly issue"^[[0m
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1431837Z ^[[36;1m  gh issue create --title "$TITLE" --label anomaly --body-file "$BODY_FILE"^[[0m
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1432211Z ^[[36;1mfi^[[0m
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1460034Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1460362Z env:
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1460616Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1461273Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1461712Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1462091Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1462458Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1462832Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1463457Z   GH_TOKEN: ***
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.1463655Z ##[endgroup]
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:46.9555078Z Opening new anomaly issue
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.4214732Z could not add label: 'anomaly' not found
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.4241298Z ##[error]Process completed with exit code 1.
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.4337039Z Post job cleanup.
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5176491Z [command]/usr/bin/git version
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5214067Z git version 2.54.0
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5255505Z Temporarily overriding HOME='/home/runner/work/_temp/9267b231-d4ba-4cdf-84d2-124f8f30d0b7' before making global git config changes
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5256936Z Adding repository directory to the temporary git global config as a safe directory
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5261784Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/lyra/lyra
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5294052Z Removing SSH command configuration
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5300610Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Compare windows against 30d baseline	UNKNOWN STEP	2026-05-27T19:38:47.5333207Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"

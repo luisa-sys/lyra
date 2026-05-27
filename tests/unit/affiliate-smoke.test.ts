@@ -80,6 +80,55 @@ describe('KAN-194 buildSmokeMatrix', () => {
       expect(m.representativeUrl).toContain('://');
     }
   });
+
+  // Pre-Sovrn the runner HEAD-probes representativeUrl directly. Sending
+  // amazon.co.uk to a US user doesn't redirect to amazon.com (Accept-
+  // Language alone won't move you off a regional storefront), so each
+  // (merchant × locale) needs its own source URL.
+  test('Amazon uses the locale-matching domain in each matrix row', () => {
+    const matrix = buildSmokeMatrix().filter((m) => m.merchantId === 'amazon');
+    const byCountry = Object.fromEntries(matrix.map((m) => [m.buyerCountry, m.representativeUrl]));
+    expect(byCountry.US).toContain('amazon.com/');
+    expect(byCountry.DE).toContain('amazon.de/');
+    expect(byCountry.FR).toContain('amazon.fr/');
+    expect(byCountry.JP).toContain('amazon.co.jp/');
+    expect(byCountry.GB).toContain('amazon.co.uk/');
+  });
+
+  test('eBay uses the locale-matching domain in each matrix row', () => {
+    const matrix = buildSmokeMatrix().filter((m) => m.merchantId === 'ebay');
+    const byCountry = Object.fromEntries(matrix.map((m) => [m.buyerCountry, m.representativeUrl]));
+    expect(byCountry.US).toContain('ebay.com/');
+    expect(byCountry.DE).toContain('ebay.de/');
+    expect(byCountry.AU).toContain('ebay.com.au/');
+  });
+
+  test('Bookshop.org sends US buyers to bookshop.org, not uk.bookshop.org', () => {
+    const matrix = buildSmokeMatrix().filter((m) => m.merchantId === 'bookshop_org');
+    const us = matrix.find((m) => m.buyerCountry === 'US');
+    expect(us?.representativeUrl).toContain('://bookshop.org/');
+    expect(us?.representativeUrl).not.toContain('uk.bookshop.org');
+  });
+
+  test('single-locale merchants fall back to representativeUrl (no per-country override)', () => {
+    // John Lewis (GB only), Etsy (etsy.com globally) shouldn't need per-country URLs.
+    const matrix = buildSmokeMatrix();
+    const jl = matrix.find((m) => m.merchantId === 'johnlewis' && m.buyerCountry === 'GB');
+    expect(jl?.representativeUrl).toContain('johnlewis.com');
+    for (const m of matrix.filter((x) => x.merchantId === 'etsy')) {
+      expect(m.representativeUrl).toContain('etsy.com');
+    }
+  });
+
+  test('every country listed in representativeUrlsByCountry is also in expectedHostsByCountry', () => {
+    for (const p of SMOKE_PROBES) {
+      if (!p.representativeUrlsByCountry) continue;
+      const expectedCountries = new Set(Object.keys(p.expectedHostsByCountry));
+      for (const c of Object.keys(p.representativeUrlsByCountry)) {
+        expect(expectedCountries.has(c)).toBe(true);
+      }
+    }
+  });
 });
 
 // ── assertLocalisedDomain ──────────────────────────────────────────────
