@@ -1,0 +1,16 @@
+smoke	Run smoke probes	2026-05-27T22:10:30.9324698Z [smoke] FAIL amazon CA: unexpected_host (final=https://www.amazon.co.uk/dp/0241988055) [123ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9326578Z [smoke] FAIL amazon AU: unexpected_host (final=https://www.amazon.co.uk/dp/0241988055) [121ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9328037Z [smoke] FAIL amazon JP: unexpected_host (final=https://www.amazon.co.uk/dp/0241988055) [127ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9329214Z [smoke] FAIL ebay US: unexpected_host (final=https://www.ebay.co.uk/) [598ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9330315Z [smoke] FAIL ebay DE: unexpected_host (final=https://www.ebay.co.uk/) [428ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9331428Z [smoke] FAIL ebay FR: unexpected_host (final=https://www.ebay.co.uk/) [194ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9332433Z [smoke] FAIL ebay IT: unexpected_host (final=https://www.ebay.co.uk/) [308ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9333353Z [smoke] FAIL ebay ES: unexpected_host (final=https://www.ebay.co.uk/) [350ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9334356Z [smoke] FAIL ebay CA: unexpected_host (final=https://www.ebay.co.uk/) [347ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9335119Z [smoke] FAIL ebay AU: unexpected_host (final=https://www.ebay.co.uk/) [201ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9335697Z [smoke] FAIL johnlewis GB: timeout [5001ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9336612Z [smoke] FAIL bookshop_org GB: head_http_404 (final=https://uk.bookshop.org/gift-cards) [377ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9337554Z [smoke] FAIL bookshop_org IE: head_http_404 (final=https://uk.bookshop.org/gift-cards) [118ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9338337Z [smoke] FAIL bookshop_org US: head_http_404 (final=https://uk.bookshop.org/gift-cards) [115ms]
+smoke	Run smoke probes	2026-05-27T22:10:30.9338911Z [smoke] summary written to smoke-results.json
+smoke	Run smoke probes	2026-05-27T22:10:30.9577978Z ##[error]Process completed with exit code 1.

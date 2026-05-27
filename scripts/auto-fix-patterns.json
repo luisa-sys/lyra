@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "comment": "KAN-63 Tier 4: known CI-failure patterns and their auto-remediations. Each pattern maps a (workflow-name, log-regex) tuple to a remediation kind. See scripts/auto-fix-known-failures.py for the dispatcher. Tested against fixtures under tests/fixtures/auto-fix-logs/.",
+  "patterns": [
+    {
+      "id": "anomaly-missing-github-label",
+      "title": "Anomaly detect workflow can't add a missing GitHub label",
+      "summary": "scripts/anomaly-detect-issue.sh calls `gh issue create --label <name>` but the label doesn't exist in the repo. Safe to auto-create.",
+      "workflows": ["Anomaly detect (KAN-63-A)", "anomaly-detect"],
+      "regex": "could not add label: '([a-zA-Z0-9_\\-/]+)' not found",
+      "remediation": {
+        "kind": "create_label",
+        "color": "d73a4a",
+        "description": "Automated alert from CI (auto-created by auto-fix-known-failures workflow)"
+      },
+      "rerun_workflow_after_fix": true,
+      "owner_hint": "ops"
+    },
+    {
+      "id": "vercel-automation-bypass-rotated",
+      "title": "VERCEL_AUTOMATION_BYPASS token has rotated",
+      "summary": "Vercel's Protection Bypass for Automation token has been rotated. The workflow can't bypass SSO and gets a 403 on the beta host. Requires human action — only the user can mint a new token in the Vercel dashboard.",
+      "workflows": ["Beta gate smoke", "beta-gate-smoke"],
+      "regex": "Bypass header didn't unlock beta \\(HTTP 403\\)",
+      "remediation": {
+        "kind": "alert_secret_rotation",
+        "secret_name": "VERCEL_AUTOMATION_BYPASS",
+        "steps": [
+          "Open Vercel dashboard → project lyra → Settings → Deployment Protection → Protection Bypass for Automation",
+          "Click 'Generate New' to mint a fresh bypass token",
+          "Open GitHub → repo Settings → Secrets and variables → Actions → VERCEL_AUTOMATION_BYPASS → Update",
+          "Paste the new token and save",
+          "Re-run the failed Beta gate smoke workflow to verify"
+        ],
+        "related_ticket": "KAN-223"
+      },
+      "owner_hint": "ops"
+    },
+    {
+      "id": "lyra-release-pat-insufficient-scopes",
+      "title": "LYRA_RELEASE_PAT cannot dispatch the promotion workflow",
+      "summary": "The personal access token used for cross-workflow dispatch has been revoked or no longer carries the `workflows` / `contents:write` scopes. Requires human action — only the user can mint a new fine-grained PAT.",
+      "workflows": ["Auto-promote develop → staging (weekly)", "auto-promote-to-staging"],
+      "regex": "could not create workflow dispatch event: HTTP 403: Resource not accessible by personal access token",
+      "remediation": {
+        "kind": "alert_secret_rotation",
+        "secret_name": "LYRA_RELEASE_PAT",
+        "steps": [
+          "Open GitHub → user Settings → Developer settings → Personal access tokens → Fine-grained tokens",
+          "Generate a new token (or update the existing LYRA_RELEASE_PAT) with scopes: `contents:write` + `workflows:write` on `luisa-sys/lyra`",
+          "Open GitHub → repo Settings → Secrets and variables → Actions → LYRA_RELEASE_PAT → Update",
+          "Paste the new token and save",
+          "The next scheduled Auto-promote run (Sunday 23:00 UTC) will verify automatically"
+        ],
+        "related_ticket": "Gotcha #16 in CLAUDE.md"
+      },
+      "owner_hint": "ops"
+    },
+    {
+      "id": "lighthouse-seo-on-noindex-target",
+      "title": "Lighthouse SEO assertion fails against a deliberately-noindex URL",
+      "summary": "The Lighthouse SEO category drops to ~0.69 against any non-production target because staging/dev/preview URLs are noindex by design (KAN-175). Fix is in lighthouserc.cjs to gate the SEO assertion to indexable hosts only.",
+      "workflows": ["Staging Tests", "staging-tests"],
+      "regex": "categories\\b.*\\bseo\\b.*minScore.*assertion",
+      "remediation": {
+        "kind": "pr_pending",
+        "pr_branch_hint": "fix/staging-tests-seo-on-noindex",
+        "fix_summary": "lighthouserc.cjs gates SEO assertion to indexable (checklyra.com) hosts only; demotes SEO to `warn` on Vercel preview URLs",
+        "related_pr_label": "auto-fix-tracked"
+      },
+      "owner_hint": "ci"
+    },
+    {
+      "id": "affiliate-smoke-locale-mismatch",
+      "title": "Affiliate smoke probes hit the wrong regional storefront",
+      "summary": "The smoke runner HEAD-probes a single UK source URL (e.g. amazon.co.uk) and expects per-locale storefronts (amazon.com, amazon.de) — which won't happen pre-Sovrn because Accept-Language alone doesn't move users off a regional domain. Fix is in src/lib/affiliate/smoke.ts adding per-country source URLs.",
+      "workflows": ["Affiliate link smoke", "affiliate-link-smoke"],
+      "regex": "\\[smoke\\] FAIL [a-z_]+ [A-Z]{2}: (unexpected_host|head_http_404)",
+      "remediation": {
+        "kind": "pr_pending",
+        "pr_branch_hint": "fix/affiliate-smoke-locale-urls",
+        "fix_summary": "src/lib/affiliate/smoke.ts adds optional representativeUrlsByCountry; populated for Amazon/eBay/Bookshop.org",
+        "related_pr_label": "auto-fix-tracked"
+      },
+      "owner_hint": "ci"
+    }
+  ]
+}
