@@ -1,0 +1,96 @@
+# KAN-63 Tier 4: auto-triage + self-heal for recurring CI failures.
+#
+# When one of the watched workflows fails on main (the noisy ones that
+# currently spam email), this workflow:
+#   1. Picks up the failed run via `workflow_run.completed`
+#   2. Fetches the failed-step log via gh CLI
+#   3. Classifies it against scripts/auto-fix-patterns.json
+#   4. Applies the matched remediation (label create / secret-rotation
+#      issue / PR comment / unknown-pattern issue)
+#
+# Self-test mode runs on every PR via pr-checks to ensure the pattern
+# catalogue stays consistent with its fixtures. See
+# scripts/auto-fix-known-failures.py for design + invocation modes.
+
+name: Auto-fix known failures
+
+on:
+  workflow_run:
+    workflows:
+      - "Anomaly detect (KAN-63-A)"
+      - "Beta gate smoke"
+      - "Staging Tests"
+      - "Affiliate link smoke"
+      - "Auto-promote develop → staging (weekly)"
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Workflow run ID to triage (for manual replay)"
+        required: true
+      workflow_name:
+        description: "Display name of the workflow that failed"
+        required: true
+      dry_run:
+        description: "Classify only; do not act"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: write   # for `gh run rerun`
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  triage:
+    name: Triage and self-heal
+    runs-on: ubuntu-latest
+    # On workflow_run events, only react to failed runs — successes
+    # don't need triage. On workflow_dispatch, always run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Self-test classifier (regression guard)
+        run: |
+          set -euo pipefail
+          python3 scripts/auto-fix-known-failures.py --self-test
+
+      - name: Triage failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RUN_ID="${{ inputs.run_id }}"
+            WF_NAME="${{ inputs.workflow_name }}"
+            DRY="${{ inputs.dry_run }}"
+          else
+            RUN_ID="${{ github.event.workflow_run.id }}"
+            WF_NAME="${{ github.event.workflow_run.name }}"
+            DRY="false"
+          fi
+
+          ARGS=(--run-id "$RUN_ID" --workflow-name "$WF_NAME")
+          if [ "$DRY" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          python3 scripts/auto-fix-known-failures.py "${ARGS[@]}"
