@@ -37,10 +37,14 @@ describe('check-secret-rotation.py', () => {
   });
 
   test('within window of LYRA_RELEASE_PAT due date: warning + non-zero exit', () => {
-    // PATs were rotated 28-29 April 2026 with annual cadence → due 2027-04-28/29.
-    // 14 days before = 2027-04-15.
-    const r = run(['--today', '2027-04-15', '--warn-days', '30']);
-    expect(r.stdout).toMatch(/LYRA_RELEASE_PAT: rotation due 2027-04-29/);
+    // LYRA_BACKUP_PAT was rotated 28 April 2026 → due 2027-04-28.
+    // LYRA_RELEASE_PAT was refreshed 6 May 2026 (BUGS-15 follow-up,
+    // value-only refresh per Luisa; "Last Rotated" bumped to reflect
+    // when the secret value actually changed) → due 2027-05-06.
+    // --today 2027-04-22 puts both within the 30-day warn window
+    // (LYRA_BACKUP_PAT is 6 days out, LYRA_RELEASE_PAT is 14 days out).
+    const r = run(['--today', '2027-04-22', '--warn-days', '30']);
+    expect(r.stdout).toMatch(/LYRA_RELEASE_PAT: rotation due 2027-05-06/);
     expect(r.stdout).toMatch(/LYRA_BACKUP_PAT: rotation due 2027-04-28/);
     expect(r.exitCode).toBe(1);
   });

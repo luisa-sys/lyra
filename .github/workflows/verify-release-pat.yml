@@ -1,0 +1,212 @@
+name: Verify LYRA_RELEASE_PAT scopes
+# Smoke-test workflow that exercises every operation the release pipeline
+# needs the PAT to perform. Run after every PAT rotation BEFORE the next
+# real promotion — catches scope drift while it's a 60s annoyance, not a
+# blocked production release.
+#
+# Scopes verified (in this order, so the first failure pinpoints the
+# missing scope without ambiguity):
+#
+#   1. actions/checkout with the PAT     → token is valid + Contents:read
+#   2. git push of a new branch          → Contents:write
+#   3. git push containing a workflow    → Workflows:write
+#      file change
+#   4. gh pr create --draft              → Pull-requests:write
+#
+# Cleanup runs in the `always()` step so partial-failure leftovers
+# (orphan test branches, dangling draft PRs) get tidied even when an
+# earlier step exits non-zero.
+#
+# History:
+#   BUGS-8  (2026-05-04): added Pull-requests:write
+#   BUGS-15 (2026-05-16): added Workflows:write
+#   BUGS-15 follow-up (this workflow): smoke-test so future rotations
+#                                      that drop a scope are caught
+#                                      before the next release.
+#
+# Refs: docs/SECURITY_ROTATION.md "Rotating LYRA_RELEASE_PAT" section.
+
+on:
+  workflow_dispatch:
+  # Also runs on the 1st of every month so a quiet PAT drift gets
+  # surfaced even if no one remembers to trigger after a rotation.
+  schedule:
+    - cron: "0 8 1 * *"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  TEST_BRANCH_PREFIX: pat-verify
+
+jobs:
+  verify:
+    name: Probe each scope LYRA_RELEASE_PAT must hold
+    runs-on: ubuntu-latest
+    outputs:
+      test_branch: ${{ steps.compute.outputs.test_branch }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+    steps:
+      # Step 1: checkout WITH the PAT, not GITHUB_TOKEN. This is the
+      # first thing every release workflow does. If the PAT is bad
+      # (expired, missing repo access, wrong account) actions/checkout
+      # fails here with "fatal: could not read Username" — exactly the
+      # symptom that prompted BUGS-15 follow-up.
+      - name: Checkout with LYRA_RELEASE_PAT (probes auth + Contents:read)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
+          ref: develop
+      - name: Compute test branch name
+        id: compute
+        run: |
+          set -euo pipefail
+          TS=$(date -u +%Y%m%d-%H%M%S)
+          RUN_SHORT="${GITHUB_RUN_ID: -6}"
+          BRANCH="$TEST_BRANCH_PREFIX/$TS-$RUN_SHORT"
+          echo "test_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "::notice::Test branch will be: $BRANCH (cleaned up at end of run)"
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Step 2: push a new branch. Verifies the PAT has Contents:write.
+      # If this fails with "remote rejected" or "Permission denied", the
+      # PAT is missing Contents:write or its repo selection doesn't
+      # include luisa-sys/lyra.
+      - name: Push test branch (probes Contents:write)
+        id: push_branch
+        env:
+          BRANCH: ${{ steps.compute.outputs.test_branch }}
+        run: |
+          set -euo pipefail
+          git checkout -b "$BRANCH"
+          # Make a no-op file change so the branch has content distinct
+          # from develop (some git server configs reject pushes that
+          # share the exact tree of an existing ref).
+          mkdir -p .pat-verify
+          echo "$BRANCH $(date -u -Iseconds)" > .pat-verify/marker
+          git add .pat-verify/marker
+          git commit -q -m "test(pat): probe Contents:write — branch $BRANCH (auto-deleted)"
+          if ! git push origin "$BRANCH" 2>push.err; then
+            cat push.err >&2
+            echo "::error::Push of $BRANCH failed. Likely cause: LYRA_RELEASE_PAT missing 'Contents: Read and write' on luisa-sys/lyra. Fix at https://github.com/settings/personal-access-tokens then update the GitHub Actions secret."
+            exit 1
+          fi
+          echo "::notice::Contents:write OK"
+
+      # Step 3: push a commit that modifies a workflow file. Verifies
+      # the PAT has Workflows:write. Without it, GitHub rejects with
+      # "refusing to allow a Personal Access Token to create or update
+      # workflow ... without `workflow` scope" — the BUGS-15 failure
+      # mode.
+      - name: Push workflow file change (probes Workflows:write)
+        env:
+          BRANCH: ${{ steps.compute.outputs.test_branch }}
+        run: |
+          set -euo pipefail
+          # Touch a file under .github/workflows/ that exists ONLY for
+          # this probe and is .gitignore-friendly (starts with a dot).
+          # Even if cleanup misses it, the dot prefix keeps it out of
+          # GitHub's workflow scheduler — files starting with . are not
+          # picked up as workflows.
+          mkdir -p .github/workflows
+          echo "# pat-verify probe; safe to delete." > .github/workflows/.pat-verify-probe.yml
+          echo "# Generated: $(date -u -Iseconds)" >> .github/workflows/.pat-verify-probe.yml
+          git add .github/workflows/.pat-verify-probe.yml
+          git commit -q -m "test(pat): probe Workflows:write — touches .github/workflows/ (auto-deleted)"
+          if ! git push origin "$BRANCH" 2>workflow-push.err; then
+            cat workflow-push.err >&2
+            if grep -q "without .workflow. scope" workflow-push.err; then
+              echo "::error::PAT is missing 'Workflows: Read and write'. This is the BUGS-15 failure mode. Fix at https://github.com/settings/personal-access-tokens — set Repository permissions → Workflows → Read and write, then update the GitHub Actions secret."
+            else
+              echo "::error::Workflow-file push failed for an unexpected reason. Check the cat'd error above."
+            fi
+            exit 1
+          fi
+          echo "::notice::Workflows:write OK"
+
+      # Step 4: open a draft PR with the test branch. Verifies the PAT
+      # has Pull-requests:write. Without it, gh pr create errors with
+      # "Resource not accessible by personal access token" — the BUGS-8
+      # failure mode.
+      - name: Create draft PR (probes Pull-requests:write)
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
+          BRANCH: ${{ steps.compute.outputs.test_branch }}
+        run: |
+          set -euo pipefail
+          if ! PR_URL=$(gh pr create \
+            --repo "${{ github.repository }}" \
+            --base develop \
+            --head "$BRANCH" \
+            --draft \
+            --title "test(pat): PAT scope verification (auto-closed)" \
+            --body "Auto-generated by verify-release-pat.yml. The PR + branch are deleted in the cleanup step — if you're reading this, the workflow ran far enough to verify all three scopes but the cleanup step has not yet completed. No need to action this manually unless the workflow shows a red 'Cleanup' step." \
+            2>pr-create.err); then
+            cat pr-create.err >&2
+            if grep -qi "Resource not accessible" pr-create.err; then
+              echo "::error::PAT is missing 'Pull requests: Read and write'. This is the BUGS-8 failure mode. Fix at https://github.com/settings/personal-access-tokens then update the GitHub Actions secret."
+            else
+              echo "::error::gh pr create failed for an unexpected reason. Check the cat'd error above."
+            fi
+            exit 1
+          fi
+          PR_NUMBER=$(basename "$PR_URL")
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "::notice::Pull-requests:write OK — created $PR_URL"
+
+      - name: All scopes verified
+        run: |
+          set -euo pipefail
+          {
+            echo "## ✅ LYRA_RELEASE_PAT scopes all OK"
+            echo ""
+            echo "| Scope | Status |"
+            echo "| --- | --- |"
+            echo "| auth + Contents:read (checkout) | ✅ |"
+            echo "| Contents:write (push branch) | ✅ |"
+            echo "| Workflows:write (push workflow file) | ✅ |"
+            echo "| Pull-requests:write (gh pr create) | ✅ |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Cleanup ALWAYS runs — even if a probe failed earlier — so we
+      # don't accumulate orphan test branches or dangling draft PRs.
+      # Each cleanup operation is best-effort; failures here are logged
+      # but don't fail the job further (the job conclusion is already
+      # determined by the probe steps above).
+      - name: Cleanup test branch + PR
+        if: ${{ always() && steps.compute.outputs.test_branch != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.LYRA_RELEASE_PAT }}
+          BRANCH: ${{ steps.compute.outputs.test_branch }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -uo pipefail
+          # Close the PR first if it was created. --delete-branch on
+          # close removes the remote branch as a side effect.
+          if [ -n "${PR_NUMBER:-}" ]; then
+            if gh pr close "$PR_NUMBER" --repo "${{ github.repository }}" --delete-branch 2>/dev/null; then
+              echo "::notice::Closed PR #$PR_NUMBER and deleted remote branch $BRANCH"
+              exit 0
+            else
+              echo "::warning::Failed to close PR #$PR_NUMBER cleanly — falling back to direct branch delete"
+            fi
+          fi
+          # Direct branch delete (used when no PR was created, or when
+          # gh pr close failed). git push --delete is idempotent on a
+          # missing branch — safe to call even if the branch never
+          # existed.
+          if git push origin --delete "$BRANCH" 2>/dev/null; then
+            echo "::notice::Deleted remote branch $BRANCH"
+          else
+            echo "::warning::Could not delete remote branch $BRANCH — may not exist (probe step failed before push). Check manually if it's still around."
+          fi
