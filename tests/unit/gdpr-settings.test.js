@@ -58,12 +58,13 @@ describe('KAN-140: Account deletion action', () => {
     expect(content).toContain('export async function deleteAccount');
   });
 
-  test('deletes api_keys before profile', () => {
-    const deleteApiKeysPos = content.indexOf("from('api_keys').delete()");
-    const deleteProfilePos = content.indexOf("from('profiles').delete()");
-    expect(deleteApiKeysPos).toBeGreaterThan(-1);
-    expect(deleteProfilePos).toBeGreaterThan(-1);
-    expect(deleteApiKeysPos).toBeLessThan(deleteProfilePos);
+  test('hard-deletes the auth user via the service-role admin client (cascade erasure)', () => {
+    // KAN-259: deletion now removes the auth.users row through the
+    // service-role admin client. profiles, api_keys and all profile data
+    // are removed by ON DELETE CASCADE, so no account/email is left behind
+    // (the previous version only deleted the profile row).
+    expect(content).toContain('getAdminServiceClient');
+    expect(content).toContain('auth.admin.deleteUser');
   });
 
   test('cleans up storage photos', () => {
