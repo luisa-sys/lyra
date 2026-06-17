@@ -25,6 +25,23 @@ export async function signUp(formData: FormData) {
     return redirect('/signup?error=' + encodeURIComponent('Password must be at least 6 characters'));
   }
 
+  // KAN-258 — invite-only phase. When an invite code is configured, a new
+  // account can only be created with the correct code. This check sits
+  // BEFORE supabase.auth.signUp, so no auth.users row (and therefore no
+  // profile, via the handle_new_user trigger) is ever created without it.
+  const requiredInvite = env.inviteCode();
+  if (requiredInvite) {
+    const code = ((formData.get('invite_code') as string | null) ?? '').trim();
+    if (code !== requiredInvite) {
+      return redirect(
+        '/signup?error=' +
+          encodeURIComponent(
+            "That invite code isn't right. Lyra is invite-only while we're in private testing.",
+          ),
+      );
+    }
+  }
+
   const siteUrl = getSiteUrl();
 
   const { error } = await supabase.auth.signUp({

@@ -6,7 +6,6 @@
 // Mock next/navigation
 const mockRedirect = jest.fn();
 jest.mock('next/navigation', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   redirect: (...args: unknown[]) => { mockRedirect(...args); throw new Error('REDIRECT'); },
 }));
 
@@ -17,9 +16,14 @@ jest.mock('next/headers', () => ({
   }),
 }));
 
-// Mock @/lib/env
+// Mock @/lib/env — `mockInviteCode` is mutated per-test to toggle the
+// KAN-258 invite-only gate (empty string = gate off).
+let mockInviteCode = '';
 jest.mock('@/lib/env', () => ({
-  env: { siteUrl: () => 'https://dev.checklyra.com' },
+  env: {
+    siteUrl: () => 'https://dev.checklyra.com',
+    inviteCode: () => mockInviteCode,
+  },
 }));
 
 // Mock Supabase client
@@ -50,6 +54,7 @@ function makeFormData(data: Record<string, string>): FormData {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockInviteCode = '';
 });
 
 describe('KAN-111: signUp action', () => {
@@ -85,6 +90,48 @@ describe('KAN-111: signUp action', () => {
     const fd = makeFormData({ email: 'test@example.com', password: 'secure123', full_name: 'Test' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
     expect(mockRedirect.mock.calls[0][0]).toContain('User%20already%20exists');
+  });
+});
+
+describe('KAN-258: invite-only signup gate', () => {
+  test('with no invite code configured, signup is NOT gated (back-compat)', async () => {
+    mockSignUp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', password: 'secure123', full_name: 'A' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignUp).toHaveBeenCalled();
+  });
+
+  test('rejects signup when an invite code is required but missing', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    const fd = makeFormData({ email: 'a@b.com', password: 'secure123', full_name: 'A' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignUp).not.toHaveBeenCalled();
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?error=');
+    expect(mockRedirect.mock.calls[0][0]).toContain('invite-only');
+  });
+
+  test('rejects signup when the invite code is wrong', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    const fd = makeFormData({ email: 'a@b.com', password: 'secure123', full_name: 'A', invite_code: 'nope' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  test('allows signup when the invite code matches', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockSignUp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', password: 'secure123', full_name: 'A', invite_code: 'LET-ME-IN' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignUp).toHaveBeenCalled();
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
+  });
+
+  test('trims surrounding whitespace from the invite code', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockSignUp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', password: 'secure123', full_name: 'A', invite_code: '  LET-ME-IN  ' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignUp).toHaveBeenCalled();
   });
 });
 

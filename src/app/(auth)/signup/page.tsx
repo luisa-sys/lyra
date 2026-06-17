@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signUp } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
+import { env } from '@/lib/env';
 
 export const metadata = {
   title: 'Create your Lyra profile',
@@ -14,6 +15,10 @@ export default async function SignUpPage({
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
   const params = await searchParams;
+  // KAN-258 — during the private phase, account creation needs an invite
+  // code and third-party sign-in is hidden, so the only way in is the
+  // gated email form.
+  const inviteOnly = !!env.inviteCode();
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -42,15 +47,39 @@ export default async function SignUpPage({
           </div>
         )}
 
-        <SocialLoginButtons />
+        {!inviteOnly && (
+          <>
+            <SocialLoginButtons />
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-stone-200" />
-          <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
-          <div className="flex-1 h-px bg-stone-200" />
-        </div>
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-stone-200" />
+              <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
+              <div className="flex-1 h-px bg-stone-200" />
+            </div>
+          </>
+        )}
 
         <form className="space-y-4">
+          {inviteOnly && (
+            <div>
+              <label htmlFor="invite_code" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
+                Invite code
+              </label>
+              <input
+                id="invite_code"
+                name="invite_code"
+                type="text"
+                required
+                autoComplete="off"
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+                placeholder="From your invitation"
+              />
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                Lyra is invite-only while we&apos;re in private testing.
+              </p>
+            </div>
+          )}
+
           <div>
             <label htmlFor="full_name" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
               Full name
