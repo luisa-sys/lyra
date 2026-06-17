@@ -60,7 +60,16 @@ jest.mock('@/lib/supabase-server', () => ({
           },
           update: (data: unknown) => {
             mockUpdateCapture(data);
-            return { eq: () => Promise.resolve({ error: null }) };
+            // KAN-260: the action now chains .eq('id').eq('profile_id'),
+            // so return a chainable, awaitable stub — each .eq returns the
+            // same chain, and awaiting it resolves to { error: null }.
+            const chain = {
+              eq() { return chain; },
+              then(resolve: (v: { error: null }) => unknown) {
+                return Promise.resolve({ error: null }).then(resolve);
+              },
+            };
+            return chain;
           },
         };
       }
