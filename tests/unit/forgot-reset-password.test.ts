@@ -238,13 +238,19 @@ describe('KAN-225: surface-area regression guards', () => {
     expect(src).toMatch(/index:\s*false/);
   });
 
-  test('login page has a "Forgot password?" link to /forgot-password', () => {
+  test('login page is passwordless: no password field or reset link, offers a magic-link', () => {
+    // KAN-258: sign-in is passwordless — the login form emails a one-time
+    // sign-in link, so there is no password field and (since there is no
+    // password to reset) no "Forgot password?" link. The /forgot-password
+    // and /reset-password routes remain in place but unlinked, pending a
+    // follow-up that removes the vestigial password-reset flow.
     const src = readFileSync(
       resolve(ROOT, 'src/app/(auth)/login/page.tsx'),
       'utf-8',
     );
-    expect(src).toMatch(/href=["']\/forgot-password["']/);
-    expect(src).toMatch(/Forgot password/);
+    expect(src).not.toMatch(/name=["']password["']/);
+    expect(src).not.toMatch(/href=["']\/forgot-password["']/);
+    expect(src).toMatch(/sign-in link/i);
   });
 
   test('login page surfaces the post-reset success message', () => {
