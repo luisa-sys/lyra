@@ -108,20 +108,9 @@ export default async function SignUpPage({
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={6}
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="At least 6 characters"
-            />
-          </div>
+          <p className="text-xs text-[var(--color-muted)]">
+            No password needed — we&apos;ll email you a secure link to finish signing up.
+          </p>
 
           <div className="flex items-start gap-2">
             <input
