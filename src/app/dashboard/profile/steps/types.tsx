@@ -41,6 +41,11 @@ export interface WizardSchool {
   // default — older rows from before migration 20260517010000 have this
   // column with the default value 'school'.
   affiliation_type: string;
+  // KAN-263 / KAN-267: affiliations are hidden on the public profile unless
+  // the owner opts the row in. `description` is an optional short note
+  // ("Class of 2008"). Older rows default to false / null.
+  show_on_profile: boolean;
+  description: string | null;
 }
 
 export interface WizardLink {
