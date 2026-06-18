@@ -41,23 +41,15 @@ describe('KAN-182 current_problems category — surface-area regression guards',
     expect(src).toMatch(/categories\s*=\s*\{[^}]*current_problems/);
   });
 
-  test('public profile [slug]/page.tsx has a categoryLabel for current_problems', () => {
+  test('public profile [slug]/page.tsx renders current_problems with a warm heading', () => {
     const src = readFileSync(
       resolve(ROOT, 'src/app/[slug]/page.tsx'),
       'utf-8',
     );
-    expect(src).toMatch(/current_problems\s*:\s*['"`][^'"`]+['"`]/);
-  });
-
-  test('public profile [slug]/page.tsx includes current_problems in categoryOrder', () => {
-    const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
-      'utf-8',
-    );
-    // categoryOrder is an array of category strings — check for the entry.
-    // No `s` regex flag (tsconfig target ES2017); `[^\]]` already accepts
-    // newlines so dotall isn't needed.
-    expect(src).toMatch(/categoryOrder\s*=\s*\[[^\]]*['"`]current_problems['"`]/);
+    // KAN-265 redesign: rendered via an explicit <CardSection> (grouped items +
+    // a warm heading) rather than the old categoryLabels / categoryOrder maps.
+    expect(src).toMatch(/groupedItems\['current_problems'\]/);
+    expect(src).toMatch(/Problems I'm trying to solve/);
   });
 
   test('migration file exists and adds the enum value', () => {
