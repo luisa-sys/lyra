@@ -106,6 +106,20 @@ describe('updateManualOfMe — allowlist + sanitisation', () => {
     });
   });
 
+  test('accepts the two KAN-263 About-me fields (good_to_know + boundaries)', async () => {
+    const result = await updateManualOfMe({
+      good_to_know: 'I think out loud',
+      boundaries: 'Please text before dropping by',
+    });
+    expect(result).toEqual({ success: true });
+    const [payload] = mockUpsertCapture.mock.calls[0];
+    expect(payload).toMatchObject({
+      profile_id: 'profile-1',
+      good_to_know: 'I think out loud',
+      boundaries: 'Please text before dropping by',
+    });
+  });
+
   test('truncates a too-long working_preferences to MANUAL_OF_ME_MAX_LENGTHS', async () => {
     const long = 'A'.repeat(MANUAL_OF_ME_MAX_LENGTHS.working_preferences + 250);
     await updateManualOfMe({ working_preferences: long });
@@ -228,12 +242,14 @@ describe('updateManualOfMe — auth + profile lookup', () => {
 // --- Helper assertions on the field metadata ----------------------------
 
 describe('MANUAL_OF_ME_FIELDS + helpers', () => {
-  test('exposes exactly the v1 four fields', () => {
+  test('exposes the six About-me fields (KAN-263 added good_to_know + boundaries)', () => {
     expect(MANUAL_OF_ME_FIELDS).toEqual([
       'communication_style',
       'working_preferences',
       'energises_me',
       'drains_me',
+      'good_to_know',
+      'boundaries',
     ]);
   });
 
@@ -263,6 +279,8 @@ describe('MANUAL_OF_ME_FIELDS + helpers', () => {
         working_preferences: null,
         energises_me: null,
         drains_me: null,
+        good_to_know: null,
+        boundaries: null,
       })
     ).toBe(true);
   });
@@ -274,6 +292,8 @@ describe('MANUAL_OF_ME_FIELDS + helpers', () => {
         working_preferences: '\n\t',
         energises_me: '',
         drains_me: null,
+        good_to_know: '  ',
+        boundaries: null,
       })
     ).toBe(true);
   });
@@ -285,6 +305,8 @@ describe('MANUAL_OF_ME_FIELDS + helpers', () => {
         working_preferences: null,
         energises_me: null,
         drains_me: null,
+        good_to_know: null,
+        boundaries: null,
       })
     ).toBe(false);
   });
