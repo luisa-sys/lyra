@@ -372,7 +372,7 @@ export default async function PublicProfilePage({ params }: Props) {
           <header className="text-center mb-3.5">
             <div className="relative w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden bg-gradient-to-br from-[#dcd2ca] to-[#b09a8e] text-white flex items-center justify-center font-[family-name:var(--font-serif)] text-[46px] shadow-[0_6px_18px_rgba(0,0,0,0.12)]">
               {typedProfile.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element -- avatar lives in Supabase Storage, not the Vercel image pipeline
+                // eslint-disable-next-line @next/next/no-img-element -- KAN-265: avatar lives in Supabase Storage, not the Vercel image pipeline
                 <img src={typedProfile.avatar_url} alt={typedProfile.display_name} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 typedProfile.display_name.charAt(0).toUpperCase()
@@ -547,7 +547,7 @@ export default async function PublicProfilePage({ params }: Props) {
                       className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-[#f5f1ea] transition-colors group"
                     >
                       {isImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage, not the Vercel image pipeline
+                        // eslint-disable-next-line @next/next/no-img-element -- KAN-265: Supabase Storage, not the Vercel image pipeline
                         <img src={url} alt={f.file_name} className="w-12 h-12 rounded object-cover shrink-0 bg-[#f3efe8]" loading="lazy" />
                       ) : (
                         <span className="text-2xl shrink-0" aria-hidden>📄</span>
