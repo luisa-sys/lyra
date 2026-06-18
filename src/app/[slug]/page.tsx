@@ -238,7 +238,7 @@ export default async function PublicProfilePage({ params }: Props) {
   // profiles — treat that as "all fields empty" so the section is skipped.
   const { data: manualOfMeRow } = await getSupabase()
     .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me')
+    .select('communication_style, working_preferences, energises_me, drains_me, good_to_know, boundaries')
     .eq('profile_id', typedProfile.id)
     .maybeSingle();
   const manualOfMe = (manualOfMeRow as ManualOfMe | null) ?? null;
@@ -360,25 +360,26 @@ export default async function PublicProfilePage({ params }: Props) {
   const v2Recommendations = v2Result.recommendations;
   const v2FellBackToEvergreen = v2Result.fellBackToEvergreen;
 
+  // KAN-264 — warm, humanised headings from the profile redesign mock-up.
   const categoryLabels: Record<string, string> = {
-    likes: 'Likes',
-    dislikes: 'Dislikes',
-    gift_ideas: 'Gift ideas',
-    gifts_to_avoid: 'Gifts to avoid',
-    boundaries: 'Boundaries',
+    likes: 'Things I love',
+    dislikes: 'Not really my thing',
+    gift_ideas: 'Things I love, can\'t get enough of, or have been dreaming about',
+    gifts_to_avoid: 'Things that aren\'t really for me',
+    boundaries: 'My boundaries',
     helpful_to_know: 'Helpful to know',
     favourite_books: 'Favourite books',
-    favourite_media: 'Favourite movies & series',
-    causes: 'Causes I care about',
-    quotes: 'Quotes I love',
-    proud_of: 'What I\'m most proud of',
-    life_hacks: 'Life hacks & recommendations',
-    questions: 'Questions I wish people asked',
+    favourite_media: 'Favourite films & TV',
+    favourite_tv: 'Favourite TV shows',
+    favourite_places: 'Favourite places',
+    favourite_music: 'Favourite music & bands',
+    causes: 'Causes close to my heart',
+    quotes: 'A few favourite quotes',
+    proud_of: 'Things I\'m proud of',
+    life_hacks: 'Tips & life hacks I can share',
+    questions: 'A few more things about me',
     billboard: 'My billboard',
-    // KAN-182: current projects / challenges the user is working on.
-    // Networking + collaboration hook — "I'm trying to find a local
-    // children's-book illustrator" is more useful than "I like books".
-    current_problems: 'What I\'m working on right now',
+    current_problems: 'Problems I\'m trying to solve — ideas welcome',
   };
 
   const categoryIcons: Record<string, string> = {
@@ -390,6 +391,9 @@ export default async function PublicProfilePage({ params }: Props) {
     helpful_to_know: '💡',
     favourite_books: '📖',
     favourite_media: '🎬',
+    favourite_tv: '📺',
+    favourite_places: '📍',
+    favourite_music: '🎵',
     causes: '🌍',
     quotes: '💬',
     proud_of: '🏆',
@@ -411,7 +415,8 @@ export default async function PublicProfilePage({ params }: Props) {
   // softer signals like favourite books or life hacks.
   const categoryOrder = [
     'likes', 'dislikes', 'gift_ideas', 'gifts_to_avoid', 'helpful_to_know', 'boundaries',
-    'current_problems', 'favourite_books', 'favourite_media', 'causes', 'proud_of', 'life_hacks', 'questions',
+    'current_problems', 'favourite_books', 'favourite_media', 'favourite_tv', 'favourite_places',
+    'favourite_music', 'causes', 'proud_of', 'life_hacks', 'questions',
   ];
   // quotes and billboard render separately with special styling
 
@@ -502,24 +507,39 @@ export default async function PublicProfilePage({ params }: Props) {
         <div className="max-w-2xl mx-auto px-6 pb-6">
           <div className="bg-white rounded-xl border border-stone-200 p-5">
             <h2 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-4">
-              📖 How to work with me
+              💭 To understand me a little better
             </h2>
+            {/* KAN-264 — the six redesign prompts, in mock-up order. The four
+                original columns are reused under their warm labels; good_to_know
+                + boundaries are the two added in KAN-263. */}
             <div className="space-y-4">
+              {manualOfMe.good_to_know && (
+                <ManualOfMeFieldDisplay
+                  label="Good to know about me"
+                  value={manualOfMe.good_to_know}
+                />
+              )}
+              {manualOfMe.boundaries && (
+                <ManualOfMeFieldDisplay
+                  label="My boundaries"
+                  value={manualOfMe.boundaries}
+                />
+              )}
               {manualOfMe.communication_style && (
                 <ManualOfMeFieldDisplay
-                  label="Communication style"
+                  label="How I find communication easier"
                   value={manualOfMe.communication_style}
                 />
               )}
               {manualOfMe.working_preferences && (
                 <ManualOfMeFieldDisplay
-                  label="Best ways to work with me"
+                  label="If you ever come to my house"
                   value={manualOfMe.working_preferences}
                 />
               )}
               {manualOfMe.energises_me && (
                 <ManualOfMeFieldDisplay
-                  label="What energises me"
+                  label="What gives me energy"
                   value={manualOfMe.energises_me}
                 />
               )}
