@@ -257,8 +257,8 @@ describe('KAN-219: surface-area regression guards', () => {
     );
     // The ProfileItem interface declares the url column
     expect(src).toMatch(/url:\s*string\s*\|\s*null/);
-    // The chip and Q&A renderers branch on item.url
-    expect(src).toMatch(/item\.url \?/);
+    // KAN-265: the card renderer branches on the item's url (it.url) to show a chip.
+    expect(src).toMatch(/it\.url &&/);
     // Outbound links use rel="noopener noreferrer" to prevent tab-nabbing
     expect(src).toMatch(/rel="noopener noreferrer"/);
   });

@@ -106,7 +106,8 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
       'utf-8',
     );
     expect(src).toMatch(/profile_conversation_starters/);
-    expect(src).toMatch(/Things to ask me about/);
+    // KAN-265 redesign renamed the public heading to "A few more things about me".
+    expect(src).toMatch(/A few more things about me/);
   });
 
   test('dashboard profile page fetches conversation starter data', () => {
