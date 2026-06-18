@@ -69,6 +69,7 @@ import {
   removeSchoolAffiliation,
   removeExternalLink,
   updateProfileItemVisibility,
+  updateAffiliationVisibility,
 } from '@/app/dashboard/profile/actions';
 
 beforeEach(() => {
@@ -102,6 +103,14 @@ describe('KAN-260: profile mutations are owner-scoped in code (not RLS alone)', 
     const res = await removeSchoolAffiliation('aff-3');
     expect(res).toEqual({ success: true });
     expect(mockEqCalls['school_affiliations']).toContainEqual(['id', 'aff-3']);
+    expect(ownerScoped('school_affiliations')).toBe(true);
+  });
+
+  // KAN-267: toggling an affiliation's public visibility is owner-scoped too.
+  test('updateAffiliationVisibility scopes the update to the caller profile_id', async () => {
+    const res = await updateAffiliationVisibility('aff-7', true);
+    expect(res).toEqual({ success: true });
+    expect(mockEqCalls['school_affiliations']).toContainEqual(['id', 'aff-7']);
     expect(ownerScoped('school_affiliations')).toBe(true);
   });
 

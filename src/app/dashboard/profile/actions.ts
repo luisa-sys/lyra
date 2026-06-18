@@ -314,6 +314,30 @@ export async function removeSchoolAffiliation(affiliationId: string): Promise<Ac
   return { success: true };
 }
 
+// KAN-267 — affiliations are hidden on the public profile unless the owner
+// opts the row in. Toggling `show_on_profile` is owner-scoped in code as well
+// as RLS (same defence-in-depth pattern as removeSchoolAffiliation).
+export async function updateAffiliationVisibility(
+  affiliationId: string,
+  showOnProfile: boolean,
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const { error } = await supabase
+    .from('school_affiliations')
+    .update({ show_on_profile: showOnProfile })
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
 export async function addExternalLink(data: {
   title: string;
   url: string;
