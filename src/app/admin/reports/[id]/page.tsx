@@ -164,7 +164,7 @@ export default async function ReportDetailPage({
         </h1>
       </header>
 
-      <section aria-label="Report" className="p-5 rounded-xl border border-stone-200 bg-white space-y-3">
+      <section aria-label="Report" className="p-5 rounded-xl border border-[var(--color-border)] bg-white space-y-3">
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div>
             <dt className="text-xs uppercase tracking-wider text-[var(--color-muted)]">Reason</dt>
@@ -211,7 +211,7 @@ export default async function ReportDetailPage({
       </section>
 
       {report.status === 'pending' ? (
-        <section aria-label="Actions" className="p-5 rounded-xl border border-stone-200 bg-white space-y-6">
+        <section aria-label="Actions" className="p-5 rounded-xl border border-[var(--color-border)] bg-white space-y-6">
           <h2 className="text-base font-medium text-[var(--color-ink)]">Take action</h2>
 
           <form action={actionResolveReport} className="space-y-3">
@@ -224,7 +224,7 @@ export default async function ReportDetailPage({
               name="reason"
               type="text"
               maxLength={500}
-              className="w-full p-2 text-sm rounded-lg border border-stone-300 bg-white"
+              className="w-full p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
               placeholder="e.g. profile content reviewed and edited"
             />
             <button
@@ -235,25 +235,25 @@ export default async function ReportDetailPage({
             </button>
           </form>
 
-          <form action={actionDismissReport} className="space-y-3 pt-2 border-t border-stone-100">
+          <form action={actionDismissReport} className="space-y-3 pt-2 border-t border-[var(--color-border)]">
             <input type="hidden" name="reportId" value={report.id} />
             <input
               name="reason"
               type="text"
               maxLength={500}
-              className="w-full p-2 text-sm rounded-lg border border-stone-300 bg-white"
+              className="w-full p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
               placeholder="Dismissal reason (optional)"
             />
             <button
               type="submit"
-              className="px-5 py-2 rounded-full bg-stone-100 text-[var(--color-ink)] text-sm font-medium hover:bg-stone-200 transition-colors"
+              className="px-5 py-2 rounded-full bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
             >
               Dismiss report
             </button>
           </form>
 
           {report.profile && !report.profile.is_suspended && (
-            <form action={actionSuspendProfile} className="space-y-3 pt-2 border-t border-stone-100">
+            <form action={actionSuspendProfile} className="space-y-3 pt-2 border-t border-[var(--color-border)]">
               <input type="hidden" name="reportId" value={report.id} />
               <input type="hidden" name="profileId" value={report.profile.id} />
               <label htmlFor="suspend-reason" className="block text-sm text-[var(--color-ink)]">
@@ -265,7 +265,7 @@ export default async function ReportDetailPage({
                 type="text"
                 maxLength={500}
                 required
-                className="w-full p-2 text-sm rounded-lg border border-stone-300 bg-white"
+                className="w-full p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
                 placeholder="e.g. repeated harassment"
               />
               <button

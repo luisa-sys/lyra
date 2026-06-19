@@ -114,7 +114,7 @@ function AffiliationGroup({
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((s) => (
-            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3 gap-3">
+            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3 gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--color-ink)] truncate">{s.school_name}</p>
                 {s.school_location && (
@@ -145,7 +145,7 @@ function AffiliationGroup({
         </div>
       )}
 
-      <div className="space-y-3 bg-white rounded-lg border border-stone-200 p-4">
+      <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <Field
           label={`${AFFILIATION_LABELS[type].slice(0, -1)} name`}
           value={name}
@@ -165,7 +165,7 @@ function AffiliationGroup({
         <button
           onClick={handleAdd}
           disabled={isPending || !name.trim()}
-          className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors"
+          className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors"
         >
           + Add {AFFILIATION_SINGULAR[type]}
         </button>

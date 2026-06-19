@@ -28,7 +28,7 @@ export function LinksStep({ links, onAdd, onRemove, onNext, isPending }: {
       {links.length > 0 && (
         <div className="space-y-2">
           {links.map((l: WizardLink) => (
-            <div key={l.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
+            <div key={l.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">{l.title}</p>
                 <p className="text-xs text-[var(--color-muted)] truncate max-w-xs">{l.url}</p>
@@ -38,13 +38,13 @@ export function LinksStep({ links, onAdd, onRemove, onNext, isPending }: {
           ))}
         </div>
       )}
-      <div className="space-y-3 bg-white rounded-lg border border-stone-200 p-4">
+      <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <Field label="Title" value={title} onChange={setTitle} placeholder="My Amazon wishlist" />
         <Field label="URL" value={url} onChange={setUrl} placeholder="https://amazon.co.uk/hz/wishlist/..." />
         <div>
           <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Type</label>
           <select value={linkType} onChange={(e) => setLinkType(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm">
+            className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm">
             <option value="wishlist">Wishlist</option>
             <option value="retailer">Favourite shop</option>
             <option value="article">Article</option>
@@ -52,7 +52,7 @@ export function LinksStep({ links, onAdd, onRemove, onNext, isPending }: {
           </select>
         </div>
         <button onClick={handleAdd} disabled={isPending || !title.trim() || !url.trim()}
-          className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors">
+          className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors">
           + Add link
         </button>
       </div>

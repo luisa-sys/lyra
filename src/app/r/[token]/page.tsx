@@ -47,8 +47,8 @@ export default async function RsvpPage({ params }: { params: Promise<{ token: st
     : 'Time not finalised yet';
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl border border-stone-200 p-8 space-y-6">
+    <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-xl border border-[var(--color-border)] p-8 space-y-6">
         <div>
           <p className="text-sm text-[var(--color-muted)] uppercase">You&apos;re invited to</p>
           <h1 className="text-2xl font-medium text-[var(--color-ink)] mt-1">{invitee.gatheringTitle}</h1>
@@ -73,14 +73,14 @@ export default async function RsvpPage({ params }: { params: Promise<{ token: st
         </div>
 
         {invitee.currentStatus !== 'invited' && (
-          <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm">
+          <div className="bg-[var(--color-paper)] border border-[var(--color-border)] rounded-lg p-3 text-sm">
             Your previous response: <strong>{invitee.currentStatus}</strong>. You can change it below.
           </div>
         )}
 
         <RsvpForm token={token} />
 
-        <p className="text-xs text-[var(--color-muted)] border-t border-stone-100 pt-4">
+        <p className="text-xs text-[var(--color-muted)] border-t border-[var(--color-border)] pt-4">
           Sent via Lyra Convene. We&apos;ll let the host know your response right away. Your details aren&apos;t shared with other invitees.
         </p>
       </div>
@@ -90,8 +90,8 @@ export default async function RsvpPage({ params }: { params: Promise<{ token: st
 
 function errorPage(message: string, hint?: string) {
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl border border-stone-200 p-8 text-center">
+    <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-xl border border-[var(--color-border)] p-8 text-center">
         <h1 className="text-xl font-medium text-[var(--color-ink)]">{message}</h1>
         {hint && <p className="text-sm text-[var(--color-muted)] mt-2">{hint}</p>}
       </div>

@@ -91,7 +91,7 @@ export default function ReportButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-stone-500 hover:text-stone-700 underline underline-offset-2 transition-colors"
+        className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] underline underline-offset-2 transition-colors"
       >
         Report this profile
       </button>
@@ -137,7 +137,7 @@ export default function ReportButton({
                 id="report-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value as typeof reason)}
-                className="w-full p-2 text-sm rounded-lg border border-stone-300 bg-white"
+                className="w-full p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
               >
                 {REASONS.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
@@ -154,9 +154,9 @@ export default function ReportButton({
                 onChange={(e) => setNote(e.target.value.slice(0, 500))}
                 rows={3}
                 placeholder="Anything that would help the moderator?"
-                className="w-full p-2 text-sm rounded-lg border border-stone-300 bg-white resize-y"
+                className="w-full p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white resize-y"
               />
-              <p className="text-xs text-stone-500 mt-1">{note.length} / 500</p>
+              <p className="text-xs text-[var(--color-muted)] mt-1">{note.length} / 500</p>
             </div>
 
             {status === 'unauthorized' && (

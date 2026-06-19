@@ -33,7 +33,7 @@ export function CookieConsent() {
   if (consent !== 'none') return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[var(--color-border)] shadow-lg">
       <div className="max-w-4xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <p className="text-sm text-[var(--color-muted)] flex-1">
           Lyra uses essential cookies for authentication. We also use anonymous analytics to improve the service.

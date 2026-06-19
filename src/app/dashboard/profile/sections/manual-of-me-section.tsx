@@ -138,7 +138,7 @@ function MoMField({
         rows={rows}
         maxLength={maxLength}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent resize-none"
+        className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent resize-none"
       />
       <p className="text-xs text-[var(--color-muted)] mt-1">{value.length}/{maxLength}</p>
     </div>
