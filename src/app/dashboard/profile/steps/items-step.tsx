@@ -28,7 +28,7 @@ const visibilityShort: Record<string, string> = {
 // KAN-234: short label for the NULL/inherit case in the per-item selector.
 const INHERIT_SHORT = '↗ Inherit';
 
-export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending }: {
+export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending, hideVisibility = false }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
   // KAN-219 — items now carry an optional URL (Python `lyra-app` parity).
   // Server-side `addProfileItem` runs the value through `sanitiseUrl`, which
@@ -38,6 +38,12 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   onRemove: (id: string) => void;
   onUpdateVisibility: (id: string, visibility: string) => void;
   onNext: () => void; isPending: boolean;
+  // KAN-266: the June-2026 redesign drops per-item visibility (the profile is
+  // simply public; affiliations are the only hidden-by-default thing). When
+  // hideVisibility is set, the per-item + new-item visibility selects are not
+  // rendered and new items inherit the section default (NULL → public). The
+  // legacy wizard still passes hideVisibility=false to keep its controls.
+  hideVisibility?: boolean;
 }) {
   const [category, setCategory] = useState(categories[0]);
   const [itemTitle, setItemTitle] = useState('');
@@ -57,6 +63,8 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     // KAN-182: "Problems I'm trying to solve" — current
     // challenges / projects / interests for networking + collaboration.
     current_problems: '🧩 Currently solving',
+    // KAN-263: favourites split out for the redesign favourites grid.
+    favourite_tv: '📺 TV show', favourite_places: '📍 Place', favourite_music: '🎵 Music',
   };
 
   const handleAdd = () => {
@@ -77,10 +85,14 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-medium text-[var(--color-ink)]">{title}</h2>
-        <p className="text-sm text-[var(--color-muted)] mt-1">{description}</p>
-      </div>
+      {/* KAN-266: in the redesigned editor the warm section header already
+          shows the title, so title='' suppresses the duplicate h2. */}
+      {(title || description) && (
+        <div>
+          {title && <h2 className="text-xl font-medium text-[var(--color-ink)]">{title}</h2>}
+          {description && <p className="text-sm text-[var(--color-muted)] mt-1">{description}</p>}
+        </div>
+      )}
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((item: WizardItem) => (
@@ -105,29 +117,33 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
                 {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
               </div>
               <div className="flex items-center gap-2 ml-3">
-                <label className="sr-only" htmlFor={`vis-${item.id}`}>Visibility</label>
-                <select
-                  id={`vis-${item.id}`}
-                  aria-label={`Visibility for ${item.title}`}
-                  // KAN-234: NULL stored visibility → '' in the form = inherit.
-                  // Known string → its real value. Unknown string → 'public' (defence).
-                  value={
-                    item.visibility == null || item.visibility === ''
-                      ? ''
-                      : visibilityShort[item.visibility]
-                        ? item.visibility
-                        : 'public'
-                  }
-                  onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
-                  disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
-                >
-                  {VISIBILITY_OPTIONS.map((opt) => (
-                    <option key={opt.value || 'inherit'} value={opt.value}>
-                      {opt.value === '' ? INHERIT_SHORT : visibilityShort[opt.value]}
-                    </option>
-                  ))}
-                </select>
+                {!hideVisibility && (
+                  <>
+                    <label className="sr-only" htmlFor={`vis-${item.id}`}>Visibility</label>
+                    <select
+                      id={`vis-${item.id}`}
+                      aria-label={`Visibility for ${item.title}`}
+                      // KAN-234: NULL stored visibility → '' in the form = inherit.
+                      // Known string → its real value. Unknown string → 'public' (defence).
+                      value={
+                        item.visibility == null || item.visibility === ''
+                          ? ''
+                          : visibilityShort[item.visibility]
+                            ? item.visibility
+                            : 'public'
+                      }
+                      onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
+                      disabled={isPending}
+                      className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
+                    >
+                      {VISIBILITY_OPTIONS.map((opt) => (
+                        <option key={opt.value || 'inherit'} value={opt.value}>
+                          {opt.value === '' ? INHERIT_SHORT : visibilityShort[opt.value]}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
                 <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
               </div>
             </div>
@@ -169,21 +185,23 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
             placeholder="https://example.com/this-book"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor="new-item-visibility">
-            Visibility
-          </label>
-          <select
-            id="new-item-visibility"
-            value={itemVisibility}
-            onChange={(e) => setItemVisibility(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm"
-          >
-            {VISIBILITY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
+        {!hideVisibility && (
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor="new-item-visibility">
+              Visibility
+            </label>
+            <select
+              id="new-item-visibility"
+              value={itemVisibility}
+              onChange={(e) => setItemVisibility(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm"
+            >
+              {VISIBILITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button onClick={handleAdd} disabled={isPending || !itemTitle.trim()}
           className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors">
           + Add item

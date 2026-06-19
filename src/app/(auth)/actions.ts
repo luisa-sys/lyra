@@ -14,24 +14,40 @@ export async function signUp(formData: FormData) {
   const supabase = await createClient();
 
   const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
   const fullName = formData.get('full_name') as string;
 
-  if (!email || !password || !fullName) {
-    return redirect('/signup?error=' + encodeURIComponent('All fields are required'));
+  if (!email || !fullName) {
+    return redirect('/signup?error=' + encodeURIComponent('Your name and email are required'));
   }
 
-  if (password.length < 6) {
-    return redirect('/signup?error=' + encodeURIComponent('Password must be at least 6 characters'));
+  // KAN-258 — invite-only phase. When an invite code is configured, a new
+  // account can only be created with the correct code. This check sits
+  // BEFORE any account creation, so no auth.users row (and therefore no
+  // profile, via the handle_new_user trigger) is ever created without it.
+  const requiredInvite = env.inviteCode();
+  if (requiredInvite) {
+    const code = ((formData.get('invite_code') as string | null) ?? '').trim();
+    if (code !== requiredInvite) {
+      return redirect(
+        '/signup?error=' +
+          encodeURIComponent(
+            "That invite code isn't right. Lyra is invite-only while we're in private testing.",
+          ),
+      );
+    }
   }
 
   const siteUrl = getSiteUrl();
 
-  const { error } = await supabase.auth.signUp({
+  // KAN-258 — passwordless sign-up. We email a magic link instead of asking
+  // for a password. shouldCreateUser:true so an invited person gets an
+  // account on first click; the handle_new_user trigger reads full_name
+  // from the user metadata we pass here.
+  const { error } = await supabase.auth.signInWithOtp({
     email,
-    password,
     options: {
       emailRedirectTo: `${siteUrl}/auth/callback`,
+      shouldCreateUser: true,
       data: {
         full_name: fullName,
       },
@@ -42,29 +58,38 @@ export async function signUp(formData: FormData) {
     return redirect('/signup?error=' + encodeURIComponent(error.message));
   }
 
-  return redirect('/signup?message=' + encodeURIComponent('Check your email to confirm your account'));
+  return redirect(
+    '/signup?message=' +
+      encodeURIComponent('Check your email for a link to finish creating your account.'),
+  );
 }
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();
 
   const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
 
-  if (!email || !password) {
-    return redirect('/login?error=' + encodeURIComponent('Email and password are required'));
+  if (!email) {
+    return redirect('/login?error=' + encodeURIComponent('Email is required'));
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  // KAN-258 — passwordless sign-in. Email a magic link.
+  // shouldCreateUser:false so this path never creates a new (un-invited)
+  // account — sign-up is the only account-creation path, and it's
+  // invite-gated.
+  const { error } = await supabase.auth.signInWithOtp({
     email,
-    password,
+    options: {
+      emailRedirectTo: `${getSiteUrl()}/auth/callback`,
+      shouldCreateUser: false,
+    },
   });
 
   if (error) {
     return redirect('/login?error=' + encodeURIComponent(error.message));
   }
 
-  return redirect('/dashboard');
+  return redirect('/login?message=' + encodeURIComponent('Check your email for a sign-in link.'));
 }
 
 export async function signOut() {

@@ -81,7 +81,12 @@ describe('KAN-137: ItemsStep has labels for all categories', () => {
   });
 });
 
-describe('KAN-137: Public profile page renders new categories', () => {
+describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', () => {
+  // The June-2026 redesign (KAN-265) replaced the categoryLabels / categoryIcons /
+  // categoryOrder maps with explicit, warmly-titled sections (white cards, a sage
+  // left-rule on each heading, a favourites grid, a Q&A block). Every category is
+  // still rendered — these guards prove each is referenced so a future refactor
+  // can't silently drop one (which would make those items vanish from profiles).
   const profilePath = path.join(root, 'src/app/[slug]/page.tsx');
   let content;
 
@@ -89,36 +94,20 @@ describe('KAN-137: Public profile page renders new categories', () => {
     content = fs.readFileSync(profilePath, 'utf8');
   });
 
-  test.each(NEW_CATEGORIES)('profile page has label for category: %s', (cat) => {
-    expect(content).toContain(`${cat}:`);
+  test.each(NEW_CATEGORIES)('page renders category: %s', (cat) => {
+    expect(content).toContain(`'${cat}'`);
   });
 
-  test.each(NEW_CATEGORIES)('profile page has icon for category: %s', (cat) => {
-    // Check it exists in categoryIcons
-    const iconSection = content.slice(
-      content.indexOf('const categoryIcons'),
-      content.indexOf('};', content.indexOf('const categoryIcons')) + 2
-    );
-    expect(iconSection).toContain(`${cat}:`);
+  test('favourites render in a dedicated favourites grid', () => {
+    expect(content).toContain('A few of my favourite things');
+    expect(content).toContain("['favourite_books'");
+    expect(content).toContain("['favourite_media'");
+    expect(content).toContain("['quotes'");
   });
 
-  test('categoryOrder includes new standard categories', () => {
-    expect(content).toContain("'favourite_books'");
-    expect(content).toContain("'favourite_media'");
-    expect(content).toContain("'causes'");
-    expect(content).toContain("'proud_of'");
-    expect(content).toContain("'life_hacks'");
-    expect(content).toContain("'questions'");
-  });
-
-  test('questions category has special Q&A rendering', () => {
-    expect(content).toContain("cat === 'questions'");
-    expect(content).toContain('border-l-3');
-  });
-
-  test('quotes have special styled rendering', () => {
-    expect(content).toContain("groupedItems['quotes']");
-    expect(content).toContain('italic');
+  test('questions + conversation starters render as a Q&A section', () => {
+    expect(content).toContain("groupedItems['questions']");
+    expect(content).toContain('A few more things about me');
   });
 
   test('billboard has special large-quote rendering', () => {
@@ -127,11 +116,15 @@ describe('KAN-137: Public profile page renders new categories', () => {
   });
 
   test('billboard renders with sage green background', () => {
-    // Find the billboard section and check it uses sage bg
     const billboardSection = content.slice(
       content.indexOf("groupedItems['billboard']"),
-      content.indexOf("Links */")
+      content.indexOf('Links */')
     );
     expect(billboardSection).toContain('bg-[var(--color-sage)]');
+  });
+
+  test('section headings use the sage left-rule (border-l-[3px])', () => {
+    expect(content).toContain('border-l-[3px]');
+    expect(content).toContain('border-[var(--color-sage)]');
   });
 });

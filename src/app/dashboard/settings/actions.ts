@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase-server';
+import { getAdminServiceClient } from '@/lib/admin';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
 
@@ -57,30 +58,44 @@ export async function deleteAccount() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return redirect('/login');
 
-  // Delete api_keys (not cascaded via profile FK)
-  await supabase.from('api_keys').delete().eq('user_id', user.id);
+  const userId = user.id;
 
-  // Delete profile photo from storage
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('avatar_url')
-    .eq('user_id', user.id)
-    .single();
-
-  if (profile?.avatar_url) {
-    const path = `${user.id}/`;
-    await supabase.storage.from('profile-photos').list(path).then(({ data: files }) => {
-      if (files?.length) {
-        const paths = files.map(f => `${path}${f.name}`);
-        supabase.storage.from('profile-photos').remove(paths);
-      }
-    });
+  // True erasure (GDPR). Hard-delete the auth user with the service-role
+  // client: profiles.user_id -> auth.users(id) is ON DELETE CASCADE, and
+  // every profile-owned table cascades from profiles(id), so this removes
+  // ALL of the person's data in one step — profile, items, links, schools,
+  // files, manual-of-me, conversation starters, moderation reports, api
+  // keys, oauth tokens, convene rows. (The previous version only deleted
+  // the profile and left the auth user, and their email, behind.)
+  const admin = getAdminServiceClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) {
+    // The only expected failure is an account with non-deletable audit
+    // rows (a moderator's moderation_logs are ON DELETE RESTRICT). Don't
+    // half-delete anything — leave the account intact and ask them to
+    // contact us.
+    return redirect(
+      '/dashboard/settings?error=' +
+        encodeURIComponent(
+          "We couldn't delete your account automatically. Please contact us and we'll remove it for you.",
+        ),
+    );
   }
 
-  // Delete profile (cascades to profile_items, external_links, school_affiliations)
-  await supabase.from('profiles').delete().eq('user_id', user.id);
+  // Best-effort: remove now-orphaned storage objects (the DB cascade
+  // doesn't touch storage). Non-fatal — the account and all rows are gone.
+  for (const bucket of ['profile-photos', 'profile-files']) {
+    try {
+      const { data: files } = await admin.storage.from(bucket).list(userId);
+      if (files?.length) {
+        await admin.storage.from(bucket).remove(files.map((f) => `${userId}/${f.name}`));
+      }
+    } catch {
+      // ignore — orphaned-object cleanup isn't worth failing the flow
+    }
+  }
 
-  // Sign out (Supabase Auth user remains but profile data is gone)
+  // Clear the now-invalid session cookie and send them home.
   await supabase.auth.signOut();
   redirect('/');
 }

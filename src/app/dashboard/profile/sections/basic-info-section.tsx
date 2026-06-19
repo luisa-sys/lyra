@@ -24,8 +24,6 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { Field, type WizardProfile } from '../steps/types';
-import { SUPPORTED_DELIVERY_COUNTRIES } from '@/lib/affiliate/country-codes';
-import { updateDeliveryCountry } from '../delivery-country-actions';
 import { updateProfileFields, uploadAvatar } from '../actions';
 import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
 
@@ -43,12 +41,6 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
     city: profile.city || '',
     country: profile.country || 'GB',
   });
-
-  const [deliveryCountry, setDeliveryCountry] = useState<string>(
-    profile.delivery_country_code || '',
-  );
-  const [deliveryCountryError, setDeliveryCountryError] = useState<string | null>(null);
-  const [savingDeliveryCountry, startSavingDeliveryCountry] = useTransition();
 
   const [preview, setPreview] = useState<string | null>(profile.avatar_url || null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -164,44 +156,6 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
           onChange={(v) => set('country', v)}
           placeholder="GB"
         />
-
-        {/* KAN-186: delivery country (separate server action, kept inline-save
-            since it's a single-field dropdown, not an autosave-friendly text). */}
-        <div>
-          <label htmlFor="delivery-country" className="block text-sm font-medium text-[var(--color-ink)]">
-            Delivery country
-          </label>
-          <p className="text-xs text-[var(--color-muted)] mt-0.5">
-            Where gift recommendations should be able to ship to. Leave blank to use the buyer&apos;s country.
-          </p>
-          <select
-            id="delivery-country"
-            value={deliveryCountry}
-            onChange={(e) => {
-              const next = e.target.value;
-              setDeliveryCountry(next);
-              setDeliveryCountryError(null);
-              startSavingDeliveryCountry(async () => {
-                const result = await updateDeliveryCountry(next || null);
-                if (!result.success) {
-                  setDeliveryCountryError(result.error ?? 'Could not save');
-                }
-              });
-            }}
-            disabled={savingDeliveryCountry}
-            className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
-          >
-            <option value="">— Use buyer&apos;s country —</option>
-            {SUPPORTED_DELIVERY_COUNTRIES.map(({ code, name: countryName }) => (
-              <option key={code} value={code}>
-                {countryName} ({code})
-              </option>
-            ))}
-          </select>
-          {deliveryCountryError && (
-            <p className="text-xs text-red-500 mt-0.5">{deliveryCountryError}</p>
-          )}
-        </div>
       </div>
     </div>
   );

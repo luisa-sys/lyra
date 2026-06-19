@@ -1,36 +1,19 @@
 'use client';
 
 /**
- * KAN-220 — single-page profile editor. Replaces the 14-step wizard
- * with one long form, ports the Python `lyra-app/templates/edit_profile.html`
- * layout. The wizard file (`wizard.tsx`) is kept for the legacy route
- * at `/dashboard/profile/legacy` and for the existing `profile-sections.test.js`
- * regression guards (test-integrity policy — guards stay green by
- * leaving the file unchanged).
+ * KAN-220 / KAN-266 — single-page profile editor.
  *
- * Layout:
- *   - Sticky header with Lyra logo + "View public profile" link
- *   - Desktop: left sidebar Table of Contents (sticky), main column with
- *     all sections expanded by default. Mobile: no sidebar, all sections
- *     collapsed except Basic Info.
- *   - Each section is a controlled `<section>` with a button header that
- *     toggles open/closed.
- *   - Sticky bottom bar: Publish (or "Unpublish & save draft") button.
+ * KAN-266 ports the June-2026 redesign into the editor: warm sections that
+ * mirror the public profile (sage left-rule headings, calm cards), the six
+ * humanised "about me" prompts, and the granular content sections in the same
+ * order the public profile renders them. The Delivery-country field and the
+ * per-item / per-section visibility controls are removed — the redesigned
+ * profile is simply public, and affiliations are the only hidden-by-default
+ * thing (their per-row toggle lands in KAN-267).
  *
- * Save UX:
- *   - Free-text sections (BasicInfo, Bio, ManualOfMe) autosave on blur
- *     after 800ms debounce. Status indicator in section.
- *   - List sections (items, links, files, schools, conversation starters)
- *     save instantly on Add / Remove via existing server actions.
- *   - The sticky Publish button only handles the publish/unpublish flip
- *     — it doesn't need to "save the form" because everything's already
- *     persisted.
- *
- * Mobile collapse state: SSR renders with all sections expanded (no
- * flash on desktop). On mount, a `useEffect` checks `matchMedia` and
- * collapses non-first sections on mobile. Brief flash on mobile is an
- * accepted trade-off — moving to per-section CSS state to eliminate
- * the flash entirely is a follow-up if it bothers anyone.
+ * Save UX is unchanged: free-text sections autosave on a debounce; list
+ * sections save instantly on Add / Remove via the existing server actions.
+ * The legacy step-by-step wizard stays at `/dashboard/profile/legacy`.
  */
 
 import { useEffect, useState, useTransition } from 'react';
@@ -44,13 +27,7 @@ import {
   addExternalLink,
   removeExternalLink,
   publishProfile,
-  updateSectionVisibility,
 } from './actions';
-import {
-  isControllableSectionKey,
-  coerceSectionVisibility,
-  type SectionVisibility,
-} from './section-visibility';
 import {
   ItemsStep,
   LinksStep,
@@ -82,29 +59,122 @@ import {
 } from './sections';
 import type { ManualOfMe } from './manual-of-me-fields';
 
+type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links' | 'files';
+
 interface SectionDef {
   id: string;
   label: string;
   icon: string;
+  kind: SectionKind;
+  categories?: string[];
+  description?: string;
 }
 
-// Section order mirrors the Python `lyra-app` editor (`edit_profile.html`).
-// Free-text sections that benefit from autosave come first; lists come next;
-// files + starters at the end (lowest-engagement sections per KAN-181 reasoning).
+// KAN-266: section order + headings mirror the public profile (the redesign's
+// "edit = published" principle). Content sections are granular so each maps to
+// exactly one heading on the public page.
 const SECTIONS: SectionDef[] = [
-  { id: 'basic-info', label: 'Basic Information', icon: '👤' },
-  { id: 'affiliations', label: 'Schools / Orgs / Communities', icon: '🏫' },
-  { id: 'bio', label: 'About you', icon: '✏️' },
-  { id: 'manual-of-me', label: 'Manual of Me', icon: '📖' },
-  { id: 'likes', label: 'Likes & Dislikes', icon: '💚' },
-  { id: 'gifts', label: 'Gift ideas', icon: '🎁' },
-  { id: 'boundaries', label: 'Boundaries & Preferences', icon: '🛑' },
-  { id: 'books-media', label: 'Books & Media', icon: '📚' },
-  { id: 'causes-quotes', label: 'Things that matter to me', icon: '💛' },
-  { id: 'more', label: 'More about you', icon: '✨' },
-  { id: 'links', label: 'Links', icon: '🔗' },
-  { id: 'files', label: 'Files & media', icon: '📎' },
-  { id: 'starters', label: 'Things to ask me about', icon: '💬' },
+  { id: 'basic-info', label: 'The basics', icon: '👤', kind: 'basic' },
+  { id: 'affiliations', label: 'Where you might know me from', icon: '🤝', kind: 'affiliations' },
+  { id: 'bio', label: 'A short intro', icon: '📝', kind: 'bio' },
+  { id: 'manual-of-me', label: 'To understand me a little better', icon: '💭', kind: 'manual' },
+  {
+    id: 'love',
+    label: "Things I love, can't get enough of, or have been dreaming about",
+    icon: '💛',
+    kind: 'items',
+    categories: ['gift_ideas'],
+    description: "The things you'd genuinely love — to receive, to do, or to be surprised by.",
+  },
+  {
+    id: 'into',
+    label: "Things I'm into",
+    icon: '💚',
+    kind: 'items',
+    categories: ['likes'],
+    description: 'Interests, hobbies, the things you light up about.',
+  },
+  {
+    id: 'notforme',
+    label: "Things that aren't really for me",
+    icon: '🙅',
+    kind: 'items',
+    categories: ['gifts_to_avoid', 'dislikes'],
+    description: "Gentle no-thank-yous — so people don't have to guess.",
+  },
+  {
+    id: 'helpful',
+    label: 'Helpful to know',
+    icon: '🧭',
+    kind: 'items',
+    categories: ['helpful_to_know'],
+    description: 'Practical things that make life easier for the people around you.',
+  },
+  {
+    id: 'myboundaries',
+    label: 'My boundaries',
+    icon: '🚧',
+    kind: 'items',
+    categories: ['boundaries'],
+    description: "Anything you'd gently like respected.",
+  },
+  {
+    id: 'causes',
+    label: 'Causes close to my heart',
+    icon: '🌍',
+    kind: 'items',
+    categories: ['causes'],
+    description: 'Causes and charities you care about.',
+  },
+  {
+    id: 'proud',
+    label: "Things I'm proud of",
+    icon: '🏆',
+    kind: 'items',
+    categories: ['proud_of'],
+    description: 'Moments and achievements that mean something to you.',
+  },
+  {
+    id: 'favourites',
+    label: 'A few of my favourite things',
+    icon: '⭐',
+    kind: 'items',
+    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'quotes', 'favourite_places', 'favourite_music'],
+    description: 'Books, films, TV, music, places, and the quotes you come back to.',
+  },
+  {
+    id: 'tips',
+    label: 'Tips & life hacks I can share',
+    icon: '🧰',
+    kind: 'items',
+    categories: ['life_hacks'],
+    description: 'Hard-won wisdom worth passing on.',
+  },
+  {
+    id: 'problems',
+    label: "Problems I'm trying to solve — ideas welcome",
+    icon: '🧩',
+    kind: 'items',
+    categories: ['current_problems'],
+    description: "What you're working on or puzzling over right now.",
+  },
+  {
+    id: 'starters',
+    label: 'A few more things about me',
+    icon: '💬',
+    kind: 'starters',
+    description: 'Pick a question and answer it in your own words.',
+  },
+  {
+    id: 'extras',
+    label: 'A couple of extras',
+    icon: '✨',
+    kind: 'items',
+    categories: ['billboard', 'questions'],
+    description: "Your billboard message, and any other questions you'd love to be asked.",
+  },
+  { id: 'links', label: 'Links', icon: '🔗', kind: 'links' },
+  { id: 'files', label: 'Files & media', icon: '📎', kind: 'files' },
 ];
 
 export function EditProfileForm({
@@ -138,7 +208,7 @@ export function EditProfileForm({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.matchMedia('(max-width: 767px)').matches) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- KAN-220: one-time mount-only matchMedia detection. Empty deps array prevents cascading renders; this is the standard pattern for hydration-time viewport-dependent state. Alternative (useSyncExternalStore) would also subscribe to viewport changes, which we deliberately don't want here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- KAN-220: one-time mount-only matchMedia detection. Empty deps array prevents cascading renders; this is the standard pattern for hydration-time viewport-dependent state.
       setOpenSections(new Set([SECTIONS[0].id]));
     }
   }, []);
@@ -152,24 +222,14 @@ export function EditProfileForm({
     });
   };
 
-  // KAN-234: derived once per render — section visibility defaults the
-  // section-header toggles display. Defence in depth: coerceSectionVisibility
-  // drops unknown keys/values from the JSONB column.
-  const currentSectionVisibility: SectionVisibility = coerceSectionVisibility(
-    profile.section_visibility,
-  );
-
-  const renderItemsSection = (
-    sectionId: string,
-    title: string,
-    description: string,
-    categories: string[],
-  ) => (
+  const renderItemsSection = (s: SectionDef) => (
     <ItemsStep
-      title={title}
-      description={description}
-      categories={categories}
-      items={items.filter((i) => categories.includes(i.category))}
+      title=""
+      description={s.description ?? ''}
+      categories={s.categories ?? []}
+      items={items.filter((i) => (s.categories ?? []).includes(i.category))}
+      // KAN-266: redesign drops per-item visibility.
+      hideVisibility
       onAdd={(data) => {
         startTransition(async () => {
           await addProfileItem(data);
@@ -188,17 +248,15 @@ export function EditProfileForm({
           router.refresh();
         });
       }}
-      // Single-page form has no "next step" — Continue collapses
-      // the section so the user knows they're done with it.
-      onNext={() => toggleSection(sectionId)}
+      onNext={() => toggleSection(s.id)}
       isPending={isPending}
     />
   );
 
   return (
-    <main className="min-h-screen bg-stone-50 pb-24">
+    <main className="min-h-screen bg-[#fdfcf8] pb-24">
       {/* Header */}
-      <header className="border-b border-stone-200 bg-white">
+      <header className="border-b border-[#ece7df] bg-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -225,7 +283,7 @@ export function EditProfileForm({
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 md:grid md:grid-cols-[200px_1fr] md:gap-8">
+      <div className="max-w-5xl mx-auto px-4 py-6 md:grid md:grid-cols-[220px_1fr] md:gap-8">
         {/* Sidebar ToC — desktop only */}
         <nav aria-label="Section navigation" className="hidden md:block">
           <div className="sticky top-4 space-y-1">
@@ -236,7 +294,7 @@ export function EditProfileForm({
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="block text-sm text-[var(--color-ink)] hover:text-[var(--color-sage)] py-1 px-2 -mx-2 rounded hover:bg-stone-100"
+                className="block text-sm text-[var(--color-ink)] hover:text-[var(--color-sage)] py-1 px-2 -mx-2 rounded hover:bg-[#f1ece3] leading-snug"
               >
                 <span className="mr-1.5">{s.icon}</span> {s.label}
               </a>
@@ -246,15 +304,21 @@ export function EditProfileForm({
 
         {/* Main column */}
         <div className="space-y-3">
+          {/* KAN-266: one calm note — optionality stated once, not per field. */}
+          <div className="rounded-[10px] border border-[#e3ece5] bg-[#e9efea] px-4 py-3 text-sm text-[var(--color-sage)] leading-relaxed">
+            Everything here is optional — share whatever you&apos;d like people to know, and skip the rest.
+            Your profile saves automatically as you go, and what you see here is exactly what people will see.
+          </div>
+
           {SECTIONS.map((s) => {
             const isOpen = openSections.has(s.id);
             return (
               <section
                 key={s.id}
                 id={s.id}
-                className="bg-white rounded-lg border border-stone-200 overflow-hidden scroll-mt-4"
+                className="bg-white rounded-[10px] border border-[#ece7df] overflow-hidden scroll-mt-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
               >
-                <div className="flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors">
+                <div className="flex items-center justify-between px-4 py-3 hover:bg-[#faf8f3] transition-colors">
                   <button
                     type="button"
                     aria-expanded={isOpen}
@@ -262,91 +326,28 @@ export function EditProfileForm({
                     onClick={() => toggleSection(s.id)}
                     className="flex items-center text-left flex-1 cursor-pointer"
                   >
-                    <span className="text-base font-medium text-[var(--color-ink)]">
-                      <span className="mr-2">{s.icon}</span> {s.label}
+                    {/* Sage left-rule heading, echoing the public profile .q style */}
+                    <span className="border-l-[3px] border-[var(--color-sage)] pl-3 text-[15px] font-semibold text-[var(--color-ink)] leading-snug">
+                      <span className="mr-1.5">{s.icon}</span>{s.label}
                     </span>
                   </button>
-                  <div className="flex items-center gap-2">
-                    {/* KAN-234: section-level visibility toggle for the 6
-                        controllable sections (likes / gifts / boundaries /
-                        books-media / causes-quotes / more). Items in these
-                        sections that have NULL visibility inherit this
-                        default at render time. */}
-                    {isControllableSectionKey(s.id) && (
-                      <label className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <span className="sr-only">Visibility for {s.label}</span>
-                        <select
-                          value={currentSectionVisibility[s.id] ?? 'public'}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            startTransition(async () => {
-                              await updateSectionVisibility(s.id, next);
-                              router.refresh();
-                            });
-                          }}
-                          disabled={isPending}
-                          aria-label={`Section visibility for ${s.label}`}
-                          className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
-                        >
-                          <option value="public">🌍 Public</option>
-                          <option value="members_only">🔒 Members</option>
-                          <option value="draft">✏️ Draft</option>
-                        </select>
-                      </label>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => toggleSection(s.id)}
-                      aria-label={isOpen ? `Collapse ${s.label}` : `Expand ${s.label}`}
-                      className="text-[var(--color-muted)] text-sm px-1"
-                    >
-                      {isOpen ? '▾' : '▸'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(s.id)}
+                    aria-label={isOpen ? `Collapse ${s.label}` : `Expand ${s.label}`}
+                    className="text-[var(--color-muted)] text-sm px-1 shrink-0"
+                  >
+                    {isOpen ? '▾' : '▸'}
+                  </button>
                 </div>
                 {isOpen && (
-                  <div id={`${s.id}-body`} className="px-4 pb-5 pt-1 border-t border-stone-200">
-                    {s.id === 'basic-info' && <BasicInfoSection profile={profile} />}
-                    {s.id === 'affiliations' && <AffiliationsSection schools={schools} />}
-                    {s.id === 'bio' && <BioSection profile={profile} />}
-                    {s.id === 'manual-of-me' && <ManualOfMeSection manualOfMe={manualOfMe} />}
-                    {s.id === 'likes' && renderItemsSection(
-                      s.id,
-                      'Likes & Dislikes',
-                      "Tastes, interests, and favourites — plus the things you'd rather steer clear of.",
-                      ['likes', 'dislikes'],
-                    )}
-                    {s.id === 'gifts' && renderItemsSection(
-                      s.id,
-                      'Gift ideas',
-                      "Things you'd love to receive, luxuries you don't give yourself, things you can't have enough of — and gifts that aren't for you.",
-                      ['gift_ideas', 'gifts_to_avoid'],
-                    )}
-                    {s.id === 'boundaries' && renderItemsSection(
-                      s.id,
-                      'Boundaries & Preferences',
-                      'Practical preferences, boundaries, and things that help people respect your space.',
-                      ['boundaries', 'helpful_to_know'],
-                    )}
-                    {s.id === 'books-media' && renderItemsSection(
-                      s.id,
-                      'Books & Media',
-                      'Books you love and the screen favourites that shaped you.',
-                      ['favourite_books', 'favourite_media'],
-                    )}
-                    {s.id === 'causes-quotes' && renderItemsSection(
-                      s.id,
-                      'Things that matter to me',
-                      'Causes and charities you care about, and the words that resonate with you.',
-                      ['causes', 'quotes'],
-                    )}
-                    {s.id === 'more' && renderItemsSection(
-                      s.id,
-                      'More about you',
-                      "What you're most proud of, life hacks worth sharing, places you'd recommend, questions you wish people asked, problems you're working on, and your billboard message.",
-                      ['proud_of', 'life_hacks', 'questions', 'billboard', 'current_problems'],
-                    )}
-                    {s.id === 'links' && (
+                  <div id={`${s.id}-body`} className="px-4 pb-5 pt-1 border-t border-[#ece7df]">
+                    {s.kind === 'basic' && <BasicInfoSection profile={profile} />}
+                    {s.kind === 'affiliations' && <AffiliationsSection schools={schools} />}
+                    {s.kind === 'bio' && <BioSection profile={profile} />}
+                    {s.kind === 'manual' && <ManualOfMeSection manualOfMe={manualOfMe} />}
+                    {s.kind === 'items' && renderItemsSection(s)}
+                    {s.kind === 'links' && (
                       <LinksStep
                         links={links}
                         onAdd={(data) => {
@@ -365,7 +366,7 @@ export function EditProfileForm({
                         isPending={isPending}
                       />
                     )}
-                    {s.id === 'files' && (
+                    {s.kind === 'files' && (
                       <FilesStep
                         files={files}
                         onUpload={(formData) => {
@@ -390,7 +391,7 @@ export function EditProfileForm({
                         isPending={isPending}
                       />
                     )}
-                    {s.id === 'starters' && (
+                    {s.kind === 'starters' && (
                       <ConversationStartersStep
                         prompts={conversationPrompts}
                         answers={conversationAnswers}
@@ -425,7 +426,7 @@ export function EditProfileForm({
       </div>
 
       {/* Sticky save bar */}
-      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-stone-200 px-4 py-3 z-10">
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-[#ece7df] px-4 py-3 z-10">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <p className="text-xs text-[var(--color-muted)] hidden sm:block">
             Changes save automatically as you type.

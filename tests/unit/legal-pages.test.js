@@ -55,8 +55,10 @@ describe('KAN-126: Privacy policy page', () => {
     expect(content).toContain('authentication');
   });
 
-  test('covers children policy', () => {
-    expect(content).toContain('13');
+  test('covers children policy (adults only, 18+)', () => {
+    // KAN-261: Lyra is adults-only (18+); the old "children under 13"
+    // wording was removed in favour of an explicit 18+ statement.
+    expect(content).toContain('18 or over');
   });
 
   test('provides contact email', () => {

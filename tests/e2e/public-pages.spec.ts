@@ -20,7 +20,9 @@ test.describe('Login page', () => {
     await expect(page).toHaveTitle(/Sign in to Lyra/i);
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
     await expect(page.getByLabel(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/password/i)).toBeVisible();
+    // KAN-258: passwordless — a magic-link button, and no password field.
+    await expect(page.getByRole('button', { name: /email me a sign-in link/i })).toBeVisible();
+    await expect(page.getByLabel(/password/i)).toHaveCount(0);
   });
 });
 

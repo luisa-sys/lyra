@@ -60,7 +60,16 @@ jest.mock('@/lib/supabase-server', () => ({
           },
           update: (data: unknown) => {
             mockUpdateCapture(data);
-            return { eq: () => Promise.resolve({ error: null }) };
+            // KAN-260: the action now chains .eq('id').eq('profile_id'),
+            // so return a chainable, awaitable stub — each .eq returns the
+            // same chain, and awaiting it resolves to { error: null }.
+            const chain = {
+              eq() { return chain; },
+              then(resolve: (v: { error: null }) => unknown) {
+                return Promise.resolve({ error: null }).then(resolve);
+              },
+            };
+            return chain;
           },
         };
       }
@@ -211,18 +220,22 @@ describe('KAN-234: surface-area regression guards', () => {
     expect(src).toMatch(/visibility:\s*string\s*\|\s*null/);
   });
 
-  test('edit-profile-form.tsx renders section-header visibility toggles via updateSectionVisibility', () => {
+  test('KAN-266: redesigned editor drops per-section visibility selects (profile is simply public)', () => {
     const src = readFileSync(
       resolve(ROOT, 'src/app/dashboard/profile/edit-profile-form.tsx'),
       'utf-8',
     );
-    expect(src).toMatch(/updateSectionVisibility/);
-    expect(src).toMatch(/isControllableSectionKey/);
-    expect(src).toMatch(/coerceSectionVisibility/);
-    // The select's options are the three real values
-    expect(src).toMatch(/<option value="public">/);
-    expect(src).toMatch(/<option value="members_only">/);
-    expect(src).toMatch(/<option value="draft">/);
+    // The June-2026 redesign removed the section-header visibility toggles.
+    // The updateSectionVisibility server action still exists (covered by
+    // KAN-221's unit tests) and the public page still honours the hybrid
+    // model (see the [slug]/page.tsx guard above) — but the editor no longer
+    // surfaces per-section public/members/draft selects.
+    expect(src).not.toMatch(/updateSectionVisibility/);
+    expect(src).not.toMatch(/<option value="members_only">/);
+    // Item sections now pass hideVisibility to ItemsStep, and the editor shows
+    // a single "everything optional" note instead of per-section controls.
+    expect(src).toMatch(/hideVisibility/);
+    expect(src).toMatch(/Everything here is optional/);
   });
 
   test('[slug]/page.tsx uses the hybrid filter (isItemVisibleUnderHybridModel)', () => {
