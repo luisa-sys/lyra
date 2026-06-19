@@ -3,16 +3,16 @@ import Image from "next/image";
 
 function Nav() {
   return (
-    <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 bg-stone-50/80 backdrop-blur-md border-b border-stone-200/60">
+    <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-paper)]/85 backdrop-blur-md border-b border-[var(--color-border)]/60">
       <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center">
           <Image src="/lyra-logo.png" alt="Lyra" width={80} height={80} className="h-20 w-auto" priority />
         </Link>
         <div className="flex items-center gap-6">
-          <Link href="/search" className="text-sm text-stone-600 hover:text-stone-800 transition-colors">
+          <Link href="/search" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
             Find someone
           </Link>
-          <Link href="/login" className="text-sm text-stone-600 hover:text-stone-800 transition-colors">
+          <Link href="/login" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
             Sign in
           </Link>
           <Link
@@ -33,10 +33,10 @@ function Hero() {
       <div className="max-w-3xl mx-auto text-center">        <p className="text-sm font-medium tracking-widest uppercase text-[var(--color-lyra-sage)] mb-6">
           A profile that speaks for you
         </p>
-        <h1 className="font-[family-name:var(--font-serif)] text-5xl sm:text-6xl lg:text-7xl text-stone-800 leading-[1.1] mb-8">
+        <h1 className="font-[family-name:var(--font-serif)] text-5xl sm:text-6xl lg:text-7xl text-[var(--color-ink)] leading-[1.1] mb-8">
           Let people<br />know you
         </h1>
-        <p className="text-lg sm:text-xl text-stone-600 leading-relaxed max-w-xl mx-auto mb-12">
+        <p className="text-lg sm:text-xl text-[var(--color-muted)] leading-relaxed max-w-xl mx-auto mb-12">
           Share your preferences, gift ideas, and boundaries in one place
           — so the people in your life never have to guess.
         </p>
@@ -49,7 +49,7 @@ function Hero() {
           </Link>
           <Link
             href="#how-it-works"
-            className="px-8 py-4 rounded-full border border-stone-300 text-stone-600 font-medium text-base hover:border-stone-400 hover:text-stone-800 transition-colors"
+            className="px-8 py-4 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] font-medium text-base hover:border-stone-400 hover:text-[var(--color-ink)] transition-colors"
           >
             See how it works
           </Link>
@@ -62,36 +62,36 @@ function ProfilePreview() {
   return (
     <section className="py-16 px-6">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-3xl border border-stone-200/80 shadow-sm p-8 sm:p-12">
+        <div className="bg-white rounded-3xl border border-[var(--color-border)]/80 shadow-sm p-8 sm:p-12">
           <div className="flex flex-col sm:flex-row gap-8 items-start">
             <div className="w-20 h-20 rounded-full bg-[var(--color-lyra-sage-light)] flex items-center justify-center text-2xl font-[family-name:var(--font-serif)] text-[var(--color-lyra-sage)]">
               SA
             </div>
             <div className="flex-1 space-y-6">
               <div>
-                <h3 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800">Sarah Ashworth</h3>
-                <p className="text-stone-600 mt-1">Mum of two, book lover, based in Manchester</p>
+                <h3 className="font-[family-name:var(--font-serif)] text-2xl text-[var(--color-ink)]">Sarah Ashworth</h3>
+                <p className="text-[var(--color-muted)] mt-1">Mum of two, book lover, based in Manchester</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lyra-sage)] mb-3">Gift ideas</h4>
                   <div className="space-y-2">
-                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-stone-700 text-sm rounded-full">Waterstones gift card</span>
-                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-stone-700 text-sm rounded-full ml-2">Toast clothing</span>
-                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-stone-700 text-sm rounded-full">Spa experiences</span>
+                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-[var(--color-ink)] text-sm rounded-full">Waterstones gift card</span>
+                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-[var(--color-ink)] text-sm rounded-full ml-2">Toast clothing</span>
+                    <span className="inline-block px-3 py-1.5 bg-[var(--color-lyra-sage-50)] text-[var(--color-ink)] text-sm rounded-full">Spa experiences</span>
                   </div>
                 </div>                <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-lyra-blush)] mb-3">Please avoid</h4>
                   <div className="space-y-2">
-                    <span className="inline-block px-3 py-1.5 bg-red-50 text-stone-600 text-sm rounded-full">Scented candles</span>
-                    <span className="inline-block px-3 py-1.5 bg-red-50 text-stone-600 text-sm rounded-full ml-2">Novelty mugs</span>
+                    <span className="inline-block px-3 py-1.5 bg-red-50 text-[var(--color-muted)] text-sm rounded-full">Scented candles</span>
+                    <span className="inline-block px-3 py-1.5 bg-red-50 text-[var(--color-muted)] text-sm rounded-full ml-2">Novelty mugs</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <p className="text-center text-sm text-stone-600 mt-6">
+        <p className="text-center text-sm text-[var(--color-muted)] mt-6">
           An example Lyra profile — yours will be uniquely you
         </p>
       </div>
@@ -123,10 +123,10 @@ function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 px-6 bg-white">
       <div className="max-w-4xl mx-auto">
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] text-center mb-4">
           Three steps to being understood
         </h2>
-        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-[var(--color-muted)] text-center mb-16 max-w-lg mx-auto">
           No accounts needed to view your profile. No social features. Just a quiet page that helps.
         </p>        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           {steps.map((step) => (
@@ -137,8 +137,8 @@ function HowItWorks() {
               >
                 {step.number}
               </div>
-              <h3 className="text-lg font-medium text-stone-800 mb-2">{step.title}</h3>
-              <p className="text-stone-600 text-sm leading-relaxed">{step.description}</p>
+              <h3 className="text-lg font-medium text-[var(--color-ink)] mb-2">{step.title}</h3>
+              <p className="text-[var(--color-muted)] text-sm leading-relaxed">{step.description}</p>
             </div>
           ))}
         </div>
@@ -159,18 +159,18 @@ function Sections() {
   return (
     <section className="py-24 px-6">
       <div className="max-w-4xl mx-auto">
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] text-center mb-4">
           Everything in one place
         </h2>
-        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-[var(--color-muted)] text-center mb-16 max-w-lg mx-auto">
           Your profile has space for all the things people should know — organised into sections that make sense.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sections.map((s) => (
-            <div key={s.title} className="bg-white rounded-2xl border border-stone-200/80 p-6 hover:shadow-sm transition-shadow">
+            <div key={s.title} className="bg-white rounded-2xl border border-[var(--color-border)]/80 p-6 hover:shadow-sm transition-shadow">
               <div className="text-2xl mb-3">{s.icon}</div>
-              <h3 className="font-medium text-stone-800 mb-1">{s.title}</h3>
-              <p className="text-sm text-stone-600 leading-relaxed">{s.desc}</p>
+              <h3 className="font-medium text-[var(--color-ink)] mb-1">{s.title}</h3>
+              <p className="text-sm text-[var(--color-muted)] leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>
@@ -201,17 +201,17 @@ function UseCases() {
   return (
     <section className="py-24 px-6 bg-white">
       <div className="max-w-4xl mx-auto">
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 text-center mb-4">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] text-center mb-4">
           Who it&apos;s for
         </h2>
-        <p className="text-stone-600 text-center mb-16 max-w-lg mx-auto">
+        <p className="text-[var(--color-muted)] text-center mb-16 max-w-lg mx-auto">
           Anyone who&apos;s ever thought &ldquo;I wish they just knew what I wanted.&rdquo; Which is everyone.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 max-w-3xl mx-auto">
           {cases.map((c) => (
             <div key={c.title}>
-              <h3 className="font-medium text-stone-800 mb-2">{c.title}</h3>
-              <p className="text-sm text-stone-600 leading-relaxed">{c.desc}</p>
+              <h3 className="font-medium text-[var(--color-ink)] mb-2">{c.title}</h3>
+              <p className="text-sm text-[var(--color-muted)] leading-relaxed">{c.desc}</p>
             </div>
           ))}
         </div>
@@ -242,7 +242,7 @@ function WhatLyraIsNot() {
   return (
     <section className="py-24 px-6">
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-12">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] mb-12">
           What Lyra is not
         </h2>
         <div className="space-y-4">
@@ -252,13 +252,13 @@ function WhatLyraIsNot() {
               className="flex items-center gap-3 text-left max-w-md mx-auto"
             >
               <span className="text-[var(--color-lyra-blush)] font-semibold text-sm shrink-0">No</span>
-              <span className="text-stone-600 text-sm">{item.replace(/^No /, "")}</span>
+              <span className="text-[var(--color-muted)] text-sm">{item.replace(/^No /, "")}</span>
             </div>
           ))}
           {/* KAN-156: positive counterpoint to the No list. */}
           <div className="flex items-center gap-3 text-left max-w-md mx-auto pt-2">
             <span className="text-[var(--color-lyra-sage)] font-semibold text-sm shrink-0" aria-hidden="true">✓</span>
-            <span className="text-stone-700 text-sm font-medium">Only see what you want to see</span>
+            <span className="text-[var(--color-ink)] text-sm font-medium">Only see what you want to see</span>
           </div>
         </div>
       </div>
@@ -281,22 +281,22 @@ function AboutLyra() {
   ];
 
   return (
-    <section id="about" className="py-24 px-6 bg-stone-50/40">
+    <section id="about" className="py-24 px-6 bg-[#f6f2ea]">
       <div className="max-w-3xl mx-auto text-center">
         <p className="text-sm font-medium tracking-widest uppercase text-[var(--color-lyra-sage)] mb-4">
           About Lyra
         </p>
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-6">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] mb-6">
           For real-life relationships, not screen time
         </h2>
-        <p className="text-stone-600 leading-relaxed mb-12 max-w-xl mx-auto">
+        <p className="text-[var(--color-muted)] leading-relaxed mb-12 max-w-xl mx-auto">
           Lyra exists to improve people&apos;s relationships in real life — not to make them
           spend time online. There&apos;s nothing to scroll, no feed to refresh, no metrics to chase.
           Just a quiet profile that helps the people you care about know you a little better.
         </p>
         <ul className="text-left max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3">
           {useCases.map((u) => (
-            <li key={u} className="flex items-start gap-3 text-stone-600 text-sm leading-relaxed">
+            <li key={u} className="flex items-start gap-3 text-[var(--color-muted)] text-sm leading-relaxed">
               <span className="text-[var(--color-lyra-sage)] font-semibold shrink-0 mt-0.5" aria-hidden="true">→</span>
               <span>{u}</span>
             </li>
@@ -317,15 +317,15 @@ function ParentTeacherCallout() {
     <section className="py-16 px-6">
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="rounded-2xl border-2 border-[var(--color-lyra-sage-light)] bg-[var(--color-lyra-sage-50)] p-8 sm:p-10 text-center flex flex-col">
-          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-[var(--color-ink)] mb-4">
             Are you a parent?
           </h2>
-          <p className="text-stone-600 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+          <p className="text-[var(--color-muted)] leading-relaxed mb-4 max-w-lg mx-auto flex-1">
             End of year is coming. Instead of guessing what your children&apos;s teachers would like,
             invite them to create a Lyra profile. It takes two minutes &mdash; just gift ideas and
             things to avoid &mdash; and it makes everything easier for everyone.
           </p>
-          <p className="text-sm text-stone-600 italic mb-6 max-w-md mx-auto">
+          <p className="text-sm text-[var(--color-muted)] italic mb-6 max-w-md mx-auto">
             &ldquo;Hi! I&apos;m using Lyra to help people know what I&apos;d appreciate.
             It only takes a couple of minutes. Here&apos;s where you can create yours&hellip;&rdquo;
           </p>
@@ -337,15 +337,15 @@ function ParentTeacherCallout() {
           </Link>
         </div>
         <div className="rounded-2xl border-2 border-[var(--color-lyra-warm-light,#E8DFD3)] bg-[var(--color-lyra-warm-50,#FAF6F0)] p-8 sm:p-10 text-center flex flex-col">
-          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+          <h2 className="font-[family-name:var(--font-serif)] text-2xl text-[var(--color-ink)] mb-4">
             Are you a teacher?
           </h2>
-          <p className="text-stone-600 leading-relaxed mb-4 max-w-lg mx-auto flex-1">
+          <p className="text-[var(--color-muted)] leading-relaxed mb-4 max-w-lg mx-auto flex-1">
             Share the gifts you really want and make it easy for parents to venture outside
             chocolate and wine. End-of-year gifts become easy and more likely to be really
             needed or appreciated. Two minutes is all it takes.
           </p>
-          <p className="text-sm text-stone-600 italic mb-6 max-w-md mx-auto">
+          <p className="text-sm text-[var(--color-muted)] italic mb-6 max-w-md mx-auto">
             &ldquo;Thanks for thinking of me! Here&apos;s a quick Lyra profile of things I&apos;d love.&rdquo;
           </p>
           <Link
@@ -390,10 +390,10 @@ function WishKnowFindFirstHand() {
             className="rounded-2xl border-2 p-8 sm:p-10 text-center flex flex-col"
             style={{ borderColor: c.borderVar, backgroundColor: c.bgVar }}
           >
-            <h2 className="font-[family-name:var(--font-serif)] text-2xl text-stone-800 mb-4">
+            <h2 className="font-[family-name:var(--font-serif)] text-2xl text-[var(--color-ink)] mb-4">
               {c.title}
             </h2>
-            <p className="text-stone-600 leading-relaxed max-w-lg mx-auto">
+            <p className="text-[var(--color-muted)] leading-relaxed max-w-lg mx-auto">
               {c.desc}
             </p>
           </div>
@@ -407,10 +407,10 @@ function CTA() {
   return (
     <section className="py-24 px-6 bg-[var(--color-lyra-sage-50)]">
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-stone-800 mb-4">
+        <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl text-[var(--color-ink)] mb-4">
           Ready to be understood?
         </h2>
-        <p className="text-stone-600 mb-8 max-w-md mx-auto">
+        <p className="text-[var(--color-muted)] mb-8 max-w-md mx-auto">
           Create your Lyra profile in minutes. It&apos;s free, calm, and entirely yours.
         </p>
         <Link
@@ -426,14 +426,14 @@ function CTA() {
 
 function Footer() {
   return (
-    <footer role="contentinfo" className="py-12 px-6 border-t border-stone-200">
+    <footer role="contentinfo" className="py-12 px-6 border-t border-[var(--color-border)]">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto opacity-40" />
-        <div className="flex items-center gap-4 text-sm text-stone-600">
-          <Link href="/privacy" className="hover:text-stone-600 transition-colors">Privacy</Link>
-          <Link href="/terms" className="hover:text-stone-600 transition-colors">Terms</Link>
-          <Link href="/cookies" className="hover:text-stone-600 transition-colors">Cookies</Link>
-          <Link href="/partners" className="hover:text-stone-600 transition-colors">Partners</Link>
+        <div className="flex items-center gap-4 text-sm text-[var(--color-muted)]">
+          <Link href="/privacy" className="hover:text-[var(--color-muted)] transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-[var(--color-muted)] transition-colors">Terms</Link>
+          <Link href="/cookies" className="hover:text-[var(--color-muted)] transition-colors">Cookies</Link>
+          <Link href="/partners" className="hover:text-[var(--color-muted)] transition-colors">Partners</Link>
           <span>&copy; {new Date().getFullYear()} Lyra</span>
         </div>
       </div>
