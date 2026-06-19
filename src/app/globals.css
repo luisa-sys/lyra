@@ -36,6 +36,23 @@
     --color-sage-hover: #4F5E47;
     --color-ink: #2C2C2A;
     --color-muted: #6B6B66;
+
+    /*
+     * KAN-268 — warm surface tokens for the June-2026 redesign. These are
+     * the same values the profile pages use inline (the "notebook" palette);
+     * promoting them to tokens lets the whole app share one warm base instead
+     * of the old cold stone-grey. paper = page background, card = raised
+     * surface, border = hairlines. All AA-safe with --color-ink / --color-muted.
+     */
+    --color-paper: #FDFCF8;  /* warm page background (replaces stone-50) */
+    --color-card: #FFFFFF;   /* raised card surface on paper */
+    --color-border: #ECE7DF; /* warm hairline (replaces stone-200) */
+  }
+
+  body {
+    /* Warm base for every page that doesn't set its own background. */
+    background-color: var(--color-paper);
+    color: var(--color-ink);
   }
 
   html {
