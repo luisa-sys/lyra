@@ -114,7 +114,7 @@ export function DiscoverabilityClient() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 p-6">
+    <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
       <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Discovery by phone or postcode</h2>
       <p className="text-sm text-[var(--color-muted)] mb-4">
         Let people who know your phone number or postcode find your profile. Both are off by default.
@@ -135,7 +135,7 @@ export function DiscoverabilityClient() {
       )}
 
       {/* ── Phone toggle ────────────────────────────────────── */}
-      <div className="mb-6 pb-6 border-b border-stone-100">
+      <div className="mb-6 pb-6 border-b border-[var(--color-border)]">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="flex-1">
             <label htmlFor="discover-phone" className="block text-sm font-medium text-[var(--color-ink)]">
@@ -152,7 +152,7 @@ export function DiscoverabilityClient() {
             checked={phoneEnabled || showPhoneInput}
             disabled={isPending}
             onChange={(e) => handlePhoneToggle(e.target.checked)}
-            className="mt-1 h-5 w-5 rounded border-stone-300 text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
+            className="mt-1 h-5 w-5 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
           />
         </div>
         {showPhoneInput && !phoneEnabled && (
@@ -163,7 +163,7 @@ export function DiscoverabilityClient() {
               onChange={(e) => setPhoneInput(e.target.value)}
               placeholder="+44 7700 900000"
               autoComplete="off"
-              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
             />
             <button
               onClick={handlePhoneSubmit}
@@ -175,7 +175,7 @@ export function DiscoverabilityClient() {
             <button
               onClick={() => { setShowPhoneInput(false); setPhoneInput(''); }}
               disabled={isPending}
-              className="px-3 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 transition-colors"
+              className="px-3 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] transition-colors"
             >
               Cancel
             </button>
@@ -201,7 +201,7 @@ export function DiscoverabilityClient() {
             checked={postcodeEnabled || showPostcodeInput}
             disabled={isPending}
             onChange={(e) => handlePostcodeToggle(e.target.checked)}
-            className="mt-1 h-5 w-5 rounded border-stone-300 text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
+            className="mt-1 h-5 w-5 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
           />
         </div>
         {showPostcodeInput && !postcodeEnabled && (
@@ -212,7 +212,7 @@ export function DiscoverabilityClient() {
               onChange={(e) => setPostcodeInput(e.target.value)}
               placeholder="SW1A 1AA"
               autoComplete="off"
-              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
             />
             <button
               onClick={handlePostcodeSubmit}
@@ -224,7 +224,7 @@ export function DiscoverabilityClient() {
             <button
               onClick={() => { setShowPostcodeInput(false); setPostcodeInput(''); }}
               disabled={isPending}
-              className="px-3 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 transition-colors"
+              className="px-3 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] transition-colors"
             >
               Cancel
             </button>

@@ -54,7 +54,7 @@ export function GatheringActions({ gatheringId, status, transitions, calendarAdd
   if (!canCancel && !canAddToCalendar) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 p-6">
+    <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
       <h2 className="text-lg font-medium text-[var(--color-ink)] mb-3">Actions</h2>
       <div className="flex flex-wrap gap-2">
         {canAddToCalendar && (

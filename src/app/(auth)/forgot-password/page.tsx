@@ -55,7 +55,7 @@ export default async function ForgotPasswordPage({
         )}
 
         {params.message && (
-          <div className="mb-4 p-3 rounded-lg bg-stone-50 border border-stone-200 text-sm text-[var(--color-ink)]">
+          <div className="mb-4 p-3 rounded-lg bg-[var(--color-paper)] border border-[var(--color-border)] text-sm text-[var(--color-ink)]">
             {params.message}
           </div>
         )}
@@ -75,7 +75,7 @@ export default async function ForgotPasswordPage({
               required
               autoFocus
               autoComplete="email"
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="you@example.com"
             />
           </div>

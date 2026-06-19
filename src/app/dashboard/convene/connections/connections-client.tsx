@@ -72,7 +72,7 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
 
   if (connections.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">No connections yet</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">Connect a calendar so Lyra can help you find time for gatherings.</p>
         <Link
@@ -94,7 +94,7 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
       )}
 
       {connections.map((c) => (
-        <div key={c.id} className="bg-white rounded-xl border border-stone-200 p-6">
+        <div key={c.id} className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-medium text-[var(--color-ink)]">
@@ -112,7 +112,7 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
                         ? 'text-emerald-700'
                         : c.status === 'error'
                           ? 'text-rose-700'
-                          : 'text-stone-500'
+                          : 'text-[var(--color-muted)]'
                     }
                   >
                     {c.status}
@@ -140,7 +140,7 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
               type="button"
               onClick={() => handleDisconnect(c.id)}
               disabled={busy === c.id}
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-stone-300 text-sm text-[var(--color-ink)] hover:bg-stone-50 disabled:opacity-50"
+              className="shrink-0 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-ink)] hover:bg-[var(--color-paper)] disabled:opacity-50"
             >
               {busy === c.id ? 'Disconnecting…' : 'Disconnect'}
             </button>
@@ -148,7 +148,7 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
         </div>
       ))}
 
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h3 className="text-base font-medium text-[var(--color-ink)] mb-1">Connect another</h3>
         <p className="text-sm text-[var(--color-muted)] mb-4">More providers coming in Phase 7 (Microsoft, Apple, CalDAV).</p>
         <Link

@@ -23,7 +23,7 @@ export function RsvpForm({ token }: { token: string }) {
 
   if (submitted) {
     return (
-      <div className={`rounded-lg p-4 text-center ${submitted === 'accepted' ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' : submitted === 'declined' ? 'bg-stone-100 border border-stone-200 text-stone-700' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
+      <div className={`rounded-lg p-4 text-center ${submitted === 'accepted' ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' : submitted === 'declined' ? 'bg-[#f4efe7] border border-[var(--color-border)] text-[var(--color-ink)]' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
         <p className="font-medium">Thanks — your response is recorded.</p>
         <p className="text-sm mt-1">You said: <strong>{submitted}</strong></p>
       </div>
@@ -43,7 +43,7 @@ export function RsvpForm({ token }: { token: string }) {
         placeholder="Anything to add (dietary needs, plus-one, can't make it but want to know next time)?"
         rows={2}
         maxLength={500}
-        className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm placeholder-stone-400 focus:outline-none focus:border-stone-500"
+        className="w-full border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-border)]"
       />
       <div className="flex flex-wrap gap-2">
         <button
@@ -58,7 +58,7 @@ export function RsvpForm({ token }: { token: string }) {
           type="button"
           disabled={pending}
           onClick={() => handle('tentative')}
-          className="flex-1 px-4 py-2.5 rounded-lg border border-stone-300 text-[var(--color-ink)] text-sm font-medium hover:bg-stone-50 disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--color-border)] text-[var(--color-ink)] text-sm font-medium hover:bg-[var(--color-paper)] disabled:opacity-50"
         >
           Maybe
         </button>
@@ -66,7 +66,7 @@ export function RsvpForm({ token }: { token: string }) {
           type="button"
           disabled={pending}
           onClick={() => handle('declined')}
-          className="flex-1 px-4 py-2.5 rounded-lg border border-stone-300 text-[var(--color-ink)] text-sm font-medium hover:bg-stone-50 disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--color-border)] text-[var(--color-ink)] text-sm font-medium hover:bg-[var(--color-paper)] disabled:opacity-50"
         >
           Can&apos;t make it
         </button>

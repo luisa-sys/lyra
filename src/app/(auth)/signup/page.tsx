@@ -52,9 +52,9 @@ export default async function SignUpPage({
             <SocialLoginButtons />
 
             <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-stone-200" />
+              <div className="flex-1 h-px bg-[#ece7df]" />
               <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
-              <div className="flex-1 h-px bg-stone-200" />
+              <div className="flex-1 h-px bg-[#ece7df]" />
             </div>
           </>
         )}
@@ -71,7 +71,7 @@ export default async function SignUpPage({
                 type="text"
                 required
                 autoComplete="off"
-                className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
                 placeholder="From your invitation"
               />
               <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -89,7 +89,7 @@ export default async function SignUpPage({
               name="full_name"
               type="text"
               required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="Sarah Ashworth"
             />
           </div>
@@ -103,7 +103,7 @@ export default async function SignUpPage({
               name="email"
               type="email"
               required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="you@example.com"
             />
           </div>
@@ -118,7 +118,7 @@ export default async function SignUpPage({
               name="consent"
               type="checkbox"
               required
-              className="mt-1 h-4 w-4 rounded border-stone-300 text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
+              className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
             />
             <label htmlFor="consent" className="text-xs text-[var(--color-muted)]">
               I agree to the <Link href="/privacy" className="text-[var(--color-sage)] hover:underline">Privacy Policy</Link> and <Link href="/terms" className="text-[var(--color-sage)] hover:underline">Terms of Service</Link>
