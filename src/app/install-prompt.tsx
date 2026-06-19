@@ -97,7 +97,7 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-labelledby="install-prompt-title"
-      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-sm z-40 bg-white rounded-2xl shadow-lg border border-stone-200 p-4"
+      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-sm z-40 bg-white rounded-2xl shadow-lg border border-[var(--color-border)] p-4"
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl shrink-0" aria-hidden>📲</span>
@@ -137,7 +137,7 @@ export function InstallPrompt() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss"
-          className="shrink-0 text-stone-400 hover:text-stone-600 transition-colors"
+          className="shrink-0 text-[var(--color-muted)] hover:text-[var(--color-muted)] transition-colors"
         >
           ×
         </button>

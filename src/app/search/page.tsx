@@ -27,7 +27,7 @@ function ProfileCard({ profile }: { profile: SearchProfile }) {
   return (
     <Link
       href={`/${profile.slug}`}
-      className="block bg-white rounded-xl border border-stone-200 p-5 hover:shadow-sm hover:border-stone-300 transition-all group"
+      className="block bg-white rounded-xl border border-[var(--color-border)] p-5 hover:shadow-sm hover:border-[var(--color-border)] transition-all group"
     >
       <div className="flex items-start gap-4">
         <div className="w-12 h-12 rounded-full bg-[var(--color-sage)] flex items-center justify-center text-lg text-white font-[family-name:var(--font-serif)] shrink-0 overflow-hidden">
@@ -80,9 +80,9 @@ export default async function SearchPage({
   }
 
   return (
-    <main className="min-h-screen bg-stone-50">
+    <main className="min-h-screen bg-[var(--color-paper)]">
       {/* Nav */}
-      <nav aria-label="Search navigation" className="border-b border-stone-200/60 bg-stone-50/80 backdrop-blur-md">
+      <nav aria-label="Search navigation" className="border-b border-[var(--color-border)]/60 bg-[var(--color-paper)]/80 backdrop-blur-md">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />
@@ -113,7 +113,7 @@ export default async function SearchPage({
               defaultValue={query}
               placeholder="Search by name..."
               autoComplete="off"
-              className="flex-1 px-4 py-3 rounded-xl border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="flex-1 px-4 py-3 rounded-xl border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
             />
             <button
               type="submit"

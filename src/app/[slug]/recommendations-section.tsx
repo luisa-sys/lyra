@@ -30,7 +30,7 @@ export default function RecommendationsSection({
   return (
     <section
       aria-labelledby="recommendations-heading"
-      className="mt-16 pt-12 border-t border-stone-200"
+      className="mt-16 pt-12 border-t border-[var(--color-border)]"
     >
       <header className="mb-8">
         <h2
@@ -48,7 +48,7 @@ export default function RecommendationsSection({
         {recommendations.map((rec) => (
           <li
             key={rec.title}
-            className="p-5 rounded-xl border border-stone-200 bg-white"
+            className="p-5 rounded-xl border border-[var(--color-border)] bg-white"
           >
             <div className="flex items-baseline justify-between gap-3 mb-1">
               <h3 className="text-base font-medium text-[var(--color-ink)]">
@@ -62,7 +62,7 @@ export default function RecommendationsSection({
               {rec.description}
             </p>
             {rec.reasons.length > 0 && (
-              <p className="text-xs text-stone-500 mt-3 italic">
+              <p className="text-xs text-[var(--color-muted)] mt-3 italic">
                 Why: {rec.reasons[0]}
               </p>
             )}
@@ -70,7 +70,7 @@ export default function RecommendationsSection({
         ))}
       </ul>
 
-      <p className="text-xs text-stone-500 mt-6">
+      <p className="text-xs text-[var(--color-muted)] mt-6">
         Suggestions are produced automatically and may not always land — use them as a starting point, not a shopping list.
       </p>
     </section>

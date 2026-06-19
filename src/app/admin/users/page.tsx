@@ -71,12 +71,12 @@ export default async function UsersListPage({
           name="q"
           defaultValue={sp.q ?? ''}
           placeholder="Search name or slug…"
-          className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-stone-300 bg-white"
+          className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
         />
         {sp.filter && <input type="hidden" name="filter" value={sp.filter} />}
         <button
           type="submit"
-          className="px-4 py-2 rounded-full bg-stone-100 text-[var(--color-ink)] text-sm font-medium hover:bg-stone-200 transition-colors"
+          className="px-4 py-2 rounded-full bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
         >
           Search
         </button>
@@ -95,7 +95,7 @@ export default async function UsersListPage({
             'text-xs px-3 py-1.5 rounded-full transition-colors ' +
             (!sp.filter
               ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-stone-100 text-[var(--color-muted)] hover:bg-stone-200')
+              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
           }
         >
           All
@@ -106,7 +106,7 @@ export default async function UsersListPage({
             'text-xs px-3 py-1.5 rounded-full transition-colors ' +
             (sp.filter === 'suspended'
               ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-stone-100 text-[var(--color-muted)] hover:bg-stone-200')
+              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
           }
         >
           Suspended
@@ -117,21 +117,21 @@ export default async function UsersListPage({
             'text-xs px-3 py-1.5 rounded-full transition-colors ' +
             (sp.filter === 'admin'
               ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-stone-100 text-[var(--color-muted)] hover:bg-stone-200')
+              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
           }
         >
           Admins
         </Link>
       </nav>
 
-      <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+      <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
         {rows.length === 0 ? (
           <p className="p-5 text-sm text-[var(--color-muted)]">No users match.</p>
         ) : rows.map((u) => (
           <Link
             key={u.id}
             href={`/admin/users/${u.slug}`}
-            className="block p-4 hover:bg-stone-50 transition-colors"
+            className="block p-4 hover:bg-[var(--color-paper)] transition-colors"
           >
             <div className="flex items-baseline justify-between gap-4 mb-1">
               <p className="text-sm font-medium text-[var(--color-ink)] truncate">
@@ -147,11 +147,11 @@ export default async function UsersListPage({
                 ) : u.is_published ? (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700">Published</span>
                 ) : (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">Draft</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#f4efe7] text-[var(--color-muted)]">Draft</span>
                 )}
               </div>
             </div>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-[var(--color-muted)]">
               Joined {new Date(u.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
           </Link>

@@ -35,7 +35,7 @@ export default async function ConnectionsPage({
 }) {
   if (!isConveneEnabled()) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-xl font-medium text-[var(--color-ink)]">Convene is not enabled</h1>
           <p className="text-[var(--color-muted)] mt-2">Check back soon.</p>
@@ -62,8 +62,8 @@ export default async function ConnectionsPage({
   const provider = sp.provider;
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -94,7 +94,7 @@ export default async function ConnectionsPage({
 
         <ConnectionsClient connections={(connections ?? []) as ConnectionRow[]} />
 
-        <div className="bg-white rounded-xl border border-stone-200 p-6">
+        <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <h2 className="text-lg font-medium text-[var(--color-ink)] mb-2">What Lyra does with this</h2>
           <ul className="text-sm text-[var(--color-muted)] space-y-1 list-disc pl-5">
             <li>Reads free/busy windows from your calendar to suggest times that work.</li>

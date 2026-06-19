@@ -158,7 +158,7 @@ export default async function UserDetailPage({
         </p>
       </header>
 
-      <section className="p-5 rounded-xl border border-stone-200 bg-white">
+      <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
           <div>
             <dt className="text-xs uppercase tracking-wider text-[var(--color-muted)]">Status</dt>
@@ -190,7 +190,7 @@ export default async function UserDetailPage({
       </section>
 
       {!isSelf && (
-        <section className="p-5 rounded-xl border border-stone-200 bg-white space-y-4">
+        <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white space-y-4">
           <h2 className="text-base font-medium text-[var(--color-ink)]">Actions</h2>
           {profile.is_suspended ? (
             <form action={actionUnsuspend} className="flex flex-wrap gap-3 items-end">
@@ -200,7 +200,7 @@ export default async function UserDetailPage({
                 name="reason"
                 type="text"
                 maxLength={500}
-                className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-stone-300 bg-white"
+                className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
                 placeholder="Unsuspension note (optional)"
               />
               <button
@@ -219,7 +219,7 @@ export default async function UserDetailPage({
                 type="text"
                 maxLength={500}
                 required
-                className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-stone-300 bg-white"
+                className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
                 placeholder="Suspension reason (required)"
               />
               <button
@@ -233,12 +233,12 @@ export default async function UserDetailPage({
         </section>
       )}
 
-      <section className="p-5 rounded-xl border border-stone-200 bg-white">
+      <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <h2 className="text-base font-medium text-[var(--color-ink)] mb-3">Items</h2>
         {items.length === 0 ? (
           <p className="text-sm text-[var(--color-muted)]">No items on this profile.</p>
         ) : (
-          <ul className="divide-y divide-stone-100">
+          <ul className="divide-y divide-[var(--color-border)]">
             {items.map((it) => (
               <li key={it.id} className="py-3 flex items-baseline justify-between gap-3">
                 <div className="min-w-0">
@@ -261,12 +261,12 @@ export default async function UserDetailPage({
                       name="reason"
                       type="text"
                       maxLength={500}
-                      className="p-1.5 text-xs rounded border border-stone-300 bg-white w-32"
+                      className="p-1.5 text-xs rounded border border-[var(--color-border)] bg-white w-32"
                       placeholder="Reason"
                     />
                     <button
                       type="submit"
-                      className="text-xs px-3 py-1.5 rounded-full bg-stone-100 text-red-700 hover:bg-red-50 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full bg-[#f4efe7] text-red-700 hover:bg-red-50 transition-colors"
                     >
                       Delete
                     </button>

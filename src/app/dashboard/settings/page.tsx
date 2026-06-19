@@ -16,8 +16,8 @@ export default async function SettingsPage() {
   if (!user) redirect('/login');
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -32,7 +32,7 @@ export default async function SettingsPage() {
           <p className="text-[var(--color-muted)] mt-1">Manage your data and privacy.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-stone-200 p-6">
+        <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Account information</h2>
           <p className="text-sm text-[var(--color-muted)] mb-4">Your basic account details.</p>
           <div className="space-y-2 text-sm">

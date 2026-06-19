@@ -49,7 +49,7 @@ function Hero() {
           </Link>
           <Link
             href="#how-it-works"
-            className="px-8 py-4 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] font-medium text-base hover:border-stone-400 hover:text-[var(--color-ink)] transition-colors"
+            className="px-8 py-4 rounded-full border border-[var(--color-border)] text-[var(--color-muted)] font-medium text-base hover:border-[var(--color-border)] hover:text-[var(--color-ink)] transition-colors"
           >
             See how it works
           </Link>

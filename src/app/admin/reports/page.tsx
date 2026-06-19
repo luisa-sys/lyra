@@ -80,7 +80,7 @@ export default async function ReportsListPage({
               'text-xs px-3 py-1.5 rounded-full transition-colors ' +
               (filter === s
                 ? 'bg-[var(--color-ink)] text-white'
-                : 'bg-stone-100 text-[var(--color-muted)] hover:bg-stone-200')
+                : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
             }
           >
             {s}
@@ -88,14 +88,14 @@ export default async function ReportsListPage({
         ))}
       </nav>
 
-      <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+      <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
         {reports.length === 0 ? (
           <p className="p-5 text-sm text-[var(--color-muted)]">No reports match this filter.</p>
         ) : reports.map((r) => (
           <Link
             key={r.id}
             href={`/admin/reports/${r.id}`}
-            className="block p-4 hover:bg-stone-50 transition-colors"
+            className="block p-4 hover:bg-[var(--color-paper)] transition-colors"
           >
             <div className="flex items-baseline justify-between gap-4 mb-1">
               <p className="text-sm text-[var(--color-ink)] truncate">
@@ -115,7 +115,7 @@ export default async function ReportsListPage({
                   'text-xs px-2 py-1 rounded-full shrink-0 ' +
                   (r.status === 'pending' ? 'bg-amber-50 text-amber-700'
                     : r.status === 'actioned' ? 'bg-green-50 text-green-700'
-                    : r.status === 'dismissed' ? 'bg-stone-100 text-stone-600'
+                    : r.status === 'dismissed' ? 'bg-[#f4efe7] text-[var(--color-muted)]'
                     : 'bg-blue-50 text-blue-700')
                 }
               >
@@ -125,7 +125,7 @@ export default async function ReportsListPage({
             {r.note && (
               <p className="text-xs text-[var(--color-muted)] line-clamp-2 mb-1">{r.note}</p>
             )}
-            <p className="text-xs text-stone-500">{formatRelative(r.created_at)}</p>
+            <p className="text-xs text-[var(--color-muted)]">{formatRelative(r.created_at)}</p>
           </Link>
         ))}
       </div>

@@ -41,7 +41,7 @@ export default async function WaitlistPage() {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center px-6 py-12">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="flex justify-center">
           <Image src="/lyra-logo.png" alt="Lyra" width={64} height={64} className="h-16 w-auto" priority />

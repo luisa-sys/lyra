@@ -88,7 +88,7 @@ export function ConversationStartersStep({
           {answers.map((a) => (
             <div
               key={a.id}
-              className="bg-white rounded-lg border border-stone-200 px-4 py-3"
+              className="bg-white rounded-lg border border-[var(--color-border)] px-4 py-3"
             >
               <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-1">
                 {a.prompt}
@@ -99,10 +99,10 @@ export function ConversationStartersStep({
                     value={editingAnswer}
                     onChange={(e) => setEditingAnswer(e.target.value.slice(0, ANSWER_MAX))}
                     rows={3}
-                    className="w-full p-2 text-sm rounded border border-stone-300 bg-white"
+                    className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-stone-500">{editingAnswer.length} / {ANSWER_MAX}</span>
+                    <span className="text-[var(--color-muted)]">{editingAnswer.length} / {ANSWER_MAX}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -167,13 +167,13 @@ export function ConversationStartersStep({
           {unanswered.map((p) => (
             <div
               key={p.id}
-              className="bg-white rounded-lg border border-stone-200"
+              className="bg-white rounded-lg border border-[var(--color-border)]"
             >
               <button
                 type="button"
                 onClick={() => handleStartAnswer(p.id)}
                 disabled={isPending}
-                className="w-full text-left px-4 py-3 text-sm text-[var(--color-ink)] hover:bg-stone-50 disabled:opacity-60"
+                className="w-full text-left px-4 py-3 text-sm text-[var(--color-ink)] hover:bg-[var(--color-paper)] disabled:opacity-60"
               >
                 {openPromptId === p.id ? '▼' : '▸'} {p.prompt}
               </button>
@@ -185,10 +185,10 @@ export function ConversationStartersStep({
                     onChange={(e) => setNewAnswer(e.target.value.slice(0, ANSWER_MAX))}
                     rows={3}
                     placeholder="Write a short, honest answer — a few sentences."
-                    className="w-full p-2 text-sm rounded border border-stone-300 bg-white"
+                    className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-stone-500">{newAnswer.length} / {ANSWER_MAX}</span>
+                    <span className="text-[var(--color-muted)]">{newAnswer.length} / {ANSWER_MAX}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"

@@ -24,7 +24,7 @@ export function PreviewStep({ profile, items, schools, links, onPublish, isPendi
         <h2 className="text-xl font-medium text-[var(--color-ink)]">Preview your profile</h2>
         <p className="text-sm text-[var(--color-muted)] mt-1">This is how people will see you on Lyra.</p>
       </div>
-      <div className="bg-white rounded-xl border border-stone-200 p-6 space-y-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 space-y-6">
         <div className="text-center">
           <h3 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">{profile.display_name}</h3>
           {profile.headline && <p className="text-sm text-[var(--color-muted)] mt-1">{profile.headline}</p>}
@@ -48,7 +48,7 @@ export function PreviewStep({ profile, items, schools, links, onPublish, isPendi
             <h4 className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide mb-2">{categoryLabels[cat] || cat}</h4>
             <div className="flex flex-wrap gap-2">
               {catItems.map((item: WizardItem) => (
-                <span key={item.id} className="inline-block px-3 py-1 bg-stone-100 rounded-full text-sm text-[var(--color-ink)]">
+                <span key={item.id} className="inline-block px-3 py-1 bg-[#f4efe7] rounded-full text-sm text-[var(--color-ink)]">
                   {item.title}
                 </span>
               ))}

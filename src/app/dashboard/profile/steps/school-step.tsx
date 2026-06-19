@@ -31,7 +31,7 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
       {schools.length > 0 && (
         <div className="space-y-2">
           {schools.map((s: WizardSchool) => (
-            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
+            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">{s.school_name}</p>
                 <p className="text-xs text-[var(--color-muted)]">{s.relationship}{s.school_location ? ` · ${s.school_location}` : ''}</p>
@@ -42,13 +42,13 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
         </div>
       )}
 
-      <div className="space-y-3 bg-white rounded-lg border border-stone-200 p-4">
+      <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <Field label="School name" value={name} onChange={setName} placeholder="Greenfield Primary" />
         <Field label="Location" value={location} onChange={setLocation} placeholder="London" />
         <div>
           <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Relationship</label>
           <select value={relationship} onChange={(e) => setRelationship(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm">
+            className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm">
             <option value="parent">Parent</option>
             <option value="student">Student</option>
             <option value="alumni">Alumni</option>
@@ -57,7 +57,7 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
           </select>
         </div>
         <button onClick={handleAdd} disabled={isPending || !name.trim()}
-          className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors">
+          className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors">
           + Add school
         </button>
       </div>
