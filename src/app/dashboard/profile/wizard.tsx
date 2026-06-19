@@ -82,8 +82,8 @@ export function ProfileWizard({
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -104,8 +104,8 @@ export function ProfileWizard({
               i === step
                 ? 'bg-[var(--color-sage)] text-white'
                 : i < step
-                  ? 'bg-stone-200 text-[var(--color-ink)]'
-                  : 'bg-stone-100 text-[var(--color-muted)]'
+                  ? 'bg-[#ece7df] text-[var(--color-ink)]'
+                  : 'bg-[#f4efe7] text-[var(--color-muted)]'
             }`}
           >
             <span>{s.icon}</span> {s.label}

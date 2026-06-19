@@ -55,7 +55,7 @@ export default function ShareProfile({
   }
 
   return (
-    <div className="mt-6 pt-6 border-t border-stone-200">
+    <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
       <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">
         Share Lyra with a friend
       </h3>
@@ -72,7 +72,7 @@ export default function ShareProfile({
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={7}
-        className="w-full p-3 text-sm rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-lyra-sage)] focus:border-transparent resize-y"
+        className="w-full p-3 text-sm rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-lyra-sage)] focus:border-transparent resize-y"
       />
 
       <div className="mt-3 flex items-center gap-3">

@@ -100,7 +100,7 @@ export function SettingsClient() {
   return (
     <>
       {/* Change Email */}
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Change email</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">
           Update the email address associated with your account. You&apos;ll need to confirm the new address.
@@ -116,7 +116,7 @@ export function SettingsClient() {
             value={emailValue}
             onChange={(e) => setEmailValue(e.target.value)}
             placeholder="New email address"
-            className="flex-1 px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+            className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
           />
           <button
             onClick={handleUpdateEmail}
@@ -129,7 +129,7 @@ export function SettingsClient() {
       </div>
 
       {/* Change Password */}
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Change password</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">
           Update your account password. You&apos;ll need your current password to make this change.
@@ -145,14 +145,14 @@ export function SettingsClient() {
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Current password"
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
           />
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="New password (min 6 characters)"
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
           />
         </div>
         <button
@@ -165,7 +165,7 @@ export function SettingsClient() {
       </div>
 
       {/* API Keys */}
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">API Keys</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">
           Generate API keys so AI companions (Claude, ChatGPT, etc.) can update your profile on your behalf.
@@ -190,7 +190,7 @@ export function SettingsClient() {
         {keys.length > 0 && (
           <div className="space-y-2 mb-4">
             {keys.map((k) => (
-              <div key={k.id} className="flex items-center justify-between bg-stone-50 rounded-lg px-4 py-3">
+              <div key={k.id} className="flex items-center justify-between bg-[var(--color-paper)] rounded-lg px-4 py-3">
                 <div>
                   <p className="text-sm font-mono text-[var(--color-ink)]">{k.key_prefix}...</p>
                   <p className="text-xs text-[var(--color-muted)]">
@@ -220,7 +220,7 @@ export function SettingsClient() {
 
         <details className="mt-4">
           <summary className="text-xs text-[var(--color-muted)] cursor-pointer hover:text-[var(--color-ink)]">How to connect your AI companion</summary>
-          <div className="mt-2 p-3 bg-stone-50 rounded-lg text-xs text-[var(--color-muted)] space-y-2">
+          <div className="mt-2 p-3 bg-[var(--color-paper)] rounded-lg text-xs text-[var(--color-muted)] space-y-2">
             <p><strong>Claude.ai:</strong> Settings → Connectors → Add <code>https://mcp.checklyra.com/mcp</code></p>
             <p><strong>Claude Desktop:</strong> Add to claude_desktop_config.json:</p>
             <pre className="bg-white p-2 rounded text-[10px] overflow-x-auto">{`"lyra": { "command": "npx", "args": ["mcp-remote", "https://mcp.checklyra.com/mcp"] }`}</pre>
@@ -230,7 +230,7 @@ export function SettingsClient() {
       </div>
 
       {/* Data Export */}
-      <div className="bg-white rounded-xl border border-stone-200 p-6">
+      <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
         <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Export your data</h2>
         <p className="text-sm text-[var(--color-muted)] mb-4">
           Download all your Lyra data in JSON format. This includes your profile, preferences, gift ideas, school affiliations, and links.
@@ -279,7 +279,7 @@ export function SettingsClient() {
               </button>
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteText(''); }}
-                className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 transition-colors"
+                className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] transition-colors"
               >
                 Cancel
               </button>

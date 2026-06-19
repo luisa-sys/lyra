@@ -112,7 +112,7 @@ export function FilesStep({
           {files.map((file) => (
             <li
               key={file.id}
-              className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3"
+              className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3"
             >
               <div className="flex-1 min-w-0 flex items-center gap-3">
                 <span className="text-xl shrink-0" aria-hidden>{iconForMime(file.mime_type)}</span>
@@ -131,7 +131,7 @@ export function FilesStep({
                   value={visibilityShort[file.visibility] ? file.visibility : 'public'}
                   onChange={(e) => onUpdateVisibility(file.id, e.target.value)}
                   disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-stone-300 bg-white text-[var(--color-ink)]"
+                  className="text-xs px-2 py-1 rounded border border-[var(--color-border)] bg-white text-[var(--color-ink)]"
                 >
                   {VISIBILITY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{visibilityShort[opt.value]}</option>
@@ -151,7 +151,7 @@ export function FilesStep({
         </ul>
       )}
 
-      <div className="space-y-3 bg-white rounded-lg border border-stone-200 p-4">
+      <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <p className="text-sm text-[var(--color-ink)] font-medium">
           {atCap ? `At limit (${files.length} / ${MAX_FILES})` : `Add a file (${files.length} / ${MAX_FILES})`}
         </p>
@@ -164,7 +164,7 @@ export function FilesStep({
             id="new-file-visibility"
             value={visibility}
             onChange={(e) => setVisibility(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-sm"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm"
           >
             {VISIBILITY_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -184,7 +184,7 @@ export function FilesStep({
           type="button"
           onClick={handlePick}
           disabled={isPending || atCap}
-          className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors"
+          className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors"
         >
           + Choose file…
         </button>

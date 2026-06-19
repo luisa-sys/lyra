@@ -54,7 +54,7 @@ export default function V2RecommendationsSection({
   return (
     <section
       aria-labelledby="v2-recommendations-heading"
-      className="mt-16 pt-12 border-t border-stone-200"
+      className="mt-16 pt-12 border-t border-[var(--color-border)]"
     >
       <header className="mb-8">
         <h2
@@ -79,7 +79,7 @@ export default function V2RecommendationsSection({
           return (
             <li
               key={rec.affiliate.clickId}
-              className="p-5 rounded-xl border border-stone-200 bg-white flex flex-col"
+              className="p-5 rounded-xl border border-[var(--color-border)] bg-white flex flex-col"
             >
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <h3 className="text-base font-medium text-[var(--color-ink)] leading-snug">
@@ -87,9 +87,9 @@ export default function V2RecommendationsSection({
                 </h3>
                 <AffiliateBadge monetised={rec.affiliate.monetised} />
               </div>
-              <p className="text-xs text-stone-500 mb-2">
+              <p className="text-xs text-[var(--color-muted)] mb-2">
                 {merchant}
-                {price ? <span className="text-stone-400"> &middot; {price}</span> : null}
+                {price ? <span className="text-[var(--color-muted)]"> &middot; {price}</span> : null}
               </p>
               <p className="text-sm text-[var(--color-muted)] leading-relaxed flex-1">
                 {rec.rationale}
@@ -109,7 +109,7 @@ export default function V2RecommendationsSection({
         })}
       </ul>
 
-      <p className="text-xs text-stone-500 mt-6">
+      <p className="text-xs text-[var(--color-muted)] mt-6">
         Suggestions are auto-generated &mdash; not endorsements. Read the{' '}
         <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
           partners disclosure

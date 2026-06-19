@@ -53,9 +53,9 @@ export default async function LoginPage({
             <SocialLoginButtons />
 
             <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-stone-200" />
+              <div className="flex-1 h-px bg-[#ece7df]" />
               <span className="text-xs text-[var(--color-muted)]">or</span>
-              <div className="flex-1 h-px bg-stone-200" />
+              <div className="flex-1 h-px bg-[#ece7df]" />
             </div>
           </>
         )}
@@ -70,7 +70,7 @@ export default async function LoginPage({
               name="email"
               type="email"
               required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="you@example.com"
             />
           </div>

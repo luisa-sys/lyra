@@ -8,8 +8,8 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen bg-stone-50">
-      <nav className="border-b border-stone-200/60">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <nav className="border-b border-[var(--color-border)]/60">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center">
           <Link href="/" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />

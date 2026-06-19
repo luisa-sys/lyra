@@ -84,10 +84,10 @@ export default async function AffiliateReportingPage() {
   const hasAnyConversions = totalConversions > 0;
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <nav className="border-b border-stone-200/60 bg-white">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <nav className="border-b border-[var(--color-border)]/60 bg-white">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/admin" className="text-sm text-stone-600 hover:text-stone-800">
+          <Link href="/admin" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)]">
             &larr; Admin
           </Link>
           <h1 className="text-base font-medium">Affiliate reporting</h1>
@@ -97,7 +97,7 @@ export default async function AffiliateReportingPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         {!hasAnyConversions && (
-          <div className="rounded-lg border border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-700">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[#f4efe7] px-4 py-3 text-sm text-[var(--color-ink)]">
             No conversions yet. This is expected until <code>SOVRN_API_KEY</code> is set
             (<a href="https://checklyra.atlassian.net/browse/KAN-184" className="underline">KAN-184</a>)
             and the nightly reconciliation cron has run at least once. Clicks are still
@@ -107,7 +107,7 @@ export default async function AffiliateReportingPage() {
 
         {/* Headline */}
         <section aria-labelledby="headline-heading">
-          <h2 id="headline-heading" className="text-sm font-medium uppercase tracking-wider text-stone-500 mb-3">
+          <h2 id="headline-heading" className="text-sm font-medium uppercase tracking-wider text-[var(--color-muted)] mb-3">
             Headline
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -120,7 +120,7 @@ export default async function AffiliateReportingPage() {
 
         {/* Provider split */}
         <section aria-labelledby="provider-heading">
-          <h2 id="provider-heading" className="text-sm font-medium uppercase tracking-wider text-stone-500 mb-3">
+          <h2 id="provider-heading" className="text-sm font-medium uppercase tracking-wider text-[var(--color-muted)] mb-3">
             By provider
           </h2>
           <ProviderSplitTable rows={providerSplits} />
@@ -128,7 +128,7 @@ export default async function AffiliateReportingPage() {
 
         {/* Source split */}
         <section aria-labelledby="source-heading">
-          <h2 id="source-heading" className="text-sm font-medium uppercase tracking-wider text-stone-500 mb-3">
+          <h2 id="source-heading" className="text-sm font-medium uppercase tracking-wider text-[var(--color-muted)] mb-3">
             By source surface
           </h2>
           <SourceSplitTable rows={sourceSplits} />
@@ -136,7 +136,7 @@ export default async function AffiliateReportingPage() {
 
         {/* Daily merchant breakdown */}
         <section aria-labelledby="daily-heading">
-          <h2 id="daily-heading" className="text-sm font-medium uppercase tracking-wider text-stone-500 mb-3">
+          <h2 id="daily-heading" className="text-sm font-medium uppercase tracking-wider text-[var(--color-muted)] mb-3">
             Daily &times; merchant &times; country (top 50 rows)
           </h2>
           <DailyMerchantTable rows={dailyRollups} />
@@ -148,21 +148,21 @@ export default async function AffiliateReportingPage() {
 
 function SummaryCard({ label, value, secondary }: { label: string; value: string; secondary?: string }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4">
-      <p className="text-xs uppercase tracking-wider text-stone-500">{label}</p>
-      <p className="text-2xl font-medium text-stone-900 mt-1">{value}</p>
-      {secondary ? <p className="text-xs text-stone-500 mt-0.5">{secondary}</p> : null}
+    <div className="rounded-lg border border-[var(--color-border)] bg-white p-4">
+      <p className="text-xs uppercase tracking-wider text-[var(--color-muted)]">{label}</p>
+      <p className="text-2xl font-medium text-[var(--color-ink)] mt-1">{value}</p>
+      {secondary ? <p className="text-xs text-[var(--color-muted)] mt-0.5">{secondary}</p> : null}
     </div>
   );
 }
 
 function ProviderSplitTable({ rows }: { rows: ProviderSplit[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-stone-500">No clicks yet.</p>;
+    return <p className="text-sm text-[var(--color-muted)]">No clicks yet.</p>;
   }
   return (
-    <table className="w-full text-sm border border-stone-200 rounded-lg overflow-hidden">
-      <thead className="bg-stone-100">
+    <table className="w-full text-sm border border-[var(--color-border)] rounded-lg overflow-hidden">
+      <thead className="bg-[#f4efe7]">
         <tr>
           <th className="text-left px-3 py-2">Provider</th>
           <th className="text-right px-3 py-2">Clicks</th>
@@ -171,7 +171,7 @@ function ProviderSplitTable({ rows }: { rows: ProviderSplit[] }) {
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.provider} className="border-t border-stone-100">
+          <tr key={r.provider} className="border-t border-[var(--color-border)]">
             <td className="px-3 py-2 font-mono text-xs">{r.provider}</td>
             <td className="px-3 py-2 text-right">{r.clicks}</td>
             <td className="px-3 py-2 text-right">{r.conversions}</td>
@@ -184,11 +184,11 @@ function ProviderSplitTable({ rows }: { rows: ProviderSplit[] }) {
 
 function SourceSplitTable({ rows }: { rows: SourceSplit[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-stone-500">No clicks yet.</p>;
+    return <p className="text-sm text-[var(--color-muted)]">No clicks yet.</p>;
   }
   return (
-    <table className="w-full text-sm border border-stone-200 rounded-lg overflow-hidden">
-      <thead className="bg-stone-100">
+    <table className="w-full text-sm border border-[var(--color-border)] rounded-lg overflow-hidden">
+      <thead className="bg-[#f4efe7]">
         <tr>
           <th className="text-left px-3 py-2">Source</th>
           <th className="text-right px-3 py-2">Clicks</th>
@@ -197,7 +197,7 @@ function SourceSplitTable({ rows }: { rows: SourceSplit[] }) {
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.source} className="border-t border-stone-100">
+          <tr key={r.source} className="border-t border-[var(--color-border)]">
             <td className="px-3 py-2 font-mono text-xs">{r.source}</td>
             <td className="px-3 py-2 text-right">{r.clicks}</td>
             <td className="px-3 py-2 text-right">{r.conversions}</td>
@@ -210,12 +210,12 @@ function SourceSplitTable({ rows }: { rows: SourceSplit[] }) {
 
 function DailyMerchantTable({ rows }: { rows: DailyMerchantRollup[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-stone-500">No clicks yet.</p>;
+    return <p className="text-sm text-[var(--color-muted)]">No clicks yet.</p>;
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border border-stone-200 rounded-lg overflow-hidden">
-        <thead className="bg-stone-100">
+      <table className="w-full text-sm border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <thead className="bg-[#f4efe7]">
           <tr>
             <th className="text-left px-3 py-2">Date</th>
             <th className="text-left px-3 py-2">Merchant</th>
@@ -229,7 +229,7 @@ function DailyMerchantTable({ rows }: { rows: DailyMerchantRollup[] }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={`${r.date}-${r.merchantId}-${r.buyerCountry}`} className="border-t border-stone-100">
+            <tr key={`${r.date}-${r.merchantId}-${r.buyerCountry}`} className="border-t border-[var(--color-border)]">
               <td className="px-3 py-2 font-mono text-xs">{r.date}</td>
               <td className="px-3 py-2">{r.merchantId ?? '(unknown)'}</td>
               <td className="px-3 py-2">{r.buyerCountry ?? '?'}</td>

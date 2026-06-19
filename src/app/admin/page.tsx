@@ -67,7 +67,7 @@ async function getRecentReports() {
 
 function StatCard({ label, value, href }: { label: string; value: number; href?: string }) {
   const body = (
-    <div className="p-5 rounded-xl border border-stone-200 bg-white">
+    <div className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
       <p className="text-xs uppercase tracking-wider text-[var(--color-muted)] mb-2">{label}</p>
       <p className="text-2xl font-semibold text-[var(--color-ink)]">{value.toLocaleString()}</p>
     </div>
@@ -126,7 +126,7 @@ export default async function AdminOverviewPage() {
         <h2 id="recent-signups-heading" className="text-base font-medium text-[var(--color-ink)] mb-3">
           Recent signups
         </h2>
-        <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+        <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
           {recentSignups.length === 0 ? (
             <p className="p-5 text-sm text-[var(--color-muted)]">No profiles yet.</p>
           ) : recentSignups.map((p) => (
@@ -145,7 +145,7 @@ export default async function AdminOverviewPage() {
                 ) : p.is_published ? (
                   <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-700">Published</span>
                 ) : (
-                  <span className="text-xs px-2 py-1 rounded-full bg-stone-100 text-stone-600">Draft</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-[#f4efe7] text-[var(--color-muted)]">Draft</span>
                 )}
                 <Link
                   href={`/admin/users/${p.slug as string}`}
@@ -163,7 +163,7 @@ export default async function AdminOverviewPage() {
         <h2 id="recent-reports-heading" className="text-base font-medium text-[var(--color-ink)] mb-3">
           Recent reports
         </h2>
-        <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+        <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
           {recentReports.length === 0 ? (
             <p className="p-5 text-sm text-[var(--color-muted)]">No reports filed.</p>
           ) : recentReports.map((r) => {
@@ -194,7 +194,7 @@ export default async function AdminOverviewPage() {
                         ? 'bg-amber-50 text-amber-700'
                         : r.status === 'actioned'
                         ? 'bg-green-50 text-green-700'
-                        : 'bg-stone-100 text-stone-600')
+                        : 'bg-[#f4efe7] text-[var(--color-muted)]')
                     }
                   >
                     {r.status as string}

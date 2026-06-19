@@ -100,7 +100,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${dmSans.variable} ${dmSerif.variable}`}>
-      <body className="min-h-screen bg-stone-50 text-stone-800 font-[family-name:var(--font-sans)] antialiased">
+      <body className="min-h-screen bg-[var(--color-paper)] text-[var(--color-ink)] font-[family-name:var(--font-sans)] antialiased">
         {children}
         <CookieConsent />
         <InstallPrompt />
