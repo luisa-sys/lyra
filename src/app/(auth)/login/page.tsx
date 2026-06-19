@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signIn } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
+import { env } from '@/lib/env';
 
 export const metadata = {
   title: 'Sign in to Lyra',
@@ -14,6 +15,9 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
   const params = await searchParams;
+  // KAN-258 — hide third-party sign-in during the invite-only phase
+  // (Google sign-in would otherwise create an un-gated account).
+  const inviteOnly = !!env.inviteCode();
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -44,13 +48,17 @@ export default async function LoginPage({
           </div>
         )}
 
-        <SocialLoginButtons />
+        {!inviteOnly && (
+          <>
+            <SocialLoginButtons />
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-stone-200" />
-          <span className="text-xs text-[var(--color-muted)]">or</span>
-          <div className="flex-1 h-px bg-stone-200" />
-        </div>
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-stone-200" />
+              <span className="text-xs text-[var(--color-muted)]">or</span>
+              <div className="flex-1 h-px bg-stone-200" />
+            </div>
+          </>
+        )}
 
         <form className="space-y-4">
           <div>
@@ -67,36 +75,18 @@ export default async function LoginPage({
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="Your password"
-            />
-          </div>
+          <p className="text-xs text-[var(--color-muted)]">
+            No password needed — we&apos;ll email you a secure sign-in link.
+          </p>
 
           <button
             type="submit"
             formAction={signIn}
             className="w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity cursor-pointer"
           >
-            Sign in →
+            Email me a sign-in link →
           </button>
         </form>
-
-        {/* KAN-225: forgot-password escape hatch. Kept under the form
-            so users who know their password aren't distracted by it. */}
-        <p className="mt-4 text-center text-sm">
-          <Link href="/forgot-password" className="text-[var(--color-muted)] hover:text-[var(--color-sage)] hover:underline">
-            Forgot password?
-          </Link>
-        </p>
 
         <p className="mt-4 text-center text-sm text-[var(--color-muted)]">
           Don&apos;t have an account?{' '}

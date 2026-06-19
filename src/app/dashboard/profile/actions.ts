@@ -190,12 +190,15 @@ export async function updateProfileItemVisibility(
   itemId: string,
   visibility: string,
 ): Promise<ActionResult> {
-  const { supabase, error: authError } = await getAuthenticatedUser();
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
-  // RLS confines the UPDATE to items the caller owns — no need to filter
-  // by user_id here.
-  //
+  // KAN-260 — belt-and-braces ownership: scope the write to the caller's
+  // own profile in code, not by RLS alone, so an item that isn't yours can
+  // never be edited even if a DB policy were ever misconfigured.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
   // KAN-234: empty string → NULL = "inherit from section default" (hybrid
   // visibility model). Otherwise coerce to one of the three real values.
   const visibilityValue = visibility && visibility !== ''
@@ -205,7 +208,8 @@ export async function updateProfileItemVisibility(
   const { error } = await supabase
     .from('profile_items')
     .update({ visibility: visibilityValue })
-    .eq('id', itemId);
+    .eq('id', itemId)
+    .eq('profile_id', profile.id);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
@@ -213,13 +217,18 @@ export async function updateProfileItemVisibility(
 }
 
 export async function removeProfileItem(itemId: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await getAuthenticatedUser();
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-260 — owner-scope the delete in code as well as RLS.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
   const { error } = await supabase
     .from('profile_items')
     .delete()
-    .eq('id', itemId);
+    .eq('id', itemId)
+    .eq('profile_id', profile.id);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
@@ -287,13 +296,42 @@ export async function addSchoolAffiliation(data: {
 }
 
 export async function removeSchoolAffiliation(affiliationId: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await getAuthenticatedUser();
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-260 — owner-scope the delete in code as well as RLS.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
   const { error } = await supabase
     .from('school_affiliations')
     .delete()
-    .eq('id', affiliationId);
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+// KAN-267 — affiliations are hidden on the public profile unless the owner
+// opts the row in. Toggling `show_on_profile` is owner-scoped in code as well
+// as RLS (same defence-in-depth pattern as removeSchoolAffiliation).
+export async function updateAffiliationVisibility(
+  affiliationId: string,
+  showOnProfile: boolean,
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const { error } = await supabase
+    .from('school_affiliations')
+    .update({ show_on_profile: showOnProfile })
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
@@ -346,13 +384,18 @@ export async function addExternalLink(data: {
 }
 
 export async function removeExternalLink(linkId: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await getAuthenticatedUser();
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-260 — owner-scope the delete in code as well as RLS.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
 
   const { error } = await supabase
     .from('external_links')
     .delete()
-    .eq('id', linkId);
+    .eq('id', linkId)
+    .eq('profile_id', profile.id);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');

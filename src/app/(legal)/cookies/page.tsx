@@ -19,7 +19,7 @@ export default function CookiePolicyPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Cookie Policy</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 16 May 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 17 June 2026</p>
 
         <h2>What are cookies?</h2>
         <p>Cookies are small text files stored on your device when you visit a website. They help websites remember your preferences and keep you signed in.</p>
@@ -45,7 +45,7 @@ export default function CookiePolicyPage() {
             </tr>
             <tr>
               <td><code>sb-*-auth-token-code-verifier</code></td>
-              <td>Used during the OAuth sign-in flow (e.g. Google Sign-In) to prevent cross-site request forgery.</td>
+              <td>Used during passwordless sign-in (your email magic-link, or Google) to secure the exchange (PKCE) and prevent cross-site request forgery.</td>
               <td>Session</td>
               <td>Essential</td>
             </tr>
