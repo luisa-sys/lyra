@@ -36,8 +36,9 @@ import { test, expect, type Page } from '@playwright/test';
 // The warm "paper" page background — --color-paper: #FDFCF8 (globals.css).
 // Browsers report computed background-color as rgb(253, 252, 248).
 const PAPER_RGB = 'rgb(253, 252, 248)';
-// The actionable sage — --color-sage: #5F7256 → rgb(95, 114, 86).
-const SAGE_RGB = 'rgb(95, 114, 86)';
+// The actionable sage — --color-sage: #4a7359 → rgb(74, 115, 89) (retuned to the
+// mock-up green in KAN-272; was #5F7256 / rgb(95, 114, 86) before).
+const SAGE_RGB = 'rgb(74, 115, 89)';
 
 /**
  * Assert the page's <body> paints the warm "paper" background. This is the
