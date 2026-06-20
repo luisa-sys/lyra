@@ -1,22 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, DM_Serif_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieConsent } from "./cookie-consent";
+import { Footer } from "./footer";
 import { InstallPrompt } from "./install-prompt";
 import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-sans",
+/*
+ * KAN-272 — the June-2026 mock-up uses a SINGLE typeface, Inter, for every
+ * slot. The app previously loaded DM Sans + DM Serif Display; we now load
+ * Inter once and map BOTH --font-sans and --font-serif to it, so every
+ * existing `font-[family-name:var(--font-serif)]` slot renders Inter without
+ * touching the ~23 components that reference the serif variable.
+ */
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-});
-
-const dmSerif = DM_Serif_Display({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -85,7 +86,8 @@ export const metadata: Metadata = {
 // theme_color (sage) so the browser chrome / status bar tint matches the
 // installed app icon's background.
 export const viewport: Viewport = {
-  themeColor: "#5F7256",
+  // KAN-272 — match the redesigned sage (#4a7359, the logo green).
+  themeColor: "#4a7359",
   // PWA install prompts on iOS require viewport-fit=cover so the app
   // can paint under the notch / Dynamic Island. Safe-area insets in
   // globals.css handle the actual layout adjustment.
@@ -98,10 +100,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // KAN-272 — map BOTH font CSS variables to the single Inter face. Inline
+  // style (rather than a className) lets us point two variables at one font
+  // without a second next/font load.
   return (
-    <html lang="en" className={`${dmSans.variable} ${dmSerif.variable}`}>
+    <html
+      lang="en"
+      className={inter.className}
+      style={
+        {
+          "--font-sans": inter.style.fontFamily,
+          "--font-serif": inter.style.fontFamily,
+        } as React.CSSProperties
+      }
+    >
       <body className="min-h-screen bg-[var(--color-paper)] text-[var(--color-ink)] font-[family-name:var(--font-sans)] antialiased">
         {children}
+        <Footer />
         <CookieConsent />
         <InstallPrompt />
         <ServiceWorkerRegister />
