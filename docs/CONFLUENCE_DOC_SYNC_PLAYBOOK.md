@@ -32,6 +32,15 @@ range since, then writes the new SHA back.
 | In-repo source of truth | `lyra/README.md`, `lyra/docs/ARCHITECTURE*.md`, `lyra/CLAUDE.md`, `lyra/CHANGELOG.md`, MCP repo `README`/`src` |
 | Ticket format | follow `docs/JIRA_TICKET_STANDARD.md` |
 
+> **Permissions note (2026-06-20):** In the scheduled web environment, the
+> Atlassian connector has **write** access (Confluence + Jira) but the GitHub
+> connector is currently **read-only** — pushing branches / opening PRs returns
+> `403 Resource not accessible by integration`. So the Confluence + Jira steps
+> run end-to-end today; the draft-PR step (step 6) is **conditional** on GitHub
+> write being granted (see "How to unblock GitHub write" at the bottom). Until
+> then, the job records any in-repo doc fixes in the KAN ticket instead of
+> opening a PR.
+
 ---
 
 ## Prompt to use
@@ -99,12 +108,18 @@ DEDUPLICATION: before creating, search KAN for an open ticket with summary
 containing "Confluence doc sync" from the last 10 days; if found, add a comment
 instead of creating a duplicate.
 
-STEP 6 — Open a draft PR for any in-repo doc changes.
+STEP 6 — Open a draft PR for any in-repo doc changes (CONDITIONAL on GitHub write).
 If keeping Confluence accurate revealed that an in-repo doc (README.md,
-docs/ARCHITECTURE.md, CLAUDE.md, MCP README, etc.) is ALSO stale, fix it on a
-branch named docs/confluence-sync-<YYYY-MM-DD> and open a DRAFT PR against main
-for the affected repo. Link the KAN ticket in the PR body. If no in-repo doc is
-stale, skip this step. Do not push directly to main.
+docs/ARCHITECTURE.md, CLAUDE.md, MCP README, etc.) is ALSO stale: first probe
+GitHub write by attempting to create the branch docs/confluence-sync-<YYYY-MM-DD>.
+- If the branch/PR write SUCCEEDS: commit the doc fix on that branch and open a
+  DRAFT PR against main for the affected repo, linking the KAN ticket.
+- If it returns 403 "Resource not accessible by integration" (GitHub connector
+  is read-only): do NOT keep retrying. Instead, list every stale in-repo doc and
+  the exact change needed in the KAN ticket (step 5) under an "In-repo doc fixes
+  (PR blocked on GitHub write)" heading, so the fix is captured for a human or a
+  later write-enabled run. Note the blocker in the final report.
+If no in-repo doc is stale, skip this step. Never push directly to main.
 
 STEP 7 — Record state + report.
 Update the Doc Sync Log table on the index page with a new row:
@@ -165,3 +180,25 @@ TWC space home (196718)
 
 See https://code.claude.com/docs/en/claude-code-on-the-web for trigger/schedule
 configuration details.
+
+## How to unblock GitHub write (enables step 6's draft PRs)
+
+The scheduled session's GitHub connector is read-only by default — confirmed by
+probe: read works (`list_commits`, `list_branches`) but writes
+(`create_branch`, `create_or_update_file`) return
+`403 Resource not accessible by integration`. That phrase is GitHub's signature
+for a **GitHub App** token missing the `Contents` / `Pull requests` write scope.
+For Claude Code on the web the App is provisioned by the platform, so it does NOT
+appear under github.com → Installed Apps until first authorised. To grant write:
+
+1. In the **Claude Code on the web** app → **Settings → GitHub connection** (or
+   the environment's repo settings) → **re-connect / re-authorise**, granting
+   **write** to `luisa-sys/lyra` and `luisa-sys/lyra-mcp-server`.
+2. During re-auth, GitHub shows its "Install & Authorise **Claude**" screen —
+   select both repos and accept **Contents: Read & write** + **Pull requests:
+   Read & write**. After this it appears at github.com/settings/installations.
+3. Confirm the scheduled environment isn't in a read-only permission mode.
+
+Verify: a `create_branch` call should return a ref instead of a 403. Until then
+the job keeps working for Confluence + Jira and records in-repo doc fixes in the
+KAN ticket (step 6).
