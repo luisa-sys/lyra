@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { signUp } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
 import { env } from '@/lib/env';
+import { isProdDeploy } from '@/lib/beta-access/flow';
 
 export const metadata = {
   title: 'Create your Lyra profile',
@@ -12,13 +13,18 @@ export const metadata = {
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; preview?: string }>;
 }) {
   const params = await searchParams;
   // KAN-258 — during the private phase, account creation needs an invite
   // code and third-party sign-in is hidden, so the only way in is the
   // gated email form.
   const inviteOnly = !!env.inviteCode();
+  // KAN-273/KAN-287 — on the public production deploy, prod is the doorway into
+  // the gated beta app: signing up records a request and lands the user on the
+  // waitlist. Frame the page as "join the waitlist". `?preview=waitlist`
+  // renders this on any deploy so it can be verified before reaching prod.
+  const waitlist = isProdDeploy() || params.preview === 'waitlist';
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -28,12 +34,22 @@ export default async function SignUpPage({
             <Image src="/lyra-logo.png" alt="Lyra" width={48} height={48} className="h-12 w-auto" priority />
           </Link>
           <h1 className="mt-4 text-xl font-medium text-[var(--color-ink)]">
-            Create your profile
+            {waitlist ? 'Join the Lyra waitlist' : 'Create your profile'}
           </h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            So people in your life never have to guess
+            {waitlist
+              ? "Lyra is opening in stages — sign up and we'll email you when your spot is ready."
+              : 'So people in your life never have to guess'}
           </p>
         </div>
+
+        {waitlist && (
+          <ol className="mb-6 space-y-1.5 text-xs text-[var(--color-muted)] max-w-xs mx-auto">
+            <li>1. Confirm your email with the secure link we send.</li>
+            <li>2. You&rsquo;re added to the waitlist queue.</li>
+            <li>3. We email you the moment a spot opens up.</li>
+          </ol>
+        )}
 
         {params.error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -130,7 +146,7 @@ export default async function SignUpPage({
             formAction={signUp}
             className="w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity cursor-pointer"
           >
-            Create account →
+            {waitlist ? 'Join the waitlist →' : 'Create account →'}
           </button>
         </form>
 
