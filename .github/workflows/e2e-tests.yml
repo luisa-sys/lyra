@@ -1,0 +1,87 @@
+name: E2E Tests (PR gate)
+
+# KAN-271: run the Playwright E2E suite as a pull_request gate.
+#
+# Unlike the staging E2E job (deploy-staging.yml), which targets a
+# just-deployed Vercel URL with a real Supabase DB, this gate builds and
+# serves the app LOCALLY (`next build` then `next start`) and runs the suite
+# against http://localhost:3000. That makes it:
+#   - independent of any deploy or secret (no Vercel/Supabase creds needed), and
+#   - able to catch redesign regressions BEFORE merge to develop.
+#
+# The suite's DB-independent tests (homepage, legal pages, the [slug]
+# not-found page, axe-core) run here and must pass. The populated-public-
+# profile structural tests are skipped here (they require a seeded Supabase
+# row — see tests/e2e/profile-redesign.spec.ts) and run in the staging job
+# instead. The authenticated editor test is a deferred test.fixme.
+#
+# Dummy Supabase env: src/lib/env.ts reads these lazily per-request via
+# requireEnv(). The surfaces exercised here never actually call Supabase, so
+# a syntactically-valid dummy value satisfies the env guard at build/serve
+# time without needing a real project. If a test ever hits a route that DOES
+# query Supabase, it will fail loudly (a 500), not silently pass.
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  e2e:
+    name: Playwright E2E (local build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      # Tell playwright.config.ts to serve the locally-built app via
+      # `next start` and target localhost (KAN-271).
+      E2E_LOCAL_SERVER: '1'
+      # Dummy, syntactically-valid env so `next build`/`next start` and the
+      # lazy requireEnv() guards in src/lib/env.ts are satisfied. These point
+      # at no real project — the DB-independent surfaces under test never call
+      # Supabase. NOT secrets; safe to inline.
+      NEXT_PUBLIC_SUPABASE_URL: 'https://e2e-dummy.supabase.co'
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'e2e-dummy-anon-key'
+      SUPABASE_SERVICE_ROLE_KEY: 'e2e-dummy-service-role-key'
+      NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        # chromium + webkit: playwright.config.ts defines a mobile-safari
+        # (iPhone 14 / webkit) project alongside chromium. Without webkit
+        # every mobile-safari test errors with "Executable doesn't exist"
+        # and the job goes red even when chromium passes (KAN-180).
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Build the app
+        # Run the production build as its own step so its duration doesn't
+        # count against Playwright's webServer startup timeout. `next start`
+        # (launched by playwright.config.ts) then serves this build.
+        run: npm run build
+
+      - name: Run Playwright E2E suite
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
