@@ -53,10 +53,12 @@ describe('GDPR Compliance', () => {
     expect(content).toContain('Terms of Service');
   });
 
-  test('landing page footer includes privacy and terms links', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/page.tsx'), 'utf8');
-    expect(content).toContain('href="/privacy"');
-    expect(content).toContain('href="/terms"');
+  test('site-wide footer includes privacy and terms links', () => {
+    // KAN-272: the legal footer links moved off page.tsx into the shared
+    // <Footer/> rendered in the root layout, so they appear on every page.
+    const content = fs.readFileSync(path.join(root, 'src/app/footer.tsx'), 'utf8');
+    expect(content).toContain('/privacy');
+    expect(content).toContain('/terms');
   });
 
   test('dashboard includes settings link', () => {

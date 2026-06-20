@@ -1,36 +1,37 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, DM_Serif_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CookieConsent } from "./cookie-consent";
+import { Footer } from "./footer";
 import { InstallPrompt } from "./install-prompt";
 import { ServiceWorkerRegister } from "./service-worker-register";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-sans",
+/*
+ * KAN-272 — the June-2026 mock-up uses a SINGLE typeface, Inter, for every
+ * slot. The app previously loaded DM Sans + DM Serif Display; we now load
+ * Inter once and map BOTH --font-sans and --font-serif to it, so every
+ * existing `font-[family-name:var(--font-serif)]` slot renders Inter without
+ * touching the ~23 components that reference the serif variable.
+ */
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-});
-
-const dmSerif = DM_Serif_Display({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Lyra — Let people know you",
+  title: "Lyra — Be understood.",
   description:
-    "A calm profile where you share your preferences, gift ideas, and boundaries — so people in your life never have to guess.",
+    "A place to be understood — a simple page about who you are, in your own words. For your offline life: no feed, no likes, nothing to keep up with.",
   metadataBase: new URL("https://checklyra.com"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Lyra — Let people know you",
+    title: "Lyra — Be understood.",
     description:
-      "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+      "A place to be understood, in your own words. For your offline life — no feed, no likes.",
     url: "https://checklyra.com",
     siteName: "Lyra",
     type: "website",
@@ -40,15 +41,15 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Lyra — Let people know you",
+        alt: "Lyra — Be understood.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lyra — Let people know you",
+    title: "Lyra — Be understood.",
     description:
-      "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+      "A place to be understood, in your own words. For your offline life — no feed, no likes.",
     images: ["/og-image.png"],
   },
   // KAN-175: only allow indexing on production. On beta and any non-prod
@@ -85,7 +86,8 @@ export const metadata: Metadata = {
 // theme_color (sage) so the browser chrome / status bar tint matches the
 // installed app icon's background.
 export const viewport: Viewport = {
-  themeColor: "#5F7256",
+  // KAN-272 — match the redesigned sage (#4a7359, the logo green).
+  themeColor: "#4a7359",
   // PWA install prompts on iOS require viewport-fit=cover so the app
   // can paint under the notch / Dynamic Island. Safe-area insets in
   // globals.css handle the actual layout adjustment.
@@ -98,10 +100,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // KAN-272 — map BOTH font CSS variables to the single Inter face. Inline
+  // style (rather than a className) lets us point two variables at one font
+  // without a second next/font load.
   return (
-    <html lang="en" className={`${dmSans.variable} ${dmSerif.variable}`}>
+    <html
+      lang="en"
+      className={inter.className}
+      style={
+        {
+          "--font-sans": inter.style.fontFamily,
+          "--font-serif": inter.style.fontFamily,
+        } as React.CSSProperties
+      }
+    >
       <body className="min-h-screen bg-[var(--color-paper)] text-[var(--color-ink)] font-[family-name:var(--font-sans)] antialiased">
         {children}
+        <Footer />
         <CookieConsent />
         <InstallPrompt />
         <ServiceWorkerRegister />
