@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { withParentCookieDomain } from '@/lib/cookie-domain';
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -66,7 +67,7 @@ export async function middleware(request: NextRequest) {
           request,
         });
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
+          supabaseResponse.cookies.set(name, value, withParentCookieDomain(options))
         );
       },
     },
