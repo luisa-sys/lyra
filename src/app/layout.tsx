@@ -21,17 +21,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lyra — Let people know you",
+  title: "Lyra — Be understood.",
   description:
-    "A calm profile where you share your preferences, gift ideas, and boundaries — so people in your life never have to guess.",
+    "A place to be understood — a simple page about who you are, in your own words. For your offline life: no feed, no likes, nothing to keep up with.",
   metadataBase: new URL("https://checklyra.com"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Lyra — Let people know you",
+    title: "Lyra — Be understood.",
     description:
-      "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+      "A place to be understood, in your own words. For your offline life — no feed, no likes.",
     url: "https://checklyra.com",
     siteName: "Lyra",
     type: "website",
@@ -41,15 +41,15 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Lyra — Let people know you",
+        alt: "Lyra — Be understood.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lyra — Let people know you",
+    title: "Lyra — Be understood.",
     description:
-      "Share preferences, gift ideas, and boundaries. So people in your life never have to guess.",
+      "A place to be understood, in your own words. For your offline life — no feed, no likes.",
     images: ["/og-image.png"],
   },
   // KAN-175: only allow indexing on production. On beta and any non-prod
