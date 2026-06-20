@@ -148,7 +148,7 @@ export default async function Home() {
     name: "Lyra",
     url: "https://checklyra.com",
     description:
-      "A calm, structured public profile platform where users share preferences, gift ideas, and boundaries so people in their lives never have to guess.",
+      "A place to be understood — honest pages about people you already know, in their own words. For your offline life: no feed, no likes, no DMs.",
     potentialAction: {
       "@type": "SearchAction",
       target: "https://checklyra.com/{slug}",
