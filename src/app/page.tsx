@@ -2,29 +2,30 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import { isProdDeploy } from "@/lib/beta-access/flow";
 
 /**
  * KAN-272 — minimal, Google-like homepage (June-2026 redesign).
+ * KAN-273 follow-up — on the PUBLIC PRODUCTION deploy (checklyra.com), the
+ * homepage is a "sign up → join the waitlist" front door instead of the full
+ * product homepage: prod is the doorway into the gated beta app (KAN-278), so
+ * the public should be greeted with the waitlist framing, not a browseable
+ * directory. Beta/dev/stage keep the normal product homepage. Add
+ * `?preview=waitlist` on any deploy to preview the prod landing.
  *
- * Replaces the long marketing landing page with the mock-up's minimal home:
+ * Product homepage (beta/dev/stage):
  *   1. A vertically-centred hero: the green Lyra logo, the tagline
  *      "Be understood.", and two CTAs (primary "Find someone", ghost
  *      "See example profiles").
  *   2. A bottom band — "A few people to meet" — showing up to 6 published
- *      profiles queried live from the database (beta/prod has ~2 right now;
- *      we render whatever exists, and the band is omitted when there are none).
- *
- * The old marketing sections (Hero, AboutLyra, UseCases, …) are preserved as
- * files in src/app/_marketing/sections.tsx — they're just no longer composed
- * here. The "In your own words / For real life / Calm by design" trio moved to
- * the new /about page (<AboutTrio>).
+ *      profiles queried live from the database.
  *
  * The site-wide <Footer/> is rendered once in the root layout, so this page
  * deliberately has NO inline footer (no double-footer).
  */
 
-// Render fresh so newly-published profiles appear without a redeploy. The
-// "people to meet" band reflects live DB state.
+// Render fresh so newly-published profiles appear without a redeploy, and so
+// the prod/preview waitlist branch is evaluated per request.
 export const dynamic = "force-dynamic";
 
 interface HomeProfile {
@@ -55,7 +56,7 @@ async function getPublishedProfiles(): Promise<HomeProfile[]> {
   }
 }
 
-function Nav() {
+function Nav({ minimal = false }: { minimal?: boolean }) {
   return (
     <nav
       aria-label="Main navigation"
@@ -73,25 +74,30 @@ function Nav() {
           />
         </Link>
         <div className="flex items-center gap-5 sm:gap-6">
-          <Link
-            href="/"
-            className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
-          >
-            Home
-          </Link>
-          <Link
-            href="/search"
-            className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
-          >
-            Find someone
-          </Link>
-          <Link
-            href="/signup"
-            className="text-sm text-[var(--color-sage)] hover:text-[var(--color-sage-hover)] transition-colors"
-          >
-            Create your profile
-          </Link>
-          {/* De-emphasised sign-in, per the mock-up. */}
+          {!minimal && (
+            <>
+              <Link
+                href="/"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Home
+              </Link>
+              <Link
+                href="/search"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Find someone
+              </Link>
+              <Link
+                href="/signup"
+                className="text-sm text-[var(--color-sage)] hover:text-[var(--color-sage-hover)] transition-colors"
+              >
+                Create your profile
+              </Link>
+            </>
+          )}
+          {/* De-emphasised sign-in, per the mock-up. On the waitlist front door
+              this is the only nav action (for already-approved users). */}
           <Link
             href="/login"
             className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
@@ -101,6 +107,61 @@ function Nav() {
         </div>
       </div>
     </nav>
+  );
+}
+
+/**
+ * Production front door (checklyra.com): "sign up → you're on the waitlist".
+ * Prod is the public doorway into the gated beta app — signing up records the
+ * request and routes the user to the beta waitlist (KAN-273/KAN-278). No
+ * browseable directory or real profiles are surfaced here pre-launch.
+ */
+function WaitlistLanding() {
+  return (
+    <>
+      <Nav minimal />
+      <main role="main" className="px-6">
+        <div className="max-w-2xl mx-auto">
+          <section className="min-h-[80vh] flex flex-col items-center justify-center text-center pt-24 pb-12">
+            <Image
+              src="/lyra-logo.png"
+              alt="Lyra"
+              width={320}
+              height={92}
+              className="h-[92px] w-auto"
+              priority
+            />
+            <p className="text-base sm:text-lg text-[var(--color-muted)] mt-4">
+              Be understood.
+            </p>
+            <h1 className="text-2xl sm:text-[28px] font-medium text-[var(--color-ink)] font-[family-name:var(--font-serif)] mt-8 mb-4 leading-snug">
+              We&rsquo;re opening Lyra a few people at a time.
+            </h1>
+            <p className="text-[15px] sm:text-base text-[var(--color-muted)] leading-relaxed max-w-md mb-8">
+              Lyra is a calm place to share who you are &mdash; the things you
+              love, the gifts that land, the boundaries that matter &mdash; with
+              the people in your life. Join the waitlist and we&rsquo;ll email
+              you the moment your spot opens up.
+            </p>
+            <Link
+              href="/signup"
+              className="px-6 py-3 rounded-[10px] bg-[var(--color-sage)] text-white font-semibold text-[15px] hover:bg-[var(--color-sage-hover)] transition-colors"
+            >
+              Join the waitlist
+            </Link>
+            <p className="text-[13px] text-[var(--color-muted)] mt-5">
+              Already have access?{" "}
+              <Link
+                href="/login"
+                className="text-[var(--color-sage)] hover:underline"
+              >
+                Sign in
+              </Link>
+            </p>
+          </section>
+        </div>
+      </main>
+    </>
   );
 }
 
@@ -136,7 +197,18 @@ function PersonCard({ profile }: { profile: HomeProfile }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string | string[] }>;
+}) {
+  // Prod (checklyra.com) is the public waitlist doorway. `?preview=waitlist`
+  // renders it on any deploy so it can be verified before reaching prod.
+  const sp = await searchParams;
+  if (isProdDeploy() || sp?.preview === "waitlist") {
+    return <WaitlistLanding />;
+  }
+
   const people = await getPublishedProfiles();
   // Ghost CTA — "See example profiles" — points at the first published
   // profile when one exists, otherwise falls back to search.

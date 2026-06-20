@@ -154,3 +154,43 @@ describe('KAN-272: About page hosts the moved trio', () => {
     expect(about).toContain('AboutTrio');
   });
 });
+
+describe('KAN-273/287: Production waitlist front door', () => {
+  let home;
+  let signup;
+  const signupPath = path.join(root, 'src/app/(auth)/signup/page.tsx');
+
+  beforeAll(() => {
+    home = fs.readFileSync(homepagePath, 'utf8');
+    signup = fs.readFileSync(signupPath, 'utf8');
+  });
+
+  test('homepage gates a waitlist landing on the prod deploy, with a ?preview=waitlist hatch', () => {
+    expect(home).toContain('isProdDeploy');
+    expect(home).toContain('WaitlistLanding');
+    // Preview hatch so the prod landing is verifiable on non-prod deploys.
+    expect(home).toContain('preview === "waitlist"');
+  });
+
+  test('homepage waitlist landing leads with "join the waitlist" → /signup', () => {
+    expect(home).toContain('Join the waitlist');
+    expect(home).toContain('opening Lyra a few people at a time');
+    expect(home).toContain('href="/signup"');
+  });
+
+  test('the default (non-prod) homepage is unchanged — product homepage preserved', () => {
+    // The prod branch must be ADDITIVE: dev/stage/beta keep the product home.
+    expect(home).toContain('Be understood.');
+    expect(home).toContain('Find someone');
+    expect(home).toContain('A few people to meet');
+  });
+
+  test('signup page reframes as "join the waitlist" on prod / preview', () => {
+    expect(signup).toContain('isProdDeploy');
+    expect(signup).toContain('Join the Lyra waitlist');
+    expect(signup).toContain('Join the waitlist');
+    // Default copy preserved for the non-prod path.
+    expect(signup).toContain('Create your profile');
+    expect(signup).toContain('Create account');
+  });
+});
