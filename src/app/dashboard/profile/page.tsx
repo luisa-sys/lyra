@@ -13,6 +13,8 @@ const EMPTY_MANUAL_OF_ME: ManualOfMe = {
   working_preferences: null,
   energises_me: null,
   drains_me: null,
+  good_to_know: null,
+  boundaries: null,
 };
 
 /**

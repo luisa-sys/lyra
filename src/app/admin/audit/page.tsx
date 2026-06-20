@@ -47,7 +47,7 @@ function actionColour(action: string): string {
   if (action.startsWith('un') || action === 'restore_item') return 'bg-green-50 text-green-700';
   if (action.includes('delete')) return 'bg-red-50 text-red-700';
   if (action.includes('grant_admin') || action.includes('revoke_admin')) return 'bg-blue-50 text-blue-700';
-  return 'bg-stone-100 text-stone-700';
+  return 'bg-[#f4efe7] text-[var(--color-ink)]';
 }
 
 export default async function AuditLogPage() {
@@ -64,7 +64,7 @@ export default async function AuditLogPage() {
         </p>
       </header>
 
-      <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+      <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
         {logs.length === 0 ? (
           <p className="p-5 text-sm text-[var(--color-muted)]">No moderation actions recorded yet.</p>
         ) : logs.map((log) => (
@@ -92,7 +92,7 @@ export default async function AuditLogPage() {
                   </>
                 )}
               </p>
-              <span className="text-xs text-stone-500 shrink-0">
+              <span className="text-xs text-[var(--color-muted)] shrink-0">
                 {new Date(log.created_at).toLocaleString('en-GB')}
               </span>
             </div>

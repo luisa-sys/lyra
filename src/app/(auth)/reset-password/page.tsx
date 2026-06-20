@@ -87,7 +87,7 @@ export default async function ResetPasswordPage({
               minLength={8}
               autoFocus
               autoComplete="new-password"
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="At least 8 characters"
             />
           </div>
@@ -106,7 +106,7 @@ export default async function ResetPasswordPage({
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="Repeat the same password"
             />
           </div>

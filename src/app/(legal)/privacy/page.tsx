@@ -8,8 +8,8 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen bg-stone-50">
-      <nav className="border-b border-stone-200/60">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <nav className="border-b border-[var(--color-border)]/60">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center">
           <Link href="/" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />
@@ -19,19 +19,19 @@ export default function PrivacyPolicyPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Privacy Policy</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 16 May 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 17 June 2026</p>
 
         <h2>Who we are</h2>
-        <p>Lyra (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the website checklyra.com. We are committed to protecting your privacy and handling your personal data transparently.</p>
+        <p>Lyra is operated by <strong>CheckLyra Ltd</strong> (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;), a company registered in England &amp; Wales (company no. 16351012; registered office: 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ). CheckLyra Ltd is the data controller for the personal data described here, and is registered with the UK Information Commissioner&apos;s Office (ICO). We are committed to protecting your privacy and handling your personal data transparently.</p>
 
         <h2>What data we collect</h2>
         <p>When you create a Lyra profile, we collect:</p>
         <ul>
-          <li><strong>Account data:</strong> Email address, password (encrypted), display name</li>
+          <li><strong>Account data:</strong> Email address and display name. Sign-in is passwordless — we email you a secure one-time link, so there&apos;s no password to store.</li>
           <li><strong>Profile data:</strong> Headline, bio, city, country, preferences, gift ideas, likes, dislikes, boundaries, school affiliations, external links, and profile photo — all provided voluntarily by you</li>
           <li><strong>Usage data:</strong> Page views and basic analytics (via Vercel Analytics), collected anonymously unless you opt in</li>
         </ul>
-        <p>We do <strong>not</strong> collect: payment information, precise location data, browsing history, data from third-party sources, or any data from children under 13.</p>
+        <p>Lyra is for adults — you must be <strong>18 or over</strong> to create a profile, and it is not intended for children. We do <strong>not</strong> collect: payment information, precise location data, browsing history, or data from third-party sources.</p>
 
         <h2>Why we collect it (lawful basis)</h2>
         <ul>
@@ -45,7 +45,7 @@ export default function PrivacyPolicyPage() {
           <li>To show your profile in Lyra&apos;s search/browse page when published</li>
           <li>To enable AI companions (via MCP) to help people find gift ideas and understand your preferences</li>
           <li>To improve the Lyra service through anonymised analytics</li>
-          <li>To send essential account emails (confirmation, password reset)</li>
+          <li>To send essential account emails (your sign-in link and account notices)</li>
         </ul>
         <p>We will <strong>never</strong> sell your data, use it for targeted advertising, or share it with third parties for their marketing purposes.</p>
 

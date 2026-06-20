@@ -12,7 +12,7 @@
 | Supabase sb_publishable_ keys (x3) | Vercel env vars, GitHub secrets | Annual or on suspicion | Supabase → Settings → API → Regenerate. Zero-downtime: new key works immediately, old key remains valid during migration window. Update Vercel env vars + GitHub secrets + redeploy all 3 environments. | Initial setup |
 | Supabase sb_secret_ keys (x3) | Vercel env vars, GitHub secrets, Railway env vars | Annual or on suspicion | Same as above. **Also update Railway env vars** for MCP server. Multiple keys can coexist — issue new key, deploy, then revoke old. | Initial setup |
 | Vercel deploy token | GitHub secret: VERCEL_TOKEN | 90 days | Vercel → Settings → Tokens → Create new → Update GitHub secret → Revoke old token. | Initial setup |
-| LYRA_RELEASE_PAT | GitHub secret (luisa-sys/lyra) | Annual | GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens → Regenerate. Scope: contents:write on luisa-sys/lyra only. Used by promote-to-staging.yml and promote-to-production.yml so downstream deploy workflows trigger (GITHUB_TOKEN suppresses triggers). Created for BUGS-4 fix. | 29 April 2026 |
+| LYRA_RELEASE_PAT | GitHub secret (luisa-sys/lyra) | Annual | GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens → Regenerate. Scopes (ALL three required): **Contents: Read and write**, **Pull requests: Read and write**, **Workflows: Read and write** on luisa-sys/lyra only. Used by promote-to-staging.yml, promote-staging-to-beta.yml, and promote-to-production.yml so downstream deploy workflows trigger (GITHUB_TOKEN suppresses triggers). Run `verify-release-pat.yml` immediately after rotation to confirm scopes — it probes each one and reports which is missing if any. History: contents:write (BUGS-4) → pull-requests:write added (BUGS-8) → workflows:write added (BUGS-15). | 6 May 2026 |
 | LYRA_BACKUP_PAT | GitHub secret (luisa-sys/lyra) | Annual | GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens → Regenerate. Scope: secrets:read, dependabot_alerts:read, code_scanning_alerts:read, contents:read on luisa-sys/lyra AND luisa-sys/lyra-mcp-server. Used by backup-platform.yml and weekly-report.yml for cross-repo telemetry. | 28 April 2026 |
 | Google OAuth client secret | Supabase Auth config (all 3 projects) | Annual or on suspicion | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client → Reset Secret → Update in all 3 Supabase project Auth settings. **Causes downtime**: all Google Sign-In sessions invalidated immediately. | Initial setup |
 | Railway API token | Local scripts only (not in CI) | 90 days | Railway → Account → Tokens → Create new → Update local env → Revoke old. | Initial setup |
@@ -61,14 +61,31 @@
 
 ### Rotating LYRA_RELEASE_PAT
 
+⚠️ **All three scopes below are required.** Earlier versions of this doc said only `Contents` was needed; that was outdated and caused multiple production-promotion failures (BUGS-8, BUGS-15, plus the 2026-05-27 incident where a rotation dropped scopes). Always set all three.
+
 1. Go to <https://github.com/settings/personal-access-tokens>
-2. Find LYRA_RELEASE_PAT (or the renamed equivalent if it has been renamed)
+2. Find `LYRA_RELEASE_PAT` (or the renamed equivalent if it has been renamed)
 3. Click "Regenerate token" (1-year expiry, custom)
-4. Permissions: Contents → Read and write on luisa-sys/lyra ONLY (no other scope)
-5. Copy the new token immediately (only shown once)
-6. GitHub → luisa-sys/lyra → Settings → Secrets and variables → Actions → Update LYRA_RELEASE_PAT
-7. Test by triggering promote-to-staging.yml — verify deploy-staging.yml actually fires
-8. Delete the old token in GitHub Settings
+4. **Repository access**: Only select repositories → `luisa-sys/lyra`. Do NOT include `luisa-sys/lyra-mcp-server` (that's `LYRA_BACKUP_PAT`'s scope).
+5. **Repository permissions** — set ALL THREE permissions exactly as listed:
+   - **Contents: Read and write** — Required for `git push` to staging/main/beta during promotions
+   - **Pull requests: Read and write** — Required for `gh pr create` (used by promote workflows that take the PR path; future-proof regardless)
+   - **Workflows: Read and write** — Required when a release contains any `.github/workflows/*.yml` change. Without this, pushes get rejected with "refusing to allow a Personal Access Token to create or update workflow without `workflow` scope"
+6. Copy the new token immediately (only shown once)
+7. GitHub → luisa-sys/lyra → Settings → Secrets and variables → Actions → Update `LYRA_RELEASE_PAT`
+8. **Verify the rotation BEFORE the next real promotion** — trigger `verify-release-pat.yml`:
+   ```bash
+   gh workflow run verify-release-pat.yml --repo luisa-sys/lyra
+   gh run watch --repo luisa-sys/lyra
+   ```
+   It probes each scope in order; the first failure points to the missing scope with a clear error message. If green, the rotation is complete.
+9. (Belt-and-braces) Trigger `promote-to-staging.yml` and confirm `deploy-staging.yml` fires for the new staging SHA. If it doesn't fire, the GITHUB_TOKEN suppression rule has kicked in — re-check the PAT is actually populated in the secret (a refresh that doesn't save will leave the secret holding the OLD value).
+10. Delete the old token in GitHub Settings → Personal access tokens (only after step 8 + 9 are green)
+11. Update the "Last Rotated" date in the Infrastructure Secrets table above
+
+#### Token-only refresh (no scope changes)
+
+If you're only refreshing the token value (not changing scopes — e.g. the token expired, or you're rotating defensively), steps 4 + 5 above are unchanged, but step 8's `verify-release-pat.yml` is **still mandatory**. Scopes can silently disappear on token regeneration if the UI was modified between sessions, or if the PAT was edited in a different browser tab.
 
 ### Rotating LYRA_BACKUP_PAT
 

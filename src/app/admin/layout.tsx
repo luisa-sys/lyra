@@ -29,8 +29,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <div className="min-h-screen bg-[var(--color-paper)]">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link
@@ -57,6 +57,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
               >
                 Users
+              </Link>
+              <Link
+                href="/admin/beta-queue"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Beta queue
               </Link>
               <Link
                 href="/admin/audit"

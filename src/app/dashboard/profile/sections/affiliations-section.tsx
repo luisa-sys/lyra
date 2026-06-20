@@ -20,7 +20,7 @@ import {
   AFFILIATION_SINGULAR,
   type AffiliationType,
 } from '../affiliation-fields';
-import { addSchoolAffiliation, removeSchoolAffiliation } from '../actions';
+import { addSchoolAffiliation, removeSchoolAffiliation, updateAffiliationVisibility } from '../actions';
 import { useRouter } from 'next/navigation';
 
 const AFFILIATION_ORDER: AffiliationType[] = ['school', 'organisation', 'community'];
@@ -42,9 +42,15 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-[var(--color-muted)]">
-        Schools, organisations, and communities you&apos;re part of. Helps people who know you
-        from any of these find your profile.
+        Schools, organisations, and communities you&apos;re part of. These help the right people
+        find you.
       </p>
+      {/* KAN-267: affiliations are private by default. */}
+      <div className="rounded-[9px] bg-[#e9efea] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--color-sage)]">
+        These are <strong>hidden on your public profile</strong> by default — they&apos;re only used
+        to help people who know you find you. Tick <em>&ldquo;Show on my profile&rdquo;</em> on any
+        you&apos;re happy to display.
+      </div>
       {AFFILIATION_ORDER.map((type) => (
         <AffiliationGroup
           key={type}
@@ -66,6 +72,12 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
               if (result.success) router.refresh();
             });
           }}
+          onToggleVisibility={(id, show) => {
+            startTransition(async () => {
+              const result = await updateAffiliationVisibility(id, show);
+              if (result.success) router.refresh();
+            });
+          }}
           isPending={isPending}
         />
       ))}
@@ -74,12 +86,13 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
 }
 
 function AffiliationGroup({
-  type, items, onAdd, onRemove, isPending,
+  type, items, onAdd, onRemove, onToggleVisibility, isPending,
 }: {
   type: AffiliationType;
   items: WizardSchool[];
   onAdd: (name: string, location: string) => void;
   onRemove: (id: string) => void;
+  onToggleVisibility: (id: string, show: boolean) => void;
   isPending: boolean;
 }) {
   const [name, setName] = useState('');
@@ -101,26 +114,38 @@ function AffiliationGroup({
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((s) => (
-            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-[var(--color-ink)]">{s.school_name}</p>
+            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3 gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--color-ink)] truncate">{s.school_name}</p>
                 {s.school_location && (
-                  <p className="text-xs text-[var(--color-muted)]">{s.school_location}</p>
+                  <p className="text-xs text-[var(--color-muted)] truncate">{s.school_location}</p>
                 )}
               </div>
-              <button
-                onClick={() => onRemove(s.id)}
-                disabled={isPending}
-                className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
-              >
-                Remove
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <label className="flex items-center gap-1.5 text-xs text-[var(--color-muted)] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={s.show_on_profile}
+                    onChange={(e) => onToggleVisibility(s.id, e.target.checked)}
+                    disabled={isPending}
+                    className="w-4 h-4 accent-[var(--color-sage)]"
+                  />
+                  Show on my profile
+                </label>
+                <button
+                  onClick={() => onRemove(s.id)}
+                  disabled={isPending}
+                  className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="space-y-3 bg-white rounded-lg border border-stone-200 p-4">
+      <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <Field
           label={`${AFFILIATION_LABELS[type].slice(0, -1)} name`}
           value={name}
@@ -140,7 +165,7 @@ function AffiliationGroup({
         <button
           onClick={handleAdd}
           disabled={isPending || !name.trim()}
-          className="px-4 py-2 rounded-lg bg-stone-100 text-sm font-medium text-[var(--color-ink)] hover:bg-stone-200 disabled:opacity-40 transition-colors"
+          className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors"
         >
           + Add {AFFILIATION_SINGULAR[type]}
         </button>

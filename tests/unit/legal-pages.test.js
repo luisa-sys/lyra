@@ -55,8 +55,10 @@ describe('KAN-126: Privacy policy page', () => {
     expect(content).toContain('authentication');
   });
 
-  test('covers children policy', () => {
-    expect(content).toContain('13');
+  test('covers children policy (adults only, 18+)', () => {
+    // KAN-261: Lyra is adults-only (18+); the old "children under 13"
+    // wording was removed in favour of an explicit 18+ statement.
+    expect(content).toContain('18 or over');
   });
 
   test('provides contact email', () => {
@@ -118,24 +120,42 @@ describe('KAN-126: Terms of service page', () => {
   });
 });
 
-describe('KAN-126: Footer links exist on homepage', () => {
-  const filePath = path.join(root, 'src/app/page.tsx');
+describe('KAN-272: Site-wide footer links (moved from homepage to the shared Footer)', () => {
+  // KAN-272 gap D: the legal links moved off page.tsx into the site-wide
+  // <Footer/> rendered in the root layout, so they appear on EVERY page (the
+  // Companies Act company line needs to be everywhere). Assert the shared
+  // footer carries the legal routes.
+  const filePath = path.join(root, 'src/app/footer.tsx');
   let content;
 
   beforeAll(() => {
     content = fs.readFileSync(filePath, 'utf8');
   });
 
-  test('homepage footer links to /privacy', () => {
-    expect(content).toContain('href="/privacy"');
+  test('footer component exists', () => {
+    expect(fs.existsSync(filePath)).toBe(true);
   });
 
-  test('homepage footer links to /terms', () => {
-    expect(content).toContain('href="/terms"');
+  test('footer links to /privacy', () => {
+    expect(content).toContain('/privacy');
   });
 
-  test('homepage footer links to /cookies', () => {
-    expect(content).toContain('href="/cookies"');
+  test('footer links to /terms', () => {
+    expect(content).toContain('/terms');
+  });
+
+  test('footer links to /cookies', () => {
+    expect(content).toContain('/cookies');
+  });
+
+  test('footer carries the Companies Act company line', () => {
+    expect(content).toContain('CheckLyra Ltd');
+    expect(content).toContain('16351012');
+  });
+
+  test('footer is rendered in the root layout (so it is site-wide)', () => {
+    const layout = fs.readFileSync(path.join(root, 'src/app/layout.tsx'), 'utf8');
+    expect(layout).toContain('<Footer');
   });
 });
 

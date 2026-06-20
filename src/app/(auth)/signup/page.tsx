@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signUp } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
+import { env } from '@/lib/env';
 
 export const metadata = {
   title: 'Create your Lyra profile',
@@ -14,6 +15,10 @@ export default async function SignUpPage({
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
   const params = await searchParams;
+  // KAN-258 — during the private phase, account creation needs an invite
+  // code and third-party sign-in is hidden, so the only way in is the
+  // gated email form.
+  const inviteOnly = !!env.inviteCode();
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -42,15 +47,39 @@ export default async function SignUpPage({
           </div>
         )}
 
-        <SocialLoginButtons />
+        {!inviteOnly && (
+          <>
+            <SocialLoginButtons />
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-stone-200" />
-          <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
-          <div className="flex-1 h-px bg-stone-200" />
-        </div>
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-[#ece7df]" />
+              <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
+              <div className="flex-1 h-px bg-[#ece7df]" />
+            </div>
+          </>
+        )}
 
         <form className="space-y-4">
+          {inviteOnly && (
+            <div>
+              <label htmlFor="invite_code" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
+                Invite code
+              </label>
+              <input
+                id="invite_code"
+                name="invite_code"
+                type="text"
+                required
+                autoComplete="off"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+                placeholder="From your invitation"
+              />
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                Lyra is invite-only while we&apos;re in private testing.
+              </p>
+            </div>
+          )}
+
           <div>
             <label htmlFor="full_name" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
               Full name
@@ -60,7 +89,7 @@ export default async function SignUpPage({
               name="full_name"
               type="text"
               required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="Sarah Ashworth"
             />
           </div>
@@ -74,25 +103,14 @@ export default async function SignUpPage({
               name="email"
               type="email"
               required
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
               placeholder="you@example.com"
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={6}
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="At least 6 characters"
-            />
-          </div>
+          <p className="text-xs text-[var(--color-muted)]">
+            No password needed — we&apos;ll email you a secure link to finish signing up.
+          </p>
 
           <div className="flex items-start gap-2">
             <input
@@ -100,7 +118,7 @@ export default async function SignUpPage({
               name="consent"
               type="checkbox"
               required
-              className="mt-1 h-4 w-4 rounded border-stone-300 text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
+              className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
             />
             <label htmlFor="consent" className="text-xs text-[var(--color-muted)]">
               I agree to the <Link href="/privacy" className="text-[var(--color-sage)] hover:underline">Privacy Policy</Link> and <Link href="/terms" className="text-[var(--color-sage)] hover:underline">Terms of Service</Link>

@@ -23,6 +23,9 @@ export const MANUAL_OF_ME_FIELDS = [
   'working_preferences',
   'energises_me',
   'drains_me',
+  // KAN-263 — the two extra "To understand me a little better" boxes (F3.1/F3.2).
+  'good_to_know',
+  'boundaries',
 ] as const;
 
 export type ManualOfMeField = typeof MANUAL_OF_ME_FIELDS[number];
@@ -34,6 +37,8 @@ export const MANUAL_OF_ME_MAX_LENGTHS: Record<ManualOfMeField, number> = {
   working_preferences: 1000,
   energises_me: 500,
   drains_me: 500,
+  good_to_know: 500,
+  boundaries: 500,
 };
 
 export function isManualOfMeField(key: string): key is ManualOfMeField {
@@ -46,6 +51,8 @@ export interface ManualOfMe {
   working_preferences: string | null;
   energises_me: string | null;
   drains_me: string | null;
+  good_to_know: string | null;
+  boundaries: string | null;
 }
 
 /** True if every field is null or empty-after-trim. Public view uses this to

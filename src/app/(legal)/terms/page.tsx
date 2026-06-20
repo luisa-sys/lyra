@@ -8,8 +8,8 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-stone-50">
-      <nav className="border-b border-stone-200/60">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <nav className="border-b border-[var(--color-border)]/60">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center">
           <Link href="/" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" priority />
@@ -28,7 +28,7 @@ export default function TermsPage() {
         <p>Lyra is a profile platform where you share preferences, gift ideas, and boundaries so people in your life can understand you better. Profiles can be accessed by visitors on the web and by AI companions via the MCP protocol.</p>
 
         <h2>3. Your account</h2>
-        <p>You are responsible for maintaining the security of your account. You must provide accurate information and keep your email address up to date. You must be at least 13 years old to create an account.</p>
+        <p>You are responsible for maintaining the security of your account. You must provide accurate information and keep your email address up to date. You must be 18 or over to create an account.</p>
 
         <h2>4. Your content</h2>
         <p>You own all content you add to your profile. By publishing your profile, you grant Lyra a licence to display that content publicly on checklyra.com and via the MCP protocol. You can revoke this licence at any time by unpublishing or deleting your profile.</p>

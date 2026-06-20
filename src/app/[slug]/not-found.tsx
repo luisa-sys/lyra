@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function ProfileNotFound() {
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center px-4">
       <div className="text-center">
         <h1 className="text-6xl font-[family-name:var(--font-serif)] text-[var(--color-ink)] mb-4">
           404

@@ -31,12 +31,12 @@ interface GatheringRow {
 }
 
 const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
-  draft: { label: 'Draft', tone: 'bg-stone-100 text-stone-700 border-stone-300' },
+  draft: { label: 'Draft', tone: 'bg-[#f4efe7] text-[var(--color-ink)] border-[var(--color-border)]' },
   awaiting_responses: { label: 'Awaiting RSVPs', tone: 'bg-amber-50 text-amber-900 border-amber-200' },
   live: { label: 'Live', tone: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
   rescheduled: { label: 'Rescheduled', tone: 'bg-sky-50 text-sky-900 border-sky-200' },
-  cancelled: { label: 'Cancelled', tone: 'bg-stone-100 text-stone-500 border-stone-300' },
-  completed: { label: 'Completed', tone: 'bg-stone-50 text-stone-500 border-stone-200' },
+  cancelled: { label: 'Cancelled', tone: 'bg-[#f4efe7] text-[var(--color-muted)] border-[var(--color-border)]' },
+  completed: { label: 'Completed', tone: 'bg-[var(--color-paper)] text-[var(--color-muted)] border-[var(--color-border)]' },
 };
 
 function formatDate(iso: string | null): string {
@@ -47,7 +47,7 @@ function formatDate(iso: string | null): string {
 export default async function GatheringsListPage() {
   if (!isConveneEnabled()) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center">
         <p className="text-[var(--color-muted)]">Convene is not enabled.</p>
       </main>
     );
@@ -74,8 +74,8 @@ export default async function GatheringsListPage() {
   const rows = (gatherings ?? []) as unknown as GatheringRow[];
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <main className="min-h-screen bg-[var(--color-paper)]">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -93,7 +93,7 @@ export default async function GatheringsListPage() {
         </div>
 
         {rows.length === 0 ? (
-          <div className="bg-white rounded-xl border border-stone-200 p-8 text-center">
+          <div className="bg-white rounded-xl border border-[var(--color-border)] p-8 text-center">
             <h2 className="text-lg font-medium text-[var(--color-ink)]">No gatherings yet</h2>
             <p className="text-sm text-[var(--color-muted)] mt-2 max-w-md mx-auto">
               Ask Lyra in any MCP client: <em>&ldquo;Lyra, create a draft coffee gathering for next Saturday&rdquo;</em>. It&apos;ll appear here.
@@ -102,7 +102,7 @@ export default async function GatheringsListPage() {
         ) : (
           <div className="space-y-3">
             {rows.map((g) => {
-              const tone = STATUS_LABELS[g.status] ?? { label: g.status, tone: 'bg-stone-100' };
+              const tone = STATUS_LABELS[g.status] ?? { label: g.status, tone: 'bg-[#f4efe7]' };
               const slot = g.finalised_slot_start
                 ? `${formatDate(g.finalised_slot_start)} → ${new Date(g.finalised_slot_end!).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
                 : g.target_window_start
@@ -117,7 +117,7 @@ export default async function GatheringsListPage() {
                 <Link
                   key={g.id}
                   href={`/dashboard/convene/gatherings/${g.id}`}
-                  className="block bg-white rounded-xl border border-stone-200 p-5 hover:border-stone-400 transition"
+                  className="block bg-white rounded-xl border border-[var(--color-border)] p-5 hover:border-[var(--color-border)] transition"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">

@@ -41,6 +41,11 @@ export interface WizardSchool {
   // default — older rows from before migration 20260517010000 have this
   // column with the default value 'school'.
   affiliation_type: string;
+  // KAN-263 / KAN-267: affiliations are hidden on the public profile unless
+  // the owner opts the row in. `description` is an optional short note
+  // ("Class of 2008"). Older rows default to false / null.
+  show_on_profile: boolean;
+  description: string | null;
 }
 
 export interface WizardLink {
@@ -86,7 +91,7 @@ export function Field({ label, value, onChange, placeholder }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+        className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
       />
     </div>
   );

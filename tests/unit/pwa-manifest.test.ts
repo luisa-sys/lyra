@@ -78,8 +78,9 @@ describe('KAN-69a — PWA manifest invariants', () => {
     expect(src).toMatch(/export\s+const\s+viewport/);
     expect(src).toMatch(/InstallPrompt/);
     // Maps to manifest theme_color — must match or the chrome flashes
-    // a different colour during the install transition.
-    expect(src).toMatch(/themeColor:\s*['"]#5F7256['"]/);
+    // a different colour during the install transition. KAN-272: retuned to
+    // the redesigned sage (#4a7359, the logo green).
+    expect(src).toMatch(/themeColor:\s*['"]#4a7359['"]/);
   });
 
   test('install-prompt component exists and only renders client-side', () => {

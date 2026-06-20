@@ -15,6 +15,8 @@ import { updateManualOfMe } from '../manual-of-me-actions';
 import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
 
 interface ManualOfMeDraft {
+  good_to_know: string;
+  boundaries: string;
   communication_style: string;
   working_preferences: string;
   energises_me: string;
@@ -23,6 +25,8 @@ interface ManualOfMeDraft {
 
 export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
   const [draft, setDraft] = useState<ManualOfMeDraft>({
+    good_to_know: manualOfMe.good_to_know || '',
+    boundaries: manualOfMe.boundaries || '',
     communication_style: manualOfMe.communication_style || '',
     working_preferences: manualOfMe.working_preferences || '',
     energises_me: manualOfMe.energises_me || '',
@@ -38,6 +42,8 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
   const set = <K extends keyof ManualOfMeDraft>(key: K, value: ManualOfMeDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  // KAN-266: the six humanised "about me" prompts from the June-2026 mock-up,
+  // in the same order the public profile renders them.
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
@@ -45,13 +51,33 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       </div>
 
       <p className="text-sm text-[var(--color-muted)]">
-        A short user-guide for working with you. All fields are optional — fill in what feels useful.
+        A few little prompts to help people understand you. Every one is optional — fill in only what feels right.
       </p>
 
       <MoMField
-        label="Communication style"
-        helper="How do you prefer people communicate with you?"
-        placeholder="Async messages over meetings. Be direct — I'd rather hear it than guess."
+        label="Good to know about me"
+        helper="The little things that help people get you."
+        placeholder="I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
+        value={draft.good_to_know}
+        onChange={(v) => set('good_to_know', v)}
+        rows={3}
+        maxLength={MANUAL_OF_ME_MAX_LENGTHS.good_to_know}
+      />
+
+      <MoMField
+        label="My boundaries"
+        helper="Anything you'd gently ask people to respect."
+        placeholder="Please don't drop by unannounced — I love seeing you, I just need a heads-up."
+        value={draft.boundaries}
+        onChange={(v) => set('boundaries', v)}
+        rows={3}
+        maxLength={MANUAL_OF_ME_MAX_LENGTHS.boundaries}
+      />
+
+      <MoMField
+        label="How I find communication easier"
+        helper="How you like people to reach you."
+        placeholder="Plain and direct, kindly meant. If something's off, just tell me — I'd rather know."
         value={draft.communication_style}
         onChange={(v) => set('communication_style', v)}
         rows={3}
@@ -59,19 +85,19 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       />
 
       <MoMField
-        label="Best ways to work with me"
-        helper="What working preferences should people know?"
-        placeholder="Mornings are my deep-work time. I think out loud, so don't take rough drafts as final."
+        label="If you ever come to my house"
+        helper="Anything a visitor would love to know."
+        placeholder="Shoes off, the dog is friendly, help yourself to tea — the good biscuits are behind the cereal."
         value={draft.working_preferences}
         onChange={(v) => set('working_preferences', v)}
-        rows={5}
+        rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.working_preferences}
       />
 
       <MoMField
-        label="What energises me"
-        helper="What gives you energy?"
-        placeholder="Solving hard problems, making people laugh, walking meetings."
+        label="What gives me energy"
+        helper="The things that fill you up."
+        placeholder="A morning with no plans, a full pot of coffee, and live music in the evening."
         value={draft.energises_me}
         onChange={(v) => set('energises_me', v)}
         rows={3}
@@ -80,8 +106,8 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
 
       <MoMField
         label="What drains me"
-        helper="What pulls your energy down?"
-        placeholder="Back-to-back meetings with no breaks. Surprise context switches."
+        helper="The things that wear you out."
+        placeholder="Open-plan noise and small talk about the weather."
         value={draft.drains_me}
         onChange={(v) => set('drains_me', v)}
         rows={3}
@@ -112,7 +138,7 @@ function MoMField({
         rows={rows}
         maxLength={maxLength}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent resize-none"
+        className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent resize-none"
       />
       <p className="text-xs text-[var(--color-muted)] mt-1">{value.length}/{maxLength}</p>
     </div>

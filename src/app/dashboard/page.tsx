@@ -27,7 +27,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-stone-200 bg-white">
+      <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
             : 'Let\u2019s set up your profile so people in your life can get to know you better.'}
         </p>
 
-        <div className="bg-white rounded-xl border border-stone-200 p-6">
+        <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <h3 className="text-lg font-medium text-[var(--color-ink)] mb-4">
             Your profile
           </h3>
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
             </Link>
           )}
           {profile?.onboarding_complete && (
-            <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-stone-100 text-[var(--color-ink)] text-base font-medium hover:bg-stone-200 transition-colors text-center">
+            <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-base font-medium hover:bg-[#ece7df] transition-colors text-center">
               Edit your profile →
             </Link>
           )}
