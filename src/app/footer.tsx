@@ -62,7 +62,7 @@ export function Footer() {
           in your own words. Keep it about you.
         </p>
 
-        <p className="text-[11.5px] text-[var(--color-muted)]/85 leading-relaxed max-w-[46em] mx-auto">
+        <p className="text-[11.5px] text-[var(--color-muted)] leading-relaxed max-w-[46em] mx-auto">
           © {new Date().getFullYear()} Lyra · a trading name of CheckLyra Ltd,
           registered in England &amp; Wales (company no. 16351012), 71–75
           Shelton Street, Covent Garden, London, WC2H 9JQ.
