@@ -58,14 +58,14 @@ jobs:
     env:
       BETA_HOST: https://beta.checklyra.com
       MCP_HOST: https://mcp.checklyra.com
-      VERIFIED: ${{ runner.temp }}/verified
-      INCONCLUSIVE: ${{ runner.temp }}/inconclusive
     steps:
       - name: Init counters
         run: |
           set -euo pipefail
-          : > "${VERIFIED}"
-          : > "${INCONCLUSIVE}"
+          echo "VERIFIED=${RUNNER_TEMP}/verified" >> "$GITHUB_ENV"
+          echo "INCONCLUSIVE=${RUNNER_TEMP}/inconclusive" >> "$GITHUB_ENV"
+          : > "${RUNNER_TEMP}/verified"
+          : > "${RUNNER_TEMP}/inconclusive"
 
       - name: 1/5 Reachability (beta is up, no network gate)
         run: |
