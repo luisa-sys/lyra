@@ -94,7 +94,7 @@ function Nav() {
           {/* De-emphasised sign-in, per the mock-up. */}
           <Link
             href="/login"
-            className="text-sm text-[var(--color-muted)]/80 hover:text-[var(--color-ink)] transition-colors"
+            className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
           >
             Sign in
           </Link>
