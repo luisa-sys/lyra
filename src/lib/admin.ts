@@ -45,7 +45,8 @@ export type ModerationAction =
   | 'resolve_report'
   | 'dismiss_report'
   | 'grant_admin'
-  | 'revoke_admin';
+  | 'revoke_admin'
+  | 'grant_beta_access'; // KAN-273: approve a queued user into the beta
 
 export interface AdminUser {
   userId: string;
