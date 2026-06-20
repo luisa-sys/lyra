@@ -18,24 +18,41 @@
     --color-lyra-sage-light: #C5D1BC; /* 1.4:1 vs #FAFAF9 — decorative only */
     --color-lyra-sage-50: #F3F6F0;    /* 1.05:1 vs #FAFAF9 — surface tint */
 
-    /* Actionable sage — passes 4.5:1 vs white text AND vs cloud bg. */
-    --color-lyra-sage: #5F7256;       /* 5.13:1 vs #FFFFFF, 4.91:1 vs #FAFAF9 */
-    --color-lyra-sage-hover: #4F5E47; /* deeper hover state, 7.0:1 vs #FFFFFF */
+    /*
+     * Actionable sage — passes 4.5:1 vs white text AND vs paper bg.
+     * KAN-272 (June-2026 redesign fidelity): retuned from #5F7256 to the
+     * mock-up's green #4a7359 (the "Notebook" --accent / logo green). Ratios
+     * re-verified against the warm paper background #FDFCF8:
+     *   #4a7359 → 5.40:1 vs #FFFFFF (white button text), 5.26:1 vs #FDFCF8.
+     * Hover re-derived deeper to #3d5f4a → 7.16:1 vs #FFFFFF.
+     */
+    --color-lyra-sage: #4a7359;       /* 5.40:1 vs #FFFFFF, 5.26:1 vs #FDFCF8 */
+    --color-lyra-sage-hover: #3d5f4a; /* deeper hover state, 7.16:1 vs #FFFFFF */
 
     /* Warm — darkened from #D4A574 (2.22:1) to pass AA on white. */
     --color-lyra-warm: #8E5A22;      /* 5.65:1 vs #FFFFFF — bronze/amber */
     --color-lyra-warm-light: #F0DCC8;
     /* Blush — darkened from #C9A0A0 (2.32:1) to pass AA on white. */
     --color-lyra-blush: #9B5757;     /* 5.78:1 vs #FFFFFF — warm rose */
-    --color-lyra-ink: #2C2C2A;        /* 13.4:1 vs #FAFAF9 — primary text */
-    --color-lyra-muted: #6B6B66;      /* 5.20:1 vs #FAFAF9 — passes AA */
+    /*
+     * KAN-272 — ink deepened to the mock-up's #23201d. 15.79:1 vs the warm
+     * paper #FDFCF8 (was #2C2C2A → 13.63:1). Both clear AA comfortably; the
+     * deeper value matches the mock-up's near-black warm ink exactly.
+     */
+    --color-lyra-ink: #23201d;        /* 15.79:1 vs #FDFCF8 — primary text */
+    --color-lyra-muted: #6f6860;      /* 5.35:1 vs #FDFCF8 — warm taupe, passes AA */
     --color-lyra-cloud: #FAF9F7;
 
     /* Shorthand aliases used across dashboard, auth, and wizard. */
-    --color-sage: #5F7256;
-    --color-sage-hover: #4F5E47;
-    --color-ink: #2C2C2A;
-    --color-muted: #6B6B66;
+    --color-sage: #4a7359;
+    --color-sage-hover: #3d5f4a;
+    --color-ink: #23201d;
+    /*
+     * KAN-272 — muted retuned to a warm taupe. The mock-up's #7a736b is only
+     * ~4.55:1 on paper (borderline AA for body text); #6f6860 is the closest
+     * warm taupe that clears AA with margin — 5.35:1 vs #FDFCF8.
+     */
+    --color-muted: #6f6860;
 
     /*
      * KAN-268 — warm surface tokens for the June-2026 redesign. These are
@@ -47,6 +64,16 @@
     --color-paper: #FDFCF8;  /* warm page background (replaces stone-50) */
     --color-card: #FFFFFF;   /* raised card surface on paper */
     --color-border: #ECE7DF; /* warm hairline (replaces stone-200) */
+
+    /*
+     * KAN-272 — the mock-up's green "Notebook" tints, promoted to tokens so
+     * home/profile stop using ad-hoc warm tints. Both are pale enough to be
+     * surface-only; sage #4a7359 text on either still clears AA:
+     *   accent-soft #e9efea → sage 4.63:1, ink 13.89:1
+     *   chip        #edf2ee → sage 4.77:1, ink 14.30:1
+     */
+    --color-accent-soft: #e9efea; /* soft sage tint — chips, notes, callouts */
+    --color-chip: #edf2ee;        /* slightly cooler sage tint — pill chips */
   }
 
   body {
