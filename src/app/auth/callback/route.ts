@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
-import { resolveBetaAccess, betaRedirectUrl, isProdDeploy } from '@/lib/beta-access/flow';
+import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
 
+/**
+ * OAuth (e.g. Google) redirect callback — the PKCE code exchange here is
+ * genuinely same-browser, so the code verifier is always present.
+ *
+ * Emailed magic links are NOT handled here any more: opened outside the
+ * originating browser they would arrive without the verifier and fail. They
+ * go through `/auth/confirm` (verifyOtp / token-hash flow) instead. See BUGS-50.
+ */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
@@ -11,18 +19,9 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // KAN-276/278: record the beta-access lifecycle (none -> requested + notify
-      // the admin on a brand-new signup) and route the user into the gated beta
-      // app — approved users to the dashboard, everyone else to the waitlist.
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const approved = user
-        ? (await resolveBetaAccess({ id: user.id, email: user.email })).approved
-        : true;
-      return NextResponse.redirect(
-        betaRedirectUrl({ origin, isProd: isProdDeploy(), approved, next }),
-      );
+      // KAN-276/278: record the beta-access lifecycle and route into the gated
+      // beta app — shared with /auth/confirm via resolvePostLoginRedirect.
+      return NextResponse.redirect(await resolvePostLoginRedirect(supabase, origin, next));
     }
   }
 
