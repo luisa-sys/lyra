@@ -34,6 +34,8 @@ Two ways to fix, pick one:
 
 Until one of those is true, the routine has nothing to run.
 
+> **Symptom you hit:** the run says *"the script and doc don't exist"* and then improvises (reads RUNBOOK, checks Jira). That means the routine's prompt is **not** checking out `develop` — it cloned the default branch (`main`) and found nothing. Fix: replace the routine's instructions with the **Step 6 prompt** below *verbatim*; its first lines fetch + check out `develop` and **STOP** if the script still isn't there, instead of improvising.
+
 ---
 
 ## Step 1 — Setup script: leave it EMPTY
@@ -55,9 +57,11 @@ checklyra.com
 *.checklyra.com
 mcp.checklyra.com
 mcp-dev.checklyra.com
+api.resend.com
 ```
 
 Tick **“Also include default list of common package managers.”**
+- `api.resend.com` is for the **email-on-FAIL** alert (Step 6 / `scripts/security-alert-email.sh`).
 - Add `*.supabase.co` **only** if you want the optional raw storage-enumeration curl (B5). It is **not** needed otherwise — the agent checks bucket flags/policies via the Supabase **connector** (the B5 SQL), which routes through Anthropic and needs no allowlist entry.
 - **MCP connectors need no allowlist entries** — only the direct `curl` hosts above.
 
@@ -70,7 +74,7 @@ On the routine form's **Connectors** tab, keep **Supabase, GitHub, Cloudflare, A
 There is **no read-only permission picker** for routines (autonomous sessions don't prompt for approval). The real guardrails are:
 
 - **Leave “Allow unrestricted branch pushes” OFF** (the default). Claude can then only push `claude/`-prefixed branches — it **cannot** push to `main`/`beta`/`staging`/`develop`. The run-log change goes out as a PR from a `claude/` branch.
-- **Put no write secrets in the environment.** There is no secrets store yet and env vars are visible to anyone who can edit the environment. This routine needs **none** — Supabase/GitHub/Cloudflare/Atlassian all authenticate through their connectors, not container env vars.
+- **Env vars / secrets:** the routine needs **exactly one** — `RESEND_API_KEY`, for the FAIL-alert email (Step 6). Everything else (Supabase/GitHub/Cloudflare/Atlassian) authenticates through its **connector**, not container env vars. There's no secrets store yet and env vars are visible to anyone who can edit the environment, so keep it to that one key. Optionally set `ALERT_TO` / `ALERT_FROM` (defaults `luisa@santos-stephens.com` / `security@checklyra.com`, which must be a Resend-verified sender).
 - **The prompt enforces read-only behaviour** (below). Be aware this is behavioural, not sandboxed: the Supabase connector *could* run a write query, so the prompt is explicit that it must not, and we don't ask it to.
 
 ## Step 5 — Schedule
@@ -82,6 +86,8 @@ In **Select a trigger → Schedule**, pick **Daily** at your local time (e.g. **
 ```
 First, if scripts/daily-security-check.sh is not present on the checked-out branch,
 run: git fetch origin develop --depth=1 && git checkout develop
+Then verify it exists; if it still does not, STOP and reply that the develop checkout
+failed — do NOT improvise probes, read other docs, or proceed.
 
 You are running the daily security check for checklyra.com (KAN-294). Work READ-ONLY:
 no probe may mutate prod; you may only (a) create Jira tickets and (b) append the run
@@ -105,7 +111,9 @@ log via a PR from a claude/ branch.
 5. Append one run-log row to docs/DAILY_SECURITY_CHECK.md (date, runner=cloud-routine,
    🔴/🟠 counts, new tickets, one-line notes) and open a PR from a claude/ branch with
    only that change.
-6. If any 🔴: put a clear "PAGE:" summary at the very top of your final reply.
+6. If any 🔴/FAIL: (a) email an alert — pipe a one-paragraph summary into
+   `bash scripts/security-alert-email.sh "Lyra daily security check: <N> FAIL"`; and
+   (b) put a clear "PAGE:" summary at the very top of your final reply.
    If clean: state "all green" with the PASS/UNVERIFIED counts; still append the log row.
 ```
 
@@ -114,7 +122,7 @@ log via a PR from a claude/ branch.
 ## Output & alerting
 
 - The run's session transcript + the run-log PR are the record. A **green run-list status only means the session didn't hit an infra error** — open the run (or read the `PAGE:` line) to see the actual result.
-- **Optional next step (KAN-296 step 5):** add a Resend email on FAIL, reusing the `weekly-report.yml` Resend plumbing, so a red run reaches the inbox without opening the session — under the Workflow & Backup Integrity Policy (fail loud, never silent-skip).
+- **Email on FAIL (built):** on any 🔴/FAIL the routine pipes a summary into `scripts/security-alert-email.sh`, which POSTs to Resend (`api.resend.com`) using `RESEND_API_KEY`. It **fails loud** if the key is missing or Resend returns non-2xx — never a silent-skip. Set `RESEND_API_KEY` in the routine env and add `api.resend.com` to the allowlist (Steps 2/4).
 
 ## Why not a GitHub Action?
 

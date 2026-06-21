@@ -498,6 +498,7 @@ A second, more granular pentest (parent **BUGS-34**, Confluence report) runs alo
 This runs as a **scheduled Claude Code cloud routine**, not a GitHub Action — setup in [`DAILY_SECURITY_CHECK_ROUTINE.md`](./DAILY_SECURITY_CHECK_ROUTINE.md):
 - **`scripts/daily-security-check.sh`** — the deterministic HTTP/port probes (§A, §C transport). Read-only; reports PASS/FAIL/**UNVERIFIED** (an unreachable / egress-blocked / bot-challenged host is UNVERIFIED, never a false PASS *or* false FAIL); exit 2 on FAIL, 1 on UNVERIFIED-only. Guarded by `tests/scripts/daily-security-check.test.js`.
 - **The agent** drives the MCP-tool probes (§B Supabase advisors/SQL incl. B9, §D/E GitHub & supply-chain, §A8 Cloudflare), compares to the regression map, files a BUGS ticket for any NEW 🔴/🟠, and appends a run-log row via draft PR.
+- **Email on FAIL** — `scripts/security-alert-email.sh` (Resend) sends an alert on any 🔴/FAIL; it **fails loud** if `RESEND_API_KEY` is missing or Resend returns non-2xx (never a silent-skip).
 
 **Apply the Workflow & Backup Integrity Policy** everywhere: no silent-skip, validate every probe output, fail loud. A security check that silently skips and reports green is the worst possible outcome.
 
