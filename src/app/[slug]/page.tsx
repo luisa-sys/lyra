@@ -224,11 +224,26 @@ export default async function PublicProfilePage({ params }: Props) {
     .in('visibility', allowedVisibility)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
-  const typedFiles = (filesRaw ?? []).filter((f) =>
+  const visibleFiles = (filesRaw ?? []).filter((f) =>
     isAuthenticated
       ? f.visibility === 'public' || f.visibility === 'members_only'
       : f.visibility === 'public',
   );
+  // BUGS-33 (SEC-03b): profile-files is now a PRIVATE bucket. Mint a short-lived
+  // signed URL (service-role) for each file the viewer is allowed to see, instead
+  // of a public direct URL. Files filtered out above never get a signed URL, so
+  // private/connections files are never world-readable by direct link.
+  const fileSb = getSupabase();
+  const typedFiles = (
+    await Promise.all(
+      visibleFiles.map(async (f) => {
+        const { data: signed } = await fileSb.storage
+          .from('profile-files')
+          .createSignedUrl(f.storage_path as string, 60 * 60);
+        return { ...f, url: signed?.signedUrl ?? null };
+      }),
+    )
+  ).filter((f) => f.url);
 
   const { data: starterRowsRaw } = await getSupabase()
     .from('profile_conversation_starters')
@@ -534,7 +549,7 @@ export default async function PublicProfilePage({ params }: Props) {
               <SectionQ>📎 Files &amp; media</SectionQ>
               <div className="bg-white border border-[#ece7df] rounded-[10px] px-[18px] py-[15px] mt-3 space-y-1">
                 {typedFiles.map((f) => {
-                  const url = `${env.supabaseUrl()}/storage/v1/object/public/profile-files/${f.storage_path}`;
+                  const url = f.url as string;
                   const isImage = f.mime_type.startsWith('image/');
                   const isPdf = f.mime_type === 'application/pdf';
                   return (
