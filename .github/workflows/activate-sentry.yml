@@ -48,7 +48,7 @@ jobs:
       # Documented in docs/SENTRY_SETUP.md. Stored here so the workflow
       # is self-contained and re-runnable; if it ever needs to rotate
       # the change goes through PR review.
-      SENTRY_DSN: https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704
+      SENTRY_DSN: https://7ce4583403ac31941f4c5b06c8abddd2@o4511605710127104.ingest.de.sentry.io/4511605735424080
     steps:
       - name: Validate confirm
         run: |
