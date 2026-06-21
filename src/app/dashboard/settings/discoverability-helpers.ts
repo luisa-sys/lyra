@@ -17,7 +17,7 @@
  *     mount a rainbow-table attack against any unpeppered hashes that
  *     accidentally got persisted).
  */
-import { createHash } from 'crypto';
+import { createHmac } from 'crypto';
 
 /** What kind of contact value is being hashed. */
 export type ContactKind = 'phone' | 'postcode';
@@ -40,6 +40,19 @@ export function getSearchPepper(): string {
     );
   }
   return pepper;
+}
+
+/**
+ * SEC-18 (F-04 part 2): the HMAC key for contact-discovery hashes. Prefers the
+ * dedicated `CONTACT_SEARCH_HMAC_KEY`; falls back to `LYRA_SEARCH_PEPPER` so the
+ * SHA-256 → HMAC switch is non-breaking before the dedicated key is provisioned
+ * on a given environment. Never included in error messages.
+ */
+export function getContactSearchHmacKey(): string {
+  const key = process.env.CONTACT_SEARCH_HMAC_KEY;
+  if (key && key.length >= 16) return key;
+  // getSearchPepper() still hard-fails if NEITHER secret is configured.
+  return getSearchPepper();
 }
 
 /**
@@ -105,25 +118,25 @@ export function normalisePostcode(input: string): string | null {
 }
 
 /**
- * Deterministic peppered SHA-256 hash. Hex digest.
+ * Deterministic HMAC-SHA-256 hash, hex digest (SEC-18, F-04 part 2).
  *
- * Format: SHA-256(pepper || ':' || kind || ':' || value)
- *   - Including the `kind` prevents a phone hash from ever colliding with
- *     a postcode hash, even if a user accidentally entered a postcode in
- *     the phone field at some point.
- *   - The pepper is prepended; the separator avoids ambiguity between
- *     short pepper + long value vs. long pepper + short value.
+ * Format: HMAC-SHA-256(key, kind || ':' || value)
+ *   - HMAC-keying (rather than the old SHA-256(pepper || …) construction)
+ *     means a stored hash can't be brute-forced with a precomputed rainbow
+ *     table even if the algorithm and value space are known — an authenticated
+ *     attacker can no longer enumerate members by guessing.
+ *   - Including the `kind` inside the message keeps a phone hash from ever
+ *     colliding with a postcode hash.
+ *   - `key` is the server secret from getContactSearchHmacKey().
  *
  * This function does not validate the input — callers must normalise
  * first and refuse to call this with a null/empty value.
  */
-export function hashContact(kind: ContactKind, value: string, pepper: string): string {
+export function hashContact(kind: ContactKind, value: string, key: string): string {
   if (!value) {
     throw new Error('hashContact called with empty value (programmer error)');
   }
-  return createHash('sha256')
-    .update(pepper)
-    .update(':')
+  return createHmac('sha256', key)
     .update(kind)
     .update(':')
     .update(value)
@@ -139,13 +152,13 @@ export function hashContact(kind: ContactKind, value: string, pepper: string): s
 export function hashPhoneInput(input: string): string | null {
   const normalised = normalisePhone(input);
   if (!normalised) return null;
-  return hashContact('phone', normalised, getSearchPepper());
+  return hashContact('phone', normalised, getContactSearchHmacKey());
 }
 
 export function hashPostcodeInput(input: string): string | null {
   const normalised = normalisePostcode(input);
   if (!normalised) return null;
-  return hashContact('postcode', normalised, getSearchPepper());
+  return hashContact('postcode', normalised, getContactSearchHmacKey());
 }
 
 /**
