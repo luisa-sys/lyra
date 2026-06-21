@@ -204,6 +204,22 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **PASS:** prod ⊆ staging ⊆ dev with no security-relevant migration missing from prod.
 - **FAIL:** a security migration (e.g. a lockdown trigger) present on dev but not prod → 🟠 promote it.
 
+### B9 — 🟡 No SECURITY DEFINER routine *beyond the vault set* is anon/authenticated-executable (regression for **SEC-07 / BUGS-44**)
+- **Threat:** beyond `convene_vault_*` (B3), the advisor's `0028`/`0029` lints flag other `SECURITY DEFINER` functions in the exposed `public` schema that `anon`/`authenticated` can call via `/rest/v1/rpc/<fn>` — e.g. `refresh_relationship_signals()` (anon → DoS recompute) and `get_metrics_for_window()` (authenticated → metrics disclosure). Found 2026-06-21, identical on prod/staging/dev.
+- **Check (returns the full live set each day, so a *new* bad grant also surfaces):**
+  ```sql
+  SELECT p.proname, pg_get_function_result(p.oid) AS returns,
+         has_function_privilege('anon', p.oid, 'EXECUTE')          AS anon_exec,
+         has_function_privilege('authenticated', p.oid, 'EXECUTE')  AS auth_exec
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.prosecdef
+    AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+  ORDER BY p.proname;
+  ```
+- **PASS:** every row is either an intended-public read (documented) or a `trigger`/`event_trigger` return type (not RPC-invokable). No new anon/authenticated grant on a *callable* definer function.
+- **FAIL:** a callable definer function exposed to anon/authenticated → 🟡 (🟠 if it mutates or leaks cross-user data) → BUGS-44 pattern; `REVOKE EXECUTE … FROM anon, authenticated, PUBLIC`.
+
 ---
 
 ## C. MCP server (`mcp.checklyra.com` / `mcp-dev.checklyra.com`)
@@ -326,6 +342,7 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **Check:** confirm `pr-checks.yml` (runs `check-workflow-integrity.sh` + `check-server-action-exports.sh`) is green on the latest develop PR; spot the two known silent-skip-on-missing-secret spots (`backup-restore-test.yml` if `SUPABASE_DB_URL` absent; `security-audit.yml` email step if `RESEND_API_KEY` absent) haven't spread.
 - **PASS:** integrity guards green; no new `if: env.X != ''` skip on a critical step.
 - **FAIL:** 🟡 per Workflow & Backup Integrity Policy (KAN-167).
+- **Also green-check here:** Beta gate smoke (**GOV-02** / KAN-223) and the `version-drift` CI test (**GOV-04** / KAN-166): `gh api "repos/luisa-sys/lyra/actions/workflows/<wf>.yml/runs?status=completed&per_page=1" --jq '.workflow_runs[0].conclusion'`.
 
 ### E5 — 🟡 Repo access & token hygiene
 - **Check:** `gh api repos/luisa-sys/lyra/collaborators --jq '.[].login'` — only expected accounts. Review OAuth/GitHub Apps (Railway/Vercel) for stale installs (BUGS-11 phantom check-suite lesson). PAT scopes per `SECURITY_ROTATION.md`.
@@ -370,25 +387,64 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 
 ---
 
-## Risk-Register regression map
+## Risk-Register regression map — every finding, explicitly re-checked
 
-Every open finding from the 2026-06-20 audit now has a standing daily probe — so a re-introduction surfaces within 24h:
+This table is the **contract**: every finding from the 2026-06-20 risk audit (plus SEC-07, found 2026-06-21 during the first triage) is listed with the exact daily probe that re-detects a recurrence, the live ticket, and the status at last triage. **A row is never deleted** — when a ticket closes, its row stays so the daily run keeps *proving the fix holds*. Findings a remote probe cannot see are listed too, with an explicit re-check cadence, so nothing is silently dropped.
 
-| Finding | Sev | Daily probe | Live ticket |
-|---|---|---|---|
-| SEC-01 anon-executable vault RPCs | 🔴 | **B3** | BUGS-24 |
-| SEC-02 SECURITY DEFINER view | 🟠 | **B1 / B4** | BUGS-27 |
-| SEC-03 world-readable storage buckets | 🔴 | **B5** | BUGS-25 |
-| SEC-04 hono CORS + CodeQL off + weak hash | 🟠 | **C2 / C3 / E2** | BUGS-26 |
-| SEC-05 mutable search_path / RLS-initplan | 🟡 | **B1 (WARN count)** | BUGS-27 |
-| SEC-06 public repos, no SECURITY.md/LICENSE | 🟡 | **E1** | KAN-291 |
-| OPS-01 no breach-detection tooling | 🟠 | **A1 + anomaly-detect** | — |
-| OPS-03 no DR/restore testing | 🟠 | **F1 / F2** | — |
-| OPS-04 migration drift | 🟡 | **B8** | — |
-| OPS-05 preview deploys public | 🟡 | A8 / KAN-237 lifecycle | BUGS-22 |
-| GOV-01 no segregation of duties | 🟠 | **E1** | KAN-291 |
-| GOV-03 stale dependency-security PRs | 🟡 | **E3** | — |
-| DP-04 plaintext interest emails in KV | 🟡 | **D4** | — |
+| ID | Finding | Sev | Daily probe | Ticket | Last triage (2026-06-21) |
+|---|---|---|---|---|---|
+| SEC-01 | anon-executable vault RPCs | 🔴 | **B3** | BUGS-24 | ✅ FIXED all envs (anon/auth EXEC=false) — keep proving |
+| SEC-02 | SECURITY DEFINER view `mcp_per_ip_recent_count` | 🟠 | **B1 / B4** | BUGS-27 | 🟠 OPEN all envs |
+| SEC-03 | world-readable / enumerable storage buckets | 🔴 | **B5** | BUGS-25 | 🔴 OPEN on **prod only** (fix live on dev+staging; promotion in progress) |
+| SEC-04 | hono CORS cred-reflection + CodeQL off on MCP + weak auth-bearer hash | 🟠 | **C2 / C3 / E2** | BUGS-26 | ⚠️ UNVERIFIED (egress-blocked) — re-check from allowlisted runner |
+| SEC-05 | ~11 functions with mutable `search_path` (+ RLS-initplan perf) | 🟡 | **B1 (WARN list)** | BUGS-27 | 🟡 OPEN all envs |
+| SEC-06 | public repos; no SECURITY.md / LICENSE | 🟡 | **E1** | KAN-291 | 🟠 OPEN |
+| SEC-07 | extra anon/authenticated-executable SECURITY DEFINER fns | 🟡 | **B9** | **BUGS-44** | 🟡 OPEN all envs (NEW) |
+| OPS-01 | no breach-detection / error-tracking tooling | 🟠 | **A1** + `anomaly-detect` issue check (partial) | — | open |
+| OPS-02 | no incident-response process | 🟠 | _process — not remotely probeable_ ‡ | — | open |
+| OPS-03 | no DR / restore testing; no RTO/RPO | 🟠 | **F1 / F2** | — | restore-test workflow exists; RTO/RPO doc open |
+| OPS-04 | migration drift across envs | 🟡 | **B8** | — | confirmed (SEC-03 fix on dev/stage, not prod) |
+| OPS-05 | Vercel preview deploys public | 🟡 | **A8** + KAN-237 lifecycle | BUGS-22 | UNVERIFIED (egress-blocked) |
+| GOV-01 | no segregation of duties (branch protection) | 🟠 | **E1** | KAN-291 | open (get-protection not exposed here ‡) |
+| GOV-02 | Beta gate smoke red 8+ runs | 🟡 | **E4** (workflow green-check) | KAN-223 | open |
+| GOV-03 | stale dependency-security PRs / vuln bumps unmerged | 🟡 | **E3** | — | 2 moderate Dependabot alerts on `lyra` default branch |
+| GOV-04 | version drift (package.json vs git tag) | 🔵 | **E4** (`version-drift` test) | KAN-166 | open |
+| GOV-05 | local hygiene (plaintext recovery codes, stale worktrees) | 🔵 | _local machine — not remotely probeable_ ‡ | — | open |
+| DP-01 | no ROPA / DPIA / retention schedule / DSAR process | 🟠 | _compliance — not remotely probeable_ ‡ | — | open |
+| DP-02 | no sub-processor register / Art. 28 DPAs | 🟠 | _compliance — not remotely probeable_ ‡ | — | open |
+| DP-03 | ICO registration / data-protection fee unverified | 🟡 | _compliance — not remotely probeable_ ‡ | — | open |
+| DP-04 | plaintext interest emails in Cloudflare KV, no TTL | 🟡 | **D4** | — | open |
+| DP-05 | Online Safety Act / age-assurance unstarted | 🟡 | _launch-gate — not remotely probeable_ ‡ | KAN-282–285 | open |
+| JIRA-01 | mass-unassigned / stale tickets | 🟡 | _delivery hygiene — optional JQL ‡_ | — | open |
+| DOC-01 | Confluence ops/compliance docs gap | 🟡 | _knowledge — not remotely probeable_ ‡ | — | open |
+
+### ‡ Findings without a daily remote probe — re-checked on a stated cadence (never dropped)
+
+A remote probe can't see process / compliance / local-machine items. They stay in the table so they can't silently recur, and each has an owner cadence:
+
+- **OPS-02 (IR process) & DOC-01 (docs gap):** re-checked at the **monthly Risk-Register review**. The daily run only flags if the relevant runbook file vanishes from the repo.
+- **DP-01/02/03/05 (data-protection / compliance):** re-checked **monthly** and before any launch milestone; owned outside the daily security run. Listed here to stay visible.
+- **GOV-05 (local hygiene — plaintext `github-recovery-codes.txt`, stale worktrees):** the operator re-checks on their **own workstation at the start of each session** (invisible to a remote probe).
+- **JIRA-01 (ticket hygiene):** optional daily JQL — `project in (KAN,BUGS) AND assignee is EMPTY AND statusCategory != Done` — advisory, not a security FAIL.
+- **SEC-04 / OPS-05 / GOV-01 caveat:** these *are* remotely probeable, just **not from this egress-restricted runner** (blocks `*.checklyra.com` HTTP) and **not via the currently-exposed GitHub MCP tools** (no get-branch-protection method). Run their probes from an allowlisted host or with `gh` / Cloudflare-API creds. **Until then treat them as "UNVERIFIED" = soft-FAIL, not pass.**
+
+### Codebase / MCP-audit gaps — also named so they're re-checked daily
+
+Beyond the Risk Register, the 2026-06 code audits found hardening gaps; each maps to a lettered probe so it, too, is re-checked every day:
+
+| Gap | Probe |
+|---|---|
+| Next.js middleware-bypass class (CVE-2025-29927) | **A3** |
+| Cron routes trust only `CRON_SECRET` (no `x-vercel-cron`) | **A4** |
+| `/oauth/register` unauth DCR rate-limit | **A5** |
+| Source maps / secret-shaped strings in client bundle | **A6** |
+| Turnstile degrades-to-allow if keys absent | **A7** |
+| MCP OAuth: `aud`/scope unenforced, revocation off by default | **C4** |
+| MCP `trust proxy` unset → spoofable rate-limit / audit IP | **C5** |
+| MCP tool-poisoning / indirect prompt injection | **C6** |
+| MCP DB-error leakage / version drift | **C7** |
+| MCP data-scoping guard coverage gaps (Convene files) | **C8** |
+| CSP `unsafe-inline` / `unsafe-eval` | **A2** |
 
 ---
 
@@ -408,4 +464,5 @@ Wire the read-only subset into `scripts/daily-security-check.*` + a scheduled Gi
 
 | Date | Runner | 🔴 | 🟠 | New findings → tickets | Notes |
 |---|---|---|---|---|---|
-| 2026-06-21 | _(initial — doc authored, KAN-294)_ | — | — | Pre-seeded from risk-audit-2026-06: BUGS-24/25/26/27, KAN-291 | First automated run pending |
+| 2026-06-21 | doc authored (KAN-294) | — | — | Pre-seeded from risk-audit-2026-06: BUGS-24/25/26/27, KAN-291 | Baseline established |
+| 2026-06-21 | live triage — DB layer, read-only (Supabase advisors + SQL) | 1 | 1 | **SEC-07 → BUGS-44** (new) | SEC-01 ✅ fixed all envs · SEC-03 🔴 OPEN prod-only (fix live dev/stage) · SEC-02 🟠 OPEN all · SEC-05 🟡 OPEN all · SEC-07 🟡 OPEN all · RLS 0 disabled ✅ · beta-elevation lockdown live on prod ✅. HTTP-layer probes (SEC-04 CORS, web headers, MCP endpoints) NOT run — egress-blocked → UNVERIFIED, re-run from allowlisted host. |
