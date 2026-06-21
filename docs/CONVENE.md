@@ -2,7 +2,7 @@
 
 > Living document. Updated as each phase of [KAN-203](https://checklyra.atlassian.net/browse/KAN-203) lands. For the static proposal that approved this work, see `docs/proposals/kan-203-lyra-convene.md`.
 
-**Last updated:** 2026-05-16 (Phase 1 PR ready)
+**Last updated:** 2026-06-21 (Convene Beta host GUI — KAN-302 — released to production behind the `CONVENE_ENABLED` flag)
 
 ## Status snapshot
 
@@ -19,6 +19,25 @@
 | P8  | [KAN-212](https://checklyra.atlassian.net/browse/KAN-212) | To do | Post-event loop + analytics. |
 | P9  | [KAN-213](https://checklyra.atlassian.net/browse/KAN-213) | To do | PWA + mobile prep. |
 | P10 | [KAN-214](https://checklyra.atlassian.net/browse/KAN-214) | Post-GA | WhatsApp + SMS — needs paid Twilio. |
+
+> **2026-06-21 — Convene Beta host GUI ([KAN-302](https://checklyra.atlassian.net/browse/KAN-302)) released to production behind the flag.** The host web GUI (nav + landing card, Contacts/People, Organise wizard, Finalise + Send-invites + RSVP surface), MCP write-parity ([KAN-307](https://checklyra.atlassian.net/browse/KAN-307)), and the security gates BUGS-28 + SEC-18 shipped develop → staging → beta → **main** (tag `v0.1.73`). Convene is **inert on production** — see *Environment gating & visibility model* below. The KAN-203 phase table above predates the GUI epic and is not the authoritative tracker for it.
+
+## Environment gating & visibility model
+
+**Convene ships behind one env flag — `CONVENE_ENABLED` (default off) — checked by `isConveneEnabled()` (`src/lib/convene/flags.ts`).** Every Convene route, the nav entry, the landing card, and the public `/r/<token>` RSVP page render only when the flag is `true`; otherwise they show a "Convene is not enabled" fallback and the cron route 404s.
+
+Crucially, the **code is promoted to every environment, production included** — promotion does **not** hold Convene out of prod. What controls whether a user can *see* Convene is the per-environment flag, **not** branch isolation:
+
+| Env | URL | Who can reach it | `CONVENE_ENABLED` | Convene visible? |
+|---|---|---|---|---|
+| **Production** | `checklyra.com` | everyone (public) | **off** | **No** — invisible to all users |
+| **Beta** | `beta.checklyra.com` | beta-approved only (Cloudflare Access "Lyra Beta Testers", KAN-175 / KAN-273) | off today → set `true` at [KAN-308](https://checklyra.atlassian.net/browse/KAN-308) | only beta-approved users, after KAN-308 |
+| **Dev** | `dev.checklyra.com` | engineering | `true` (for testing) | yes |
+
+- **Releasing Convene to general (non-beta) production users** is a deliberate, separate action: set `CONVENE_ENABLED=true` on the **production** Vercel scope, then redeploy (Gotcha #21). It is *not* part of the code promotion. Until that flip, Convene is dormant in prod.
+- Verified 2026-06-21: `checklyra.com/r/<garbage>` returns the **"Convene is not enabled"** fallback (prod flag confirmed off).
+- **Data note:** beta and prod share the same **prod Supabase DB** (KAN-175). Convene data a beta user creates lives in the prod DB but is RLS-scoped to that user — never exposed to others. The flag gates the *UI/routes*, not the data tables.
+- **MCP caveat:** the Convene MCP write-tools on `mcp.checklyra.com` are **not** behind `CONVENE_ENABLED` — they are API-key + RLS gated and shipped with KAN-307, so an agent holding a prod API key can already call them. Only the **web UI** is flag-gated.
 
 ## Two-OAuth model
 
@@ -138,7 +157,7 @@ Per-env (set on Vercel for the lyra app; mirrored on Railway for the MCP servers
 
 | Var | Where | Required on | Notes |
 |---|---|---|---|
-| `CONVENE_ENABLED` | Vercel | develop (preview) | Master flag. Set to `true` only where Convene UI/routes should respond — otherwise every Convene route 404s by design. Currently set only on `develop` branch preview scope. |
+| `CONVENE_ENABLED` | Vercel | code on all envs; flag set per-env | Master flag (`isConveneEnabled()` → `CONVENE_ENABLED === 'true'`, default off). The Convene **code is deployed to every env incl. production** (released 2026-06-21); this flag controls whether it is *active/visible*. **Off on production + beta; `true` on dev for testing.** Set `true` on beta at KAN-308; set `true` on production only to release to general (non-beta) users. See "Environment gating & visibility model". |
 | `CONVENE_INVITE_ALLOWLIST` | Vercel | develop (preview) | Comma-separated email addresses (or `*`) that the send-worker will actually email. Empty/unset → all sends blocked at the email-layer gate (safety default). |
 | `CONVENE_INVITE_FROM_EMAIL` | Vercel | optional | Default `invites@checklyra.com`. Domain must be verified in Resend. |
 | `RESEND_API_KEY` | Vercel | wherever invites send | The send-worker calls Resend's REST API with this. If unset, the dispatcher correctly marks rows `failed` with `bounce_reason='RESEND_API_KEY not set'`. Already used by the prod weekly report and security audit emails. |
@@ -154,3 +173,4 @@ Per-env (set on Vercel for the lyra app; mirrored on Railway for the MCP servers
 | 2026-05-16 | Claude | Initial doc; P0 in flight. |
 | 2026-05-16 | Claude | P0 closed (KAN-204 Done); P1 schema migrations 1-6 applied; spike dropped; MCP tools paired-PR'd. |
 | 2026-05-17 | Claude | P5 part 2 — send-invite cron worker + admin drain route + `lyra_drain_invite_queue` MCP tool. End-to-end smoke-tested on dev: row queued via MCP, drained, dispatcher marks row `failed` with correct `bounce_reason`. Added env var table. |
+| 2026-06-21 | Claude | **Convene Beta host GUI (KAN-302) built + released to production behind the flag.** KAN-303/304/305/306 (web GUI), KAN-307 (MCP parity), BUGS-28 + SEC-18 (security gates) shipped develop → staging → beta → main (tag `v0.1.73`). Added the **Environment gating & visibility model** section. Convene inert on prod (`CONVENE_ENABLED` off); KAN-308 enables it on beta. |

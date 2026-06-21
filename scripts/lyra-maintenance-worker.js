@@ -248,6 +248,19 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// SEC-21 (F-23): escape HTML metacharacters before embedding user-supplied
+// input in the owner-notification email body. isValidEmail() allows `<` `>` `"`
+// (the local-part charset is `[^\s@]+`), so an address like `<b>x</b>@e.com`
+// passes validation yet would render/inject markup in the notification inbox.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -363,7 +376,7 @@ export default {
                 to: ['luisa@checklyra.com'],
                 subject: `New Lyra interest signup: ${email}`,
                 html: `<p>Someone just signed up for Lyra launch notifications.</p>
-                       <p><strong>Email:</strong> ${email}</p>
+                       <p><strong>Email:</strong> ${escapeHtml(email)}</p>
                        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
                        <p><strong>Source:</strong> Maintenance page (checklyra.com)</p>`,
               }),

@@ -180,4 +180,15 @@ describe('KAN-129: Worker code file integrity', () => {
     const content = fs.readFileSync(workerPath, 'utf8');
     expect(content).toMatch(/allowedPaths\s*=\s*\[[\s\S]*?['"]\/api\/recommendations\/['"][\s\S]*?\]/);
   });
+
+  // SEC-21 (F-23): the signup email is user-supplied and isValidEmail() allows
+  // `<`/`>`/`"` (local-part charset is `[^\s@]+`), so it MUST be HTML-escaped
+  // before being embedded in the owner-notification email body — otherwise
+  // `<b>x</b>@e.com` passes validation yet injects markup into the inbox.
+  test('worker HTML-escapes the email in the notification body (SEC-21/F-23)', () => {
+    const content = fs.readFileSync(workerPath, 'utf8');
+    expect(content).toContain('function escapeHtml');
+    expect(content).toMatch(/Email:<\/strong>\s*\$\{escapeHtml\(email\)\}/);
+    expect(content).not.toMatch(/Email:<\/strong>\s*\$\{email\}/);
+  });
 });
