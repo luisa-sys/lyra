@@ -13,11 +13,12 @@
  * Mitigations against abuse:
  *   - RFC 7591 only — no extension fields acted upon.
  *   - HTTPS redirect URIs only (or http://localhost for native dev).
- *   - Capped per-IP rate limit (configured at the edge / Vercel).
+ *   - Capped per-IP rate limit (enforced in this handler — SEC-19/F-05).
  *   - Clients can be revoked by admin if abused.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import {
   validateRegisterInput,
   createOauthClient,
@@ -25,6 +26,29 @@ import {
 } from '@/lib/oauth/clients';
 
 export async function POST(req: NextRequest) {
+  // SEC-19 / F-05: per-IP rate limit. DCR is unauthenticated and inserts an
+  // oauth_clients row per call — cap it to stop DB-flooding and phishing-client
+  // seeding on the Lyra-branded consent screen.
+  const ip =
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown';
+  const { limited, retryAfter } = rateLimit(`oauth-register:${ip}`, RATE_LIMITS.oauthRegister);
+  if (limited) {
+    return NextResponse.json(
+      { error: 'too_many_requests', error_description: 'Too many client registrations. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+          'Retry-After': String(retryAfter ?? 3600),
+        },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
