@@ -18,6 +18,7 @@ import {
   type GatheringStatus,
 } from '@/lib/convene/gatherings/state-machine';
 import { GatheringActions } from './gathering-actions';
+import { FinalisePanel, InviteManager } from './invite-actions';
 
 interface InviteeRow {
   id: string;
@@ -86,7 +87,7 @@ export default async function GatheringDetailPage({ params }: { params: Promise<
     .maybeSingle();
   if (!g) notFound();
 
-  const [invitees, slots, events, venue, calendarAdded] = await Promise.all([
+  const [invitees, slots, events, venue, calendarAdded, messages] = await Promise.all([
     supabase
       .from('gathering_invitees')
       .select('id, status, invited_at, responded_at, contact:contacts(display_name, city)')
@@ -116,7 +117,28 @@ export default async function GatheringDetailPage({ params }: { params: Promise<
       .eq('event_type', 'calendar_event_added')
       .limit(1)
       .then((r) => (r.data?.length ?? 0) > 0),
+    supabase
+      .from('gathering_invite_messages')
+      .select('invitee_id, delivery_status, created_at')
+      .eq('gathering_id', id)
+      .order('created_at', { ascending: false })
+      .then((r) => (r.data as { invitee_id: string; delivery_status: string; created_at: string }[]) ?? []),
   ]);
+
+  // Latest delivery status per invitee (messages are ordered newest-first).
+  const deliveryByInvitee = new Map<string, string>();
+  for (const m of messages) {
+    if (!deliveryByInvitee.has(m.invitee_id)) deliveryByInvitee.set(m.invitee_id, m.delivery_status);
+  }
+  const finalised = !!g.finalised_slot_start;
+  const canSend = finalised && g.status !== 'cancelled' && g.status !== 'completed';
+  const inviteeViews = invitees.map((i) => ({
+    id: i.id,
+    displayName: i.contact?.display_name ?? '(unknown)',
+    city: i.contact?.city ?? null,
+    status: i.status,
+    deliveryStatus: deliveryByInvitee.get(i.id) ?? null,
+  }));
 
   const tone = STATUS_LABELS[g.status as string] ?? { label: g.status, tone: 'bg-[#f4efe7]' };
   const transitions = availableTransitions(g.status as GatheringStatus);
@@ -191,22 +213,9 @@ export default async function GatheringDetailPage({ params }: { params: Promise<
           calendarAdded={calendarAdded}
         />
 
-        {invitees.length > 0 && (
-          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
-            <h2 className="text-lg font-medium text-[var(--color-ink)] mb-3">Invitees ({invitees.length})</h2>
-            <ul className="space-y-2">
-              {invitees.map((i) => (
-                <li key={i.id} className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--color-ink)]">
-                    {i.contact?.display_name ?? '(unknown)'}
-                    {i.contact?.city && <span className="text-[var(--color-muted)]"> — {i.contact.city}</span>}
-                  </span>
-                  <span className="text-xs text-[var(--color-muted)]">{i.status}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {g.status === 'draft' && slots.length > 0 && <FinalisePanel gatheringId={id} slots={slots} />}
+
+        {invitees.length > 0 && <InviteManager gatheringId={id} canSend={canSend} invitees={inviteeViews} />}
 
         {slots.length > 0 && g.status === 'draft' && (
           <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
