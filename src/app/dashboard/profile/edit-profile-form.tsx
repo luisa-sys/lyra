@@ -186,6 +186,7 @@ export function EditProfileForm({
   files,
   conversationPrompts,
   conversationAnswers,
+  conveneEnabled = false,
 }: {
   profile: WizardProfile;
   items: WizardItem[];
@@ -195,6 +196,7 @@ export function EditProfileForm({
   files: WizardFile[];
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
+  conveneEnabled?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -262,6 +264,14 @@ export function EditProfileForm({
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-4">
+            {conveneEnabled && (
+              <Link
+                href="/dashboard/convene/gatherings"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Convene
+              </Link>
+            )}
             {profile.is_published && (
               <Link
                 href={`/${profile.slug}`}
