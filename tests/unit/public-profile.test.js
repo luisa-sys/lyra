@@ -38,4 +38,12 @@ describe('Public Profile', () => {
     expect(content).toContain('gift_ideas');
     expect(content).toContain('boundaries');
   });
+
+  // BUGS-33 (SEC-03b): profile-files is a private bucket; files must be served
+  // via short-lived signed URLs, never the public direct-object URL.
+  test('profile files are served via signed URLs, not public bucket URLs', () => {
+    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    expect(content).toContain('createSignedUrl');
+    expect(content).not.toContain('object/public/profile-files');
+  });
 });
