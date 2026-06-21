@@ -31,7 +31,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 ### DNS & CDN
 - **Provider**: Cloudflare
 - **Domain**: checklyra.com
-- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com
+- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**
 
 ## Environments
 
@@ -42,8 +42,24 @@ Lyra is a calm, structured public profile platform where users share preferences
 | Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
 | MCP Dev | mcp-dev.checklyra.com | main | Railway | ilprytcrnqyrsbsrfujj (dev) | Public |
+| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` |
 
 **Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
+
+### Admin back-office (`admin.checklyra.com`, KAN-309)
+
+The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Two gates: **Cloudflare Access** (allow-list of admin emails) in front, plus the existing `is_admin` DB check (`getCurrentAdmin`).
+
+Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod** Vercel scope):
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `ADMIN_HOST` | `admin.checklyra.com` | The hostname that serves the admin tools |
+| `ADMIN_HOST_ENFORCED` | _(unset = off)_ | `true` rewrites the admin host → `/admin/*` and blocks `/admin` on other hosts. Leave **off** until the DNS record + Cloudflare Access app are live, then flip on (non-breaking rollout). |
+| `SENTRY_READ_TOKEN` | _(optional)_ | Reserved for live Sentry panels on `/admin/monitoring` |
+| `UPTIMEROBOT_API_KEY` | _(optional)_ | Lights up the UptimeRobot status on `/admin/monitoring` |
+
+**One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
 ## CI/CD Pipeline
 
