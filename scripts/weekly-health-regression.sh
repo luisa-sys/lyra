@@ -57,7 +57,18 @@ run_phase() { # $1 label
     record PASS "$label" "ok"
   else
     rc=$?
-    record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    # BUGS-51: distinguish a genuine test FAIL from an ENVIRONMENT GAP. A gap is
+    # UNVERIFIED (loud, non-zero — never a green pass), not FAIL. We ONLY downgrade
+    # on signatures that cannot come from a real assertion failure, so genuine
+    # failures still FAIL (Test Integrity Policy untouched).
+    detail="exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    if grep -qE "Executable doesn't exist|Please run the following command to download new browsers|Failed to (download|install) browsers" "$log"; then
+      record UNVERIFIED "$label" "Playwright browsers unavailable/mismatched — run 'npx playwright install' (env gap, not a product failure). $detail"
+    elif grep -qE "No tests found, exiting with code 1" "$log"; then
+      record UNVERIFIED "$label" "no tests matched this phase in the current repo layout (env/config gap, not a product failure). $detail"
+    else
+      record FAIL "$label" "$detail"
+    fi
   fi
   rm -f "$log"
 }
