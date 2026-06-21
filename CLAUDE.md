@@ -224,7 +224,7 @@ The pipeline is: **develop → staging → beta → main** (promotion-based, fou
 - All feature work goes to `develop` via PR
 - Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
 - Promotion to beta: `gh workflow run promote-staging-to-beta.yml -f confirm=promote` (manual — gate for `beta.checklyra.com`, which uses prod Supabase + the in-app beta gate; see KAN-175)
-- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (always manual — never automated; merges `beta → main`)
+- Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (merges `beta → main`). **Default: manual.** **Exception (owner-authorized 2026-06-21):** the weekly health/regression routine (SEC-22 / `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`) MAY auto-promote to production **only when *every* change pending on `develop` ahead of `main` is a bug-FIX** (a BUGS/SEC defect, `fix:`-type) — **never a feature** — with the full regression+E2E suite green and after passing staging + beta. If any pending change is a feature, or fix-vs-feature is ambiguous, it MUST stop and require manual sign-off. It always promotes via the `promote-to-production.yml` workflow (built-in smoke + auto-rollback), never a direct push to `main`.
 - **The beta step is easy to miss** — `promote-to-production.yml` merges `beta → main`, so if `beta` is stale the production-promote is a no-op against the previous beta tip. Always promote `staging → beta` before `beta → main`. (Discovered 2026-05-16 during the four-ticket sprint.)
 - **Never push directly to staging, beta, or main**
 - All environments must be kept in sync
