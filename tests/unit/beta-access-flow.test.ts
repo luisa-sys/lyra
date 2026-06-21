@@ -31,13 +31,28 @@ describe('betaRedirectUrl', () => {
     ).toBe('https://dev.checklyra.com/dashboard');
   });
 
-  it('rejects open-redirect next values (protocol-relative / absolute)', () => {
+  it('rejects open-redirect next values (protocol-relative / absolute / userinfo / backslash)', () => {
+    // SEC-19/F-12 — all must fall back to the safe default, never an off-site host.
+    for (const next of ['//evil.com', 'https://evil.com', '@evil.com', '/\\evil.com']) {
+      expect(
+        betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next }),
+      ).toBe('https://beta.checklyra.com/dashboard');
+    }
+    // A genuine relative path is still honoured.
     expect(
-      betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: '//evil.com' }),
-    ).toBe('https://beta.checklyra.com/dashboard');
-    expect(
-      betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: 'https://evil.com' }),
-    ).toBe('https://beta.checklyra.com/dashboard');
+      betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: '/dashboard/profile' }),
+    ).toBe('https://beta.checklyra.com/dashboard/profile');
+  });
+
+  it('rejects backslash and userinfo open-redirect tricks (SEC-07)', () => {
+    // `/\evil.com` and `/\/evil.com` start with a single "/" so a naive guard
+    // would let them through; some browsers normalise "\" to "/" → "//evil.com".
+    // `@evil.com` / `.evil.com` would escape the origin via `${origin}${next}`.
+    for (const evil of ['/\\evil.com', '/\\/evil.com', '@evil.com', '.evil.com', '\\evil.com']) {
+      expect(
+        betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: evil }),
+      ).toBe('https://beta.checklyra.com/dashboard');
+    }
   });
 });
 

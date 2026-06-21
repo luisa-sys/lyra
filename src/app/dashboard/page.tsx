@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 import ShareProfile from './share-profile';
+import { isConveneEnabled } from '@/lib/convene/flags';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -25,6 +26,10 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .single();
 
+  // KAN-303 — Convene nav + landing card are gated on the feature flag so they
+  // stay hidden until Convene is enabled (beta).
+  const conveneEnabled = isConveneEnabled();
+
   return (
     <main className="min-h-screen">
       <header className="border-b border-[var(--color-border)] bg-white">
@@ -36,6 +41,11 @@ export default async function DashboardPage() {
             <span className="text-sm text-[var(--color-muted)]">
               {user.email}
             </span>
+            {conveneEnabled && (
+              <Link href="/dashboard/convene/gatherings" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
+                Convene
+              </Link>
+            )}
             <Link href="/dashboard/settings" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
               Settings
             </Link>
@@ -115,6 +125,30 @@ export default async function DashboardPage() {
             />
           )}
         </div>
+
+        {conveneEnabled && (
+          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6">
+            <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">Convene</h3>
+            <p className="text-sm text-[var(--color-muted)] mb-4">
+              Organise gatherings with the people in your life — pick a time that works, suggest a
+              place, and send invites.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard/convene/gatherings"
+                className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Your gatherings
+              </Link>
+              <Link
+                href="/dashboard/convene/contacts"
+                className="px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
+              >
+                People
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

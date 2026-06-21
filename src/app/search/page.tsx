@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { env } from '@/lib/env';
+import { sanitiseSearchTerm } from '@/lib/sanitise';
 
 function getSupabase() {
   return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
@@ -62,12 +63,15 @@ export default async function SearchPage({
 }) {
   const params = await searchParams;
   const query = (params.q || '').trim();
+  // SEC-09 (TDD 2026-06-21): strip PostgREST filter metacharacters before
+  // interpolating the term into .or(). `query` is kept raw only for display.
+  const safeQuery = sanitiseSearchTerm(query);
 
   let profiles: SearchProfile[] = [];
 
-  if (query) {
+  if (safeQuery) {
     const supabase = getSupabase();
-    const pattern = `%${query}%`;
+    const pattern = `%${safeQuery}%`;
     const { data } = await supabase
       .from('profiles')
       .select('id, display_name, slug, headline, city, country, avatar_url')

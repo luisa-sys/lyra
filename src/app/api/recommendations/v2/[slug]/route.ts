@@ -97,6 +97,7 @@ export async function GET(
     .from('profiles')
     .select('id, display_name, bio_short, headline, is_published, delivery_country_code')
     .eq('slug', slug)
+    .eq('is_suspended', false) // SEC-19/F-13: suspended profiles must not return recommendations
     .maybeSingle<ProfileRow>();
 
   if (profileError) {

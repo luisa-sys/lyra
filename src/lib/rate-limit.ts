@@ -75,4 +75,6 @@ export const RATE_LIMITS = {
   profileWrite: { limit: 30, windowSeconds: 60 },
   /** General API: 60 per minute */
   api: { limit: 60, windowSeconds: 60 },
+  /** OAuth Dynamic Client Registration: 5 new clients/hour per IP (SEC-19/F-05) */
+  oauthRegister: { limit: 5, windowSeconds: 3600 },
 } as const;

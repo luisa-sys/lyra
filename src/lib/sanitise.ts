@@ -51,5 +51,24 @@ export function sanitiseUrl(input: string, maxLength = 2048): string {
   }
 }
 
+/**
+ * Sanitise a free-text search term before interpolating it into a PostgREST
+ * `.or()` / `.ilike()` filter string.
+ *
+ * SEC-09 (TDD 2026-06-21): user input is interpolated raw into
+ * `.or('display_name.ilike.${pattern},…')`. PostgREST parses `.or()` as a filter
+ * DSL, so `,` `(` `)` could alter the filter tree, and `%` `_` are ilike wildcards
+ * that could turn the query into a match-all. Strip those metacharacters (and the
+ * backslash) before the term reaches the query builder. Returns '' when nothing
+ * usable remains so the caller can skip the query rather than match everything.
+ */
+export function sanitiseSearchTerm(input: string, maxLength = 100): string {
+  return input
+    .replace(/[,()*%_\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
 /** Standard action result type — replaces throw new Error() */
 export type ActionResult = { success: true } | { success: false; error: string };
