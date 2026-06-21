@@ -25,10 +25,15 @@ export function betaRedirectUrl(opts: {
   approved: boolean;
   next: string;
 }): string {
-  // Guard against open redirects: only same-origin absolute paths, never a
-  // protocol-relative ("//evil.com") or absolute URL.
+  // Guard against open redirects (SEC-07): accept only a same-origin relative
+  // path — it must start with a single "/", never a protocol-relative "//evil.com"
+  // or a backslash variant "/\evil.com" (which some browsers normalise to "//"),
+  // and never an absolute URL.
   const path =
-    opts.next && opts.next.startsWith('/') && !opts.next.startsWith('//')
+    opts.next &&
+    opts.next.startsWith('/') &&
+    !opts.next.startsWith('//') &&
+    !opts.next.startsWith('/\\')
       ? opts.next
       : '/dashboard';
   if (opts.isProd) {
