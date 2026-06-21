@@ -80,12 +80,11 @@ A daily run **passes** only if zero 🔴 and zero new 🟠. Record the run in th
 - **PASS:** 401 (or 404 if Convene disabled) in **both** cases → confirms the bearer is required, header alone is insufficient.
 - **FAIL:** any 200 → `CRON_SECRET` leaked or guard removed → 🔴 rotate `CRON_SECRET`, audit logs for unauthorized dispatch.
 
-### A5 — 🟠 Public OAuth Dynamic Client Registration is rate-limited
-- **Threat:** `/oauth/register` (RFC 7591) is **intentionally unauthenticated** — the single most abusable public write surface (DB-row creation).
-- **Check (validation):** `curl -si -X POST https://checklyra.com/oauth/register -H 'content-type: application/json' -d '{"client_name":"probe","redirect_uris":["http://evil.example/cb"]}'` → expect **400 invalid_redirect_uri** (non-https rejected).
-- **Check (rate limit):** fire ~30 valid registrations in a loop; expect a 429 to appear. **Do this against dev**, not prod, to avoid polluting prod's `oauth_clients`.
-- **PASS:** non-https/fragment/>10-URI/>200-char inputs rejected; a per-IP limit trips.
-- **FAIL:** unlimited client creation → 🟠 add edge/Vercel rate-limit; file BUGS.
+### A5 — 🟠 Public OAuth Dynamic Client Registration is rate-limited (F-05 / BUGS-38)
+- **Threat:** `/oauth/register` (RFC 7591) is **intentionally unauthenticated** — the single most abusable public write surface (DB-row creation). The 2026-06-21 pentest (F-05/BUGS-38) confirmed the **rate limit is actually missing** (a code comment claims an edge limit that doesn't exist) → unbounded `oauth_clients` flooding + attacker-named clients on the Lyra-branded consent screen (phishing). **Expect this to FAIL until BUGS-38 lands.**
+- **Check (validation):** `curl -si -X POST https://checklyra.com/oauth/register -H 'content-type: application/json' -d '{"client_name":"probe","redirect_uris":["http://evil.example/cb"]}'` → expect **400** (non-https rejected). Script probe A5.
+- **Check (rate limit):** fire ~30 valid registrations **against dev**; expect a 429 once BUGS-38 ships. Until then none.
+- **PASS:** non-https inputs rejected **and** a per-IP limit trips. **FAIL:** unlimited client creation (current state) → 🟠 BUGS-38.
 
 ### A6 — 🟡 No source maps / no secret-shaped strings in the client bundle
 - **Check:** `curl -sI https://checklyra.com/_next/static/chunks/<a-real-chunk>.js.map` → expect **404** (`deleteSourcemapsAfterUpload: true`). Then scan a page's inline payload: `curl -s https://checklyra.com/ | grep -oE 'eyJ[A-Za-z0-9_-]{20,}' | sort -u`.
@@ -107,6 +106,16 @@ A daily run **passes** only if zero 🔴 and zero new 🟠. Record the run in th
 - **Check:** `for h in checklyra.com mcp.checklyra.com; do echo $h; for p in 22 80 443 3000 5432 6543 8080; do timeout 3 bash -c "</dev/tcp/$h/$p" 2>/dev/null && echo "  OPEN $p" || true; done; done`
 - **PASS:** only 80 (→308 redirect to 443) and 443 reachable. Postgres (5432/6543) must **never** answer on a public host — Supabase is reached via its own hostname with TLS, not via ours.
 - **FAIL:** 22/3000/5432/etc. open on a public host → 🔴 investigate immediately.
+
+### A10 — 🟡 `/auth/callback` is not an open redirect (F-12 / BUGS-43)
+- **Threat:** `next` built into `${origin}${next}` without relative-path validation → `next=@evil.com` / `//evil.com` redirects off-site post-auth (phishing).
+- **Check:** `curl -s -o /dev/null -w '%{redirect_url}\n' "https://checklyra.com/auth/callback?code=probe&next=//evil.example/x"` (script probe **A6b**). The `Location` host must stay `checklyra.com`.
+- **PASS:** redirect stays on-host (or falls back to `/dashboard`). **FAIL:** off-host `Location` → 🟡 BUGS-43; allow only `^/(?!/)` paths.
+
+### A11 — 🟡 Suspended profiles return no data via the recommendations API (F-13 / BUGS-43)
+- **Threat:** `/api/recommendations/[slug]` + `/v2/[slug]` filter `is_published` but **not** `is_suspended` → a suspended-but-published profile keeps serving recommendations to anon callers (moderation-takedown bypass).
+- **Check (agent, needs a known-suspended slug):** `curl -s https://checklyra.com/api/recommendations/v2/<suspended-slug>` → must be empty/404, not data.
+- **PASS:** suspended profile returns nothing. **FAIL:** data returned → 🟡 add `.eq('is_suspended', false)` (BUGS-43).
 
 ---
 
@@ -283,6 +292,11 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **PASS:** guard tests green; no unguarded cross-user read.
 - **FAIL:** an unguarded `.from()` on `tribe_members`/`gathering_invitees`/`contacts` → 🟠 add the file to the ownership-guard `sourceFiles` and scope the read.
 
+### C9 — 🟠 No PostgREST filter injection in `lyra_search_profiles` (F-06 / BUGS-39)
+- **Threat:** `lyra_search_profiles` interpolates the raw `query` into a PostgREST `.or(display_name.ilike.%${query}%,…)` filter string → crafted commas/operators inject predicates against non-returned `profiles` columns — a boolean oracle on a **public, unauthenticated** tool.
+- **Check (agent, JSON-RPC):** call the tool twice — benign `query:"zzqx"` vs injection `query:"zzqx,is_published.eq.false"` — via the direct JSON-RPC POST (CLAUDE.md "Smoke-testing MCP tools"). The injected predicate must **not** widen/alter results, and the response must not leak a raw DB error (F-15/BUGS-42).
+- **PASS:** injection payload yields the same (ilike-only) result set; no DB-error leak. **FAIL:** result set changes or an error reveals column/table names → 🟠 BUGS-39; validate `query` / use the array filter form.
+
 ---
 
 ## D. Secrets & exposure
@@ -347,6 +361,11 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 ### E5 — 🟡 Repo access & token hygiene
 - **Check:** `gh api repos/luisa-sys/lyra/collaborators --jq '.[].login'` — only expected accounts. Review OAuth/GitHub Apps (Railway/Vercel) for stale installs (BUGS-11 phantom check-suite lesson). PAT scopes per `SECURITY_ROTATION.md`.
 - **PASS:** least-privilege collaborators + apps. **FAIL:** stale collaborator/app → remove.
+
+### E6 — 🟡 CI/CD supply-chain hardening (F-17/19/22/20 / BUGS-46)
+- **Threat:** workflows without least-privilege `permissions:`, floating-tag `actions/*` (not SHA-pinned), raw `${{ github.event.* }}` interpolated into `run:`, and an over-broad/long-lived `LYRA_RELEASE_PAT` widen the blast radius of a token/action compromise.
+- **Check:** list `.github/workflows/*` in both repos; confirm each has a `permissions:` block and SHA-pinned `uses:`; confirm `pr-checks.yml` / mcp `test.yml` are `contents: read`; verify the `production` GitHub Environment has required reviewers.
+- **PASS:** all workflows least-privilege + SHA-pinned; no raw event interpolation; PAT fine-grained + rotated. **FAIL:** any gap → 🟡 BUGS-46.
 
 ---
 
@@ -446,6 +465,24 @@ Beyond the Risk Register, the 2026-06 code audits found hardening gaps; each map
 | MCP data-scoping guard coverage gaps (Convene files) | **C8** |
 | CSP `unsafe-inline` / `unsafe-eval` | **A2** |
 
+### Parallel pentest batch (BUGS-34 / F-01…F-23, 2026-06-21) — also re-checked
+
+A second, more granular pentest (parent **BUGS-34**, Confluence report) runs alongside the Risk Register. Its findings map to these probes; several overlap the SEC-series:
+
+| Finding | Ticket | Probe |
+|---|---|---|
+| F-02 plaintext GitHub 2FA recovery codes; F-10 dev service-role key in `.env`; F-23 worker email-reflection | BUGS-36 | GOV-05 (local ‡) + D-series |
+| F-09 hono HIGH CVE on MCP | BUGS-37 | **C2 / E3** |
+| F-05 `/oauth/register` rate-limit missing | BUGS-38 | **A5** |
+| F-06 PostgREST filter injection in `lyra_search_profiles` | BUGS-39 | **C9** |
+| F-08/F-16 MCP trust-proxy + spoofable XFF | BUGS-40 | **C5** |
+| F-07 calendar busy-time disclosure without consent | BUGS-41 | **C8** (+ manual consent check) |
+| F-15 raw DB error leakage | BUGS-42 | **C7 / C9** |
+| F-12 `/auth/callback` open redirect; F-13 suspended-in-recommendations | BUGS-43 | **A10 / A11** |
+| F-11/18/21 storage-listing + search_path + definer view; F-04 `search_by_contact_hash` anon-exec | BUGS-45 | **B5 / B1 / B4 / B9** |
+| F-17/19/22/20 CI/CD hardening | BUGS-46 | **E6** |
+| (SEC-07) extra anon/auth definer fns | BUGS-44 | **B9** |
+
 ---
 
 ## Daily run procedure
@@ -456,9 +493,13 @@ Beyond the Risk Register, the 2026-06 code audits found hardening gaps; each map
 4. **Cross-check Jira:** `searchJiraIssuesUsingJql` for issues created since the last run with label `security`/`risk-audit-*` — fold new findings in (this is the hook for the parallel risk-audit work).
 5. **Record the run** in the log below.
 
-### Automation follow-up (separate ticket)
+### Automation (KAN-296) — built
 
-Wire the read-only subset into `scripts/daily-security-check.*` + a scheduled GitHub Action that emails on any FAIL via Resend (reuse `weekly-report.yml` plumbing). Keep active-exploit/console items manual. **Apply the Workflow & Backup Integrity Policy**: `set -euo pipefail`, no `if: env.X != ''` silent-skips, validate every probe output, surface `::error::` on FAIL — a security check that silently skips and reports green is the worst possible outcome.
+This runs as a **scheduled Claude Code cloud routine**, not a GitHub Action — setup in [`DAILY_SECURITY_CHECK_ROUTINE.md`](./DAILY_SECURITY_CHECK_ROUTINE.md):
+- **`scripts/daily-security-check.sh`** — the deterministic HTTP/port probes (§A, §C transport). Read-only; reports PASS/FAIL/**UNVERIFIED** (an unreachable / egress-blocked / bot-challenged host is UNVERIFIED, never a false PASS *or* false FAIL); exit 2 on FAIL, 1 on UNVERIFIED-only. Guarded by `tests/scripts/daily-security-check.test.js`.
+- **The agent** drives the MCP-tool probes (§B Supabase advisors/SQL incl. B9, §D/E GitHub & supply-chain, §A8 Cloudflare), compares to the regression map, files a BUGS ticket for any NEW 🔴/🟠, and appends a run-log row via draft PR.
+
+**Apply the Workflow & Backup Integrity Policy** everywhere: no silent-skip, validate every probe output, fail loud. A security check that silently skips and reports green is the worst possible outcome.
 
 ### Run log
 
@@ -466,3 +507,4 @@ Wire the read-only subset into `scripts/daily-security-check.*` + a scheduled Gi
 |---|---|---|---|---|---|
 | 2026-06-21 | doc authored (KAN-294) | — | — | Pre-seeded from risk-audit-2026-06: BUGS-24/25/26/27, KAN-291 | Baseline established |
 | 2026-06-21 | live triage — DB layer, read-only (Supabase advisors + SQL) | 1 | 1 | **SEC-07 → BUGS-44** (new) | SEC-01 ✅ fixed all envs · SEC-03 🔴 OPEN prod-only (fix live dev/stage) · SEC-02 🟠 OPEN all · SEC-05 🟡 OPEN all · SEC-07 🟡 OPEN all · RLS 0 disabled ✅ · beta-elevation lockdown live on prod ✅. HTTP-layer probes (SEC-04 CORS, web headers, MCP endpoints) NOT run — egress-blocked → UNVERIFIED, re-run from allowlisted host. |
+| 2026-06-21 | automation built (KAN-296) | — | — | Discovered parallel pentest **BUGS-34 / 36–46** (F-01…F-23) | Added `scripts/daily-security-check.sh` + `docs/DAILY_SECURITY_CHECK_ROUTINE.md` + test. Script self-run here = 11 UNVERIFIED (egress-blocked → correctly no false-PASS/FAIL) + A9 ports OK. New probes A10/A11/C9/E6 cover the new F-series findings. |
