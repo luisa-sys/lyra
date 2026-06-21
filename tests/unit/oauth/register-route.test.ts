@@ -69,4 +69,30 @@ describe('POST /oauth/register (KAN-88 P2)', () => {
     expect(body.error).toBe('invalid_redirect_uri');
     expect(body.error_description).toMatch(/fragment/);
   });
+
+  // SEC-19/F-05 — Dynamic Client Registration is rate-limited per IP.
+  test('rate-limits registration per IP after the cap (429)', async () => {
+    const ip = '203.0.113.55'; // unique IP → isolated rate-limit bucket for this test
+    const reg = () => {
+      const req = new Request('https://dev.checklyra.com/oauth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-forwarded-for': ip },
+        // invalid body → 400 on validation; the point is the rate-limit gate runs first
+        body: JSON.stringify({ redirect_uris: ['https://x.com/cb'] }),
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return POST(req as any);
+    };
+    // First 5 are within the limit (validation 400, NOT rate-limited).
+    for (let i = 0; i < 5; i++) {
+      const res = await reg();
+      expect(res.status).not.toBe(429);
+    }
+    // The 6th trips the per-IP cap.
+    const limited = await reg();
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get('retry-after')).toBeTruthy();
+    const body = await limited.json();
+    expect(body.error).toBe('too_many_requests');
+  });
 });

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { env } from '@/lib/env';
+import { jsonLdSafe } from '@/lib/json-ld';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
 import {
   coerceSectionVisibility,
@@ -365,7 +366,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdSafe(jsonLd) }} />
       <main className="min-h-screen bg-[#fdfcf8]">
         {/* Brand bar */}
         <nav aria-label="Profile navigation" className="border-b border-[#ece7df] bg-[#fdfcf8]/85 backdrop-blur-md">
