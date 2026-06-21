@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { ConnectionsClient } from './connections-client';
+import { AvailabilityToggle } from './availability-toggle';
 
 export const metadata = {
   title: 'Calendar Connections — Lyra Convene',
@@ -57,6 +58,14 @@ export default async function ConnectionsPage({
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
+  // SEC-18 — the user's busy-time sharing opt-in (default off).
+  const { data: profileRow } = await supabase
+    .from('profiles')
+    .select('share_availability_with_contacts')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const sharingEnabled = !!profileRow?.share_availability_with_contacts;
+
   const sp = await searchParams;
   const flash = sp.convene_oauth;
   const provider = sp.provider;
@@ -93,6 +102,8 @@ export default async function ConnectionsPage({
         )}
 
         <ConnectionsClient connections={(connections ?? []) as ConnectionRow[]} />
+
+        <AvailabilityToggle enabled={sharingEnabled} />
 
         <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <h2 className="text-lg font-medium text-[var(--color-ink)] mb-2">What Lyra does with this</h2>
