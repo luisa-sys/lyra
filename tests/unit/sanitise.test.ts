@@ -15,7 +15,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { stripHtml, sanitiseText, sanitiseUrl } from '@/lib/sanitise';
+import { stripHtml, sanitiseText, sanitiseUrl, sanitiseSearchTerm } from '@/lib/sanitise';
 
 // ── Source verification ────────────────────────────────
 // Light-touch sanity check that the imports resolve to functions and the
@@ -191,5 +191,42 @@ describe('sanitiseUrl', () => {
 
   test('handles empty string', () => {
     expect(sanitiseUrl('')).toBe('');
+  });
+});
+
+// ── sanitiseSearchTerm (SEC-09) ────────────────────────
+// Strips PostgREST .or()/ilike metacharacters from a free-text search term so a
+// public search query can't alter the filter tree or become a match-all.
+describe('sanitiseSearchTerm', () => {
+  test('passes a normal query through unchanged', () => {
+    expect(sanitiseSearchTerm('Alice Smith')).toBe('Alice Smith');
+  });
+
+  test('strips commas/parentheses that could alter the PostgREST filter tree', () => {
+    const out = sanitiseSearchTerm('a,is_suspended.eq.true)(b');
+    expect(out).not.toContain(',');
+    expect(out).not.toContain('(');
+    expect(out).not.toContain(')');
+  });
+
+  test('strips ilike wildcards so the query cannot become a match-all', () => {
+    expect(sanitiseSearchTerm('%')).toBe('');
+    expect(sanitiseSearchTerm('a%_b')).toBe('a b');
+  });
+
+  test('strips backslashes', () => {
+    expect(sanitiseSearchTerm('a\\b')).toBe('a b');
+  });
+
+  test('collapses whitespace and trims', () => {
+    expect(sanitiseSearchTerm('  a   b  ')).toBe('a b');
+  });
+
+  test('caps length at 100', () => {
+    expect(sanitiseSearchTerm('a'.repeat(500)).length).toBe(100);
+  });
+
+  test('returns empty string when only metacharacters are supplied', () => {
+    expect(sanitiseSearchTerm(',(),%_')).toBe('');
   });
 });

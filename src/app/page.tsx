@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import { isProdDeploy } from "@/lib/beta-access/flow";
+import { jsonLdSafe } from "@/lib/json-ld";
 
 /**
  * KAN-272 — minimal, Google-like homepage (June-2026 redesign).
@@ -232,7 +233,7 @@ export default async function Home({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSafe(jsonLd) }}
       />
       <Nav />
       <main role="main" className="px-6">

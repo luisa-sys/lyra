@@ -39,6 +39,17 @@ describe('betaRedirectUrl', () => {
       betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: 'https://evil.com' }),
     ).toBe('https://beta.checklyra.com/dashboard');
   });
+
+  it('rejects backslash and userinfo open-redirect tricks (SEC-07)', () => {
+    // `/\evil.com` and `/\/evil.com` start with a single "/" so a naive guard
+    // would let them through; some browsers normalise "\" to "/" → "//evil.com".
+    // `@evil.com` / `.evil.com` would escape the origin via `${origin}${next}`.
+    for (const evil of ['/\\evil.com', '/\\/evil.com', '@evil.com', '.evil.com', '\\evil.com']) {
+      expect(
+        betaRedirectUrl({ origin: 'https://checklyra.com', isProd: true, approved: true, next: evil }),
+      ).toBe('https://beta.checklyra.com/dashboard');
+    }
+  });
 });
 
 // KAN-278: only the real production deploy hops users to beta.
