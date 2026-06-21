@@ -86,6 +86,7 @@ export async function middleware(request: NextRequest) {
   const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
   const exemptFromBetaGate =
     pathname === '/waitlist' ||
+    pathname === '/status' || // SEC-4: public status page is never beta-gated
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname.startsWith('/auth/') ||
