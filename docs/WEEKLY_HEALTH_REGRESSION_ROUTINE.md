@@ -7,7 +7,7 @@ This routine checks Lyra is healthy, runs the full regression + E2E + build suit
 
 ## 🚦 Hard boundaries (do not cross — encoded in the prompt)
 
-1. **Production promote is MANUAL — never automated.** `CLAUDE.md`: *"Promotion to production … always manual — never automated"* and *"Never push directly to staging, beta, or main."* The routine validates the chain and **prepares** the prod release, then **STOPS** and reports the exact command for you to run. It must not run `promote-to-production.yml`, push to `main/beta/staging`, or `vercel promote` to production.
+1. **Production promote — AUTO for FIXES, MANUAL for FEATURES (owner-authorized 2026-06-21).** The routine MAY auto-promote to production, but **only when *every* change pending on `develop` ahead of `main` is a bug-FIX** (a BUGS/SEC defect, `fix:`-type; no new feature / user-facing capability / route / table / MCP tool / migration) — **never a feature**, and only after the full suite is green through staging + beta. If *any* pending change is a feature, or fix-vs-feature is ambiguous → **STOP and require manual sign-off**. It always promotes via `promote-to-production.yml` (built-in smoke + auto-rollback), never a direct push to `main/beta/staging`. (Supersedes the prior "never automated" default for this routine — see `CLAUDE.md` → Deployment Pipeline.)
 2. **Test Integrity Policy.** A failing test means the *code* is wrong, not the test. The routine must **never** modify, weaken, skip, or delete a test to go green. If a fix would require a test change, it **STOPS and reports** for sign-off.
 3. **Autonomy with a stop-line.** Fix what's unambiguous and low-risk on a `claude/*` branch → PR to `develop`. For anything ambiguous, architectural, security-sensitive, data-model/RLS/migration, or requiring a test change → **STOP and report to the user**. (Mirrors your instruction: "Stop where you are unsure … otherwise act autonomously.")
 4. **No self-merge to protected branches.** Open PRs; the routine may merge its own fix PR to `develop` **only** when CI is green and the change is low-risk — never to `staging/beta/main`.
@@ -19,7 +19,7 @@ This routine checks Lyra is healthy, runs the full regression + E2E + build suit
 | Tests + build | `scripts/weekly-health-regression.sh` | lint, type-check, unit, scripts, integration, E2E, build — honest PASS/FAIL/UNVERIFIED |
 | Live health | agent (curl / connectors) | `*/api/health`, MCP `/health`, deploy SHAs, CI status |
 | Triage + fix | agent | open `claude/*` PR per fix, log Jira (BUGS/SEC), respect the boundaries above |
-| Release rehearsal | agent (GitHub connector) | verify chain is promotable; **prepare** prod release; STOP at the manual gate |
+| Release | agent (GitHub connector) | full chain develop→staging→beta→prod **for fix-only releases**; STOP + manual sign-off if any feature is pending |
 | Self-update | agent | propose improvements to THIS routine's script/prompt/doc via a PR (never silent) |
 
 ## Prerequisite (same as the other routines)
@@ -71,13 +71,20 @@ log everything, and rehearse the release pipeline up to (not through) the prod g
      security findings, with the failing output + your diagnosis + the PR link.
 4. RESIDUAL BUGS: also scan for residual/known issues (open BUGS/SEC tickets, TODO/FIXME,
    flaky tests, Dependabot/CodeQL alerts) and fix the safe ones under the same rules.
-5. RELEASE REHEARSAL (NO prod deploy):
-   - Confirm develop is green and promotable. You MAY trigger develop→staging
-     (promote-to-staging.yml is sanctioned/automatable) and confirm staging is healthy.
-   - Verify beta and prod are PROMOTABLE (branches in sync, smoke endpoints up) but DO
-     NOT promote them. Prepare the production release and STOP.
-   - Report: "Pipeline validated through staging; production promote is READY and is the
-     manual step — run: gh workflow run promote-to-production.yml -f confirm=PRODUCTION".
+5. RELEASE (auto for FIX-ONLY releases; manual for features — see boundary 1):
+   - Determine what is pending on develop ahead of main (the changes that WOULD ship to prod):
+     git log --oneline origin/main..origin/develop. CLASSIFY every commit.
+   - If ALL pending changes are bug-FIXES (BUGS/SEC defects, fix: commits; NO new feature,
+     user-facing capability, route, table, MCP tool, or migration) -> you are AUTHORISED to ship:
+       a. Bump package.json: npm version patch --no-git-tag-version (per KAN-166), commit on a claude/ PR.
+       b. Promote the chain: promote-to-staging.yml -> verify staging green + healthy ->
+          promote-staging-to-beta.yml -> verify beta -> promote-to-production.yml -f confirm=PRODUCTION.
+       c. The prod workflow runs smoke tests + AUTO-ROLLBACK. If it rolls back, treat as FAIL,
+          open a Highest-priority BUGS ticket, and STOP.
+       d. Verify prod after: curl https://checklyra.com/api/health and https://mcp.checklyra.com/health.
+   - If ANY pending change is a feature, OR you are unsure whether something is a fix vs a feature
+     -> DO NOT promote past staging. STOP and report: "release holds a feature / is ambiguous —
+     needs manual sign-off: gh workflow run promote-to-production.yml -f confirm=PRODUCTION".
 6. SELF-UPDATE: if you found a way this routine (script/prompt/doc) should improve, open a
    PR proposing it — do NOT silently change your own behaviour.
 7. REPORT + LOG: append a run-log row to this doc (date, PASS/FAIL counts, bugs fixed +
@@ -89,4 +96,4 @@ log everything, and rehearse the release pipeline up to (not through) the prod g
 
 | Date | Runner | Suite result | Bugs fixed → tickets/PRs | Stopped-on (needs user) | Release-ready? |
 |---|---|---|---|---|---|
-| 2026-06-21 | _(initial — routine authored)_ | — | — | — | manual gate by design |
+| 2026-06-21 | _(initial — routine authored; fix-only auto-promote authorised 2026-06-21)_ | — | — | — | auto for fix-only; features manual |
