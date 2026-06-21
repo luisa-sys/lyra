@@ -25,6 +25,7 @@ import { rankCandidates, type RankerContext } from './rank';
 import { composeRationale } from './explain';
 import { EVERGREEN_FALLBACK_CONCEPTS } from './evergreen';
 import { getAffiliateLink } from '@/lib/affiliate/link-service';
+import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
 import type { PipelineRequest, PipelineResult, V2Recommendation } from './types';
 
 /**
@@ -86,7 +87,11 @@ export async function buildV2Recommendations(
   const ranked = rankCandidates(candidates, rankerCtx);
 
   // 4. Take the top N, then monetise each via the Affiliate Link Service.
+  //    KAN-309: paid links are a per-recipient entitlement (+ disclosure
+  //    compliance). Resolve it ONCE for the recipient and pass it down, so an
+  //    opted-out profile gets raw, un-logged links and we avoid N reads.
   const topN = ranked.slice(0, limit);
+  const paidLinksEnabled = await isPaidLinksAllowedForRecipient(req.recipientId ?? null);
   const monetised = await Promise.all(
     topN.map((cand) =>
       getAffiliateLink({
@@ -98,6 +103,7 @@ export async function buildV2Recommendations(
         recipientId: req.recipientId ?? null,
         recommendationId: req.recommendationId ?? null,
         source: req.source,
+        paidLinksEnabled,
       }),
     ),
   );

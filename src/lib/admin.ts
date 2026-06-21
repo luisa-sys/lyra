@@ -50,7 +50,10 @@ export type ModerationAction =
   // KAN-309: two-axis access model transitions from the user-management console
   | 'enable_beta' // waitlist -> beta (also sets is_beta_eligible=true)
   | 'disable_beta' // beta -> waitlist (revokes is_beta_eligible)
-  | 'promote_live'; // promote to the launched product (± early_access)
+  | 'promote_live' // promote to the launched product (± early_access)
+  // KAN-309 follow-on: per-user feature entitlement toggles
+  | 'enable_feature'
+  | 'disable_feature';
 
 export interface AdminUser {
   userId: string;

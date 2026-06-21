@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 
 export const metadata = {
   title: 'Convene Gatherings — Lyra',
@@ -45,7 +45,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function GatheringsListPage() {
-  if (!isConveneEnabled()) {
+  if (!(await isConveneEnabledForCurrentUser())) {
     return (
       <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center">
         <p className="text-[var(--color-muted)]">Convene is not enabled.</p>

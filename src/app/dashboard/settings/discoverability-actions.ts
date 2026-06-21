@@ -41,6 +41,7 @@ import {
   hashPostcodeInput,
   SEARCH_RATE_LIMIT,
 } from './discoverability-helpers';
+import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 
 interface DiscoverabilityInput {
   phone?: boolean;
@@ -55,6 +56,15 @@ export async function setDiscoverability(input: DiscoverabilityInput): Promise<A
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Not authenticated' };
+
+  // KAN-309 — per-user feature gate (default on; an admin can revoke). Opting
+  // OUT is always allowed so a revoked user can still turn discovery off.
+  if (input.phone === true || input.postcode === true) {
+    const features = await getMyFeatureEntitlements();
+    if (!features.discovery) {
+      return { success: false, error: 'Discovery is not enabled for your account.' };
+    }
+  }
 
   // Read the current flags so we know which transitions to perform. We do
   // NOT read the hash columns (they are revoked from `authenticated` at

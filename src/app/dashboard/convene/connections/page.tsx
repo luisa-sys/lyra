@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import { ConnectionsClient } from './connections-client';
 import { AvailabilityToggle } from './availability-toggle';
 
@@ -34,7 +34,7 @@ export default async function ConnectionsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  if (!isConveneEnabled()) {
+  if (!(await isConveneEnabledForCurrentUser())) {
     return (
       <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center">
         <div className="text-center">

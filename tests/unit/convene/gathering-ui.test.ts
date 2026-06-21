@@ -24,7 +24,7 @@ describe('Convene gatherings UI (KAN-236)', () => {
 
   describe('list page', () => {
     const src = fs.readFileSync(listPath, 'utf8');
-    test('gates on isConveneEnabled', () => expect(src).toMatch(/isConveneEnabled\(\)/));
+    test('gates on the per-user convene gate', () => expect(src).toMatch(/isConveneEnabledForCurrentUser\(\)/));
     test('redirects unauthenticated users to /login', () => expect(src).toMatch(/redirect\(['"]\/login/));
     test('filters by host_user_id', () => expect(src).toMatch(/\.eq\(['"]host_user_id['"],\s*user\.id\)/));
     test('soft-deleted gatherings excluded', () => expect(src).toMatch(/\.is\(['"]deleted_at['"],\s*null\)/));
@@ -32,7 +32,7 @@ describe('Convene gatherings UI (KAN-236)', () => {
 
   describe('detail page', () => {
     const src = fs.readFileSync(detailPath, 'utf8');
-    test('gates on isConveneEnabled', () => expect(src).toMatch(/isConveneEnabled\(\)/));
+    test('gates on the per-user convene gate', () => expect(src).toMatch(/isConveneEnabledForCurrentUser\(\)/));
     test('filters main gathering query by host_user_id', () => expect(src).toMatch(/\.eq\(['"]host_user_id['"],\s*user\.id\)/));
     test('returns 404 (notFound) on missing or non-owned gathering', () => expect(src).toMatch(/notFound\(\)/));
     test('uses state-machine availableTransitions to gate buttons', () => expect(src).toMatch(/availableTransitions/));

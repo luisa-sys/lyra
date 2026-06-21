@@ -10,6 +10,9 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
+import { getProfileEntitlements } from '@/lib/features/entitlements-service';
+import { FEATURE_KEYS, FEATURE_CONFIG } from '@/lib/features/registry';
+import { setFeatureEntitlement } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +143,7 @@ export default async function UserDetailPage({
   const profile = await loadProfile(slug);
   if (!profile) notFound();
   const items = await loadItems(profile.id);
+  const entitlements = await getProfileEntitlements(profile.id);
   const isSelf = profile.id === admin.profileId;
 
   return (
@@ -232,6 +236,57 @@ export default async function UserDetailPage({
           )}
         </section>
       )}
+
+      <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
+        <h2 className="text-base font-medium text-[var(--color-ink)]">Feature access</h2>
+        <p className="text-xs text-[var(--color-muted)] mt-1 mb-3">
+          Per-user beta features. Each also needs its environment switch on to take effect.
+        </p>
+        <div className="divide-y divide-[var(--color-border)]">
+          {FEATURE_KEYS.map((k) => {
+            const cfg = FEATURE_CONFIG[k];
+            const on = entitlements[k];
+            return (
+              <div key={k} className="py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-[var(--color-ink)]">
+                    <span className="font-medium">{cfg.label}</span>{' '}
+                    <span
+                      className={
+                        'text-xs px-2 py-0.5 rounded-full ' +
+                        (on ? 'bg-green-50 text-green-700' : 'bg-[#f4efe7] text-[var(--color-muted)]')
+                      }
+                    >
+                      {on ? 'on' : 'off'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    {cfg.description}
+                    {cfg.envPrerequisite ? ` · needs ${cfg.envPrerequisite}` : ''}
+                  </p>
+                </div>
+                <form action={setFeatureEntitlement} className="shrink-0">
+                  <input type="hidden" name="profileId" value={profile.id} />
+                  <input type="hidden" name="slug" value={profile.slug} />
+                  <input type="hidden" name="featureKey" value={k} />
+                  <input type="hidden" name="enabled" value={(!on).toString()} />
+                  <button
+                    type="submit"
+                    className={
+                      'text-xs font-medium px-4 py-2 rounded-full transition-colors ' +
+                      (on
+                        ? 'bg-[#f4efe7] text-red-700 hover:bg-red-50'
+                        : 'bg-[var(--color-sage)] text-white hover:opacity-90')
+                    }
+                  >
+                    {on ? 'Disable' : 'Enable'}
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <h2 className="text-base font-medium text-[var(--color-ink)] mb-3">Items</h2>

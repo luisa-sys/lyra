@@ -40,6 +40,7 @@ import {
   type AffiliateProvider,
 } from './types';
 import { detectMerchant } from './merchant-detector';
+import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
 
 export type AffiliateLinkRequest = {
   /** The raw merchant product URL the recommender chose. */
@@ -58,6 +59,12 @@ export type AffiliateLinkRequest = {
   recommendationId?: string | null;
   /** Which surface initiated the call. */
   source: AffiliateClickSource;
+  /**
+   * KAN-309: precomputed paid-gift-links gate for the recipient (entitlement +
+   * disclosure compliance). When omitted, the service computes it from
+   * recipientId and FAILS CLOSED (no recipient → not allowed).
+   */
+  paidLinksEnabled?: boolean;
 };
 
 export type AffiliateLinkResult = {
@@ -93,6 +100,18 @@ export async function getAffiliateLink(
   const subId = buildSubId(clickId, req.source);
   const recipientCountry = req.recipientCountry ?? req.buyerCountry;
   const merchant = detectMerchant(req.rawUrl);
+
+  // KAN-309: paid links are a per-RECIPIENT entitlement (+ disclosure
+  // compliance gate). When not allowed, return the raw URL with NO click log —
+  // an opted-out profile's recommendations must neither monetise nor pollute
+  // attribution data. Callers (the V2 pipeline) precompute via
+  // req.paidLinksEnabled to avoid a per-candidate read; otherwise we fail
+  // closed off the recipient id.
+  const monetisationAllowed =
+    req.paidLinksEnabled ?? (await isPaidLinksAllowedForRecipient(req.recipientId));
+  if (!monetisationAllowed) {
+    return { url: req.rawUrl, clickId, provider: 'raw', monetised: false, merchant };
+  }
 
   // Provider chain. MVP: only Sovrn (currently stubbed) → raw fallback.
   // Phase 2 will insert Amazon-direct ahead of Sovrn here.

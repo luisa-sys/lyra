@@ -20,7 +20,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase-server';
-import { getCurrentAdmin, getAdminServiceClient, logModerationActionsBatch } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction, logModerationActionsBatch } from '@/lib/admin';
 import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
 import {
   BULK_MAX,
@@ -30,6 +30,7 @@ import {
   type BulkAction,
   type UserFilter,
 } from './users-actions-shared';
+import { isFeatureKey } from '@/lib/features/registry';
 
 function parseFilter(formData: FormData): UserFilter {
   const str = (k: string): string | null => {
@@ -142,5 +143,50 @@ export async function bulkUserAction(formData: FormData): Promise<void> {
     }
   }
 
+  revalidatePath('/admin/users');
+}
+
+/**
+ * KAN-309 follow-on: grant/revoke a single per-user feature entitlement
+ * (Convene, MCP, paid gift links, …). Audit-first; service-role upsert (passes
+ * the feature_entitlements self-grant trigger); stamps granted_by.
+ */
+export async function setFeatureEntitlement(formData: FormData): Promise<void> {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
+    throw new Error('Not authorised');
+  }
+  const profileId = String(formData.get('profileId') ?? '').trim();
+  const featureKey = String(formData.get('featureKey') ?? '').trim();
+  const enabled = String(formData.get('enabled') ?? '') === 'true';
+  if (!profileId || !isFeatureKey(featureKey)) {
+    throw new Error('Invalid feature toggle');
+  }
+
+  await logModerationAction({
+    admin,
+    action: enabled ? 'enable_feature' : 'disable_feature',
+    targetProfileId: profileId,
+    metadata: { feature_key: featureKey },
+  });
+
+  const svc = getAdminServiceClient();
+  const { error } = await svc
+    .from('feature_entitlements')
+    .upsert(
+      {
+        profile_id: profileId,
+        feature_key: featureKey,
+        enabled,
+        granted_by: admin.profileId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'profile_id,feature_key' },
+    );
+  if (error) {
+    throw new Error(`Could not update feature: ${error.message}`);
+  }
+
+  revalidatePath(`/admin/users/${String(formData.get('slug') ?? '')}`);
   revalidatePath('/admin/users');
 }

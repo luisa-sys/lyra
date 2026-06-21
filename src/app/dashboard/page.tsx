@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 import ShareProfile from './share-profile';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
   // KAN-303 — Convene nav + landing card are gated on the feature flag so they
   // stay hidden until Convene is enabled (beta).
-  const conveneEnabled = isConveneEnabled();
+  const conveneEnabled = await isConveneEnabledForCurrentUser();
 
   return (
     <main className="min-h-screen">
