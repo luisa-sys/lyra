@@ -105,9 +105,10 @@ log via a PR from a claude/ branch.
 3. Compare EVERY result against the "Risk-Register regression map" and the last run-log
    row in docs/DAILY_SECURITY_CHECK.md. Treat UNVERIFIED as a soft-FAIL, never a pass.
 4. For any NEW finding (a probe that newly FAILs, or a 🔴/🟠 not already covered by an
-   open BUGS/SEC ticket — check Jira first), create a BUGS ticket: summary
-   "[SEC][<sev>] <short>", the 6-section standard, labels security + risk-audit-2026-06.
-   Do NOT fix anything; do NOT touch prod.
+   open SEC ticket — check Jira first), create a **SEC ticket** (project key `SEC`,
+   issue type Task): summary "[SEC][<sev>] <short>", the 6-section standard,
+   labels security + risk-audit-2026-06. Per CLAUDE.md: security and risk findings go
+   to SEC, not KAN/BUGS. Do NOT fix anything; do NOT touch prod.
 5. Append one run-log row to docs/DAILY_SECURITY_CHECK.md (date, runner=cloud-routine,
    🔴/🟠 counts, new tickets, one-line notes) and open a PR from a claude/ branch with
    only that change.

@@ -293,6 +293,9 @@ export default {
       '/partners',
       '/auth/',
       '/api/health',
+      // SEC-4: the public status page must be reachable while production shows
+      // the waitlist front door (the maintenance worker gates everything else).
+      '/status',
       // KAN-184: the affiliate recommendation API needs to be reachable
       // from outside the gate so the lyra-mcp-server (at mcp.checklyra.com)
       // can call it server-side. Without this allowlist entry, the MCP

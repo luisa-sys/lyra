@@ -9,6 +9,9 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest

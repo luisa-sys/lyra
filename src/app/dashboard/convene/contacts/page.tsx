@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import ContactsClient from './contacts-client';
 import type { ContactView } from './contacts-helpers';
 
@@ -40,7 +40,7 @@ interface ContactRow {
 }
 
 export default async function ContactsPage() {
-  if (!isConveneEnabled()) return <NotEnabled />;
+  if (!(await isConveneEnabledForCurrentUser())) return <NotEnabled />;
 
   const supabase = await createClient();
   const {

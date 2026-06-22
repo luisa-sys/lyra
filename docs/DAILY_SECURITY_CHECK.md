@@ -187,15 +187,17 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **FAIL:** owner predicate missing or anon list returns other users' objects → 🔴 **SEC-03 reproduced** → BUGS-25.
 
 ### B6 — 🟠 Self-privilege-escalation columns are write-protected (regression for the beta/admin privesc class)
-- **Threat:** `profiles.is_beta_eligible`/`beta_access_status` were self-settable via the "update own profile" RLS policy until `20260620120100_beta_access_lockdown.sql` added `prevent_beta_self_elevation()`. Same risk shape for `is_admin`.
-- **Check:** confirm the trigger exists and is promoted to **prod**:
+- **Threat:** `profiles.is_beta_eligible`/`beta_access_status` were self-settable via the "update own profile" RLS policy until the beta-access lockdown added `prevent_beta_self_elevation()`. The **same shape applied to `is_admin`/`is_suspended`** (full admin privesc + self-unsuspend) — **fixed by SEC-27** (`20260622061545_sec27_block_admin_is_suspended_self_set.sql`, `profiles_block_admin_is_suspended_self_set` trigger, live on all envs 2026-06-22).
+- **Check:** confirm **both** privesc-guard triggers exist and are enabled on **prod**:
   ```sql
   SELECT tgname, tgenabled FROM pg_trigger
-  WHERE tgname IN ('prevent_beta_self_elevation','profiles_block_admin_self_set');
-  SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20260620120100';
+  WHERE tgname IN ('prevent_beta_self_elevation','profiles_block_admin_is_suspended_self_set');
+  -- Expect 2 rows, both tgenabled = 'O'. Trigger presence is the source of truth:
+  -- schema_migrations.version is unreliable here because apply_migration assigns its
+  -- own timestamp (beta lockdown recorded 20260620200641, SEC-27 recorded 20260622061545).
   ```
-- **PASS:** trigger present + enabled on prod; migration applied. No authenticated UPDATE path to `is_admin`/beta columns.
-- **FAIL:** trigger missing on prod (migration drift — see OPS-04) → 🟠 promote the migration; until then privesc is live.
+- **PASS:** both triggers present + enabled on prod → no authenticated/anon UPDATE path to `is_admin`/`is_suspended`/beta columns (each raises 42501; service-role writes still pass).
+- **FAIL:** either trigger missing or disabled on prod (migration drift — see OPS-04) → 🔴 privesc is live; re-apply the migration immediately.
 
 ### B7 — 🟡 RPC SQL-injection surface
 - **Threat:** any `SECURITY DEFINER` function using `EXECUTE` with string concatenation = full-DB SQLi.
@@ -497,7 +499,7 @@ A second, more granular pentest (parent **BUGS-34**, Confluence report) runs alo
 
 This runs as a **scheduled Claude Code cloud routine**, not a GitHub Action — setup in [`DAILY_SECURITY_CHECK_ROUTINE.md`](./DAILY_SECURITY_CHECK_ROUTINE.md):
 - **`scripts/daily-security-check.sh`** — the deterministic HTTP/port probes (§A, §C transport). Read-only; reports PASS/FAIL/**UNVERIFIED** (an unreachable / egress-blocked / bot-challenged host is UNVERIFIED, never a false PASS *or* false FAIL); exit 2 on FAIL, 1 on UNVERIFIED-only. Guarded by `tests/scripts/daily-security-check.test.js`.
-- **The agent** drives the MCP-tool probes (§B Supabase advisors/SQL incl. B9, §D/E GitHub & supply-chain, §A8 Cloudflare), compares to the regression map, files a BUGS ticket for any NEW 🔴/🟠, and appends a run-log row via draft PR.
+- **The agent** drives the MCP-tool probes (§B Supabase advisors/SQL incl. B9, §D/E GitHub & supply-chain, §A8 Cloudflare), compares to the regression map, files a **SEC ticket** (not BUGS — per CLAUDE.md, security/risk findings route to SEC) for any NEW 🔴/🟠, and appends a run-log row via draft PR.
 - **Email on FAIL** — `scripts/security-alert-email.sh` (Resend) sends an alert on any 🔴/FAIL; it **fails loud** if `RESEND_API_KEY` is missing or Resend returns non-2xx (never a silent-skip).
 
 **Apply the Workflow & Backup Integrity Policy** everywhere: no silent-skip, validate every probe output, fail loud. A security check that silently skips and reports green is the worst possible outcome.
@@ -509,3 +511,4 @@ This runs as a **scheduled Claude Code cloud routine**, not a GitHub Action — 
 | 2026-06-21 | doc authored (KAN-294) | — | — | Pre-seeded from risk-audit-2026-06: BUGS-24/25/26/27, KAN-291 | Baseline established |
 | 2026-06-21 | live triage — DB layer, read-only (Supabase advisors + SQL) | 1 | 1 | **SEC-07 → BUGS-44** (new) | SEC-01 ✅ fixed all envs · SEC-03 🔴 OPEN prod-only (fix live dev/stage) · SEC-02 🟠 OPEN all · SEC-05 🟡 OPEN all · SEC-07 🟡 OPEN all · RLS 0 disabled ✅ · beta-elevation lockdown live on prod ✅. HTTP-layer probes (SEC-04 CORS, web headers, MCP endpoints) NOT run — egress-blocked → UNVERIFIED, re-run from allowlisted host. |
 | 2026-06-21 | automation built (KAN-296) | — | — | Discovered parallel pentest **BUGS-34 / 36–46** (F-01…F-23) | Added `scripts/daily-security-check.sh` + `docs/DAILY_SECURITY_CHECK_ROUTINE.md` + test. Script self-run here = 11 UNVERIFIED (egress-blocked → correctly no false-PASS/FAIL) + A9 ports OK. New probes A10/A11/C9/E6 cover the new F-series findings. |
+| 2026-06-22 | cloud-routine (KAN-294/296) | 1 | 0 | **BUGS-52** (🔴 `is_admin` self-elevation — all envs), **BUGS-53** (🟡 dev admin-fn grants) | Script: 21 PASS / 0 FAIL / 0 UNVERIFIED (site+MCP reachable this run ✅). B6 🔴 FAIL: `profiles_block_admin_self_set` trigger never created — authenticated user can PATCH `is_admin=true` on prod; `is_suspended` same gap → **BUGS-52 filed, Highest**. SEC-01 ✅ holds (vault RPCs anon/auth=false all envs). SEC-02 ✅ fixed prod (`mcp_per_ip_recent_count` now `security_invoker=on`). SEC-03 profile-files ✅ fixed prod; profile-photos `public=true` residual (direct-URL only, listing owner-scoped). Prod B9 CLEAN (0 anon/auth definer fns) — major improvement. Dev B9: new admin fns from `two_axis_access_model` migration → BUGS-53 🟡. Dependabot PR #305 (codeql-action) stale 14 days. GitHub alert counts + branch protection + lyra-mcp-server + C7 build SHA = UNVERIFIED (session scope / no tool). |

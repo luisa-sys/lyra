@@ -75,7 +75,7 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(nextConfig, {
   // Org + project come from env vars set in CI; falling back to the
   // canonical values from KAN-104 setup keeps local builds working.
-  org: process.env.SENTRY_ORG || "lyra-q1q",
+  org: process.env.SENTRY_ORG || "checklyra",
   project: process.env.SENTRY_PROJECT || "lyra",
 
   // Suppress source-map upload chatter unless we're in a debug build.
