@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -488,6 +489,13 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-309 — per-user feature gate (media_uploads covers profile photos too;
+  // default on, an admin can revoke). Mirrors uploadProfileFile.
+  const features = await getMyFeatureEntitlements();
+  if (!features.media_uploads) {
+    return { success: false, error: 'Media uploads are not enabled for your account.' };
+  }
 
   // KAN-231 — profile-save rate limiting (avatars are user-driven writes too).
   const rl = await checkProfileWriteRateLimit(user!.id);
