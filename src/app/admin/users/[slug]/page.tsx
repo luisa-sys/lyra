@@ -159,6 +159,10 @@ async function actionSetAgeStatus(formData: FormData) {
   if (!AGE_STATUSES.includes(status)) {
     redirect(`/admin/users/${slug}`);
   }
+  // Self-moderation guard (mirror setSuspendState / setPublishedState).
+  if (profileId === admin.profileId) {
+    redirect(`/admin/users/${slug}`);
+  }
 
   await logModerationAction({
     admin,
@@ -399,6 +403,7 @@ export default async function UserDetailPage({
         </div>
       </section>
 
+      {!isSelf && (
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <h2 className="text-base font-medium text-[var(--color-ink)]">Age verification</h2>
         <p className="text-xs text-[var(--color-muted)] mt-1 mb-3">
@@ -441,6 +446,7 @@ export default async function UserDetailPage({
           ))}
         </div>
       </section>
+      )}
 
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <h2 className="text-base font-medium text-[var(--color-ink)] mb-3">Items</h2>

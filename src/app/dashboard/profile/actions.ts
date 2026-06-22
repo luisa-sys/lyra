@@ -74,6 +74,22 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     };
   }
 
+  // KAN-319: `is_published` is an allowlisted field, so this action is a second
+  // web publish path alongside publishProfile(). Apply the same age gate here so
+  // it can't be bypassed: when the env switch is on and the user is publishing
+  // (is_published truthy), require age_status='passed'. (Un-publishing is always
+  // allowed.)
+  if (sanitised.is_published === true && isAgeVerificationRequired()) {
+    const { data: ageRow } = await supabase
+      .from('profiles')
+      .select('age_status')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
+      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
+    }
+  }
+
   // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
   // Runs AFTER sanitiseText so the moderator sees the post-strip text
   // (a profanity inside <script>profanity</script> gets stripped to plain

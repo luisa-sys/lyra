@@ -129,11 +129,20 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico';
   if (user && !suspensionExempt) {
-    const { data: suspProfile } = await supabase
+    const { data: suspProfile, error: suspErr } = await supabase
       .from('profiles')
       .select('is_suspended')
       .eq('user_id', user.id)
       .maybeSingle();
+    // Observability: never fail silently on a lookup error. We fail OPEN here
+    // (let the request proceed) rather than closed, because a suspended user's
+    // public exposure is already prevented at the data tier by RLS
+    // (published-and-not-suspended), so this gate only governs their own
+    // session — and failing closed on a transient profiles-read error would
+    // wrongly lock out the whole authenticated userbase.
+    if (suspErr) {
+      console.error('[middleware] suspension lookup failed (failing open):', suspErr.message);
+    }
     if (suspProfile?.is_suspended) {
       const url = request.nextUrl.clone();
       url.pathname = '/suspended';
