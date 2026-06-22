@@ -15,6 +15,16 @@ function getClientIp(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // KAN-309: admin.checklyra.com host routing. Enforced only when
+  // ADMIN_HOST_ENFORCED=true (set on prod once the DNS + Cloudflare Access app
+  // are live) — until then /admin keeps working on every host, so shipping this
+  // code is non-breaking.
+  const adminHost = process.env.ADMIN_HOST ?? 'admin.checklyra.com';
+  const adminHostEnforced = process.env.ADMIN_HOST_ENFORCED === 'true';
+  const requestHost =
+    request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
+  const isAdminHost = requestHost === adminHost;
+
   // Supabase PKCE: redirect code param to /auth/callback for session exchange
   const code = request.nextUrl.searchParams.get('code');
   if (code && pathname === '/') {
@@ -78,6 +88,69 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // KAN-309: route the admin tools to the admin subdomain (once enforced).
+  if (adminHostEnforced) {
+    if (isAdminHost) {
+      // Let the auth/login flow, API routes and assets pass through unchanged.
+      const passthrough =
+        pathname === '/login' ||
+        pathname.startsWith('/auth/') ||
+        pathname.startsWith('/api/') ||
+        pathname.startsWith('/_next/');
+      if (!passthrough && !pathname.startsWith('/admin')) {
+        // admin.checklyra.com/users → /admin/users, carrying refreshed cookies.
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin' + (pathname === '/' ? '' : pathname);
+        const rewrite = NextResponse.rewrite(url);
+        supabaseResponse.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
+        return rewrite;
+      }
+      // Already an /admin path (or passthrough) — serve it, and crucially skip
+      // the beta gate below so an admin isn't bounced to /waitlist.
+      return supabaseResponse;
+    }
+    // Any non-admin host must never serve /admin — send it to the subdomain.
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.redirect(
+        new URL(`https://${adminHost}${pathname}${request.nextUrl.search}`),
+      );
+    }
+  }
+
+  // KAN-319: suspended-user gate (all deploys). A suspended user's public
+  // profile is already hidden by RLS; this also blocks their own use of the app
+  // and sends them to /suspended with an appeal route. Runs before the beta gate
+  // so a suspended user lands on /suspended, not /waitlist. Exempts the
+  // suspended page itself + the auth/logout flow + assets to avoid loops.
+  const suspensionExempt =
+    pathname === '/suspended' ||
+    pathname === '/login' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/favicon.ico';
+  if (user && !suspensionExempt) {
+    const { data: suspProfile, error: suspErr } = await supabase
+      .from('profiles')
+      .select('is_suspended')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    // Observability: never fail silently on a lookup error. We fail OPEN here
+    // (let the request proceed) rather than closed, because a suspended user's
+    // public exposure is already prevented at the data tier by RLS
+    // (published-and-not-suspended), so this gate only governs their own
+    // session — and failing closed on a transient profiles-read error would
+    // wrongly lock out the whole authenticated userbase.
+    if (suspErr) {
+      console.error('[middleware] suspension lookup failed (failing open):', suspErr.message);
+    }
+    if (suspProfile?.is_suspended) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/suspended';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // KAN-175: Beta gate. Only active on the beta deploy (IS_BETA_DEPLOY=true).
   // Authenticated users without is_beta_eligible=true get redirected to
   // /waitlist. The /waitlist page itself is exempt so the redirect doesn't
@@ -86,6 +159,8 @@ export async function middleware(request: NextRequest) {
   const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
   const exemptFromBetaGate =
     pathname === '/waitlist' ||
+    pathname === '/suspended' || // KAN-319: suspended users land here, not /waitlist
+    pathname === '/status' || // SEC-4: public status page is never beta-gated
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname.startsWith('/auth/') ||

@@ -26,11 +26,11 @@ The server-side gate retains the two-flag combo because Node has access to all e
 | Field | Value | Notes |
 |---|---|---|
 | Region | EU (de.sentry.io) | GDPR-friendly |
-| Org ID | `o4511340602523648` | Numeric, baked into DSN |
-| Project ID | `4511340621594704` | Numeric, baked into DSN |
-| Org slug | _(TBC — see below)_ | Needed for source-map upload only |
-| Project slug | _(TBC — see below)_ | Same |
-| DSN | `https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704` | Public-by-design, safe in client bundle |
+| Org ID | `o4511605710127104` | Numeric, baked into DSN |
+| Project ID | `4511605735424080` | Numeric, baked into DSN |
+| Org slug | `checklyra` | Needed for source-map upload only |
+| Project slug | `lyra` | Same |
+| DSN | `https://7ce4583403ac31941f4c5b06c8abddd2@o4511605710127104.ingest.de.sentry.io/4511605735424080` | Public-by-design, safe in client bundle |
 
 ## Activating Sentry on an environment
 
@@ -50,7 +50,7 @@ Vercel → `lyra` project → Settings → Environment Variables. Add the follow
 
 | Variable | Value | Sensitive? | Purpose |
 |---|---|---|---|
-| `NEXT_PUBLIC_SENTRY_DSN` | `https://1d003e90bf6a072f57d3a7765f124a70@o4511340602523648.ingest.de.sentry.io/4511340621594704` | No | Where the SDK sends events. The `NEXT_PUBLIC_` prefix exposes it to the browser, which is correct — DSN is public-by-design. |
+| `NEXT_PUBLIC_SENTRY_DSN` | `https://7ce4583403ac31941f4c5b06c8abddd2@o4511605710127104.ingest.de.sentry.io/4511605735424080` | No | Where the SDK sends events. The `NEXT_PUBLIC_` prefix exposes it to the browser, which is correct — DSN is public-by-design. |
 | `IS_SENTRY_ENABLED` | `true` | No | **Server kill switch only.** Setting to `false` (or removing) disables Sentry on the server runtime. Browser is gated on `NEXT_PUBLIC_SENTRY_DSN` presence — see "Why the gate asymmetry" above. To kill Sentry in the browser, clear `NEXT_PUBLIC_SENTRY_DSN` instead. |
 
 After saving, redeploy that environment (push a commit or manually trigger via Vercel UI) so the new vars reach the build.

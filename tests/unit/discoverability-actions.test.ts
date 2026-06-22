@@ -25,6 +25,13 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
+// KAN-309: setDiscoverability now checks the per-user 'discovery' entitlement
+// before an opt-in. Mock the new dependency as entitled (the default) so the
+// existing behavioural assertions exercise the same path as before.
+jest.mock('@/lib/features/entitlements', () => ({
+  getMyFeatureEntitlements: jest.fn(async () => ({ discovery: true })),
+}));
+
 // Capture supabase interactions.
 const mockUpdateCapture = jest.fn();
 const mockUpdateEq = jest.fn().mockResolvedValue({ error: null });

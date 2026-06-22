@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -70,6 +72,22 @@ export async function updateProfileFields(data: Record<string, string | boolean 
       success: false,
       error: `Field(s) not permitted: ${rejected.join(', ')}`,
     };
+  }
+
+  // KAN-319: `is_published` is an allowlisted field, so this action is a second
+  // web publish path alongside publishProfile(). Apply the same age gate here so
+  // it can't be bypassed: when the env switch is on and the user is publishing
+  // (is_published truthy), require age_status='passed'. (Un-publishing is always
+  // allowed.)
+  if (sanitised.is_published === true && isAgeVerificationRequired()) {
+    const { data: ageRow } = await supabase
+      .from('profiles')
+      .select('age_status')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
+      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
+    }
   }
 
   // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
@@ -471,6 +489,20 @@ export async function publishProfile(): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
+  // KAN-319: age-verification publish gate. When AGE_VERIFICATION_REQUIRED is on,
+  // only a profile with age_status='passed' may publish. (Editing stays allowed;
+  // the profile just remains private until verified.)
+  if (isAgeVerificationRequired()) {
+    const { data: ageRow } = await supabase
+      .from('profiles')
+      .select('age_status')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
+      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
+    }
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({ is_published: true, onboarding_complete: true })
@@ -488,6 +520,13 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-309 — per-user feature gate (media_uploads covers profile photos too;
+  // default on, an admin can revoke). Mirrors uploadProfileFile.
+  const features = await getMyFeatureEntitlements();
+  if (!features.media_uploads) {
+    return { success: false, error: 'Media uploads are not enabled for your account.' };
+  }
 
   // KAN-231 — profile-save rate limiting (avatars are user-driven writes too).
   const rl = await checkProfileWriteRateLimit(user!.id);

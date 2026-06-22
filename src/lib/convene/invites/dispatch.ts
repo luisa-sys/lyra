@@ -24,6 +24,7 @@ import {
   renderInviteHtml,
 } from './templates';
 import { renderSmsBody } from './sms-templates';
+import { isFeatureEnabledByUserId } from '@/lib/features/entitlements-service';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;
@@ -67,6 +68,21 @@ function admin(): SupabaseClient {
   return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
     auth: { persistSession: false },
   });
+}
+
+/**
+ * KAN-309: SMS/WhatsApp invites are a per-HOST paid entitlement
+ * (convene_paid_channels). Resolved at most once per host per dispatch run.
+ */
+async function hostHasPaidChannels(
+  hostUserId: string,
+  cache: Map<string, boolean>,
+): Promise<boolean> {
+  const hit = cache.get(hostUserId);
+  if (hit !== undefined) return hit;
+  const ok = await isFeatureEnabledByUserId(hostUserId, 'convene_paid_channels');
+  cache.set(hostUserId, ok);
+  return ok;
 }
 
 async function loadContext(
@@ -220,7 +236,8 @@ export function buildSmsBody(ctx: JoinedContext): string {
 async function processOne(
   sb: SupabaseClient,
   row: QueuedRow,
-  summary: DispatchSummary
+  summary: DispatchSummary,
+  paidChannelCache: Map<string, boolean>
 ): Promise<void> {
   const loaded = await loadContext(sb, row);
   if (!loaded.ok) {
@@ -248,6 +265,19 @@ async function processOne(
   let result: SendResult | TwilioSendResult;
   try {
     if (row.channel === 'sms' || row.channel === 'whatsapp') {
+      // KAN-309: paid channels require the host's convene_paid_channels entitlement.
+      if (!(await hostHasPaidChannels(ctx.hostUserId, paidChannelCache))) {
+        await sb
+          .from('gathering_invite_messages')
+          .update({
+            delivery_status: 'failed',
+            bounce_reason: 'convene_paid_channels not enabled for host',
+          })
+          .eq('id', row.id);
+        summary.failed++;
+        summary.errors.push(`${row.id}: convene_paid_channels not enabled`);
+        return;
+      }
       if (!ctx.recipientPhone) {
         await sb
           .from('gathering_invite_messages')
@@ -392,6 +422,10 @@ export async function dispatchQueuedInvites(
   const queue = [...queuedRows];
   summary.scanned = queue.length;
 
+  // KAN-309: per-host convene_paid_channels entitlement cache, shared across
+  // the concurrent workers for this run.
+  const paidChannelCache = new Map<string, boolean>();
+
   const workers: Promise<void>[] = [];
   for (let i = 0; i < concurrency; i++) {
     workers.push(
@@ -399,7 +433,7 @@ export async function dispatchQueuedInvites(
         while (queue.length > 0) {
           const row = queue.shift();
           if (!row) break;
-          await processOne(sb, row, summary);
+          await processOne(sb, row, summary, paidChannelCache);
         }
       })()
     );

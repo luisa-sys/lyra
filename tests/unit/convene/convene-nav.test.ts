@@ -16,10 +16,10 @@ const profilePagePath = path.join(ROOT, 'src/app/dashboard/profile/page.tsx');
 describe('Convene nav entry points (KAN-303)', () => {
   describe('dashboard page', () => {
     const src = fs.readFileSync(dashboardPath, 'utf8');
-    test('imports the convene flag', () =>
-      expect(src).toMatch(/import \{ isConveneEnabled \} from ['"]@\/lib\/convene\/flags['"]/));
-    test('computes conveneEnabled from the flag', () =>
-      expect(src).toMatch(/const conveneEnabled = isConveneEnabled\(\)/));
+    test('imports the per-user convene gate', () =>
+      expect(src).toMatch(/import \{ isConveneEnabledForCurrentUser \} from ['"]@\/lib\/convene\/flags-user['"]/));
+    test('computes conveneEnabled from the per-user gate', () =>
+      expect(src).toMatch(/const conveneEnabled = await isConveneEnabledForCurrentUser\(\)/));
     test('gates the header Convene link on the flag', () => {
       expect(src).toMatch(/conveneEnabled &&[\s\S]{0,200}\/dashboard\/convene\/gatherings/);
     });
@@ -42,7 +42,7 @@ describe('Convene nav entry points (KAN-303)', () => {
 
   describe('profile page wiring', () => {
     const src = fs.readFileSync(profilePagePath, 'utf8');
-    test('passes the live flag value into the editor', () =>
-      expect(src).toMatch(/conveneEnabled=\{isConveneEnabled\(\)\}/));
+    test('passes the live per-user gate value into the editor', () =>
+      expect(src).toMatch(/conveneEnabled=\{await isConveneEnabledForCurrentUser\(\)\}/));
   });
 });

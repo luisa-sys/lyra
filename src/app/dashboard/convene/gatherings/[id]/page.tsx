@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import {
   availableTransitions,
   type GatheringStatus,
@@ -65,7 +65,7 @@ const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
 };
 
 export default async function GatheringDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  if (!isConveneEnabled()) {
+  if (!(await isConveneEnabledForCurrentUser())) {
     return (
       <main className="min-h-screen bg-[var(--color-paper)] flex items-center justify-center">
         <p className="text-[var(--color-muted)]">Convene is not enabled.</p>
