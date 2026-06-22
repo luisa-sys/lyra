@@ -9,6 +9,9 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: read
+
 jobs:
   restore-test:
     runs-on: ubuntu-latest
@@ -29,8 +32,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "SUPABASE_DB_URL not configured — skipping"
-            exit 0
+            echo "::error::SUPABASE_DB_URL not configured — the restore test cannot run. Failing loudly (SEC-23: no silent-skip / false-green)."
+            exit 1
           fi
           pg_dump "$SUPABASE_DB_URL" --schema-only --schema=public --no-owner --no-privileges \
             > /tmp/prod-schema.sql 2>&1
@@ -42,8 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "Skipping — no DB URL"
-            exit 0
+            echo "::error::SUPABASE_DB_URL not configured — cannot verify the restore. Failing loudly (SEC-23: no silent-skip / false-green)."
+            exit 1
           fi
 
           echo "## Backup Restore Test Results" >> $GITHUB_STEP_SUMMARY
