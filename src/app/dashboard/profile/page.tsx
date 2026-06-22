@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from './manual-of-me-fields';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -103,7 +103,7 @@ export default async function ProfilePage() {
       files={files || []}
       conversationPrompts={conversationPrompts || []}
       conversationAnswers={conversationAnswers}
-      conveneEnabled={isConveneEnabled()}
+      conveneEnabled={await isConveneEnabledForCurrentUser()}
     />
   );
 }

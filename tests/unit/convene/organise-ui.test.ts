@@ -22,7 +22,7 @@ describe('Convene organise wizard UI (KAN-305)', () => {
 
   describe('page', () => {
     const src = fs.readFileSync(pagePath, 'utf8');
-    test('gates on isConveneEnabled', () => expect(src).toMatch(/isConveneEnabled\(\)/));
+    test('gates on the per-user convene gate', () => expect(src).toMatch(/isConveneEnabledForCurrentUser\(\)/));
     test('redirects unauthenticated users', () => expect(src).toMatch(/redirect\(['"]\/login\?next=\/dashboard\/convene\/organise/));
     test('scopes contacts to the owner', () => expect(src).toMatch(/\.eq\(['"]owner_user_id['"],\s*user\.id\)/));
     test('honours a ?contact= preselect', () => expect(src).toMatch(/sp\.contact/));

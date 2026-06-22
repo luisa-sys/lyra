@@ -25,7 +25,7 @@ describe('Convene contacts UI (KAN-304)', () => {
 
   describe('page', () => {
     const src = fs.readFileSync(pagePath, 'utf8');
-    test('gates on isConveneEnabled', () => expect(src).toMatch(/isConveneEnabled\(\)/));
+    test('gates on the per-user convene gate', () => expect(src).toMatch(/isConveneEnabledForCurrentUser\(\)/));
     test('redirects unauthenticated users to /login with ?next', () =>
       expect(src).toMatch(/redirect\(['"]\/login\?next=\/dashboard\/convene\/contacts/));
     test('scopes the contacts query to owner_user_id', () =>

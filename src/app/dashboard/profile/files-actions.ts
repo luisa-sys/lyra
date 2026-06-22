@@ -11,6 +11,7 @@ import {
   extensionForMime,
   type AllowedMime,
 } from '@/lib/file-magic-bytes';
+import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 
 /**
  * KAN-142: server actions for the profile_files surface.
@@ -61,6 +62,12 @@ export async function uploadProfileFile(formData: FormData): Promise<ActionResul
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
   const { user, supabase, profileId } = authed;
+
+  // KAN-309 — per-user feature gate (default on; an admin can revoke).
+  const features = await getMyFeatureEntitlements();
+  if (!features.media_uploads) {
+    return { success: false, error: 'Media uploads are not enabled for your account.' };
+  }
 
   // KAN-231 — profile-save rate limiting (file uploads are expensive — cap them).
   const rl = await checkProfileWriteRateLimit(user.id);

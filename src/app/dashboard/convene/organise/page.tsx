@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { isConveneEnabled } from '@/lib/convene/flags';
+import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import OrganiseWizard from './organise-wizard';
 
 export const metadata = {
@@ -38,7 +38,7 @@ export default async function OrganisePage({
 }: {
   searchParams: Promise<{ contact?: string }>;
 }) {
-  if (!isConveneEnabled()) {
+  if (!(await isConveneEnabledForCurrentUser())) {
     return (
       <Shell>
         <p className="text-[var(--color-muted)]">Convene is not enabled.</p>
