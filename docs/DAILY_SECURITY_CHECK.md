@@ -187,15 +187,17 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **FAIL:** owner predicate missing or anon list returns other users' objects → 🔴 **SEC-03 reproduced** → BUGS-25.
 
 ### B6 — 🟠 Self-privilege-escalation columns are write-protected (regression for the beta/admin privesc class)
-- **Threat:** `profiles.is_beta_eligible`/`beta_access_status` were self-settable via the "update own profile" RLS policy until `20260620120100_beta_access_lockdown.sql` added `prevent_beta_self_elevation()`. Same risk shape for `is_admin`.
-- **Check:** confirm the trigger exists and is promoted to **prod**:
+- **Threat:** `profiles.is_beta_eligible`/`beta_access_status` were self-settable via the "update own profile" RLS policy until the beta-access lockdown added `prevent_beta_self_elevation()`. The **same shape applied to `is_admin`/`is_suspended`** (full admin privesc + self-unsuspend) — **fixed by SEC-27** (`20260622061545_sec27_block_admin_is_suspended_self_set.sql`, `profiles_block_admin_is_suspended_self_set` trigger, live on all envs 2026-06-22).
+- **Check:** confirm **both** privesc-guard triggers exist and are enabled on **prod**:
   ```sql
   SELECT tgname, tgenabled FROM pg_trigger
-  WHERE tgname IN ('prevent_beta_self_elevation','profiles_block_admin_self_set');
-  SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20260620120100';
+  WHERE tgname IN ('prevent_beta_self_elevation','profiles_block_admin_is_suspended_self_set');
+  -- Expect 2 rows, both tgenabled = 'O'. Trigger presence is the source of truth:
+  -- schema_migrations.version is unreliable here because apply_migration assigns its
+  -- own timestamp (beta lockdown recorded 20260620200641, SEC-27 recorded 20260622061545).
   ```
-- **PASS:** trigger present + enabled on prod; migration applied. No authenticated UPDATE path to `is_admin`/beta columns.
-- **FAIL:** trigger missing on prod (migration drift — see OPS-04) → 🟠 promote the migration; until then privesc is live.
+- **PASS:** both triggers present + enabled on prod → no authenticated/anon UPDATE path to `is_admin`/`is_suspended`/beta columns (each raises 42501; service-role writes still pass).
+- **FAIL:** either trigger missing or disabled on prod (migration drift — see OPS-04) → 🔴 privesc is live; re-apply the migration immediately.
 
 ### B7 — 🟡 RPC SQL-injection surface
 - **Threat:** any `SECURITY DEFINER` function using `EXECUTE` with string concatenation = full-DB SQLi.
