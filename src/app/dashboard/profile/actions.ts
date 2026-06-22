@@ -6,6 +6,7 @@ import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType } from './affiliation-fields';
@@ -471,6 +472,20 @@ export async function updateSectionVisibility(
 export async function publishProfile(): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
+
+  // KAN-319: age-verification publish gate. When AGE_VERIFICATION_REQUIRED is on,
+  // only a profile with age_status='passed' may publish. (Editing stays allowed;
+  // the profile just remains private until verified.)
+  if (isAgeVerificationRequired()) {
+    const { data: ageRow } = await supabase
+      .from('profiles')
+      .select('age_status')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
+      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
+    }
+  }
 
   const { error } = await supabase
     .from('profiles')

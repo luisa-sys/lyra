@@ -53,7 +53,12 @@ export type ModerationAction =
   | 'promote_live' // promote to the launched product (± early_access)
   // KAN-309 follow-on: per-user feature entitlement toggles
   | 'enable_feature'
-  | 'disable_feature';
+  | 'disable_feature'
+  // KAN-319: admin publish-state control (unpublish keeps owner edit, hides public)
+  | 'unpublish'
+  | 'republish'
+  // KAN-319: admin override of age-verification status (e.g. manual_review/exempt)
+  | 'set_age_status';
 
 export interface AdminUser {
   userId: string;

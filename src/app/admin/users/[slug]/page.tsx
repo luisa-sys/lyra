@@ -28,6 +28,7 @@ interface ProfileFull {
   is_admin: boolean;
   suspended_at: string | null;
   suspension_reason: string | null;
+  age_status: string;
   created_at: string;
 }
 
@@ -44,7 +45,7 @@ async function loadProfile(slug: string): Promise<ProfileFull | null> {
   const supabase = getAdminServiceClient();
   const { data } = await supabase
     .from('profiles')
-    .select('id, user_id, display_name, slug, headline, bio_short, is_published, is_suspended, is_admin, suspended_at, suspension_reason, created_at')
+    .select('id, user_id, display_name, slug, headline, bio_short, is_published, is_suspended, is_admin, suspended_at, suspension_reason, age_status, created_at')
     .eq('slug', slug)
     .maybeSingle();
   return (data ?? null) as ProfileFull | null;
@@ -102,6 +103,78 @@ async function setSuspendState(formData: FormData, suspend: boolean) {
       ? { is_suspended: true, suspended_at: new Date().toISOString(), suspension_reason: reason || null }
       : { is_suspended: false, suspended_at: null, suspension_reason: null }
     )
+    .eq('id', profileId);
+
+  redirect(`/admin/users/${slug}`);
+}
+
+async function actionUnpublish(formData: FormData) {
+  'use server';
+  await setPublishedState(formData, false);
+}
+
+async function actionRepublish(formData: FormData) {
+  'use server';
+  await setPublishedState(formData, true);
+}
+
+async function setPublishedState(formData: FormData, publish: boolean) {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect('/');
+
+  const profileId = String(formData.get('profileId') ?? '');
+  const slug = String(formData.get('slug') ?? '');
+  const reason = String(formData.get('reason') ?? '');
+
+  // Self-moderation guard (mirror setSuspendState).
+  if (profileId === admin.profileId) {
+    redirect(`/admin/users/${slug}`);
+  }
+
+  await logModerationAction({
+    admin,
+    action: publish ? 'republish' : 'unpublish',
+    targetProfileId: profileId,
+    reason: reason || null,
+  });
+
+  // Unpublishing keeps the owner's edit access (owner RLS) but hides the
+  // profile from the public (published-only RLS). Re-publishing restores it.
+  const supabase = getAdminServiceClient();
+  await supabase.from('profiles').update({ is_published: publish }).eq('id', profileId);
+
+  redirect(`/admin/users/${slug}`);
+}
+
+const AGE_STATUSES = ['none', 'pending', 'passed', 'failed', 'manual_review'];
+
+async function actionSetAgeStatus(formData: FormData) {
+  'use server';
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect('/');
+
+  const profileId = String(formData.get('profileId') ?? '');
+  const slug = String(formData.get('slug') ?? '');
+  const status = String(formData.get('status') ?? '');
+  if (!AGE_STATUSES.includes(status)) {
+    redirect(`/admin/users/${slug}`);
+  }
+
+  await logModerationAction({
+    admin,
+    action: 'set_age_status',
+    targetProfileId: profileId,
+    metadata: { age_status: status },
+  });
+
+  const supabase = getAdminServiceClient();
+  await supabase
+    .from('profiles')
+    .update({
+      age_status: status,
+      age_checked_at: new Date().toISOString(),
+      age_provider: 'admin_override',
+    })
     .eq('id', profileId);
 
   redirect(`/admin/users/${slug}`);
@@ -234,6 +307,44 @@ export default async function UserDetailPage({
               </button>
             </form>
           )}
+
+          <div className="pt-4 border-t border-[var(--color-border)]">
+            <p className="text-xs text-[var(--color-muted)] mb-2">
+              {profile.is_published
+                ? 'Published — visible to others. Unpublishing keeps the owner’s edit access but hides the profile from the public.'
+                : 'Not published — private to the owner.'}
+            </p>
+            {profile.is_published ? (
+              <form action={actionUnpublish} className="flex flex-wrap gap-3 items-end">
+                <input type="hidden" name="profileId" value={profile.id} />
+                <input type="hidden" name="slug" value={profile.slug} />
+                <input
+                  name="reason"
+                  type="text"
+                  maxLength={500}
+                  className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
+                  placeholder="Unpublish reason (optional)"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-full bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
+                >
+                  Unpublish (make private)
+                </button>
+              </form>
+            ) : (
+              <form action={actionRepublish} className="flex flex-wrap gap-3 items-end">
+                <input type="hidden" name="profileId" value={profile.id} />
+                <input type="hidden" name="slug" value={profile.slug} />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-full bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-colors"
+                >
+                  Re-publish
+                </button>
+              </form>
+            )}
+          </div>
         </section>
       )}
 
@@ -285,6 +396,49 @@ export default async function UserDetailPage({
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
+        <h2 className="text-base font-medium text-[var(--color-ink)]">Age verification</h2>
+        <p className="text-xs text-[var(--color-muted)] mt-1 mb-3">
+          Status:{' '}
+          <span
+            className={
+              'text-xs px-2 py-0.5 rounded-full ' +
+              (profile.age_status === 'passed'
+                ? 'bg-green-50 text-green-700'
+                : profile.age_status === 'failed'
+                ? 'bg-red-50 text-red-700'
+                : 'bg-[#f4efe7] text-[var(--color-muted)]')
+            }
+          >
+            {profile.age_status}
+          </span>
+          {' '}— the publish gate enforces this only when{' '}
+          <code className="text-[var(--color-ink)]">AGE_VERIFICATION_REQUIRED</code> is on. Override
+          (audited):
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {AGE_STATUSES.map((s) => (
+            <form key={s} action={actionSetAgeStatus}>
+              <input type="hidden" name="profileId" value={profile.id} />
+              <input type="hidden" name="slug" value={profile.slug} />
+              <input type="hidden" name="status" value={s} />
+              <button
+                type="submit"
+                disabled={profile.age_status === s}
+                className={
+                  'text-xs px-3 py-1.5 rounded-full transition-colors ' +
+                  (profile.age_status === s
+                    ? 'bg-[var(--color-ink)] text-white opacity-50 cursor-not-allowed'
+                    : 'bg-[#f4efe7] text-[var(--color-ink)] hover:bg-[#ece7df]')
+                }
+              >
+                {s}
+              </button>
+            </form>
+          ))}
         </div>
       </section>
 

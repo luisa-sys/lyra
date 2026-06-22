@@ -117,6 +117,31 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // KAN-319: suspended-user gate (all deploys). A suspended user's public
+  // profile is already hidden by RLS; this also blocks their own use of the app
+  // and sends them to /suspended with an appeal route. Runs before the beta gate
+  // so a suspended user lands on /suspended, not /waitlist. Exempts the
+  // suspended page itself + the auth/logout flow + assets to avoid loops.
+  const suspensionExempt =
+    pathname === '/suspended' ||
+    pathname === '/login' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/favicon.ico';
+  if (user && !suspensionExempt) {
+    const { data: suspProfile } = await supabase
+      .from('profiles')
+      .select('is_suspended')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (suspProfile?.is_suspended) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/suspended';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // KAN-175: Beta gate. Only active on the beta deploy (IS_BETA_DEPLOY=true).
   // Authenticated users without is_beta_eligible=true get redirected to
   // /waitlist. The /waitlist page itself is exempt so the redirect doesn't
@@ -125,6 +150,7 @@ export async function middleware(request: NextRequest) {
   const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
   const exemptFromBetaGate =
     pathname === '/waitlist' ||
+    pathname === '/suspended' || // KAN-319: suspended users land here, not /waitlist
     pathname === '/status' || // SEC-4: public status page is never beta-gated
     pathname === '/login' ||
     pathname === '/signup' ||
