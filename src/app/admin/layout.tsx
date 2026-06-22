@@ -47,22 +47,28 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Overview
               </Link>
               <Link
-                href="/admin/reports"
-                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
-              >
-                Reports
-              </Link>
-              <Link
                 href="/admin/users"
                 className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
               >
                 Users
               </Link>
               <Link
-                href="/admin/beta-queue"
+                href="/admin/moderation"
                 className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
               >
-                Beta queue
+                Moderation
+              </Link>
+              <Link
+                href="/admin/reports"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Reports
+              </Link>
+              <Link
+                href="/admin/monitoring"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Monitoring
               </Link>
               <Link
                 href="/admin/audit"

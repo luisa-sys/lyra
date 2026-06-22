@@ -27,6 +27,9 @@ env:
   # See KAN-125 (launch tracking) and KAN-167 (this policy work).
   EXPECTED_MIN_ROWS: '0'
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
