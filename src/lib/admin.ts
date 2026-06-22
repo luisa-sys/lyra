@@ -46,7 +46,11 @@ export type ModerationAction =
   | 'dismiss_report'
   | 'grant_admin'
   | 'revoke_admin'
-  | 'grant_beta_access'; // KAN-273: approve a queued user into the beta
+  | 'grant_beta_access' // KAN-273: approve a queued user into the beta
+  // KAN-309: two-axis access model transitions from the user-management console
+  | 'enable_beta' // waitlist -> beta (also sets is_beta_eligible=true)
+  | 'disable_beta' // beta -> waitlist (revokes is_beta_eligible)
+  | 'promote_live'; // promote to the launched product (± early_access)
 
 export interface AdminUser {
   userId: string;
@@ -133,4 +137,38 @@ export async function logModerationAction(input: LogModerationActionInput): Prom
     throw new Error(`Failed to write moderation_logs row: ${error?.message ?? 'unknown error'}`);
   }
   return data.id as string;
+}
+
+export interface LogModerationActionsBatchInput {
+  admin: AdminUser;
+  action: ModerationAction;
+  targetProfileIds: string[];
+  reason?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * KAN-309: audit a bulk admin action — one moderation_logs row per affected
+ * profile, written in a single insert. Used by the user-management console's
+ * bulk actions. Same audit-first contract as logModerationAction: throws if
+ * the insert fails so the caller aborts the mutation (a bulk action we
+ * couldn't audit is one we shouldn't commit).
+ */
+export async function logModerationActionsBatch(
+  input: LogModerationActionsBatchInput,
+): Promise<void> {
+  if (input.targetProfileIds.length === 0) return;
+  const client = getAdminServiceClient();
+  const rows = input.targetProfileIds.map((profileId) => ({
+    actor_user_id: input.admin.userId,
+    action: input.action,
+    target_profile_id: profileId,
+    target_item_id: null,
+    reason: input.reason ?? null,
+    metadata: input.metadata ?? {},
+  }));
+  const { error } = await client.from('moderation_logs').insert(rows);
+  if (error) {
+    throw new Error(`Failed to write ${rows.length} moderation_logs rows: ${error.message}`);
+  }
 }

@@ -1,59 +1,106 @@
 /**
- * KAN-141: /admin/users — list of profiles.
+ * KAN-309 / KAN-311: unified user-management console.
  *
- * Supports a `?filter=suspended` query to drill into the suspended set
- * (linked from the overview card) and a `?q=` text query for fuzzy name
- * / slug search. Pagination via `?page=` (10 per page) — the cursor is
- * created_at-keyed but offset is fine at the scale we're at.
+ * Lists ALL signups (not just the beta queue) with email, lifecycle stage and
+ * early-access state, plus search (email / name / slug) and filters
+ * (stage / suspended / admin). Bulk select + bulk actions live in the
+ * <BulkBar> client island. Data comes from the admin-only `admin_list_users`
+ * RPC (joins auth.users for email; admin-gated inside the function), called via
+ * the admin's cookie session.
  */
 
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import { createClient } from '@/lib/supabase-server';
+import BulkBar, { type BulkUserRow } from './BulkBar';
+import type { UserFilter } from './users-actions-shared';
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20;
+const STAGES = ['waitlist', 'beta', 'live'] as const;
 
-interface UserRow {
-  id: string;
-  display_name: string | null;
-  slug: string;
-  is_published: boolean;
-  is_suspended: boolean;
-  is_admin: boolean;
-  created_at: string;
+interface SearchParams {
+  q?: string;
+  stage?: string;
+  early?: string;
+  suspended?: string;
+  admin?: string;
+  filter?: string; // legacy links from the overview cards
+  page?: string;
 }
 
-async function listUsers(opts: { q?: string; filter?: string; page?: number }): Promise<{ rows: UserRow[]; total: number }> {
-  const supabase = getAdminServiceClient();
-  let q = supabase
-    .from('profiles')
-    .select('id, display_name, slug, is_published, is_suspended, is_admin, created_at', { count: 'exact' });
+function buildFilter(sp: SearchParams): UserFilter {
+  const stage = sp.stage && (STAGES as readonly string[]).includes(sp.stage) ? sp.stage : null;
+  const suspended = sp.suspended === '1' || sp.filter === 'suspended' ? true : null;
+  const admin = sp.admin === '1' || sp.filter === 'admin' ? true : null;
+  const early = sp.early === '1' ? true : null;
+  const search = sp.q && sp.q.trim().length ? sp.q.trim() : null;
+  return { search, stage, early, suspended, admin };
+}
 
-  if (opts.q && opts.q.trim().length > 0) {
-    const search = opts.q.trim().replace(/[%_]/g, '');
-    q = q.or(`display_name.ilike.%${search}%,slug.ilike.%${search}%`);
+async function listUsers(filter: UserFilter, page: number): Promise<{ rows: BulkUserRow[]; total: number; error: string | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('admin_list_users', {
+    p_search: filter.search,
+    p_stage: filter.stage,
+    p_early: filter.early,
+    p_suspended: filter.suspended,
+    p_admin: filter.admin,
+    p_limit: PAGE_SIZE,
+    p_offset: (page - 1) * PAGE_SIZE,
+  });
+  if (error) {
+    return { rows: [], total: 0, error: error.message };
   }
-  if (opts.filter === 'suspended') q = q.eq('is_suspended', true);
-  if (opts.filter === 'admin') q = q.eq('is_admin', true);
-
-  const page = Math.max(1, opts.page ?? 1);
-  q = q.order('created_at', { ascending: false })
-       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-  const { data, count } = await q;
-  return { rows: (data ?? []) as UserRow[], total: count ?? 0 };
+  const payload = (data ?? { rows: [], total: 0 }) as { rows: BulkUserRow[]; total: number };
+  return { rows: payload.rows ?? [], total: payload.total ?? 0, error: null };
 }
 
-export default async function UsersListPage({
+async function stageCounts(): Promise<{ waitlist: number; beta: number; live: number; suspended: number }> {
+  const svc = getAdminServiceClient();
+  const [waitlist, beta, live, suspended] = await Promise.all([
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'waitlist'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'beta'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'live'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('is_suspended', true),
+  ]);
+  return {
+    waitlist: waitlist.count ?? 0,
+    beta: beta.count ?? 0,
+    live: live.count ?? 0,
+    suspended: suspended.count ?? 0,
+  };
+}
+
+function Chip({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={
+        'text-xs px-3 py-1.5 rounded-full transition-colors ' +
+        (active ? 'bg-[var(--color-ink)] text-white' : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
+export default async function UsersConsolePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; filter?: string; page?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const admin = (await getCurrentAdmin())!; // layout already gated
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
-  const { rows, total } = await listUsers({ q: sp.q, filter: sp.filter, page });
+  const filter = buildFilter(sp);
+
+  const [{ rows, total, error }, counts] = await Promise.all([listUsers(filter, page), stageCounts()]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const noFilter = !filter.stage && !filter.suspended && !filter.admin && !filter.early;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -62,7 +109,7 @@ export default async function UsersListPage({
           Users
         </h1>
         <p className="text-sm text-[var(--color-muted)] mt-1">
-          {total} {total === 1 ? 'profile' : 'profiles'} {sp.filter ? `(${sp.filter})` : 'total'}.
+          {total} {total === 1 ? 'signup' : 'signups'} match. Waitlist {counts.waitlist} · Beta {counts.beta} · Live {counts.live} · Suspended {counts.suspended}.
         </p>
       </header>
 
@@ -70,93 +117,41 @@ export default async function UsersListPage({
         <input
           name="q"
           defaultValue={sp.q ?? ''}
-          placeholder="Search name or slug…"
-          className="flex-1 min-w-[200px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
+          placeholder="Search email, name or slug…"
+          className="flex-1 min-w-[220px] p-2 text-sm rounded-lg border border-[var(--color-border)] bg-white"
         />
-        {sp.filter && <input type="hidden" name="filter" value={sp.filter} />}
+        {filter.stage && <input type="hidden" name="stage" value={filter.stage} />}
+        {filter.suspended && <input type="hidden" name="suspended" value="1" />}
+        {filter.admin && <input type="hidden" name="admin" value="1" />}
+        {filter.early && <input type="hidden" name="early" value="1" />}
         <button
           type="submit"
           className="px-4 py-2 rounded-full bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
         >
           Search
         </button>
-        <Link
-          href="/admin/users"
-          className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-        >
+        <Link href="/admin/users" className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)]">
           Clear
         </Link>
       </form>
 
-      <nav aria-label="Filter" className="flex gap-2">
-        <Link
-          href="/admin/users"
-          className={
-            'text-xs px-3 py-1.5 rounded-full transition-colors ' +
-            (!sp.filter
-              ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
-          }
-        >
-          All
-        </Link>
-        <Link
-          href="/admin/users?filter=suspended"
-          className={
-            'text-xs px-3 py-1.5 rounded-full transition-colors ' +
-            (sp.filter === 'suspended'
-              ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
-          }
-        >
-          Suspended
-        </Link>
-        <Link
-          href="/admin/users?filter=admin"
-          className={
-            'text-xs px-3 py-1.5 rounded-full transition-colors ' +
-            (sp.filter === 'admin'
-              ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-[#f4efe7] text-[var(--color-muted)] hover:bg-[#ece7df]')
-          }
-        >
-          Admins
-        </Link>
+      <nav aria-label="Filter" className="flex flex-wrap gap-2">
+        <Chip href="/admin/users" label="All" active={noFilter && !filter.search} />
+        <Chip href="/admin/users?stage=waitlist" label="Waitlist" active={filter.stage === 'waitlist'} />
+        <Chip href="/admin/users?stage=beta" label="Beta" active={filter.stage === 'beta'} />
+        <Chip href="/admin/users?stage=live" label="Live" active={filter.stage === 'live'} />
+        <Chip href="/admin/users?early=1" label="Beta features" active={filter.early === true} />
+        <Chip href="/admin/users?suspended=1" label="Suspended" active={filter.suspended === true} />
+        <Chip href="/admin/users?admin=1" label="Admins" active={filter.admin === true} />
       </nav>
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
-        {rows.length === 0 ? (
-          <p className="p-5 text-sm text-[var(--color-muted)]">No users match.</p>
-        ) : rows.map((u) => (
-          <Link
-            key={u.id}
-            href={`/admin/users/${u.slug}`}
-            className="block p-4 hover:bg-[var(--color-paper)] transition-colors"
-          >
-            <div className="flex items-baseline justify-between gap-4 mb-1">
-              <p className="text-sm font-medium text-[var(--color-ink)] truncate">
-                {u.display_name ?? '(no name)'}{' '}
-                <span className="text-[var(--color-muted)]">/{u.slug}</span>
-              </p>
-              <div className="flex items-center gap-2 shrink-0">
-                {u.is_admin && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">Admin</span>
-                )}
-                {u.is_suspended ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700">Suspended</span>
-                ) : u.is_published ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700">Published</span>
-                ) : (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#f4efe7] text-[var(--color-muted)]">Draft</span>
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-[var(--color-muted)]">
-              Joined {new Date(u.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })}
-            </p>
-          </Link>
-        ))}
-      </div>
+      {error ? (
+        <p className="p-5 text-sm text-red-700 rounded-xl border border-red-200 bg-red-50">
+          Could not load users: {error}
+        </p>
+      ) : (
+        <BulkBar rows={rows} total={total} selfProfileId={admin.profileId} filter={filter} />
+      )}
 
       {totalPages > 1 && (
         <nav aria-label="Pagination" className="flex justify-between items-center text-sm">
