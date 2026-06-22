@@ -58,12 +58,12 @@ jobs:
       github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 1
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
 
@@ -76,15 +76,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          # SEC-20/F-17: bind event + dispatch inputs to env so no untrusted
+          # value is interpolated directly into the run: shell.
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_WORKFLOW_NAME: ${{ inputs.workflow_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RUN_ID="${{ inputs.run_id }}"
-            WF_NAME="${{ inputs.workflow_name }}"
-            DRY="${{ inputs.dry_run }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RUN_ID="$INPUT_RUN_ID"
+            WF_NAME="$INPUT_WORKFLOW_NAME"
+            DRY="$INPUT_DRY_RUN"
           else
-            RUN_ID="${{ github.event.workflow_run.id }}"
-            WF_NAME="${{ github.event.workflow_run.name }}"
+            RUN_ID="$WORKFLOW_RUN_ID"
+            WF_NAME="$WORKFLOW_RUN_NAME"
             DRY="false"
           fi
 
