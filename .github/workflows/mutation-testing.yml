@@ -9,6 +9,9 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: read
+
 jobs:
   mutation-test:
     runs-on: ubuntu-latest

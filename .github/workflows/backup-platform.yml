@@ -14,6 +14,9 @@ defaults:
 env:
   BACKUP_DIR: ./platform-backup
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest

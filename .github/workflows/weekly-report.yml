@@ -17,6 +17,10 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   report:
     runs-on: ubuntu-latest
