@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
         source: '/.well-known/oauth-authorization-server',
         destination: '/api/well-known/oauth-authorization-server',
       },
+      {
+        // SEC-33: canonical JWKS path → internal route (Next.js won't route a
+        // literal '.'-prefixed folder reliably).
+        source: '/.well-known/jwks.json',
+        destination: '/api/well-known/jwks',
+      },
     ];
   },
   async headers() {

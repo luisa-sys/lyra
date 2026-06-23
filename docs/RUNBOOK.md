@@ -200,20 +200,38 @@ git push
 
 ## Database Backup
 
+> **Full DR detail + recovery test plan:** see [docs/DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)
+> (SEC-23) and the Confluence DR runbook (SEC-5). This section is the quick reference.
+
 ### Manual backup
 
 ```bash
+# Public-only (legacy):
 export SUPABASE_DB_URL='your-connection-string'
 ./scripts/backup-database.sh
+
+# COMPLETE (public + auth + storage + roles) — use this for a real DR backup:
+./scripts/backup-database-complete.sh ./backups
 ```
 
-Backups are saved to `./backups/lyra_backup_YYYYMMDD_HHMMSS.sql`
+`backup-database.sh` dumps **only** the `public` schema and therefore CANNOT
+reconstruct user accounts (`auth`) — restoring it alone leaves profiles whose
+`user_id` points at users that don't exist. Use `backup-database-complete.sh`
+(SEC-23) for anything you intend to actually restore from.
 
 ### Automated backup
 
-- Weekly backups run via GitHub Actions (Sundays 02:00 UTC)
-- Stored as GitHub Artifacts with 90-day retention
-- Manually trigger: GitHub → Actions → "Weekly Database Backup" → Run workflow
+- **Complete + encrypted backup** → GitHub Artifacts + R2 WORM:
+  `backup-complete.yml`. The one to rely on. Ships **dispatch-only**; once the
+  secrets in [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) §8 are provisioned and a
+  manual run is green, enable the daily 01:00 UTC schedule (1-line uncomment).
+- Weekly public-only backup (legacy): `backup-database.yml` (Sun 02:00 UTC),
+  GitHub Artifacts, 90-day retention.
+- **Weekly real restore drill**: `backup-restore-test.yml` (Sun 05:00 UTC) now
+  restores the latest backup into a throwaway Postgres and asserts the data
+  round-trips (table count + RLS + per-table row counts) — it is no longer a
+  schema-only check, and no longer silently passes on a missing secret.
+- Manually trigger any of these: GitHub → Actions → select workflow → Run.
 
 ### Supabase built-in backups
 

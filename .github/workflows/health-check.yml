@@ -19,6 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Run smoke tests (all environments)
+        # KAN-323: expose the admin-MCP health-check toggle (Actions variable) and the
+        # optional Cloudflare Access service-token (secrets) to the script. Unset values
+        # arrive as empty strings; the script degrades gracefully (the unauthenticated
+        # reachability/gating check still runs — no silent-skip of a real check).
+        env:
+          ADMIN_MCP_HEALTHCHECK_ENABLED: ${{ vars.ADMIN_MCP_HEALTHCHECK_ENABLED }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: bash scripts/smoke-tests.sh all
       - name: Create issue on failure
         if: failure()
