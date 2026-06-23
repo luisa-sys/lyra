@@ -65,6 +65,13 @@ describe('GET /.well-known/oauth-authorization-server (KAN-88)', () => {
     expect(body.scopes_supported).toContain('lyra:full');
   });
 
+  test('advertises jwks_uri (SEC-33)', async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://dev.checklyra.com';
+    const res = await GET();
+    const body = await res.json();
+    expect(body.jwks_uri).toBe('https://dev.checklyra.com/.well-known/jwks.json');
+  });
+
   test('uses VERCEL_URL fallback when NEXT_PUBLIC_SITE_URL absent', async () => {
     process.env.VERCEL_URL = 'lyra-abc123.vercel.app';
     const res = await GET();
@@ -84,6 +91,12 @@ describe('next.config.ts rewrite for /.well-known/oauth-authorization-server (KA
     const src = fs.readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8');
     expect(src).toMatch(/source:\s*['"]\/\.well-known\/oauth-authorization-server['"]/);
     expect(src).toMatch(/destination:\s*['"]\/api\/well-known\/oauth-authorization-server['"]/);
+  });
+
+  test('jwks rewrite is configured (SEC-33)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8');
+    expect(src).toMatch(/source:\s*['"]\/\.well-known\/jwks\.json['"]/);
+    expect(src).toMatch(/destination:\s*['"]\/api\/well-known\/jwks['"]/);
   });
 });
 

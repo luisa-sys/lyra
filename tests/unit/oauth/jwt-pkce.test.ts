@@ -7,7 +7,7 @@
 
 import { issueAccessToken, verifyAccessToken } from '@/lib/oauth/jwt';
 import { verifyPkceS256 } from '@/lib/oauth/pkce';
-import { createHash } from 'crypto';
+import { createHash, generateKeyPairSync } from 'crypto';
 
 const TEST_SECRET = '0'.repeat(32);
 const ORIG_SECRET = process.env.OAUTH_JWT_SIGNING_SECRET;
@@ -109,5 +109,44 @@ describe('verifyPkceS256 (KAN-88 P4)', () => {
     // Both are valid base64url + same byte length, so the only path to
     // mismatch is the timingSafeEqual call returning false.
     expect(verifyPkceS256(verifier, wrong)).toBe(false);
+  });
+});
+
+describe('issueAccessToken RS256 + JWKS (SEC-33)', () => {
+  const userId = '00000000-0000-4000-8000-000000000000';
+  const clientId = 'lyra_oauth_test';
+
+  beforeAll(() => {
+    // Ephemeral keypair — proves RS256 signing end-to-end with no live keys.
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    process.env.OAUTH_JWT_PRIVATE_KEY_B64 = Buffer.from(privateKey as string).toString('base64');
+    process.env.OAUTH_JWT_PUBLIC_KEY_B64 = Buffer.from(publicKey as string).toString('base64');
+    process.env.OAUTH_JWT_KID = 'test-kid-2026-06';
+  });
+  afterAll(() => {
+    // Clean up so other test files in the worker fall back to HS256.
+    delete process.env.OAUTH_JWT_PRIVATE_KEY_B64;
+    delete process.env.OAUTH_JWT_PUBLIC_KEY_B64;
+    delete process.env.OAUTH_JWT_KID;
+  });
+
+  test('signs RS256 with a kid when a private key is configured', async () => {
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const header = JSON.parse(Buffer.from(issued.jwt.split('.')[0], 'base64url').toString('utf8'));
+    expect(header.alg).toBe('RS256');
+    expect(header.kid).toBe('test-kid-2026-06');
+  });
+
+  test('RS256 round-trips with correct claims (asymmetric, no shared secret)', async () => {
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const v = await verifyAccessToken(issued.jwt);
+    if (!v.ok) throw new Error(`expected ok, got ${v.error}`);
+    expect(v.claims.sub).toBe(userId);
+    expect(v.claims.client_id).toBe(clientId);
+    expect(v.claims.scope).toBe('lyra:full');
   });
 });
