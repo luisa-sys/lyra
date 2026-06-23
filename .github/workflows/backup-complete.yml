@@ -1,0 +1,231 @@
+name: Daily Complete Backup (encrypted, WORM)
+
+# SEC-23 — closes the gaps the SEC-5 DR runbook surfaced:
+#   * DAILY (not weekly) → RPO ≤ 24h for our own independent copy.
+#   * COMPLETE logical dump: public + auth + storage + roles (the weekly
+#     backup-database.yml is public-only, so it cannot restore user accounts).
+#   * Supabase Storage object blobs synced separately.
+#   * Cloudflare KV (waitlist) exported.
+#   * ENCRYPTED with an age recipient whose PRIVATE key is held OFFLINE by the
+#     founder (KAN-121: "encrypted with a key not stored alongside the backup").
+#   * Uploaded to a WORM R2 bucket using a SEPARATE write-only credential
+#     (KAN-121: "separate credentials stored outside the primary secret store"),
+#     so a compromise of the day-to-day R2 key cannot delete the backups.
+#
+# Per the Workflow & Backup Integrity Policy, every critical step fails LOUD on
+# missing secrets — a false-green backup is worse than a red one. Peripheral
+# steps (storage/KV) fail loud ONLY when there is data to lose, and otherwise
+# emit a ::warning:: and record the skip honestly in the run summary.
+
+on:
+  # The DAILY schedule is intentionally commented out until this backup is
+  # COMMISSIONED (SEC-23). The secrets below are founder-provisioned, and per the
+  # Backup Integrity Policy this workflow fails LOUD when they are missing —
+  # shipping it dispatch-only keeps production from going red every night before
+  # commissioning, without ever false-greening (a skipped backup is never
+  # reported as success here). Once BACKUP_AGE_RECIPIENTS + R2_BACKUP_WRITEONLY_*
+  # + SUPABASE_STORAGE_S3_* + CLOUDFLARE_KV_* are set, uncomment the two lines
+  # below to turn on the DAILY backup. See docs/DISASTER_RECOVERY.md §8.
+  # schedule:
+  #   - cron: '0 1 * * *'  # Daily 01:00 UTC — ENABLE AFTER COMMISSIONING (SEC-23)
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  BACKUP_DIR: ./backups
+
+jobs:
+  complete-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update && sudo apt-get install -y postgresql-client-17 age
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          age --version
+
+      # ── 1. Complete logical dump (public + auth + storage + roles) ─────────
+      - name: Complete database dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/backup-database-complete.sh
+          ./scripts/backup-database-complete.sh "$BACKUP_DIR"
+
+      # ── 2. Supabase Storage object blobs ───────────────────────────────────
+      # Fail LOUD only if there are objects to lose and creds are missing.
+      # When the bucket is empty (pre-launch) record the skip, do not fake it.
+      - name: Back up Supabase Storage objects
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+          STORAGE_S3_KEY: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY }}
+          STORAGE_S3_SECRET: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          OBJ_COUNT=$(psql "$SUPABASE_DB_URL" -X -t -A -c "SELECT count(*) FROM storage.objects" 2>/dev/null || echo "ERR")
+          echo "storage.objects count: $OBJ_COUNT"
+
+          if [ -z "${STORAGE_S3_ENDPOINT:-}" ] || [ -z "${STORAGE_S3_KEY:-}" ] || [ -z "${STORAGE_S3_SECRET:-}" ]; then
+            if [ "$OBJ_COUNT" = "0" ]; then
+              echo "::warning::Supabase Storage S3 creds not set, but the bucket is empty (0 objects) — recording skip. Provision SUPABASE_STORAGE_S3_* before launch (SEC-23)."
+              echo "STORAGE_BACKUP=skipped:no-creds:empty-bucket" >> "$BACKUP_DIR/STORAGE_STATUS"
+              exit 0
+            fi
+            echo "::error::storage.objects has $OBJ_COUNT object(s) but SUPABASE_STORAGE_S3_* creds are not set — those files would be lost on a restore. Provision the storage S3 access keys (SEC-23)."
+            exit 1
+          fi
+
+          pip install awscli --quiet
+          export AWS_ACCESS_KEY_ID="$STORAGE_S3_KEY"
+          export AWS_SECRET_ACCESS_KEY="$STORAGE_S3_SECRET"
+          mkdir -p "$BACKUP_DIR/storage"
+          # Mirror every bucket. Supabase exposes storage over an S3-compatible API.
+          aws s3 sync "$STORAGE_S3_ENDPOINT" "$BACKUP_DIR/storage/" --endpoint-url "$STORAGE_S3_ENDPOINT" --no-progress
+          echo "STORAGE_BACKUP=synced:$(find "$BACKUP_DIR/storage" -type f | wc -l)-files" >> "$BACKUP_DIR/STORAGE_STATUS"
+          echo "✓ storage objects synced"
+
+      # ── 3. Cloudflare KV (waitlist / interest emails) ──────────────────────
+      - name: Export Cloudflare KV namespace
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_KV_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
+        run: |
+          set -euo pipefail
+          OUT="$BACKUP_DIR/cloudflare-kv-${CF_KV_NAMESPACE_ID:-unset}.json"
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ] || [ -z "${CF_KV_NAMESPACE_ID:-}" ]; then
+            echo "::error::Cloudflare KV creds incomplete (CLOUDFLARE_KV_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_KV_NAMESPACE_ID) — cannot back up waitlist KV. The KV API token needs a SEPARATE KV:read scope (gotcha #13). See SEC-23."
+            exit 1
+          fi
+          BASE="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${CF_KV_NAMESPACE_ID}"
+          # Dump keys + each value to disk (no secrets/values interpolated into
+          # any source string), then assemble one JSON document in python.
+          WORK="$(mktemp -d)"; mkdir -p "$WORK/values"
+          curl -fsS "${BASE}/keys?limit=1000" -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            | python3 -c "import json,sys; [print(k['name']) for k in json.load(sys.stdin).get('result',[])]" > "$WORK/keys.txt"
+          N=0
+          while IFS= read -r KEY; do
+            [ -n "$KEY" ] || continue
+            printf '%s' "$KEY" > "$WORK/values/$N.key"
+            if ! curl -fsS "${BASE}/values/${KEY}" -H "Authorization: Bearer ${CF_API_TOKEN}" -o "$WORK/values/$N.val"; then
+              echo "::error::failed to fetch KV value for key $KEY"; exit 1
+            fi
+            N=$((N+1))
+          done < "$WORK/keys.txt"
+          WORK="$WORK" python3 - "$OUT" <<'PYEOF'
+          import json, os, sys, glob
+          work = os.environ["WORK"]
+          doc = {"keys": [], "values": {}}
+          for keyfile in sorted(glob.glob(os.path.join(work, "values", "*.key"))):
+              with open(keyfile) as f: k = f.read()
+              with open(keyfile[:-4] + ".val") as f: v = f.read()
+              doc["keys"].append(k); doc["values"][k] = v
+          json.dump(doc, open(sys.argv[1], "w"))
+          print(f"✓ KV exported: {len(doc['keys'])} key(s)")
+          PYEOF
+          rm -rf "$WORK"
+
+      # ── 4. Integrity gate (validate PLAINTEXT before encrypting/uploading) ──
+      - name: Verify complete-backup integrity
+        run: |
+          set -euo pipefail
+          echo "## Complete Backup Integrity" >> "$GITHUB_STEP_SUMMARY"
+          chmod +x scripts/check-complete-backup.sh
+          if scripts/check-complete-backup.sh "$BACKUP_DIR" | tee -a "$GITHUB_STEP_SUMMARY"; then
+            echo "✅ integrity gate passed"
+          else
+            echo "::error::complete-backup integrity gate FAILED — encryption + WORM upload skipped"
+            exit 1
+          fi
+
+      # ── 5. Encrypt every artifact (auth dump contains password hashes!) ────
+      - name: Encrypt artifacts with age
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ secrets.BACKUP_AGE_RECIPIENTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_AGE_RECIPIENTS:-}" ]; then
+            echo "::error::BACKUP_AGE_RECIPIENTS not set. The complete dump contains auth password hashes and tokens and MUST NOT be uploaded unencrypted. Generate an age key pair, keep the PRIVATE key offline (break-glass), set the PUBLIC recipient as BACKUP_AGE_RECIPIENTS. See SEC-23 / KAN-121."
+            exit 1
+          fi
+          shopt -s nullglob
+          for f in "$BACKUP_DIR"/* "$BACKUP_DIR"/storage/*; do
+            [ -f "$f" ] || continue
+            case "$f" in *.age) continue;; esac
+            age -r "$BACKUP_AGE_RECIPIENTS" -o "${f}.age" "$f"
+            rm -f "$f"   # never keep plaintext past this point
+          done
+          echo "✓ all artifacts encrypted (.age); plaintext removed"
+
+      # ── 6. GitHub artifact (encrypted) — forensics / second copy ───────────
+      - name: Upload encrypted artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: lyra-complete-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 90
+
+      # ── 7. WORM upload via SEPARATE write-only credential ──────────────────
+      - name: Upload to R2 WORM (write-only credential)
+        if: success()
+        env:
+          R2_KEY: ${{ secrets.R2_BACKUP_WRITEONLY_ACCESS_KEY_ID }}
+          R2_SECRET: ${{ secrets.R2_BACKUP_WRITEONLY_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_BACKUP_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${R2_KEY:-}" ] || [ -z "${R2_SECRET:-}" ] || [ -z "${R2_ENDPOINT:-}" ] || [ -z "${R2_BUCKET:-}" ]; then
+            echo "::error::R2 WORM write-only creds incomplete (R2_BACKUP_WRITEONLY_ACCESS_KEY_ID / _SECRET_ACCESS_KEY / R2_BACKUP_ENDPOINT / R2_BACKUP_BUCKET). This MUST be a SEPARATE key from the day-to-day R2 key, scoped write-only (no Delete) against a bucket with Object Lock in COMPLIANCE retention. See SEC-23."
+            exit 1
+          fi
+          pip install awscli --quiet
+          export AWS_ACCESS_KEY_ID="$R2_KEY"
+          export AWS_SECRET_ACCESS_KEY="$R2_SECRET"
+          DATE=$(date -u +%Y-%m-%dT%H%M%SZ)
+          UPLOAD_FAILED=0
+          shopt -s globstar nullglob
+          for f in "$BACKUP_DIR"/**/*.age; do
+            REL="${f#"$BACKUP_DIR"/}"
+            echo "Uploading complete/${DATE}/${REL} ..."
+            if OUT=$(aws s3 cp "$f" "s3://${R2_BUCKET}/complete/${DATE}/${REL}" --endpoint-url "$R2_ENDPOINT" --no-progress 2>&1); then
+              echo "  ✓ ${REL}"
+            elif echo "$OUT" | grep -q "ObjectLockedByBucketPolicy\|already exists"; then
+              echo "::warning::${REL} already exists under object lock (expected on same-day re-runs)"
+            else
+              echo "::error::${REL} upload failed: $OUT"; UPLOAD_FAILED=1
+            fi
+          done
+          [ "$UPLOAD_FAILED" -eq 0 ] || { echo "::error::at least one WORM upload failed"; exit 1; }
+          echo "✅ complete backup uploaded to R2 WORM (complete/${DATE}/)"
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Daily Complete Backup Summary"
+            echo ""
+            echo "| Asset | Size |"
+            echo "|-------|------|"
+            shopt -s globstar nullglob
+            for f in "$BACKUP_DIR"/**/*; do
+              [ -f "$f" ] || continue
+              echo "| ${f#"$BACKUP_DIR"/} | $(du -h "$f" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

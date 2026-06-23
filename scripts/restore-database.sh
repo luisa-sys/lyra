@@ -37,18 +37,18 @@ echo "Press Ctrl+C within 10 seconds to cancel..."
 sleep 10
 
 echo ""
-echo "Dropping existing public schema objects..."
-psql "$SUPABASE_DB_URL" -c "
-  DROP TABLE IF EXISTS public.school_affiliations CASCADE;
-  DROP TABLE IF EXISTS public.external_links CASCADE;
-  DROP TABLE IF EXISTS public.profile_items CASCADE;
-  DROP TABLE IF EXISTS public.profiles CASCADE;
-  DROP TYPE IF EXISTS public.school_relationship CASCADE;
-  DROP TYPE IF EXISTS public.link_type CASCADE;
-  DROP TYPE IF EXISTS public.visibility_level CASCADE;
-  DROP TYPE IF EXISTS public.item_category CASCADE;
-  DROP FUNCTION IF EXISTS public.handle_updated_at CASCADE;
-  DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
+echo "Resetting the public schema..."
+# SEC-23: this used to DROP a hardcoded list of 4 tables + a few types. The
+# schema now has 38 public tables, so the old list left ~34 tables in place and
+# a restore on top of them collided on constraints/dependencies. Drop and
+# recreate the whole public schema instead, so the restore is clean regardless
+# of how the schema has grown. (The dump itself recreates public via CREATE
+# SCHEMA; we DROP it first so that statement succeeds.)
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "
+  DROP SCHEMA IF EXISTS public CASCADE;
+  CREATE SCHEMA public;
+  GRANT ALL ON SCHEMA public TO postgres;
+  GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 " 2>&1
 
 echo "Restoring from backup..."

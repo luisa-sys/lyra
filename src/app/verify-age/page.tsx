@@ -12,6 +12,8 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { isAgeVerificationRequired } from '@/lib/age/gate';
+import { isDiditConfigured } from '@/lib/age/didit';
+import { startAgeVerification } from './actions';
 
 export const metadata = {
   title: 'Verify your age — Lyra',
@@ -58,11 +60,30 @@ export default async function VerifyAgePage() {
           <p className="text-sm text-[var(--color-muted)]">
             {status === 'failed'
               ? 'Our last check could not confirm you are over 18. Please contact us if you think this is a mistake.'
-              : 'Age checks are being switched on shortly. We never store your photo or date of birth — only a yes/no age result.'}
+              : status === 'manual_review'
+              ? 'Your check needs a closer look — we may ask for a quick document check. We never store your photo or date of birth, only a yes/no age result.'
+              : 'We never store your photo or date of birth — only a yes/no age result.'}
           </p>
+
+          {isDiditConfigured() ? (
+            <form action={startAgeVerification}>
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-full bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                {status === 'pending' ? 'Continue age check' : 'Start age check'}
+              </button>
+            </form>
+          ) : (
+            <p className="text-sm text-[var(--color-muted)]">
+              Age checks are being switched on shortly.
+            </p>
+          )}
+
           <p className="text-xs text-[var(--color-muted)]">
-            A plain-English &ldquo;How we check your age&rdquo; summary will be published here
-            when checks go live.
+            <Link href="/how-we-check-your-age" className="underline hover:text-[var(--color-sage)]">
+              How we check your age
+            </Link>
           </p>
         </div>
       </div>

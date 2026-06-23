@@ -23,10 +23,27 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-TABLES=("profiles" "profile_items" "external_links" "school_affiliations")
-
+# SEC-23: the table list used to be hardcoded to 4 tables — so if pg_dump ever
+# failed and this fallback ran, it silently captured ~10% of the database and
+# the integrity check still passed (it only validated the 4 JSON files it did
+# produce). Enumerate the exposed tables DYNAMICALLY from the PostgREST OpenAPI
+# root instead, so the fallback tracks schema growth and cannot silently shrink.
 echo "=== Lyra REST API Backup ==="
 echo "Timestamp: $TIMESTAMP"
+echo ""
+
+echo "Discovering exposed tables from PostgREST root..."
+SPEC=$(curl -fSL "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY")
+# The OpenAPI document lists every exposed table as a top-level path "/<table>".
+mapfile -t TABLES < <(echo "$SPEC" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(p.lstrip('/') for p in d.get('paths',{}) if p.startswith('/') and p != '/' and '/' not in p.lstrip('/') and not p.startswith('/rpc'))))")
+
+if [ "${#TABLES[@]}" -eq 0 ]; then
+  echo "ERROR: discovered 0 tables from the PostgREST root — refusing to write a near-empty 'backup'." >&2
+  exit 1
+fi
+echo "Discovered ${#TABLES[@]} table(s) to back up."
 echo ""
 
 FAILED_TABLES=()

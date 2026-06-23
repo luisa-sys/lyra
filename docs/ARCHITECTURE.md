@@ -59,6 +59,11 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 | `SENTRY_READ_TOKEN` | _(optional)_ | Reserved for live Sentry panels on `/admin/monitoring` |
 | `UPTIMEROBOT_API_KEY` | _(optional)_ | Lights up the UptimeRobot status on `/admin/monitoring` |
 | `PAID_LINKS_COMPLIANCE_READY` | _(unset = off)_ | KAN-309: gates the `paid_gift_links` per-user entitlement. Monetised affiliate links are produced only when this is `true` (FTC/ASA/CMA disclosure KAN-192 + cookie/GDPR consent KAN-193 shipped) **and** the recipient is entitled **and** `SOVRN_API_KEY` is set. |
+| `AGE_VERIFICATION_REQUIRED` | _(unset = off)_ | KAN-319: env-wide age-gate switch. When `true`, a profile can publish only if `age_status='passed'`. |
+| `DIDIT_API_KEY` | _(unset = dormant)_ | KAN-282: Didit age-estimation API key. With this + `DIDIT_WORKFLOW_ID` set, `/verify-age` runs the real hosted selfie flow; unset → the page shows "coming soon" (feature inert). |
+| `DIDIT_WORKFLOW_ID` | _(unset)_ | KAN-282: the Didit workflow (age estimation + ID fallback). |
+| `DIDIT_WEBHOOK_SECRET` | _(unset)_ | KAN-282: HMAC secret for verifying the `/api/age/didit/webhook` signature. Without it the webhook rejects all calls (fail-closed). |
+| `DIDIT_API_BASE` | `https://verification.didit.me` | KAN-282: override the Didit API base if needed. |
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
