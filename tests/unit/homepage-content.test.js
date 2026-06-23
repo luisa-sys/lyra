@@ -193,4 +193,11 @@ describe('KAN-273/287: Production waitlist front door', () => {
     expect(signup).toContain('Create your profile');
     expect(signup).toContain('Create account');
   });
+
+  test('dev mirrors the prod waitlist front door via LYRA_FORCE_WAITLIST (framing only)', () => {
+    // The override is applied to the public framing (homepage + signup), NOT to
+    // isProdDeploy()/auth routing — so dev keeps its own post-login redirects.
+    expect(home).toContain('LYRA_FORCE_WAITLIST');
+    expect(signup).toContain('LYRA_FORCE_WAITLIST');
+  });
 });

@@ -24,7 +24,9 @@ export default async function SignUpPage({
   // the gated beta app: signing up records a request and lands the user on the
   // waitlist. Frame the page as "join the waitlist". `?preview=waitlist`
   // renders this on any deploy so it can be verified before reaching prod.
-  const waitlist = isProdDeploy() || params.preview === 'waitlist';
+  // LYRA_FORCE_WAITLIST mirrors this framing on a non-prod env (e.g. dev) without
+  // flipping isProdDeploy() (which also drives auth routing). Framing only.
+  const waitlist = isProdDeploy() || process.env.LYRA_FORCE_WAITLIST === 'true' || params.preview === 'waitlist';
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
