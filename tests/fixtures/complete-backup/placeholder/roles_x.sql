@@ -1,0 +1,1 @@
+-- roles SKIPPED: pg_dumpall failed --

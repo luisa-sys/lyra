@@ -1,0 +1,11 @@
+{
+  "backup_type": "complete-logical",
+  "generated_at": "2026-06-23T01:00:00Z",
+  "timestamp_tag": "20260623T010000Z",
+  "schemas": ["public", "auth", "storage"],
+  "roles_status": "captured",
+  "dump_file": "lyra_complete_20260623T010000Z.dump",
+  "dump_format": "pg_dump custom (-Fc)",
+  "dump_sha256": "deadbeef",
+  "row_counts": {"public.profiles": 10, "auth.users": 6, "storage.objects": 0}
+}
