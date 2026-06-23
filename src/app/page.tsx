@@ -205,8 +205,11 @@ export default async function Home({
 }) {
   // Prod (checklyra.com) is the public waitlist doorway. `?preview=waitlist`
   // renders it on any deploy so it can be verified before reaching prod.
+  // LYRA_FORCE_WAITLIST lets a non-prod env (e.g. dev) mirror the prod waitlist
+  // front door WITHOUT flipping isProdDeploy() (which also drives auth routing
+  // to beta.checklyra.com — see post-login-redirect.ts). Framing only.
   const sp = await searchParams;
-  if (isProdDeploy() || sp?.preview === "waitlist") {
+  if (isProdDeploy() || process.env.LYRA_FORCE_WAITLIST === "true" || sp?.preview === "waitlist") {
     return <WaitlistLanding />;
   }
 

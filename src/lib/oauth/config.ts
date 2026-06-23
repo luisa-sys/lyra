@@ -23,9 +23,9 @@ export const oauthConfig = {
   tokenEndpoint: () => `${siteUrl()}/oauth/token`,
   registrationEndpoint: () => `${siteUrl()}/oauth/register`,
   revocationEndpoint: () => `${siteUrl()}/oauth/revoke`,
-  // For MVP we don't expose JWKS — HS256 with shared secret. RS256 + JWKS
-  // is a follow-up. The AS metadata still has to omit the jwks_uri field
-  // gracefully so claude.ai doesn't reject us.
+  // SEC-33: RS256 + JWKS. The AS signs with an RS256 private key and publishes
+  // the public key here so resource servers verify with no shared secret.
+  jwksUri: () => `${siteUrl()}/.well-known/jwks.json`,
 
   // Scope catalogue. MVP = single 'lyra:full' scope. Granular scopes
   // (lyra:profile:read, lyra:convene:write, etc.) come later.

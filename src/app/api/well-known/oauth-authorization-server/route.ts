@@ -22,6 +22,8 @@ export async function GET() {
       token_endpoint: oauthConfig.tokenEndpoint(),
       registration_endpoint: oauthConfig.registrationEndpoint(),
       revocation_endpoint: oauthConfig.revocationEndpoint(),
+      jwks_uri: oauthConfig.jwksUri(), // SEC-33: RS256 public keys for token verification
+
       response_types_supported: ['code'],
       response_modes_supported: ['query'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
