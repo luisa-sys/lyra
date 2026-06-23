@@ -152,8 +152,11 @@ run_admin_mcp() {
     -A "Mozilla/5.0 (compatible; LyraSmokeTest/1.0; +https://checklyra.com)" \
     "$HOST/health" 2>/dev/null || echo "000")
   case "$CODE" in
-    403)
-      echo -e "  ${GREEN}✓${NC} Admin MCP reachable + Cloudflare Access gating it (403)"
+    401|403|302)
+      # CF Access challenges an unauthenticated request with 401 (API/CLI clients),
+      # 403, or a 302 redirect to the team login page — all mean "reachable + Access
+      # is gating it", which is the healthy state from a CI runner without a token.
+      echo -e "  ${GREEN}✓${NC} Admin MCP reachable + Cloudflare Access gating it ($CODE)"
       ;;
     200)
       # 200 unauthenticated should never happen once CF Access is on. Distinguish
