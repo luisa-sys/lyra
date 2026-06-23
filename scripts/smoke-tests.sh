@@ -106,11 +106,79 @@ run_mcp() {
   fi
 }
 
+# KAN-323 — Admin MCP (admin-mcp.checklyra.com). A SEPARATE, owner-gated deploy
+# behind Cloudflare Access, so the check is deliberately shaped for that:
+#   * OFF by default; only runs once ADMIN_MCP_HEALTHCHECK_ENABLED=1 is set (an
+#     Actions variable flipped at go-live). The admin MCP is intentionally not
+#     live until its SEC sign-off — a hard check before then would alert on a
+#     service that doesn't exist yet, not a real fault. A loud NOTICE is printed
+#     while it's off (never a silent green).
+#     # integrity-ok: deliberate opt-in for a not-yet-live, owner-gated service (KAN-323)
+#   * From a CI runner (no CF Access token) a HEALTHY admin MCP returns 403
+#     (Access challenge). A bare 200 means Access is NOT protecting the admin
+#     surface — a security failure. 000/4xx/5xx means it is down.
+#   * If CF Access service-token secrets are present, additionally verify true
+#     origin health through Access (/health -> {"status":"ok"}).
+run_admin_mcp() {
+  echo -e "${YELLOW}=== Admin MCP (admin-mcp.checklyra.com) ===${NC}"
+  local HOST="https://admin-mcp.checklyra.com"
+
+  if [ "${ADMIN_MCP_HEALTHCHECK_ENABLED:-}" != "1" ]; then
+    echo -e "  ${YELLOW}⚠ NOTICE${NC} Admin MCP health check is OFF — set ADMIN_MCP_HEALTHCHECK_ENABLED=1 once KAN-323 is deployed + SEC-signed-off. (Not yet live; nothing checked, not counted as pass.)"
+    return
+  fi
+
+  # Deep check through Cloudflare Access when a service token is configured.
+  if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+    TOTAL=$((TOTAL + 1))
+    local BODY
+    BODY=$(curl -s --max-time 15 \
+      -H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" \
+      -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}" \
+      "$HOST/health" 2>/dev/null || echo "")
+    if echo "$BODY" | grep -q '"status":"ok"'; then
+      echo -e "  ${GREEN}✓${NC} Admin MCP origin health (authenticated /health -> status:ok)"
+    else
+      echo -e "  ${RED}✗${NC} Admin MCP origin /health did not return status:ok through CF Access"
+      FAILURES=$((FAILURES + 1))
+    fi
+    return
+  fi
+
+  # Unauthenticated: assert reachable AND that Cloudflare Access is gating it.
+  TOTAL=$((TOTAL + 1))
+  local CODE
+  CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 15 \
+    -A "Mozilla/5.0 (compatible; LyraSmokeTest/1.0; +https://checklyra.com)" \
+    "$HOST/health" 2>/dev/null || echo "000")
+  case "$CODE" in
+    403)
+      echo -e "  ${GREEN}✓${NC} Admin MCP reachable + Cloudflare Access gating it (403)"
+      ;;
+    200)
+      # 200 unauthenticated should never happen once CF Access is on. Distinguish
+      # "admin surface exposed" from "this domain points at the wrong service".
+      local WHO
+      WHO=$(curl -s --max-time 15 -A "Mozilla/5.0 (compatible; LyraSmokeTest/1.0; +https://checklyra.com)" "$HOST/health" 2>/dev/null || echo "")
+      if echo "$WHO" | grep -q 'lyra-admin-mcp-server'; then
+        echo -e "  ${RED}✗${NC} Admin MCP /health is PUBLIC (200) — Cloudflare Access is NOT protecting the admin surface!"
+      else
+        echo -e "  ${RED}✗${NC} admin-mcp.checklyra.com returns 200 but is NOT the admin server — domain points at the wrong service (got: $(echo "$WHO" | head -c 80))"
+      fi
+      FAILURES=$((FAILURES + 1))
+      ;;
+    *)
+      echo -e "  ${RED}✗${NC} Admin MCP unreachable/unhealthy (HTTP $CODE)"
+      FAILURES=$((FAILURES + 1))
+      ;;
+  esac
+}
+
 case "$ENV" in
-  production) run_production; run_mcp ;;
+  production) run_production; run_mcp; run_admin_mcp ;;
   staging) run_staging; run_mcp ;;
   dev) run_dev; run_mcp ;;
-  all) run_production; run_staging; run_dev; run_mcp ;;
+  all) run_production; run_staging; run_dev; run_mcp; run_admin_mcp ;;
   *) echo "Usage: $0 [dev|staging|production|all]"; exit 1 ;;
 esac
 
