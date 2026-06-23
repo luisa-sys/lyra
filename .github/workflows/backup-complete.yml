@@ -18,8 +18,16 @@ name: Daily Complete Backup (encrypted, WORM)
 # emit a ::warning:: and record the skip honestly in the run summary.
 
 on:
-  schedule:
-    - cron: '0 1 * * *'  # Daily 01:00 UTC (ahead of the legacy Sunday jobs)
+  # The DAILY schedule is intentionally commented out until this backup is
+  # COMMISSIONED (SEC-23). The secrets below are founder-provisioned, and per the
+  # Backup Integrity Policy this workflow fails LOUD when they are missing —
+  # shipping it dispatch-only keeps production from going red every night before
+  # commissioning, without ever false-greening (a skipped backup is never
+  # reported as success here). Once BACKUP_AGE_RECIPIENTS + R2_BACKUP_WRITEONLY_*
+  # + SUPABASE_STORAGE_S3_* + CLOUDFLARE_KV_* are set, uncomment the two lines
+  # below to turn on the DAILY backup. See docs/DISASTER_RECOVERY.md §8.
+  # schedule:
+  #   - cron: '0 1 * * *'  # Daily 01:00 UTC — ENABLE AFTER COMMISSIONING (SEC-23)
   workflow_dispatch:
 
 defaults:

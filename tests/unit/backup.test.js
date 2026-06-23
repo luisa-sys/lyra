@@ -73,10 +73,13 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
     expect(executable('scripts/check-complete-backup.sh')).toBe(true);
   });
 
-  test('daily complete backup workflow runs daily, encrypts, and uses a write-only WORM credential', () => {
+  test('complete backup workflow: daily cadence documented, encrypts, write-only WORM cred, dispatchable', () => {
     expect(exists('.github/workflows/backup-complete.yml')).toBe(true);
     const w = read('.github/workflows/backup-complete.yml');
-    expect(w).toMatch(/cron:\s*'0 1 \* \* \*'/); // daily, not weekly
+    // Daily cadence is documented; the schedule ships commented until the backup
+    // is commissioned (SEC-23) so prod never goes nightly-red before secrets exist.
+    expect(w).toMatch(/cron:\s*'0 1 \* \* \*'/);
+    expect(w).toContain('workflow_dispatch'); // runnable on demand now
     expect(w).toContain('age -r'); // encrypted with an offline-held recipient key
     expect(w).toContain('R2_BACKUP_WRITEONLY_ACCESS_KEY_ID'); // separate write-only creds
     expect(w).toContain('check-complete-backup.sh'); // pre-upload integrity gate

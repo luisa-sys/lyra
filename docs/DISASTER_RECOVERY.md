@@ -21,7 +21,7 @@ in-repo, engineer-facing detail and the **recovery test plan**. Tracked under
 | 1 | Supabase built-in backup | Whole DB incl. `auth` | Daily (plan-dependent), 7-day | Supabase account | ❌ same account as prod |
 | 2 | `backup-database.yml` | `public` schema **+ data only** | Weekly Sun 02:00 | GitHub artifact (90d) + R2 | ⚠️ partial — same GitHub/CF accounts |
 | 3 | `backup-platform.yml` | Repos, DNS, `public` schema-only, secret **names** | Weekly Sun 02:30 | GitHub artifact + R2 | ⚠️ partial |
-| 4 | **`backup-complete.yml` (NEW, SEC-23)** | **`public` + `auth` + `storage` + roles + storage blobs + KV**, **age-encrypted** | **Daily 01:00** | GitHub artifact + **R2 WORM (write-only key, COMPLIANCE lock)** | ✅ **designed to** — see §5 |
+| 4 | **`backup-complete.yml` (NEW, SEC-23)** | **`public` + `auth` + `storage` + roles + storage blobs + KV**, **age-encrypted** | **Daily** once commissioned (ships dispatch-only — §8) | GitHub artifact + **R2 WORM (write-only key, COMPLIANCE lock)** | ✅ **designed to** — see §5 |
 
 Layer 4 is the one that matters in a hack: it is the only copy that is
 **complete**, **encrypted with a key the attacker does not hold**, and written
@@ -141,33 +141,74 @@ come back from a full breach.
 > (d) the observed RTO/RPO, (e) Incident Lead sign-off. That package *is* the
 > proof; a green backup workflow alone is not.
 
-## 7. The "new domain to test recovery?" decision
+## 7. The "new domain to test recovery?" decision — DECIDED: `*.vercel.app`
 
 You do **not** need a new domain for Tiers A or B (container / throwaway project,
-no public DNS). For Tier C you want recovery to be **independent of the possibly
-compromised Cloudflare/DNS**, so:
+no public DNS).
 
-- **Recommended:** pre-register a cheap **standby domain** (e.g.
-  `lyra-recovery.app`, ~£10/yr) at a *different* registrar, parked. Drills and
-  real recovery both publish there first; prod DNS is cut over last, only after
-  the Cloudflare account is re-secured. This also lets a drill run end-to-end
-  without touching live `checklyra.com`.
-- **Cheaper:** use the provider-issued `*.vercel.app` URL for the drill — zero
-  cost, proves the app + data come back, but doesn't rehearse the DNS cutover.
+**Decision (2026-06-23):** drills use the **provider-issued `*.vercel.app` URL** —
+zero cost, and it proves the thing we care about most: *the app + data come back*.
+A Tier C drill deploys the recovered build to its default `lyra-recovery-*.vercel.app`
+preview URL pointed at the freshly-restored Supabase project, and we smoke-test
+login + a profile there. We accept that this does **not** rehearse the DNS cutover
+(repointing `checklyra.com` away from a compromised Cloudflare account); that
+remains a documented manual step in §5.3 to perform only during a real incident.
+
+> If we later want to rehearse the DNS cutover too, register a cheap standby
+> domain (~£10/yr) at a *different* registrar and publish there first. Out of
+> scope for now per the decision above.
 
 ## 8. Operational prerequisites (founder actions — see SEC tickets)
 
 `backup-complete.yml` and the WORM/compromise guarantees need secrets that only
-the founder can provision. Until they exist the daily workflow **fails loud**
-(by design — a false-green backup is worse). Provision:
+the founder can provision. The workflow ships **dispatch-only**; until the
+secrets exist it would **fail loud** if run (by design — a false-green backup is
+worse). Commission it in this order, then flip the nightly schedule on:
 
-- `BACKUP_AGE_RECIPIENTS` — age **public** key; keep the private key offline.
-- `R2_BACKUP_WRITEONLY_ACCESS_KEY_ID` / `R2_BACKUP_WRITEONLY_SECRET_ACCESS_KEY` /
-  `R2_BACKUP_ENDPOINT` / `R2_BACKUP_BUCKET` — a **write-only** R2 key on a bucket
-  with **Object Lock COMPLIANCE**.
-- `SUPABASE_STORAGE_S3_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY` — Supabase
-  Storage S3 access (only required once files exist).
-- `CLOUDFLARE_KV_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_KV_NAMESPACE_ID`
-  — KV read scope for the waitlist export.
-- Confirm `SUPABASE_DB_URL` is a **session** connection (port 5432), not the 6543
-  pooler, so `pg_dumpall --roles-only` works.
+**1. Encryption key — generate OFFLINE (do not paste the private key anywhere online):**
+```bash
+age-keygen -o lyra-backup.key        # save lyra-backup.key in your password manager — this is the break-glass key
+grep 'public key' lyra-backup.key    # copy the "age1..." public recipient
+```
+Set the **public** recipient as a repo secret (value is the `age1…` string):
+```bash
+gh secret set BACKUP_AGE_RECIPIENTS --repo luisa-sys/lyra --body 'age1…'
+```
+
+**2. WORM bucket + write-only key (Cloudflare R2 dashboard):**
+- Create a dedicated bucket (e.g. `lyra-backups-worm`) with **Object Lock =
+  COMPLIANCE**, retention ≥ 30 days.
+- Mint an R2 API token scoped **PutObject only** (no Delete/lifecycle) to that bucket.
+```bash
+gh secret set R2_BACKUP_WRITEONLY_ACCESS_KEY_ID     --repo luisa-sys/lyra --body '…'
+gh secret set R2_BACKUP_WRITEONLY_SECRET_ACCESS_KEY --repo luisa-sys/lyra --body '…'
+gh secret set R2_BACKUP_ENDPOINT --repo luisa-sys/lyra --body 'https://<acct>.r2.cloudflarestorage.com'
+gh secret set R2_BACKUP_BUCKET   --repo luisa-sys/lyra --body 'lyra-backups-worm'
+```
+
+**3. Supabase Storage S3 keys** (Supabase → Project → Storage → S3 access keys),
+only strictly required once files exist:
+```bash
+gh secret set SUPABASE_STORAGE_S3_ENDPOINT   --repo luisa-sys/lyra --body 'https://<ref>.supabase.co/storage/v1/s3'
+gh secret set SUPABASE_STORAGE_S3_ACCESS_KEY --repo luisa-sys/lyra --body '…'
+gh secret set SUPABASE_STORAGE_S3_SECRET_KEY --repo luisa-sys/lyra --body '…'
+```
+
+**4. Cloudflare KV (waitlist) export token** — a KV:read-scoped token (gotcha #13:
+KV is a separate scope from DNS):
+```bash
+gh secret set CLOUDFLARE_KV_API_TOKEN   --repo luisa-sys/lyra --body '…'
+gh secret set CLOUDFLARE_ACCOUNT_ID     --repo luisa-sys/lyra --body '…'
+gh secret set CLOUDFLARE_KV_NAMESPACE_ID --repo luisa-sys/lyra --body 'c7bdc8624f0a4bd5b0a8ad36e9f93d96'  # lyra-interest-emails
+```
+
+**5. Confirm `SUPABASE_DB_URL` is a session connection** (port 5432 / "Direct
+connection"), not the 6543 pooler, so `pg_dumpall --roles-only` works.
+
+**6. Smoke-test, then enable the schedule:**
+```bash
+gh workflow run backup-complete.yml --repo luisa-sys/lyra   # manual dispatch — must go GREEN
+```
+Once green, uncomment the two `schedule:` lines at the top of
+`.github/workflows/backup-complete.yml` (a 1-line change) to turn on the **daily**
+backup, and PR it through the pipeline.

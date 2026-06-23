@@ -221,9 +221,10 @@ reconstruct user accounts (`auth`) — restoring it alone leaves profiles whose
 
 ### Automated backup
 
-- **Daily** complete + encrypted backup → GitHub Artifacts + R2 WORM:
-  `backup-complete.yml` (01:00 UTC). The one to rely on. Needs the secrets in
-  [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) §8 provisioned first.
+- **Complete + encrypted backup** → GitHub Artifacts + R2 WORM:
+  `backup-complete.yml`. The one to rely on. Ships **dispatch-only**; once the
+  secrets in [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) §8 are provisioned and a
+  manual run is green, enable the daily 01:00 UTC schedule (1-line uncomment).
 - Weekly public-only backup (legacy): `backup-database.yml` (Sun 02:00 UTC),
   GitHub Artifacts, 90-day retention.
 - **Weekly real restore drill**: `backup-restore-test.yml` (Sun 05:00 UTC) now
