@@ -71,6 +71,52 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
+## User Access Lifecycle & Age Verification
+
+How a person goes from a public sign-up to a published, fully-promoted profile — and the 18+ age gate that guards publishing.
+
+### Access model — three independent axes
+
+A user's state is **not** a single status; it's three independent fields on `profiles` plus a few flags. The admin console (`/admin/users`) surfaces all of them, which is why the badges can look overlapping.
+
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `access_stage` | `waitlist` → `beta` → `live` | Which "door" the user is in. `waitlist` = on the public waiting list (can use the live site, **not** the gated beta app); `beta` = admitted to `beta.checklyra.com`; `live` = promoted to full production. This is what "promote to production" changes. |
+| `beta_access_status` | `none` → `requested` → `approved` | The beta **queue** state. Sign-up auto-sets `requested` (the user appears in the admin beta queue); approving sets `approved`. |
+| `early_access` | bool | The **"beta features"** flag — eligibility for per-user experimental features. Set alongside enable-beta / promote-with-beta. |
+| `is_published` | bool | Profile public vs draft. |
+| `is_suspended` | bool | Moderation hide (overrides published). |
+| `is_admin` | bool | Back-office access. |
+
+Per-user feature toggles live in `feature_entitlements` (see above); a feature is effective only when **its env master-switch AND the user's entitlement** are both on.
+
+### The journey
+
+1. **Sign up** (`/signup`) — passwordless. On the public production deploy the page is the **"Join the waitlist" front door** (KAN-273/287; gated by `isProdDeploy()`, or `LYRA_FORCE_WAITLIST=true` to mirror it on a non-prod env such as dev). A confirm-signup / magic-link email is sent; the link routes through **`/auth/confirm`** (token-hash `verifyOtp`, BUGS-50 — works cross-browser, unlike the old `/auth/callback?code=` PKCE flow). `handle_new_user` creates the profile; sign-up records `access_stage='waitlist'`, `beta_access_status='requested'`.
+2. **Beta queue → approved** — in `/admin/users` (filter: Waitlist), select the user and run the **Enable beta** bulk action → `access_stage='beta'`, `beta_access_status='approved'`, `early_access=true`, `is_beta_eligible=true`. A "you're in" email goes out (Resend).
+3. **Features** — grant per-user entitlements on `/admin/users/[slug]` (MCP, Convene, paid gift links, …).
+4. **Age verification** (when the gate is on) — the user must pass before publishing (see below).
+5. **Publish** — the user publishes their own profile from `/dashboard/profile` ("Save & publish"); blocked by the age gate unless `age_status='passed'`.
+6. **Promote to production** — run **Promote to live (with / without beta)** in `/admin/users` → `access_stage='live'`.
+
+> **Ops note:** admin **bulk** actions fire a native `confirm("<action> — N users?")` dialog before applying; single-user actions (entitlements, age override, suspend, publish) do not. The bulk transitions live only in the `/admin/users` bulk bar — `/admin/beta-queue` simply redirects to `/admin/users?stage=waitlist`.
+
+### Age verification (KAN-282 / KAN-319) — live on production 2026-06-23
+
+Lyra is an adults-only (18+) service; publishing is gated behind an age check.
+
+**The gate.** When `AGE_VERIFICATION_REQUIRED=true` (Production), a profile may be published only if `age_status='passed'`. Enforced on **both** publish paths (`publishProfile()` and the allow-listed `is_published` field update) in `src/app/dashboard/profile/actions.ts`, via `canPublishWithAge()` in `src/lib/age/gate.ts`. Flag unset → the gate is a no-op.
+
+`age_status` (`profiles.age_status`): `none` (default) · `pending` (in-flight) · `passed` (≥18 confirmed — may publish) · `failed` (<18 / declined) · `manual_review` (borderline 18–22, or provider "in review").
+
+**The Didit flow.** `/verify-age` (logged-in, unverified) → **Start age check** → `createAgeSession()` POSTs to Didit (`/v3/session/`) with the profile id as `vendor_data` → user is redirected to Didit's **hosted selfie** flow (facial age estimation). **Lyra never receives or stores a selfie or DOB — only a yes/no age signal.** Didit posts the signed decision to **`/api/age/didit/webhook`**; the handler verifies the HMAC signature, maps the decision (`mapDecisionToAgeStatus`: ≥23 → `passed`, 18–22 → `manual_review`, <18/declined → `failed`) and persists `age_status` (idempotent; non-terminal `pending` is ignored). `/verify-age/callback` confirms server-side too.
+
+- **Config:** `DIDIT_API_KEY` + `DIDIT_WORKFLOW_ID` (+ `DIDIT_WEBHOOK_SECRET`, optional `DIDIT_API_BASE`). With the first two set, `isDiditConfigured()` is true and the real flow runs; unset → `/verify-age` shows "coming soon".
+- **Webhook:** subscribe Didit to the **verification status / decision** event (Approved / Declined / In Review) → `https://checklyra.com/api/age/didit/webhook`; the signing secret must equal `DIDIT_WEBHOOK_SECRET` (fail-closed if absent).
+- **Admin override:** `/admin/users/[slug]` has audited age-status buttons (`none`/`pending`/`passed`/`failed`/`manual_review`) — the manual path for borderline / `manual_review` cases (writes `age_provider='admin_override'`, logs to `moderation_logs`).
+
+**Production rollout (2026-06-23):** Didit secrets set on the Production Vercel scope, `AGE_VERIFICATION_REQUIRED=true`, shipped via the standard `develop → … → main` promotion. **Prebuilt-deployment note:** prod runs prebuilt deployments, so env-var changes only take effect on the **next** production release (the prod build bakes them in) — set the gate/secrets *before* the final promote, never expecting a live toggle.
+
 ## CI/CD Pipeline
 
 ### Promotion Flow
@@ -124,6 +170,9 @@ All operations run via GitHub Actions — no local machine needed:
 - visibility_level: public, friends, private
 - link_type: website, twitter, instagram, linkedin, tiktok, youtube, other
 - school_relationship: student, alumni, parent, staff
+- access_stage: waitlist, beta, live _(KAN-273 — the user's access tier; see "User Access Lifecycle")_
+- beta_access_status: none, requested, approved _(the beta queue state)_
+- age_status: none, pending, passed, failed, manual_review _(KAN-282/319 — see "Age verification")_
 
 ### Triggers
 - handle_new_user(): Auto-creates a profile when a user signs up
