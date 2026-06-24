@@ -31,11 +31,11 @@ export default async function WaitlistPage() {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_beta_eligible')
+      .select('user_status')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (profile?.is_beta_eligible) {
+    if (profile?.user_status === 'live') {
       redirect('/dashboard');
     }
   }
