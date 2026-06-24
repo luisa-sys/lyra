@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 import ShareProfile from './share-profile';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
+import { canPublishWithAge } from '@/lib/age/gate';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -29,14 +30,19 @@ export default async function DashboardPage() {
   // KAN-303 — Convene nav + landing card are gated on the feature flag so they
   // stay hidden until Convene is enabled (beta).
   const conveneEnabled = await isConveneEnabledForCurrentUser();
+  const isPublished = !!profile?.is_published;
+  // KAN-326: publish-status hub — show the age step only when the gate blocks publishing.
+  const needsAgeCheck = !canPublishWithAge(
+    (profile as { age_status?: string | null } | null)?.age_status,
+  );
 
   return (
     <main className="min-h-screen">
       <header className="border-b border-[var(--color-border)] bg-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="flex items-center">
+          <Link href="/dashboard" className="flex items-center" aria-label="Lyra home">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
-          </h1>
+          </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-[var(--color-muted)]">
               {user.email}
@@ -62,14 +68,54 @@ export default async function DashboardPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-medium text-[var(--color-ink)] mb-2">
-          Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}
-        </h2>
-        <p className="text-[var(--color-muted)] mb-8">
-          {profile?.onboarding_complete
-            ? 'Manage your Lyra profile below.'
-            : 'Let\u2019s set up your profile so people in your life can get to know you better.'}
-        </p>
+        <div className="mb-6">
+          <h2 className="text-2xl font-medium text-[var(--color-ink)]">
+            Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}
+          </h2>
+          <p className="text-[var(--color-muted)] mt-1">
+            {isPublished
+              ? 'Your profile is live — here’s your Lyra at a glance.'
+              : 'A few steps to get your profile live.'}
+          </p>
+        </div>
+
+        {/* KAN-326: next-steps hub — lead with what to do next while unpublished. */}
+        {!isPublished && (
+          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mb-6">
+            <h3 className="text-lg font-medium text-[var(--color-ink)] mb-4">Get your profile live</h3>
+            <ol className="space-y-3">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[var(--color-ink)]">
+                  <span className="font-medium">1. Build your profile</span>
+                  <span className="text-[var(--color-muted)]"> · {profile?.completion_score || 0}% complete</span>
+                </span>
+                <Link href="/dashboard/profile" className="shrink-0 px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
+                  Edit profile →
+                </Link>
+              </li>
+              {needsAgeCheck && (
+                <li className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-[var(--color-ink)]">
+                    <span className="font-medium">2. Verify your age</span>
+                    <span className="text-[var(--color-muted)]"> · required before publishing</span>
+                  </span>
+                  <Link href="/verify-age" className="shrink-0 px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors">
+                    Verify age →
+                  </Link>
+                </li>
+              )}
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[var(--color-ink)]">
+                  <span className="font-medium">{needsAgeCheck ? '3' : '2'}. Publish</span>
+                  <span className="text-[var(--color-muted)]"> · make your profile public</span>
+                </span>
+                <Link href="/dashboard/profile" className="shrink-0 px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors">
+                  Open editor →
+                </Link>
+              </li>
+            </ol>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
           <h3 className="text-lg font-medium text-[var(--color-ink)] mb-4">
@@ -89,8 +135,8 @@ export default async function DashboardPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--color-muted)]">Status</span>
-              <span className={profile?.is_published ? 'text-green-600' : 'text-amber-600'}>
-                {profile?.is_published ? 'Published' : 'Draft'}
+              <span className={isPublished ? 'text-green-600' : needsAgeCheck ? 'text-amber-600' : 'text-[var(--color-muted)]'}>
+                {isPublished ? 'Public' : needsAgeCheck ? 'Age check' : 'Private'}
               </span>
             </div>
             <div className="flex justify-between">
@@ -99,19 +145,9 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {!profile?.onboarding_complete && (
-            <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity text-center">
-              Complete your profile →
-            </Link>
-          )}
-          {profile?.onboarding_complete && (
+          {isPublished && (
             <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-base font-medium hover:bg-[#ece7df] transition-colors text-center">
               Edit your profile →
-            </Link>
-          )}
-          {!profile && (
-            <Link href="/dashboard/profile" className="mt-6 block w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity text-center">
-              Set up your profile →
             </Link>
           )}
 
