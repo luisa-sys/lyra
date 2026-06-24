@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { withParentCookieDomain } from '@/lib/cookie-domain';
+import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -24,6 +25,9 @@ export async function middleware(request: NextRequest) {
   const requestHost =
     request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
   const isAdminHost = requestHost === adminHost;
+  // SEC-34/SEC-37: app-layer Cloudflare Access verification is enforced once
+  // CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set (inert before that).
+  const cfEnabled = cfAccessEnabled();
 
   // Supabase PKCE: redirect code param to /auth/callback for session exchange
   const code = request.nextUrl.searchParams.get('code');
@@ -88,9 +92,24 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // KAN-309: route the admin tools to the admin subdomain (once enforced).
-  if (adminHostEnforced) {
+  // KAN-309 / SEC-37: route the admin tools to the admin subdomain, and verify
+  // Cloudflare Access on the admin host. Isolation applies when
+  // ADMIN_HOST_ENFORCED=true OR CF Access is configured — so enabling CF Access
+  // can never leave /admin reachable on a public host by forgetting a flag.
+  if (adminHostEnforced || cfEnabled) {
     if (isAdminHost) {
+      // SEC-34/SEC-37: every request reaching the admin host must carry a valid
+      // Cloudflare Access JWT — this rejects anything that hit the origin
+      // without transiting the CF edge (leaked preview URL, spoofed Host,
+      // direct origin). Inert (allows all) until CF_ACCESS_* are configured.
+      if (
+        cfEnabled &&
+        !(await verifyCfAccessToken(request.headers.get('cf-access-jwt-assertion')))
+      ) {
+        return new NextResponse('Forbidden: Cloudflare Access required.', {
+          status: 403,
+        });
+      }
       // Let the auth/login flow, API routes and assets pass through unchanged.
       const passthrough =
         pathname === '/login' ||
@@ -151,12 +170,24 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // KAN-175: Beta gate. Only active on the beta deploy (IS_BETA_DEPLOY=true).
-  // Authenticated users without is_beta_eligible=true get redirected to
-  // /waitlist. The /waitlist page itself is exempt so the redirect doesn't
-  // loop. Auth pages and the auth callback are also exempt so users can
-  // complete sign-in before the gate evaluates them.
+  // KAN-326: tier-aware access gate. Active on the "prod family" — the beta
+  // deploy (IS_BETA_DEPLOY=true, tier 'beta') and the real production deploy
+  // (checklyra.com, tier 'prod'). Dev/stage are single full envs (deployTier
+  // null) and are not gated here. An authenticated user is:
+  //   - not live          -> sent to /waitlist
+  //   - live, wrong tier  -> sent to their tier's site (beta <-> prod), so a
+  //                          promoted user always lands on the right site
+  //                          (sessions carry via the shared .checklyra.com cookie).
+  // The /waitlist page itself + auth pages are exempt to avoid redirect loops.
   const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
+  const isProdSite =
+    process.env.NEXT_PUBLIC_SITE_URL === 'https://checklyra.com' &&
+    process.env.VERCEL_ENV === 'production';
+  const deployTier: 'beta' | 'prod' | null = isBetaDeploy
+    ? 'beta'
+    : isProdSite
+      ? 'prod'
+      : null;
   const exemptFromBetaGate =
     pathname === '/waitlist' ||
     pathname === '/suspended' || // KAN-319: suspended users land here, not /waitlist
@@ -167,18 +198,28 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico';
 
-  if (isBetaDeploy && user && !exemptFromBetaGate) {
+  if (deployTier && user && !exemptFromBetaGate) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_beta_eligible')
+      .select('user_status, access_tier')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!profile?.is_beta_eligible) {
+    if (profile?.user_status !== 'live') {
       const url = request.nextUrl.clone();
       url.pathname = '/waitlist';
       url.search = '';
       return NextResponse.redirect(url);
+    }
+    if (profile.access_tier !== deployTier) {
+      // Live user on the wrong site — move them to their tier's host, keeping path.
+      const targetHost =
+        profile.access_tier === 'prod'
+          ? 'https://checklyra.com'
+          : 'https://beta.checklyra.com';
+      return NextResponse.redirect(
+        new URL(`${targetHost}${pathname}${request.nextUrl.search}`),
+      );
     }
   }
 
