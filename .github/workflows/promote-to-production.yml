@@ -52,7 +52,7 @@ jobs:
       beta_short: ${{ steps.check.outputs.beta_short }}
       main_sha_before_merge: ${{ steps.check.outputs.main_sha_before_merge }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 1
           ref: beta
@@ -150,7 +150,7 @@ jobs:
       # fires. GITHUB_TOKEN would silently suppress the trigger (gotcha #16).
       # The PAT was updated 2026-05-15 with Workflows:write so it can also
       # push workflow-file changes if a release contains them.
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}
@@ -377,7 +377,7 @@ jobs:
     steps:
       # BUGS-4: tag created AFTER smoke tests pass (was: tag before deploy).
       # This way a failed deploy doesn't leave a misleading version tag.
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 0
           ref: main
@@ -447,7 +447,7 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 1
       - name: Roll production back to pre-merge SHA (BUGS-9)
