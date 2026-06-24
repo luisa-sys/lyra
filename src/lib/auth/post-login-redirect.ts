@@ -12,7 +12,7 @@
  * Extracted from /auth/callback so /auth/confirm reuses it verbatim (KAN-276/278).
  */
 import type { createClient } from '@/lib/supabase-server';
-import { resolveBetaAccess, betaRedirectUrl, isProdDeploy } from '@/lib/beta-access/flow';
+import { resolveBetaAccess, betaRedirectUrl, isProdFamily } from '@/lib/beta-access/flow';
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -24,8 +24,19 @@ export async function resolvePostLoginRedirect(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const approved = user
-    ? (await resolveBetaAccess({ id: user.id, email: user.email })).approved
-    : true;
-  return betaRedirectUrl({ origin, isProd: isProdDeploy(), approved, next });
+  if (!user) {
+    // No session (shouldn't happen post-login) — stay on the origin.
+    return betaRedirectUrl({
+      origin,
+      isProdFamily: false,
+      userStatus: 'live',
+      accessTier: 'prod',
+      next,
+    });
+  }
+  const { userStatus, accessTier } = await resolveBetaAccess({
+    id: user.id,
+    email: user.email,
+  });
+  return betaRedirectUrl({ origin, isProdFamily: isProdFamily(), userStatus, accessTier, next });
 }

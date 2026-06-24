@@ -15,6 +15,8 @@ describe('computeAccessTransition (KAN-309)', () => {
   it('enable_beta sets both axes + the enforced gate + approved, and emails', () => {
     const t = computeAccessTransition('enable_beta', { now: NOW });
     expect(t.update).toMatchObject({
+      user_status: 'live',
+      access_tier: 'beta',
       access_stage: 'beta',
       early_access: true,
       is_beta_eligible: true,
@@ -28,6 +30,8 @@ describe('computeAccessTransition (KAN-309)', () => {
   it('disable_beta revokes the gate, returns to waitlist, clears approval, no email', () => {
     const t = computeAccessTransition('disable_beta', { now: NOW });
     expect(t.update).toMatchObject({
+      user_status: 'waitlist',
+      access_tier: 'beta',
       access_stage: 'waitlist',
       early_access: false,
       is_beta_eligible: false,
@@ -41,6 +45,8 @@ describe('computeAccessTransition (KAN-309)', () => {
   it('promote_live_with_beta → live, early access on, stays beta-eligible, emails', () => {
     const t = computeAccessTransition('promote_live_with_beta', { now: NOW });
     expect(t.update).toMatchObject({
+      user_status: 'live',
+      access_tier: 'prod',
       access_stage: 'live',
       early_access: true,
       is_beta_eligible: true,
@@ -53,6 +59,8 @@ describe('computeAccessTransition (KAN-309)', () => {
   it('promote_live_no_beta → live, early access OFF, still beta-eligible, no email', () => {
     const t = computeAccessTransition('promote_live_no_beta', { now: NOW });
     expect(t.update).toMatchObject({
+      user_status: 'live',
+      access_tier: 'prod',
       access_stage: 'live',
       early_access: false,
       is_beta_eligible: true,
@@ -71,6 +79,8 @@ describe('computeAccessTransition (KAN-309)', () => {
     });
     expect(t.update.access_stage).toBeUndefined();
     expect(t.update.is_beta_eligible).toBeUndefined();
+    expect(t.update.user_status).toBeUndefined();
+    expect(t.update.access_tier).toBeUndefined();
     expect(t.moderationAction).toBe('suspend');
   });
 
@@ -82,6 +92,8 @@ describe('computeAccessTransition (KAN-309)', () => {
       suspension_reason: null,
     });
     expect(t.update.access_stage).toBeUndefined();
+    expect(t.update.user_status).toBeUndefined();
+    expect(t.update.access_tier).toBeUndefined();
     expect(t.moderationAction).toBe('unsuspend');
   });
 

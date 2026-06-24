@@ -96,6 +96,9 @@ export default async function UsersConsolePage({
   const admin = (await getCurrentAdmin())!; // layout already gated
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filter = buildFilter(sp);
+  // Age gate is a server env flag; the publish-status badge needs it to tell
+  // "age check" (blocked) from "private" (just unpublished).
+  const ageGateOn = process.env.AGE_VERIFICATION_REQUIRED === 'true';
 
   const [{ rows, total, error }, counts] = await Promise.all([listUsers(filter, page), stageCounts()]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -140,7 +143,7 @@ export default async function UsersConsolePage({
         <Chip href="/admin/users?stage=waitlist" label="Waitlist" active={filter.stage === 'waitlist'} />
         <Chip href="/admin/users?stage=beta" label="Beta" active={filter.stage === 'beta'} />
         <Chip href="/admin/users?stage=live" label="Live" active={filter.stage === 'live'} />
-        <Chip href="/admin/users?early=1" label="Beta features" active={filter.early === true} />
+        <Chip href="/admin/users?early=1" label="Test features" active={filter.early === true} />
         <Chip href="/admin/users?suspended=1" label="Suspended" active={filter.suspended === true} />
         <Chip href="/admin/users?admin=1" label="Admins" active={filter.admin === true} />
       </nav>
@@ -150,7 +153,7 @@ export default async function UsersConsolePage({
           Could not load users: {error}
         </p>
       ) : (
-        <BulkBar rows={rows} total={total} selfProfileId={admin.profileId} filter={filter} />
+        <BulkBar rows={rows} total={total} selfProfileId={admin.profileId} filter={filter} ageGateOn={ageGateOn} />
       )}
 
       {totalPages > 1 && (

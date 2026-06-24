@@ -57,10 +57,11 @@ export interface AccessTransition {
 /**
  * Map a bulk action onto the concrete column changes + audit action.
  *
- * Both axes (access_stage, early_access) are always written together with the
- * derived enforced gate (is_beta_eligible / beta_access_status), so the model
- * and the gate can never drift. `now` and `reason` are passed in to keep this
- * function pure (no Date.now / no I/O).
+ * KAN-326: the clean axes (user_status, access_tier) are the source of truth.
+ * The legacy columns (access_stage, early_access, is_beta_eligible,
+ * beta_access_status) are written together in lockstep until they're dropped in
+ * the follow-up migration, so the model and the gate can never drift. `now` and
+ * `reason` are passed in to keep this function pure (no Date.now / no I/O).
  */
 export function computeAccessTransition(
   action: BulkAction,
@@ -70,6 +71,8 @@ export function computeAccessTransition(
     case 'enable_beta':
       return {
         update: {
+          user_status: 'live',
+          access_tier: 'beta',
           access_stage: 'beta',
           early_access: true,
           is_beta_eligible: true,
@@ -82,6 +85,8 @@ export function computeAccessTransition(
     case 'disable_beta':
       return {
         update: {
+          user_status: 'waitlist',
+          access_tier: 'beta',
           access_stage: 'waitlist',
           early_access: false,
           is_beta_eligible: false,
@@ -94,6 +99,8 @@ export function computeAccessTransition(
     case 'promote_live_with_beta':
       return {
         update: {
+          user_status: 'live',
+          access_tier: 'prod',
           access_stage: 'live',
           early_access: true,
           is_beta_eligible: true,
@@ -105,6 +112,8 @@ export function computeAccessTransition(
     case 'promote_live_no_beta':
       return {
         update: {
+          user_status: 'live',
+          access_tier: 'prod',
           access_stage: 'live',
           early_access: false,
           // Still beta-eligible so the launched user passes the enforced gate;
