@@ -16,6 +16,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { bulkUserAction } from './actions';
 import { BULK_ACTIONS, type BulkActionConfig, type UserFilter } from './users-actions-shared';
+import { userStatusBadge, accessBadge, publishBadge } from './status-badges';
 
 export interface BulkUserRow {
   id: string;
@@ -24,17 +25,17 @@ export interface BulkUserRow {
   display_name: string | null;
   slug: string;
   created_at: string;
-  access_stage: 'waitlist' | 'beta' | 'live';
-  early_access: boolean;
+  user_status: 'not_applied' | 'waitlist' | 'live';
+  access_tier: 'beta' | 'prod';
+  is_published: boolean;
+  age_status: string | null;
   is_suspended: boolean;
   is_admin: boolean;
+  has_revoked_ga_feature: boolean;
+  // legacy columns still returned during the transition; not rendered.
+  access_stage?: 'waitlist' | 'beta' | 'live';
+  early_access?: boolean;
 }
-
-const STAGE_BADGE: Record<string, string> = {
-  waitlist: 'bg-[#f4efe7] text-[var(--color-muted)]',
-  beta: 'bg-amber-50 text-amber-700',
-  live: 'bg-green-50 text-green-700',
-};
 
 function actionLabel(value: string): string {
   return BULK_ACTIONS.find((a) => a.value === value)?.label ?? value;
@@ -45,11 +46,13 @@ export default function BulkBar({
   total,
   selfProfileId,
   filter,
+  ageGateOn,
 }: {
   rows: BulkUserRow[];
   total: number;
   selfProfileId: string;
   filter: UserFilter;
+  ageGateOn: boolean;
 }) {
   const selectable = rows.filter((r) => r.id !== selfProfileId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -165,6 +168,9 @@ export default function BulkBar({
         ) : (
           rows.map((u) => {
             const isSelf = u.id === selfProfileId;
+            const st = userStatusBadge(u);
+            const ac = accessBadge(u.access_tier);
+            const pb = publishBadge(u, ageGateOn);
             return (
               <div key={u.id} className="flex items-center gap-3 p-4">
                 <input
@@ -188,17 +194,20 @@ export default function BulkBar({
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={'text-xs px-2 py-0.5 rounded-full ' + (STAGE_BADGE[u.access_stage] ?? STAGE_BADGE.waitlist)}>
-                    {u.access_stage}
+                  {/* User status · Access · Publish — fixed-width so they line up as columns */}
+                  <span className={'w-24 text-center text-xs px-2 py-0.5 rounded-full ' + st.cls} title="User status">
+                    {st.label}
                   </span>
-                  {u.early_access && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">beta features</span>
-                  )}
-                  {u.is_admin && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">admin</span>
-                  )}
-                  {u.is_suspended && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700">suspended</span>
+                  <span className={'w-14 text-center text-xs px-2 py-0.5 rounded-full ' + ac.cls} title="Access tier">
+                    {ac.label}
+                  </span>
+                  <span className={'w-20 text-center text-xs px-2 py-0.5 rounded-full ' + pb.cls} title="Publish status">
+                    {pb.label}
+                  </span>
+                  {u.has_revoked_ga_feature && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700" title="A default-on feature is turned off for this user">
+                      features disabled
+                    </span>
                   )}
                   <Link
                     href={`/admin/users/${u.slug}`}

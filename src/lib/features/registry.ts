@@ -27,12 +27,24 @@ export const FEATURE_KEYS = [
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 
+/**
+ * KAN-326: every feature has a `tier`:
+ *   - 'ga'   = generally available — ON for everyone, admin-revocable. Turning
+ *              it off for a user shows a "features disabled" badge.
+ *   - 'test' = experimental ("test features", was "beta features") — the opt-in
+ *              set. Promoting a feature from 'test' to 'ga' makes it on-by-default
+ *              while staying per-user revocable.
+ */
+export type FeatureTier = 'ga' | 'test';
+
 export interface FeatureConfig {
   key: FeatureKey;
   label: string;
   description: string;
   /** Returned by isFeatureEnabled when the user has NO entitlement row. */
   defaultEnabled: boolean;
+  /** GA (on for everyone, revocable) vs test (experimental opt-in). */
+  tier: FeatureTier;
   /** Human-readable name of the per-env master switch, if any. */
   envPrerequisite: string | null;
 }
@@ -43,6 +55,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'MCP access',
     description: 'AI-assistant write tools via the MCP server.',
     defaultEnabled: false, // backfilled true for existing API-key holders
+    tier: 'test',
     envPrerequisite: null,
   },
   convene: {
@@ -50,6 +63,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'Convene',
     description: 'AI-orchestrated gatherings (host GUI + agent tools).',
     defaultEnabled: false,
+    tier: 'test',
     envPrerequisite: 'CONVENE_ENABLED',
   },
   paid_gift_links: {
@@ -57,6 +71,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'Paid gift links',
     description: "Monetised affiliate links on this profile's gift recommendations.",
     defaultEnabled: false,
+    tier: 'test',
     envPrerequisite: 'SOVRN_API_KEY',
   },
   convene_paid_channels: {
@@ -64,6 +79,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'Convene SMS / WhatsApp',
     description: 'Paid invite channels (SMS/WhatsApp) for Convene.',
     defaultEnabled: false,
+    tier: 'test',
     envPrerequisite: 'CONVENE_ENABLED',
   },
   media_uploads: {
@@ -71,6 +87,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'Media uploads',
     description: 'Profile photo & file/media uploads.',
     defaultEnabled: true,
+    tier: 'ga',
     envPrerequisite: null,
   },
   discovery: {
@@ -78,9 +95,18 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
     label: 'Discovery',
     description: 'Be found by phone number / postcode.',
     defaultEnabled: true,
+    tier: 'ga',
     envPrerequisite: null,
   },
 };
+
+/** GA features (on for everyone, revocable) and test features (experimental opt-in). */
+export const GA_FEATURE_KEYS: FeatureKey[] = FEATURE_KEYS.filter(
+  (k) => FEATURE_CONFIG[k].tier === 'ga',
+);
+export const TEST_FEATURE_KEYS: FeatureKey[] = FEATURE_KEYS.filter(
+  (k) => FEATURE_CONFIG[k].tier === 'test',
+);
 
 export function isFeatureKey(value: string): value is FeatureKey {
   return (FEATURE_KEYS as readonly string[]).includes(value);
