@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { withParentCookieDomain } from '@/lib/cookie-domain';
+import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -24,6 +25,9 @@ export async function middleware(request: NextRequest) {
   const requestHost =
     request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
   const isAdminHost = requestHost === adminHost;
+  // SEC-34/SEC-37: app-layer Cloudflare Access verification is enforced once
+  // CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set (inert before that).
+  const cfEnabled = cfAccessEnabled();
 
   // Supabase PKCE: redirect code param to /auth/callback for session exchange
   const code = request.nextUrl.searchParams.get('code');
@@ -88,9 +92,24 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // KAN-309: route the admin tools to the admin subdomain (once enforced).
-  if (adminHostEnforced) {
+  // KAN-309 / SEC-37: route the admin tools to the admin subdomain, and verify
+  // Cloudflare Access on the admin host. Isolation applies when
+  // ADMIN_HOST_ENFORCED=true OR CF Access is configured — so enabling CF Access
+  // can never leave /admin reachable on a public host by forgetting a flag.
+  if (adminHostEnforced || cfEnabled) {
     if (isAdminHost) {
+      // SEC-34/SEC-37: every request reaching the admin host must carry a valid
+      // Cloudflare Access JWT — this rejects anything that hit the origin
+      // without transiting the CF edge (leaked preview URL, spoofed Host,
+      // direct origin). Inert (allows all) until CF_ACCESS_* are configured.
+      if (
+        cfEnabled &&
+        !(await verifyCfAccessToken(request.headers.get('cf-access-jwt-assertion')))
+      ) {
+        return new NextResponse('Forbidden: Cloudflare Access required.', {
+          status: 403,
+        });
+      }
       // Let the auth/login flow, API routes and assets pass through unchanged.
       const passthrough =
         pathname === '/login' ||
