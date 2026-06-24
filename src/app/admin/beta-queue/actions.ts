@@ -29,6 +29,8 @@ export async function approveBetaUser(formData: FormData): Promise<void> {
   const { error } = await svc
     .from('profiles')
     .update({
+      user_status: 'live',
+      access_tier: 'beta',
       beta_access_status: 'approved',
       is_beta_eligible: true,
       beta_approved_at: new Date().toISOString(),
