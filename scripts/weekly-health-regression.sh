@@ -57,7 +57,25 @@ run_phase() { # $1 label
     record PASS "$label" "ok"
   else
     rc=$?
-    record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    # Distinguish a genuine test/build failure from absent tooling/fixtures.
+    # A phase that can't run because its harness is missing is UNVERIFIED
+    # (loud, exit 1) — NEVER a silent pass, and NEVER a misleading FAIL that
+    # would mask a real regression behind environment noise. Two precise
+    # signatures only:
+    #   - jest "No tests found": the suite doesn't exist in this checkout
+    #     (e.g. there is no tests/integration dir — integration is not part
+    #     of the test floor per CLAUDE.md).
+    #   - playwright "Executable doesn't exist" / "download new browsers":
+    #     the browser binary isn't installed and can't be fetched in a
+    #     network-restricted sandbox (the pinned build differs from the
+    #     pre-installed one). Run against a deployed BASE_URL instead.
+    # Any OTHER non-zero exit — including a real assertion failure once the
+    # harness IS present — stays FAIL.
+    if grep -qiE "No tests found|Executable doesn't exist|Please run the following command to download new browsers" "$log"; then
+      record UNVERIFIED "$label" "harness/fixtures unavailable, not a code failure — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-240)"
+    else
+      record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    fi
   fi
   rm -f "$log"
 }
