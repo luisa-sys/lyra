@@ -27,7 +27,7 @@ Four **independent** axes per environment — verify each matches this table fir
 | **Waitlist gate enforced?** | No — gate inert (lands on dashboard) | **Yes** → non-`live` user → `/waitlist` | **Yes** → non-`live` → `/waitlist` |
 | **Homepage** | waitlist landing (`LYRA_FORCE_WAITLIST=true`) | product showcase + "A few people to meet" band | waitlist landing (no band) |
 | **Sign-up framing** | "Join the waitlist" (`LYRA_FORCE_WAITLIST`) | "Join the waitlist" (`isProdFamily`, post-#397) | "Join the waitlist" |
-| **Invite-code field** | hidden (`LYRA_INVITE_CODE` unset) | shown **iff** `LYRA_INVITE_CODE` set on beta scope | shown (`LYRA_INVITE_CODE` set) |
+| **Invite-code field** | hidden (`LYRA_INVITE_CODE` unset) | **shown** (`LYRA_INVITE_CODE` set on beta scope, 2026-06-28) | shown (`LYRA_INVITE_CODE` set) |
 | **Homepage examples seeded** | 6 (`@seed`) — not shown (waitlist landing) | 6 (`@seed`) — **shown** in band | 6 (`@seed`) — not shown (waitlist landing) |
 | **`AGE_VERIFICATION_REQUIRED`** | per env (confirm) | `true` | `true` |
 | **MCP** | `mcp-dev.checklyra.com` (dev key) | `mcp.checklyra.com` (prod key) | `mcp.checklyra.com` (prod key) |
@@ -176,7 +176,7 @@ tested once until its account is removed. See **§6 Reset** to clear test accoun
 | **E1** | prod (`checklyra.com`, logged out) | **Waitlist landing** — "We're opening Lyra a few people at a time", "Join the waitlist", **no** example band |
 | **E2** | beta (`beta.checklyra.com`, logged out) | **Product homepage** — "Be understood.", "Find someone", **"A few people to meet" band with the 6 `@seed` examples** |
 | **E3** | beta `/signup` | **"Join the Lyra waitlist"** (post-#397). Pre-#397 it wrongly says "Create account". |
-| **E4** | beta/prod `/signup` | invite-code field shown **iff** `LYRA_INVITE_CODE` set on that env's scope |
+| **E4** | beta/prod `/signup` | invite-code field shown when `LYRA_INVITE_CODE` is set — now configured on **both beta and prod** scopes |
 | **E5** | any | the `@seed` examples are the **only** profiles in the band — a real user can never appear (anti-leak trigger restricts `is_homepage_example` to `@seed.checklyra.com`) |
 
 ---
