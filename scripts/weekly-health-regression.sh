@@ -48,8 +48,33 @@ echo "# weekly-health-regression $(date -u +%Y-%m-%dT%H:%M:%SZ)  phases: $PHASES
 [ -f package.json ] || record UNVERIFIED repo "no package.json in $(pwd) — wrong dir/branch? (did you checkout develop?)"
 [ -d node_modules ] || record UNVERIFIED deps "node_modules missing — run 'npm ci' (and 'npx playwright install' for E2E) in the setup script first"
 
+# A phase can exit non-zero for two very different reasons (BUGS-51 / BUGS-58):
+#   (1) tests RAN and a real assertion failed         -> FAIL (never weaken a test)
+#   (2) the test HARNESS/TARGET is absent in this env -> UNVERIFIED (loud, not green)
+# We downgrade FAIL -> UNVERIFIED ONLY on these unambiguous, well-known
+# harness-absence signatures, and ONLY when there is no sign a test actually ran
+# and failed — so a genuine regression can NEVER be hidden behind UNVERIFIED.
+# UNVERIFIED stays non-zero/loud (see exit logic); it is never downgraded to PASS.
+harness_absent() { # $1=label $2=logfile -> prints reason if env-gap, else nothing
+  local log="$2"
+  # Any sign a real test executed and failed? Then it's a genuine FAIL, full stop.
+  if grep -qiE "expect\(|toBeVisible|toHaveTitle|toHaveCount|assertionerror|✕|received:|expected:" "$log"; then
+    return
+  fi
+  # Playwright: the pinned browser build isn't installed / can't launch.
+  if grep -qiE "executable doesn't exist|please run the following command to download new browsers|failed to download|browsertype\.(launch|connect)" "$log"; then
+    echo "Playwright browser binaries for the pinned version are not installed / no reachable target — run 'npx playwright install' or point at a deployed target, then re-run"
+    return
+  fi
+  # Jest: the path pattern matched zero test files (suite absent in this checkout).
+  if grep -qiE "0 matches|no tests found" "$log"; then
+    echo "no test files matched this phase's pattern — suite absent in this checkout"
+    return
+  fi
+}
+
 run_phase() { # $1 label
-  local label="$1" c rc log; c="$(cmd_for "$label")"
+  local label="$1" c rc log reason; c="$(cmd_for "$label")"
   [ -z "$c" ] && { record UNVERIFIED "$label" "no command mapped"; return; }
   [ -d node_modules ] || { record UNVERIFIED "$label" "skipped — deps not installed"; return; }
   log="$(mktemp)"
@@ -57,7 +82,12 @@ run_phase() { # $1 label
     record PASS "$label" "ok"
   else
     rc=$?
-    record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    reason="$(harness_absent "$label" "$log")"
+    if [ -n "$reason" ]; then
+      record UNVERIFIED "$label" "$reason"
+    else
+      record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    fi
   fi
   rm -f "$log"
 }
