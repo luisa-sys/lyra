@@ -32,9 +32,6 @@ export interface BulkUserRow {
   is_suspended: boolean;
   is_admin: boolean;
   has_revoked_ga_feature: boolean;
-  // legacy columns still returned during the transition; not rendered.
-  access_stage?: 'waitlist' | 'beta' | 'live';
-  early_access?: boolean;
 }
 
 function actionLabel(value: string): string {
