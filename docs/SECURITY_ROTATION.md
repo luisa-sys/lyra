@@ -59,6 +59,8 @@
 6. Test Google Sign-In on dev environment
 7. Promote to staging and production
 
+> **Note (2026-06-28):** Rotating the client *secret* does NOT re-trigger Google's consent-screen / brand verification — verification is tied to the app (authorised domains, homepage, privacy policy, app name), not the secret. Google Sign-In stays "In production / verified" (KAN-286) across secret rotations. Re-verification is only needed if you change authorised domains, the app name/logo, or add sensitive/restricted scopes.
+
 ### Rotating LYRA_RELEASE_PAT
 
 ⚠️ **All three scopes below are required.** Earlier versions of this doc said only `Contents` was needed; that was outdated and caused multiple production-promotion failures (BUGS-8, BUGS-15, plus the 2026-05-27 incident where a rotation dropped scopes). Always set all three.
