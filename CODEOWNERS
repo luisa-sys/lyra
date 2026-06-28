@@ -1,0 +1,42 @@
+# CODEOWNERS — Lyra (checklyra.com)
+#
+# SEC-3 (GOV-01) — segregation-of-duties baseline. This file declares who is
+# accountable for which areas of the codebase. When GitHub branch protection
+# has "Require review from Code Owners" enabled on `main`/`beta`, a PR that
+# touches an owned path needs an approving review from the listed owner before
+# it can merge — the independent second pair of eyes the audit flagged as
+# missing (the last 15 prod merges were authored AND merged by one person with
+# reviewDecision: NONE).
+#
+# Realistic note for a solo+1 team: where @luisa-sys is the only available
+# reviewer, a PR she authors cannot be self-approved under code-owner rules.
+# The compensating control until a second reviewer (@ben-*) is wired in is the
+# mandatory self-review checklist in docs/compliance/FOUNDER_CHECKLIST.md plus
+# post-merge review. Add Ben's GitHub handle to the security-critical lines
+# below as soon as his account has repo access — see SEC-3.
+
+# ── Default owner for everything ─────────────────────────────────────────────
+*                                   @luisa-sys
+
+# ── Security-critical surfaces (highest scrutiny) ────────────────────────────
+# Auth, OAuth 2.1 server, beta-access/entitlements, admin, RLS migrations.
+/src/app/(auth)/                    @luisa-sys
+/src/app/oauth/                     @luisa-sys
+/src/lib/oauth/                     @luisa-sys
+/src/lib/beta-access/               @luisa-sys
+/src/app/admin/                     @luisa-sys
+/src/lib/cookie-domain.ts           @luisa-sys
+/src/lib/env.ts                     @luisa-sys
+/supabase/migrations/               @luisa-sys
+
+# ── CI / release / infra (a bad change here ships to prod) ───────────────────
+/.github/workflows/                 @luisa-sys
+/scripts/                           @luisa-sys
+/vercel.json                        @luisa-sys
+/wrangler.toml                      @luisa-sys
+
+# ── Governance & compliance docs ─────────────────────────────────────────────
+/CODEOWNERS                         @luisa-sys
+/SECURITY.md                        @luisa-sys
+/docs/compliance/                   @luisa-sys
+/CLAUDE.md                          @luisa-sys
