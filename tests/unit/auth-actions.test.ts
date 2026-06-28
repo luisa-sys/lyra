@@ -86,7 +86,7 @@ describe('KAN-258: signUp action (passwordless)', () => {
   });
 });
 
-describe('KAN-258: invite-only signup gate', () => {
+describe('KAN-336: invite code (optional, skip-waitlist)', () => {
   test('with no invite code configured, signup is NOT gated (back-compat)', async () => {
     mockSignInWithOtp.mockResolvedValue({ error: null });
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A' });
@@ -94,13 +94,17 @@ describe('KAN-258: invite-only signup gate', () => {
     expect(mockSignInWithOtp).toHaveBeenCalled();
   });
 
-  test('rejects signup when an invite code is required but missing', async () => {
+  test('a missing code (with a code configured) now proceeds to a normal waitlist signup', async () => {
+    // KAN-336: the code is OPTIONAL — a missing code is no longer a hard block
+    // (was the old KAN-258 invite-only behaviour). The signup proceeds and the
+    // user joins the waitlist; no invite_code is carried into the OTP metadata.
     mockInviteCode = 'LET-ME-IN';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
-    expect(mockSignInWithOtp).not.toHaveBeenCalled();
-    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?error=');
-    expect(mockRedirect.mock.calls[0][0]).toContain('invite-only');
+    expect(mockSignInWithOtp).toHaveBeenCalled();
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
   });
 
   test('rejects signup when the invite code is wrong', async () => {
@@ -125,6 +129,56 @@ describe('KAN-258: invite-only signup gate', () => {
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: '  LET-ME-IN  ' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
     expect(mockSignInWithOtp).toHaveBeenCalled();
+  });
+});
+
+describe('KAN-336: optional skip-waitlist code', () => {
+  test('missing code (with a code configured) proceeds to a normal signup — no invite_code carried', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A' }); // no invite_code
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp).toHaveBeenCalled();
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
+  });
+
+  test('the correct code carries invite_code in the OTP metadata', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: 'LET-ME-IN' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
+      full_name: 'A',
+      invite_code: 'LET-ME-IN',
+    });
+  });
+
+  test('a wrong non-empty code is rejected (no account created)', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: 'nope' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?error=');
+  });
+
+  test('trims whitespace and carries the matched code', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: '  LET-ME-IN  ' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
+      full_name: 'A',
+      invite_code: 'LET-ME-IN',
+    });
+  });
+
+  test('no code configured: invite_code is never carried even if submitted (back-compat)', async () => {
+    mockInviteCode = '';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: 'anything' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
   });
 });
 

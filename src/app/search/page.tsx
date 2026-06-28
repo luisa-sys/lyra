@@ -76,6 +76,7 @@ export default async function SearchPage({
       .from('profiles')
       .select('id, display_name, slug, headline, city, country, avatar_url')
       .eq('is_published', true)
+      .eq('is_homepage_example', false) // KAN-334: curated demo profiles never appear in real member discovery
       .or(`display_name.ilike.${pattern},headline.ilike.${pattern},city.ilike.${pattern},slug.ilike.${pattern}`)
       .order('display_name')
       .limit(30);

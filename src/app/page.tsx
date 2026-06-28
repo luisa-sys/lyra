@@ -43,11 +43,16 @@ function getSupabase() {
 async function getPublishedProfiles(): Promise<HomeProfile[]> {
   try {
     const supabase = getSupabase();
+    // KAN-334: the public (logged-out) homepage band must render ONLY curated
+    // demo profiles — never real users. `is_homepage_example` is an allowlist
+    // flag (default false) that a DB trigger restricts to @seed.checklyra.com
+    // accounts, so no real profile (incl. Ben/Luisa) can ever appear here.
     const { data } = await supabase
       .from("profiles")
       .select("display_name, slug, headline, avatar_url")
       .eq("is_published", true)
-      .order("updated_at", { ascending: false })
+      .eq("is_homepage_example", true)
+      .order("homepage_example_order", { ascending: true })
       .limit(6);
     return (data || []) as HomeProfile[];
   } catch {
