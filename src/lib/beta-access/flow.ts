@@ -83,10 +83,13 @@ export function isProdFamily(e: NodeJS.ProcessEnv = process.env): boolean {
  * service role (admin-only trigger). Defensive: any failure must NOT break
  * sign-in — we log and treat the user as not-approved (→ waitlist).
  */
-export async function resolveBetaAccess(user: {
-  id: string;
-  email?: string | null;
-}): Promise<{ userStatus: UserStatus; accessTier: AccessTier }> {
+export async function resolveBetaAccess(
+  user: {
+    id: string;
+    email?: string | null;
+  },
+  opts?: { carriedCode?: string },
+): Promise<{ userStatus: UserStatus; accessTier: AccessTier }> {
   try {
     const svc = createServiceRoleClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
 
@@ -104,17 +107,26 @@ export async function resolveBetaAccess(user: {
       return { userStatus, accessTier };
     }
 
-    // KAN-336 — fast-track: if this signup carried a valid invite code, grant
-    // beta directly (skip the waitlist). user_metadata is user-settable, so we
-    // re-validate the SECRET VALUE here, server-side, against env.inviteCode().
-    // Possessing the correct code IS the authorisation. Only runs when a code is
-    // configured, so it adds no work on envs without the feature.
+    // KAN-336 / KAN-337 — fast-track: if this signup carried a valid invite code,
+    // grant beta directly (skip the waitlist). The code reaches us two ways, both
+    // re-validated SERVER-SIDE here against env.inviteCode() (possessing the
+    // correct code IS the authorisation):
+    //   • carriedCode — the /join deep-link cookie, read by resolvePostLoginRedirect
+    //     (this is the ONLY carrier that survives the Google-OAuth round-trip), and
+    //   • user_metadata.invite_code — set by the email sign-up form (user-settable,
+    //     hence the re-validation).
+    // Only runs when a code is configured, so it adds no work on envs without it.
     const configuredCode = env.inviteCode();
     if (configuredCode) {
-      const { data: authData } = await svc.auth.admin.getUserById(user.id);
-      const carried =
-        (authData?.user?.user_metadata?.invite_code as string | undefined) ?? '';
-      if (carried && carried === configuredCode) {
+      const carriedCookie = (opts?.carriedCode ?? '').trim();
+      let granted = !!carriedCookie && carriedCookie === configuredCode;
+      if (!granted) {
+        const { data: authData } = await svc.auth.admin.getUserById(user.id);
+        const carried =
+          (authData?.user?.user_metadata?.invite_code as string | undefined) ?? '';
+        granted = !!carried && carried === configuredCode;
+      }
+      if (granted) {
         const { update } = computeAccessTransition('enable_beta', {
           now: new Date().toISOString(),
         });

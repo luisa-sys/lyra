@@ -10,7 +10,7 @@
 > Keep it green. A failing case here means a real regression in the gate that
 > protects who gets into the product and who can publish.
 
-**Owner:** Luisa / Ben · **Last updated:** 2026-06-28 · **Tracks:** KAN-326, KAN-336, KAN-334, KAN-282, KAN-273.
+**Owner:** Luisa / Ben · **Last updated:** 2026-06-29 · **Tracks:** KAN-326, KAN-336, KAN-337, KAN-334, KAN-282, KAN-273, SEC-37.
 
 ---
 
@@ -28,6 +28,7 @@ Four **independent** axes per environment — verify each matches this table fir
 | **Homepage** | waitlist landing (`LYRA_FORCE_WAITLIST=true`) | product showcase + "A few people to meet" band | waitlist landing (no band) |
 | **Sign-up framing** | "Join the waitlist" (`LYRA_FORCE_WAITLIST`) | "Join the waitlist" (`isProdFamily`, post-#397) | "Join the waitlist" |
 | **Invite-code field** | hidden (`LYRA_INVITE_CODE` unset) | **shown** (`LYRA_INVITE_CODE` set on beta scope, 2026-06-28) | shown (`LYRA_INVITE_CODE` set) |
+| **Beta-invite deep-link** (KAN-337) | off (no code) | `…/join?code=` works + dashboard "Share beta access" card | same — share link uses `checklyra.com` host |
 | **Homepage examples seeded** | 6 (`@seed`) — not shown (waitlist landing) | 6 (`@seed`) — **shown** in band | 6 (`@seed`) — not shown (waitlist landing) |
 | **`AGE_VERIFICATION_REQUIRED`** | per env (confirm) | `true` | `true` |
 | **MCP** | `mcp-dev.checklyra.com` (dev key) | `mcp.checklyra.com` (prod key) | `mcp.checklyra.com` (prod key) |
@@ -188,6 +189,52 @@ tested once until its account is removed. See **§6 Reset** to clear test accoun
 | **F1** | Adding/authenticating the prod connector shows **"Authenticate your Check Lyra account"** (not a blank `{}` — BUGS-59, via PRM `resource_name`). |
 | **F2** | An authenticated **write** tool succeeds with a valid key; a non-entitled feature (e.g. Convene) is correctly gated off. |
 | **F3** | `mcp.checklyra.com/.well-known/oauth-protected-resource` returns `resource_name:"Check Lyra"`; `…/mcp.json` `build_sha` == `origin/main`. |
+
+---
+
+## 7a. Beta-invite deep-link & dashboard share (KAN-337)
+
+The shareable link `https://checklyra.com/join?code=<LYRA_INVITE_CODE>` skips the
+waitlist for whoever clicks it — for **both** email magic-link and Google sign-up.
+The dashboard shows it as a "Share beta access" card and embeds it in the share
+message. The canonical link uses the **prod host** on the prod family (beta + prod
+share the public front door); dev uses the dev host.
+
+| Case | Steps | Expect |
+|---|---|---|
+| **G1** (link, logged out) | `curl -sI "https://<host>/join?code=<correct>"` | `307` → `Location: …/signup?invited=1`; `Set-Cookie: lyra_invite=<code>; HttpOnly; …; SameSite=lax` |
+| **G1b** (bad/no code) | `curl -sI "https://<host>/join?code=wrong"` and `…/join` | `307` → `…/signup` (no `?invited=1`), **no** `Set-Cookie` |
+| **G2** (email via link) | open `/join?code=<correct>` in a browser → `/signup` shows the green **"You've been invited…"** banner + no waitlist framing → sign up with a fresh `ben+tag@…` → open the magic link | lands in **beta** (dashboard, not `/waitlist`) |
+| **G3** (Google via link) | open `/join?code=<correct>` → **Continue with Google** with a fresh account → consent | lands in **beta** — the cookie carried the code through OAuth → resolveBetaAccess granted |
+| **G4** (dashboard share) | log in as a live beta user → dashboard | a **"Share beta access"** card shows the `…/join?code=…` link + Copy; the "Share Lyra" message CTA is the same link ("skips the waitlist") |
+| **G5** (feature off) | env with `LYRA_INVITE_CODE` unset (e.g. dev) | `/join?code=x` → `/signup`, no cookie, no banner, no dashboard card |
+
+DB check after G2/G3 (expect `live` / `beta`, no waitlist):
+```sql
+select user_status, access_tier from profiles p join auth.users u on u.id=p.user_id
+where u.email='<addr>';
+```
+
+---
+
+## 7b. Admin host isolation activation (SEC-37)
+
+Active once `CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD` (+ `ADMIN_HOST_ENFORCED=true`)
+are set on the env. The admin console then lives ONLY on the admin host behind
+Cloudflare Access **and** an in-app JWT verify. Run this 4-/5-layer canary right
+after activation (and on any release touching middleware / `cf-access.ts`):
+
+| Layer | Check | Expect |
+|---|---|---|
+| **H1** (edge) | `curl -sIL https://<admin-host>/` (logged out) | `302` → `…cloudflareaccess.com/cdn-cgi/access/login/<admin-host>?…aud=<AUD>` |
+| **H2** (host serves admin, no bounce) | logged-in admin opens `https://<admin-host>/` | serves the admin console (middleware rewrites `/`→`/admin`, **skips the beta gate** — this is the BUGS-56 "bounce to beta" fix) |
+| **H3** (in-app JWT) | hit the Vercel origin / a `*.vercel.app` preview with `Host: <admin-host>` and **no** CF JWT | **403** `Forbidden: Cloudflare Access required` |
+| **H4** (shared-host redirect) | `curl -sI https://checklyra.com/admin` | `30x` → `https://<admin-host>/admin` — `/admin` is never served on the public host |
+| **H5** (is_admin still applies) | a non-admin who passes CF Access opens the admin host | `/admin` denied/404 — the `is_admin` gate still runs under the CF layer |
+
+Per-env: dev `admin-dev.checklyra.com` (AUD `611d6bf7…`); prod `admin.checklyra.com`
+(AUD `c59e6cee…`), team `checklyra.cloudflareaccess.com`. **Rollback** = unset the
+CF env vars + redeploy → reverts to inert (`/admin` works on every host again).
 
 ---
 
