@@ -52,6 +52,10 @@ describe('KAN-272: Minimal homepage (June-2026 redesign)', () => {
     expect(content).toContain('.limit(6)');
   });
 
+  test('KAN-334: the homepage band is gated to curated examples only (never real users)', () => {
+    expect(content).toContain('is_homepage_example');
+  });
+
   test('nav matches the mock-up — Home / Find someone / Create your profile + de-emphasised Sign in', () => {
     expect(content).toMatch(/>\s*Home\s*</);
     expect(content).toContain('Find someone');
