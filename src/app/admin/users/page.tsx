@@ -60,9 +60,9 @@ async function listUsers(filter: UserFilter, page: number): Promise<{ rows: Bulk
 async function stageCounts(): Promise<{ waitlist: number; beta: number; live: number; suspended: number }> {
   const svc = getAdminServiceClient();
   const [waitlist, beta, live, suspended] = await Promise.all([
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'waitlist'),
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'beta'),
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'live'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'waitlist'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'live').eq('access_tier', 'beta'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'live').eq('access_tier', 'prod'),
     svc.from('profiles').select('id', { count: 'exact', head: true }).eq('is_suspended', true),
   ]);
   return {

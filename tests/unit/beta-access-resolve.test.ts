@@ -39,8 +39,8 @@ jest.mock('@supabase/supabase-js', () => ({
           eq: () => ({
             // grant path: `await svc.from().update().eq()` resolves here
             then: (resolve: (v: unknown) => void) => resolve({ data: null }),
-            // waitlist path: `.eq().eq().select()`
-            eq: () => ({ select: () => Promise.resolve({ data: mockWaitlistUpdated }) }),
+            // waitlist path: `.eq().is().select()` (idempotent on beta_requested_at IS NULL)
+            is: () => ({ select: () => Promise.resolve({ data: mockWaitlistUpdated }) }),
           }),
         };
       },
@@ -64,7 +64,7 @@ beforeEach(() => {
   mockProfile = {
     user_status: 'waitlist',
     access_tier: 'beta',
-    beta_access_status: 'none',
+    beta_requested_at: null,
     display_name: 'A',
   };
   mockUserMetadata = {};
@@ -85,11 +85,11 @@ describe('KAN-336: resolveBetaAccess invite-code grant', () => {
     expect(updateSpy.mock.calls[0][0]).toMatchObject({
       user_status: 'live',
       access_tier: 'beta',
-      access_stage: 'beta',
-      early_access: true,
-      is_beta_eligible: true,
-      beta_access_status: 'approved',
     });
+    // KAN-326 Phase C: the grant writes only the new axes (+ audit ts), no legacy cols.
+    for (const col of ['access_stage', 'early_access', 'is_beta_eligible', 'beta_access_status']) {
+      expect(updateSpy.mock.calls[0][0]).not.toHaveProperty(col);
+    }
     // No waitlist queue notice for a self-redeemed code.
     expect(mockSendBetaQueueNotice).not.toHaveBeenCalled();
   });
@@ -104,7 +104,7 @@ describe('KAN-336: resolveBetaAccess invite-code grant', () => {
     expect(updateSpy).toHaveBeenCalledTimes(1);
     expect(updateSpy.mock.calls[0][0]).toMatchObject({
       user_status: 'waitlist',
-      beta_access_status: 'requested',
+      beta_requested_at: expect.any(String),
     });
     expect(mockSendBetaQueueNotice).toHaveBeenCalled();
   });
@@ -117,12 +117,12 @@ describe('KAN-336: resolveBetaAccess invite-code grant', () => {
 
     expect(result).toEqual({ userStatus: 'waitlist', accessTier: 'beta' });
     expect(getUserByIdSpy).not.toHaveBeenCalled();
-    expect(updateSpy.mock.calls[0][0]).toMatchObject({ beta_access_status: 'requested' });
+    expect(updateSpy.mock.calls[0][0]).toMatchObject({ user_status: 'waitlist', beta_requested_at: expect.any(String) });
   });
 
   it('is a no-op for an already-live user (no grant, no waitlist write)', async () => {
     mockInviteCode = 'SECRET-123';
-    mockProfile = { user_status: 'live', access_tier: 'beta', beta_access_status: 'approved' };
+    mockProfile = { user_status: 'live', access_tier: 'beta' };
     mockUserMetadata = { invite_code: 'SECRET-123' };
 
     const result = await resolveBetaAccess({ id: 'u1', email: 'a@b.com' });

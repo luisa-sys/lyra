@@ -7,10 +7,10 @@ import { createClient } from '@/lib/supabase-server';
  * KAN-175: beta waitlist landing page.
  *
  * Reached via the middleware redirect when an authenticated user visits any
- * page on `beta.checklyra.com` (i.e. IS_BETA_DEPLOY=true) but does not have
- * `is_beta_eligible = true` on their profile.
+ * page on `beta.checklyra.com` (i.e. IS_BETA_DEPLOY=true) but is not yet a live
+ * beta user (`user_status !== 'live'`).
  *
- * If the user is already beta-eligible (e.g. they navigated here directly),
+ * If the user is already a live beta user (e.g. they navigated here directly),
  * we send them back to the dashboard instead of showing the waitlist UI.
  *
  * If the user is not signed in, we just show the public-facing waitlist

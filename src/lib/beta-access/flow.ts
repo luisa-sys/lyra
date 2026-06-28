@@ -92,7 +92,7 @@ export async function resolveBetaAccess(user: {
 
     const { data: profile } = await svc
       .from('profiles')
-      .select('user_status, access_tier, beta_access_status, display_name')
+      .select('user_status, access_tier, display_name, beta_requested_at')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -123,20 +123,20 @@ export async function resolveBetaAccess(user: {
       }
     }
 
-    // Brand-new signup: record the request once + notify the admin. We key the
-    // idempotent transition + the one-shot notice off the legacy
-    // beta_access_status (kept in sync until the legacy columns are dropped).
-    const legacyStatus = profile?.beta_access_status as string | undefined;
-    if (legacyStatus === undefined || legacyStatus === 'none') {
+    // Brand-new signup: record the request once + notify the admin. KAN-326
+    // Phase C — the legacy beta_access_status column is gone; we key the one-shot
+    // notice off the beta_requested_at audit timestamp being null, so the
+    // first-request transition stays atomic + idempotent (the .is(null) guard
+    // means a concurrent/retried call updates 0 rows and won't re-notify).
+    if (!profile?.beta_requested_at) {
       const { data: updated } = await svc
         .from('profiles')
         .update({
           user_status: 'waitlist',
-          beta_access_status: 'requested',
           beta_requested_at: new Date().toISOString(),
         })
         .eq('user_id', user.id)
-        .eq('beta_access_status', 'none') // idempotent: only the none->requested transition
+        .is('beta_requested_at', null) // idempotent: only the first request notifies
         .select('user_id');
 
       if (updated && updated.length > 0) {
