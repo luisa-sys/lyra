@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 import ShareProfile from './share-profile';
+import ShareBeta from './share-beta';
+import { betaInviteLink } from '@/lib/beta-access/invite-link';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import { canPublishWithAge } from '@/lib/age/gate';
 
@@ -35,6 +37,8 @@ export default async function DashboardPage() {
   const needsAgeCheck = !canPublishWithAge(
     (profile as { age_status?: string | null } | null)?.age_status,
   );
+  // KAN-337 — beta-invite deep-link to share (null unless LYRA_INVITE_CODE is set).
+  const inviteLink = betaInviteLink();
 
   return (
     <main className="min-h-screen">
@@ -158,9 +162,12 @@ export default async function DashboardPage() {
             <ShareProfile
               profileUrl={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`}
               displayName={profile.display_name}
+              betaLink={inviteLink}
             />
           )}
         </div>
+
+        {inviteLink && <ShareBeta inviteLink={inviteLink} />}
 
         {conveneEnabled && (
           <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6">

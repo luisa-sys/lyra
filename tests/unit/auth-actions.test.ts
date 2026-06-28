@@ -9,10 +9,16 @@ jest.mock('next/navigation', () => ({
   redirect: (...args: unknown[]) => { mockRedirect(...args); throw new Error('REDIRECT'); },
 }));
 
-// Mock next/headers
+// Mock next/headers — `headers` for the origin; `cookies` for the KAN-337
+// beta-invite deep-link cookie fallback in signUp (toggled via mockInviteCookie).
+let mockInviteCookie: string | undefined;
 jest.mock('next/headers', () => ({
   headers: jest.fn().mockResolvedValue({
     get: jest.fn().mockReturnValue('https://dev.checklyra.com'),
+  }),
+  cookies: jest.fn().mockResolvedValue({
+    get: (name: string) =>
+      name === 'lyra_invite' && mockInviteCookie ? { value: mockInviteCookie } : undefined,
   }),
 }));
 
@@ -53,6 +59,7 @@ function makeFormData(data: Record<string, string>): FormData {
 beforeEach(() => {
   jest.clearAllMocks();
   mockInviteCode = '';
+  mockInviteCookie = undefined;
 });
 
 describe('KAN-258: signUp action (passwordless)', () => {
@@ -129,6 +136,28 @@ describe('KAN-336: invite code (optional, skip-waitlist)', () => {
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: '  LET-ME-IN  ' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
     expect(mockSignInWithOtp).toHaveBeenCalled();
+  });
+
+  // KAN-337 — beta-invite deep-link: the /join cookie carries the code when the
+  // form field is left blank, so the email path still fast-tracks into beta.
+  test('falls back to the lyra_invite cookie when the form field is blank', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockInviteCookie = 'LET-ME-IN';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A' }); // no invite_code field
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
+      full_name: 'A',
+      invite_code: 'LET-ME-IN',
+    });
+  });
+
+  test('an explicit wrong form code is still rejected even when a cookie is present', async () => {
+    mockInviteCode = 'LET-ME-IN';
+    mockInviteCookie = 'LET-ME-IN';
+    const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: 'nope' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
   });
 });
 

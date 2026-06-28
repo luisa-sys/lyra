@@ -25,6 +25,20 @@ describe('KAN-154-B buildInviteText', () => {
     expect(out).toMatch(/Here['']s where you can create yours: https?:\/\//);
   });
 
+  test('KAN-337: a betaLink becomes the create-yours CTA (skips the waitlist)', () => {
+    const out = buildInviteText({
+      profileUrl: 'https://checklyra.com/luisa',
+      betaLink: 'https://checklyra.com/join?code=ABC',
+    });
+    expect(out).toContain('https://checklyra.com/join?code=ABC');
+    expect(out).toContain('skips the waitlist');
+  });
+
+  test('KAN-337: omits the join link when no betaLink is provided (back-compat)', () => {
+    const out = buildInviteText({ profileUrl: 'https://checklyra.com/luisa' });
+    expect(out).not.toContain('/join?code=');
+  });
+
   test('falls back to default greeting when none is provided', () => {
     const out = buildInviteText({ profileUrl: null });
     // The default opener has to keep working for users who copy the

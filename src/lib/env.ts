@@ -26,7 +26,10 @@ export const env = {
   // KAN-336 (was KAN-258) — shared OPTIONAL sign-up code. When set, entering it
   // on /signup skips the waitlist and grants beta directly (re-validated
   // server-side in resolveBetaAccess). No code = normal waitlist signup; empty
-  // string = feature off (no code field shown).
-  inviteCode: () => optionalEnv('LYRA_INVITE_CODE', ''),
+  // string = feature off (no code field shown). Trimmed (KAN-337 review) so a
+  // configured code with stray whitespace still matches the trimmed input every
+  // comparison site uses (/join, signup, actions, resolveBetaAccess); a
+  // whitespace-only value collapses to '' = feature off.
+  inviteCode: () => optionalEnv('LYRA_INVITE_CODE', '').trim(),
 };
 // Force rebuild 20260329011858
