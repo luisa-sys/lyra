@@ -16,10 +16,10 @@ export default async function SignUpPage({
   searchParams: Promise<{ error?: string; message?: string; preview?: string }>;
 }) {
   const params = await searchParams;
-  // KAN-258 — during the private phase, account creation needs an invite
-  // code and third-party sign-in is hidden, so the only way in is the
-  // gated email form.
-  const inviteOnly = !!env.inviteCode();
+  // KAN-336 — when a sign-up code is configured, offer it as an OPTIONAL field:
+  // entering the correct code skips the waitlist and grants beta directly. No
+  // code = a normal waitlist signup. Social sign-in stays available either way.
+  const hasInviteCode = !!env.inviteCode();
   // KAN-273/KAN-287 — on the public production deploy, prod is the doorway into
   // the gated beta app: signing up records a request and lands the user on the
   // waitlist. Frame the page as "join the waitlist". `?preview=waitlist`
@@ -65,35 +65,30 @@ export default async function SignUpPage({
           </div>
         )}
 
-        {!inviteOnly && (
-          <>
-            <SocialLoginButtons />
+        <SocialLoginButtons />
 
-            <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-[#ece7df]" />
-              <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
-              <div className="flex-1 h-px bg-[#ece7df]" />
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#ece7df]" />
+          <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
+          <div className="flex-1 h-px bg-[#ece7df]" />
+        </div>
 
         <form className="space-y-4">
-          {inviteOnly && (
+          {hasInviteCode && (
             <div>
               <label htmlFor="invite_code" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-                Invite code
+                Invite code <span className="font-normal text-[var(--color-muted)]">(optional)</span>
               </label>
               <input
                 id="invite_code"
                 name="invite_code"
                 type="text"
-                required
                 autoComplete="off"
                 className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-                placeholder="From your invitation"
+                placeholder="Skip the waitlist"
               />
               <p className="mt-1 text-xs text-[var(--color-muted)]">
-                Lyra is invite-only while we&apos;re in private testing.
+                Have a code? Enter it to skip the waitlist and go straight in.
               </p>
             </div>
           )}

@@ -25,7 +25,7 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Region**: EU West (Ireland)
 - **Tables**: profiles, profile_items, external_links, school_affiliations, api_keys
 - **Auth**: Supabase Auth (email/password, Google OAuth, email confirmation). Apple Sign-In deferred.
-- **Google OAuth**: Client ID 381290542304-46avld4uoubqd259nrf8ssp8pj2h73kn (same across all 3 projects, Testing mode)
+- **Google OAuth**: Client ID 381290542304-46avld4uoubqd259nrf8ssp8pj2h73kn (same across all 3 projects, **In production / brand-verified 2026-06-28**, basic scopes openid/email/profile)
 - **Security**: Row Level Security on all tables
 
 ### DNS & CDN
@@ -249,12 +249,12 @@ All operations run via GitHub Actions — no local machine needed:
 - **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference
 
 ### OAuth Security — partially configured
-- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen in **Testing mode** — only allow-listed emails can sign in. **Must move to Production mode before beta launch (KAN-125), which is itself gated by removing Cloudflare lockdown on prod so the Google verifier can reach the consent screen URLs.** Google verification takes days/weeks — submit early.
+- **Google OAuth**: Client ID 381290542304-* shared across 3 Supabase projects. Consent screen **published 'In production' (External) and brand-verified 2026-06-28 (KAN-286 / KAN-125)** on **basic scopes** (openid/email/profile) → unlimited public Google Sign-In, no 'unverified app' warning, no 100-test-user cap. ⚠️ Convene's Google **Calendar** integration uses a **separate** OAuth client with **sensitive** scopes (calendar.readonly/events) that still needs its **own** Google sensitive-scope verification before public Calendar use — not covered by the basic-scope brand verification.
 - **Apple Sign-In**: Deferred (no Apple Developer account)
 - **Audit checklist (KAN-90)**: see `docs/CYBER_LOCKDOWN.md` — quarterly verification of redirect URIs, JavaScript origins, scopes, 2FA on owning Google account, consent screen branding, test users allow-list, IAM members. Re-run the Google Cloud Console section of that doc before each beta/prod launch.
 
 ### Known gaps — tracked in Jira
-- Google OAuth consent screen in Testing mode — **beta blocker** (KAN-125)
+- ✅ Google OAuth consent screen **In production / brand-verified** (KAN-286 / KAN-125) — beta blocker **RESOLVED 2026-06-28**
 - MCP server has no rate limiting or CORS (KAN-118) — **DONE 29 Mar 2026**
 - Token rotation schedule documented (KAN-119) — **DONE 29 Mar 2026**
 - Prompt injection defence for user-generated profile data read by AI (KAN-120) — **DONE 29 Mar 2026**

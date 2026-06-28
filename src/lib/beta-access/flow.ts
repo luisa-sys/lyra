@@ -15,6 +15,7 @@
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { sendBetaQueueNotice } from './email';
+import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
 
 const BETA_HOST = 'https://beta.checklyra.com';
 const PROD_HOST = 'https://checklyra.com';
@@ -101,6 +102,25 @@ export async function resolveBetaAccess(user: {
     // Already an active user — nothing to record.
     if (userStatus === 'live') {
       return { userStatus, accessTier };
+    }
+
+    // KAN-336 — fast-track: if this signup carried a valid invite code, grant
+    // beta directly (skip the waitlist). user_metadata is user-settable, so we
+    // re-validate the SECRET VALUE here, server-side, against env.inviteCode().
+    // Possessing the correct code IS the authorisation. Only runs when a code is
+    // configured, so it adds no work on envs without the feature.
+    const configuredCode = env.inviteCode();
+    if (configuredCode) {
+      const { data: authData } = await svc.auth.admin.getUserById(user.id);
+      const carried =
+        (authData?.user?.user_metadata?.invite_code as string | undefined) ?? '';
+      if (carried && carried === configuredCode) {
+        const { update } = computeAccessTransition('enable_beta', {
+          now: new Date().toISOString(),
+        });
+        await svc.from('profiles').update(update).eq('user_id', user.id);
+        return { userStatus: 'live', accessTier: 'beta' };
+      }
     }
 
     // Brand-new signup: record the request once + notify the admin. We key the

@@ -23,9 +23,10 @@ export const env = {
   supabaseAnonKey: () => requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
   supabaseServiceRoleKey: () => requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   siteUrl: () => optionalEnv('NEXT_PUBLIC_SITE_URL', 'https://checklyra.com'),
-  // KAN-258 — shared invite code for the private (invite-only) phase.
-  // When set, creating an account requires this code and third-party
-  // sign-in is hidden. Empty string = gate off (open signup).
+  // KAN-336 (was KAN-258) — shared OPTIONAL sign-up code. When set, entering it
+  // on /signup skips the waitlist and grants beta directly (re-validated
+  // server-side in resolveBetaAccess). No code = normal waitlist signup; empty
+  // string = feature off (no code field shown).
   inviteCode: () => optionalEnv('LYRA_INVITE_CODE', ''),
 };
 // Force rebuild 20260329011858
