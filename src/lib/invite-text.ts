@@ -36,12 +36,17 @@ const SITE_LANDING =
 export function buildInviteText(opts: {
   profileUrl?: string | null;
   greeting?: string;
+  betaLink?: string | null;
 }): string {
   const greeting = (opts.greeting ?? "Hi!").trim();
   const myProfileLine = opts.profileUrl
     ? `Mine's here if you want to take a look: ${opts.profileUrl}`
     : null;
-  const ctaLine = `Here's where you can create yours: ${SITE_LANDING}`;
+  // KAN-337 — when a beta-invite deep-link is available, it becomes the CTA: it
+  // carries the skip-the-waitlist code, so the recipient goes straight in.
+  const ctaLine = opts.betaLink
+    ? `Here's where you can create yours — this link skips the waitlist: ${opts.betaLink}`
+    : `Here's where you can create yours: ${SITE_LANDING}`;
 
   return [
     greeting,
