@@ -20,29 +20,27 @@ export async function signUp(formData: FormData) {
     return redirect('/signup?error=' + encodeURIComponent('Your name and email are required'));
   }
 
-  // KAN-258 — invite-only phase. When an invite code is configured, a new
-  // account can only be created with the correct code. This check sits
-  // BEFORE any account creation, so no auth.users row (and therefore no
-  // profile, via the handle_new_user trigger) is ever created without it.
-  const requiredInvite = env.inviteCode();
-  if (requiredInvite) {
-    const code = ((formData.get('invite_code') as string | null) ?? '').trim();
-    if (code !== requiredInvite) {
-      return redirect(
-        '/signup?error=' +
-          encodeURIComponent(
-            "That invite code isn't right. Lyra is invite-only while we're in private testing.",
-          ),
-      );
-    }
+  // KAN-336 — OPTIONAL sign-up code (formerly the KAN-258 hard invite gate). A
+  // configured LYRA_INVITE_CODE no longer blocks signup; entering the CORRECT
+  // code fast-tracks the user into beta (skipping the waitlist). We validate
+  // here for instant UX feedback, but the AUTHORITATIVE grant is re-checked
+  // server-side in resolveBetaAccess at link-confirm time (user_metadata is
+  // user-settable). Wrong non-empty code => rejected; empty => waitlist signup.
+  const configuredCode = env.inviteCode();
+  const submittedCode = ((formData.get('invite_code') as string | null) ?? '').trim();
+  if (configuredCode && submittedCode && submittedCode !== configuredCode) {
+    return redirect(
+      '/signup?error=' +
+        encodeURIComponent("That code isn't right. Leave it blank to join the waitlist instead."),
+    );
   }
+  const codeMatches = !!configuredCode && submittedCode === configuredCode;
 
   const siteUrl = getSiteUrl();
 
-  // KAN-258 — passwordless sign-up. We email a magic link instead of asking
-  // for a password. shouldCreateUser:true so an invited person gets an
-  // account on first click; the handle_new_user trigger reads full_name
-  // from the user metadata we pass here.
+  // KAN-258/KAN-336 — passwordless sign-up via magic link. shouldCreateUser:true
+  // creates the account on first click; handle_new_user reads full_name from the
+  // metadata, and resolveBetaAccess reads invite_code to decide waitlist vs beta.
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -50,6 +48,7 @@ export async function signUp(formData: FormData) {
       shouldCreateUser: true,
       data: {
         full_name: fullName,
+        ...(codeMatches ? { invite_code: configuredCode } : {}),
       },
     },
   });
