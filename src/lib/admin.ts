@@ -48,9 +48,9 @@ export type ModerationAction =
   | 'revoke_admin'
   | 'grant_beta_access' // KAN-273: approve a queued user into the beta
   // KAN-309: two-axis access model transitions from the user-management console
-  | 'enable_beta' // waitlist -> beta (also sets is_beta_eligible=true)
-  | 'disable_beta' // beta -> waitlist (revokes is_beta_eligible)
-  | 'promote_live' // promote to the launched product (± early_access)
+  | 'enable_beta' // waitlist -> beta (user_status=live, access_tier=beta)
+  | 'disable_beta' // beta -> waitlist (user_status=waitlist, access_tier=beta)
+  | 'promote_live' // promote to the launched product (user_status=live, access_tier=prod)
   // KAN-309 follow-on: per-user feature entitlement toggles
   | 'enable_feature'
   | 'disable_feature'

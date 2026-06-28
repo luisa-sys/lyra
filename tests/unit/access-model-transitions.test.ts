@@ -11,61 +11,57 @@ import {
 
 const NOW = '2026-06-22T00:00:00.000Z';
 
-describe('computeAccessTransition (KAN-309)', () => {
-  it('enable_beta sets both axes + the enforced gate + approved, and emails', () => {
+// KAN-326 Phase C: the legacy state columns (access_stage, early_access,
+// is_beta_eligible, beta_access_status) were dropped — computeAccessTransition
+// must never write them again. user_status + access_tier are the sole truth.
+const LEGACY_COLS = ['access_stage', 'early_access', 'is_beta_eligible', 'beta_access_status'] as const;
+function expectNoLegacyCols(update: Record<string, unknown>) {
+  for (const col of LEGACY_COLS) expect(update).not.toHaveProperty(col);
+}
+
+describe('computeAccessTransition (KAN-309 / KAN-326)', () => {
+  it('enable_beta sets the new axes + approved-at, writes NO legacy cols, and emails', () => {
     const t = computeAccessTransition('enable_beta', { now: NOW });
     expect(t.update).toMatchObject({
       user_status: 'live',
       access_tier: 'beta',
-      access_stage: 'beta',
-      early_access: true,
-      is_beta_eligible: true,
-      beta_access_status: 'approved',
       beta_approved_at: NOW,
     });
+    expectNoLegacyCols(t.update);
     expect(t.moderationAction).toBe('enable_beta');
     expect(t.sendApprovalEmail).toBe(true);
   });
 
-  it('disable_beta revokes the gate, returns to waitlist, clears approval, no email', () => {
+  it('disable_beta returns to waitlist, clears approval, NO legacy cols, no email', () => {
     const t = computeAccessTransition('disable_beta', { now: NOW });
     expect(t.update).toMatchObject({
       user_status: 'waitlist',
       access_tier: 'beta',
-      access_stage: 'waitlist',
-      early_access: false,
-      is_beta_eligible: false,
-      beta_access_status: 'none',
       beta_approved_at: null,
     });
+    expectNoLegacyCols(t.update);
     expect(t.moderationAction).toBe('disable_beta');
     expect(t.sendApprovalEmail).toBe(false);
   });
 
-  it('promote_live_with_beta → live, early access on, stays beta-eligible, emails', () => {
+  it('promote_live_with_beta → live/prod, NO legacy cols, emails', () => {
     const t = computeAccessTransition('promote_live_with_beta', { now: NOW });
     expect(t.update).toMatchObject({
       user_status: 'live',
       access_tier: 'prod',
-      access_stage: 'live',
-      early_access: true,
-      is_beta_eligible: true,
-      beta_access_status: 'approved',
     });
+    expectNoLegacyCols(t.update);
     expect(t.moderationAction).toBe('promote_live');
     expect(t.sendApprovalEmail).toBe(true);
   });
 
-  it('promote_live_no_beta → live, early access OFF, still beta-eligible, no email', () => {
+  it('promote_live_no_beta → live/prod, NO legacy cols, no email', () => {
     const t = computeAccessTransition('promote_live_no_beta', { now: NOW });
     expect(t.update).toMatchObject({
       user_status: 'live',
       access_tier: 'prod',
-      access_stage: 'live',
-      early_access: false,
-      is_beta_eligible: true,
-      beta_access_status: 'approved',
     });
+    expectNoLegacyCols(t.update);
     expect(t.moderationAction).toBe('promote_live');
     expect(t.sendApprovalEmail).toBe(false);
   });

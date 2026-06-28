@@ -32,9 +32,9 @@ async function getCounts() {
   const svc = getAdminServiceClient();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const [waitlist, beta, live, suspended, pendingReports, flags7d, admins, total] = await Promise.all([
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'waitlist'),
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'beta'),
-    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('access_stage', 'live'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'waitlist'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'live').eq('access_tier', 'beta'),
+    svc.from('profiles').select('id', { count: 'exact', head: true }).eq('user_status', 'live').eq('access_tier', 'prod'),
     svc.from('profiles').select('id', { count: 'exact', head: true }).eq('is_suspended', true),
     svc.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     svc.from('content_moderation_flags').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),

@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { signUp } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
 import { env } from '@/lib/env';
-import { isProdDeploy } from '@/lib/beta-access/flow';
+import { isProdFamily } from '@/lib/beta-access/flow';
 
 export const metadata = {
   title: 'Create your Lyra profile',
@@ -20,13 +20,17 @@ export default async function SignUpPage({
   // entering the correct code skips the waitlist and grants beta directly. No
   // code = a normal waitlist signup. Social sign-in stays available either way.
   const hasInviteCode = !!env.inviteCode();
-  // KAN-273/KAN-287 — on the public production deploy, prod is the doorway into
-  // the gated beta app: signing up records a request and lands the user on the
-  // waitlist. Frame the page as "join the waitlist". `?preview=waitlist`
-  // renders this on any deploy so it can be verified before reaching prod.
-  // LYRA_FORCE_WAITLIST mirrors this framing on a non-prod env (e.g. dev) without
-  // flipping isProdDeploy() (which also drives auth routing). Framing only.
-  const waitlist = isProdDeploy() || process.env.LYRA_FORCE_WAITLIST === 'true' || params.preview === 'waitlist';
+  // KAN-273/KAN-287/KAN-326 — sign-up is gated by the waitlist across the whole
+  // PROD FAMILY (prod AND beta): both enforce the gate (betaRedirectUrl +
+  // middleware redirect a non-'live' user to /waitlist), so the sign-up copy must
+  // say "join the waitlist" on BOTH, not just prod. We therefore key the framing
+  // off isProdFamily() (prod OR beta) rather than isProdDeploy() (prod only), so
+  // the sign-up framing can never drift from the gate that actually runs. (The
+  // homepage deliberately stays a product showcase on beta — it keys off
+  // isProdDeploy() — so the curated "people to meet" examples stay visible there
+  // while signing up is still waitlisted.) `?preview=waitlist` + LYRA_FORCE_WAITLIST
+  // still force the framing on any single-env deploy (e.g. dev). Framing only.
+  const waitlist = isProdFamily() || process.env.LYRA_FORCE_WAITLIST === 'true' || params.preview === 'waitlist';
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">

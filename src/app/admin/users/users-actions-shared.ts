@@ -57,11 +57,11 @@ export interface AccessTransition {
 /**
  * Map a bulk action onto the concrete column changes + audit action.
  *
- * KAN-326: the clean axes (user_status, access_tier) are the source of truth.
- * The legacy columns (access_stage, early_access, is_beta_eligible,
- * beta_access_status) are written together in lockstep until they're dropped in
- * the follow-up migration, so the model and the gate can never drift. `now` and
- * `reason` are passed in to keep this function pure (no Date.now / no I/O).
+ * KAN-326: the clean axes (user_status, access_tier) are the SOLE source of
+ * truth. The legacy state columns (access_stage, early_access, is_beta_eligible,
+ * beta_access_status) were dropped in Phase C — this function no longer writes
+ * them. `beta_approved_at` / `beta_requested_at` are kept as audit timestamps.
+ * `now` and `reason` are passed in to keep this function pure (no Date.now / no I/O).
  */
 export function computeAccessTransition(
   action: BulkAction,
@@ -73,10 +73,6 @@ export function computeAccessTransition(
         update: {
           user_status: 'live',
           access_tier: 'beta',
-          access_stage: 'beta',
-          early_access: true,
-          is_beta_eligible: true,
-          beta_access_status: 'approved',
           beta_approved_at: opts.now,
         },
         moderationAction: 'enable_beta',
@@ -87,10 +83,6 @@ export function computeAccessTransition(
         update: {
           user_status: 'waitlist',
           access_tier: 'beta',
-          access_stage: 'waitlist',
-          early_access: false,
-          is_beta_eligible: false,
-          beta_access_status: 'none',
           beta_approved_at: null,
         },
         moderationAction: 'disable_beta',
@@ -101,25 +93,20 @@ export function computeAccessTransition(
         update: {
           user_status: 'live',
           access_tier: 'prod',
-          access_stage: 'live',
-          early_access: true,
-          is_beta_eligible: true,
-          beta_access_status: 'approved',
         },
         moderationAction: 'promote_live',
         sendApprovalEmail: true,
       };
     case 'promote_live_no_beta':
       return {
+        // KAN-326 Phase C: with the legacy early_access flag dropped, "with" vs
+        // "without beta features" no longer differs at the column level — both
+        // set access_tier='prod'. Experimental-feature access for a prod-tier
+        // user is now an explicit feature_entitlements grant (KAN-328), not a
+        // profile column. The two actions still differ in the approval email.
         update: {
           user_status: 'live',
           access_tier: 'prod',
-          access_stage: 'live',
-          early_access: false,
-          // Still beta-eligible so the launched user passes the enforced gate;
-          // early_access=false is the "no experimental features" switch.
-          is_beta_eligible: true,
-          beta_access_status: 'approved',
         },
         moderationAction: 'promote_live',
         sendApprovalEmail: false,

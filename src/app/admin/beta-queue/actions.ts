@@ -7,8 +7,8 @@ import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
 /**
  * KAN-277 (epic KAN-273): approve a queued user into the beta.
  *
- * Admin-gated (getCurrentAdmin). Sets beta_access_status='approved' +
- * is_beta_eligible=true + beta_approved_at via the service-role client (which
+ * Admin-gated (getCurrentAdmin). Sets user_status='live' + access_tier='beta'
+ * (+ the beta_approved_at audit timestamp) via the service-role client (which
  * passes the admin-only trigger from 20260620120100_beta_access_lockdown.sql),
  * audit-logs a 'grant_beta_access' moderation action, then emails the user a
  * "you're in" link (best-effort — degrades gracefully without RESEND_API_KEY).
@@ -31,8 +31,6 @@ export async function approveBetaUser(formData: FormData): Promise<void> {
     .update({
       user_status: 'live',
       access_tier: 'beta',
-      beta_access_status: 'approved',
-      is_beta_eligible: true,
       beta_approved_at: new Date().toISOString(),
     })
     .eq('id', profileId);
