@@ -2,7 +2,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { signIn } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
-import { env } from '@/lib/env';
 
 export const metadata = {
   title: 'Sign in to Lyra',
@@ -15,9 +14,6 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
   const params = await searchParams;
-  // KAN-258 — hide third-party sign-in during the invite-only phase
-  // (Google sign-in would otherwise create an un-gated account).
-  const inviteOnly = !!env.inviteCode();
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -48,17 +44,13 @@ export default async function LoginPage({
           </div>
         )}
 
-        {!inviteOnly && (
-          <>
-            <SocialLoginButtons />
+        <SocialLoginButtons />
 
-            <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-[#ece7df]" />
-              <span className="text-xs text-[var(--color-muted)]">or</span>
-              <div className="flex-1 h-px bg-[#ece7df]" />
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#ece7df]" />
+          <span className="text-xs text-[var(--color-muted)]">or</span>
+          <div className="flex-1 h-px bg-[#ece7df]" />
+        </div>
 
         <form className="space-y-4">
           <div>
