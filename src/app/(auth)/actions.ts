@@ -2,9 +2,10 @@
 
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 
 import { env } from '@/lib/env';
+import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 
 function getSiteUrl() {
   return env.siteUrl();
@@ -26,8 +27,14 @@ export async function signUp(formData: FormData) {
   // here for instant UX feedback, but the AUTHORITATIVE grant is re-checked
   // server-side in resolveBetaAccess at link-confirm time (user_metadata is
   // user-settable). Wrong non-empty code => rejected; empty => waitlist signup.
+  // KAN-337 — a beta-invite deep-link (/join) drops the code in an httpOnly
+  // cookie; fall back to it when the form field is blank so the email path
+  // carries the code through to resolveBetaAccess (a non-empty wrong field still
+  // takes precedence, so an explicit bad code is still rejected below).
   const configuredCode = env.inviteCode();
-  const submittedCode = ((formData.get('invite_code') as string | null) ?? '').trim();
+  const formCode = ((formData.get('invite_code') as string | null) ?? '').trim();
+  const cookieCode = ((await cookies()).get(INVITE_COOKIE)?.value ?? '').trim();
+  const submittedCode = formCode || cookieCode;
   if (configuredCode && submittedCode && submittedCode !== configuredCode) {
     return redirect(
       '/signup?error=' +

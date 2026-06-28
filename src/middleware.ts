@@ -194,6 +194,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/status' || // SEC-4: public status page is never beta-gated
     pathname === '/login' ||
     pathname === '/signup' ||
+    pathname === '/join' || // KAN-337: beta-invite deep-link sets a cookie + redirects to /signup
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico';
