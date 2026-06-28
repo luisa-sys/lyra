@@ -131,4 +131,39 @@ describe('KAN-336: resolveBetaAccess invite-code grant', () => {
     expect(updateSpy).not.toHaveBeenCalled();
     expect(getUserByIdSpy).not.toHaveBeenCalled();
   });
+
+  // KAN-337 — the /join deep-link cookie reaches resolveBetaAccess as carriedCode
+  // (the only carrier for Google OAuth, which has no sign-up form / user_metadata).
+  it('KAN-337: grants beta via the carried cookie code, skipping the metadata lookup', async () => {
+    mockInviteCode = 'SECRET-123';
+    mockUserMetadata = {}; // no code in user_metadata — OAuth path
+
+    const result = await resolveBetaAccess(
+      { id: 'u1', email: 'a@b.com' },
+      { carriedCode: 'SECRET-123' },
+    );
+
+    expect(result).toEqual({ userStatus: 'live', accessTier: 'beta' });
+    // The cookie matched first, so the user_metadata lookup is never made.
+    expect(getUserByIdSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy.mock.calls[0][0]).toMatchObject({ user_status: 'live', access_tier: 'beta' });
+    for (const col of ['access_stage', 'early_access', 'is_beta_eligible', 'beta_access_status']) {
+      expect(updateSpy.mock.calls[0][0]).not.toHaveProperty(col);
+    }
+  });
+
+  it('KAN-337: a wrong carried cookie code falls through to user_metadata (no grant → waitlist)', async () => {
+    mockInviteCode = 'SECRET-123';
+    mockUserMetadata = { invite_code: 'WRONG' };
+
+    const result = await resolveBetaAccess(
+      { id: 'u1', email: 'a@b.com' },
+      { carriedCode: 'ALSO-WRONG' },
+    );
+
+    expect(result).toEqual({ userStatus: 'waitlist', accessTier: 'beta' });
+    expect(getUserByIdSpy).toHaveBeenCalledWith('u1'); // fell through to the metadata check
+    expect(mockSendBetaQueueNotice).toHaveBeenCalled();
+  });
 });

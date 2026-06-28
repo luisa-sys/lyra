@@ -24,13 +24,16 @@ import { buildInviteText } from '@/lib/invite-text';
 export default function ShareProfile({
   profileUrl,
   displayName,
+  betaLink,
 }: {
   profileUrl?: string | null;
   displayName?: string | null;
+  betaLink?: string | null;
 }) {
   const initialText = buildInviteText({
     profileUrl,
     greeting: displayName ? `Hi! It's ${displayName}.` : undefined,
+    betaLink,
   });
 
   const [text, setText] = useState(initialText);

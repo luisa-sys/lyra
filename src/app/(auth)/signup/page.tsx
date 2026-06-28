@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { cookies } from 'next/headers';
 import { signUp } from '../actions';
 import { SocialLoginButtons } from '../social-login-buttons';
 import { env } from '@/lib/env';
 import { isProdFamily } from '@/lib/beta-access/flow';
+import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 
 export const metadata = {
   title: 'Create your Lyra profile',
@@ -13,7 +15,7 @@ export const metadata = {
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string; preview?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; preview?: string; invited?: string }>;
 }) {
   const params = await searchParams;
   // KAN-336 — when a sign-up code is configured, offer it as an OPTIONAL field:
@@ -32,6 +34,13 @@ export default async function SignUpPage({
   // still force the framing on any single-env deploy (e.g. dev). Framing only.
   const waitlist = isProdFamily() || process.env.LYRA_FORCE_WAITLIST === 'true' || params.preview === 'waitlist';
 
+  // KAN-337 — a beta-invite deep-link (/join) sets the invite cookie; when it's
+  // present + valid the visitor is pre-approved for beta, so show the celebratory
+  // banner, carry the code via a hidden field, and drop the waitlist framing.
+  const inviteCookie = (await cookies()).get(INVITE_COOKIE)?.value ?? '';
+  const invited = hasInviteCode && inviteCookie === env.inviteCode();
+  const showWaitlistFraming = waitlist && !invited;
+
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -40,16 +49,16 @@ export default async function SignUpPage({
             <Image src="/lyra-logo.png" alt="Lyra" width={48} height={48} className="h-12 w-auto" priority />
           </Link>
           <h1 className="mt-4 text-xl font-medium text-[var(--color-ink)]">
-            {waitlist ? 'Join the Lyra waitlist' : 'Create your profile'}
+            {showWaitlistFraming ? 'Join the Lyra waitlist' : 'Create your profile'}
           </h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {waitlist
+            {showWaitlistFraming
               ? "Lyra is opening in stages — sign up and we'll email you when your spot is ready."
               : 'So people in your life never have to guess'}
           </p>
         </div>
 
-        {waitlist && (
+        {showWaitlistFraming && (
           <ol className="mb-6 space-y-1.5 text-xs text-[var(--color-muted)] max-w-xs mx-auto">
             <li>1. Confirm your email with the secure link we send.</li>
             <li>2. You&rsquo;re added to the waitlist queue.</li>
@@ -69,6 +78,13 @@ export default async function SignUpPage({
           </div>
         )}
 
+        {invited && (
+          <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
+            🎉 You&rsquo;ve been invited to the Lyra beta — finish signing up below and you&rsquo;ll
+            skip the waitlist and go straight in.
+          </div>
+        )}
+
         <SocialLoginButtons />
 
         <div className="flex items-center gap-3 my-6">
@@ -78,7 +94,11 @@ export default async function SignUpPage({
         </div>
 
         <form className="space-y-4">
-          {hasInviteCode && (
+          {invited ? (
+            // KAN-337 — invited via /join: the code is auto-applied (carried in a
+            // hidden field; the banner above explains it), no manual entry needed.
+            <input type="hidden" name="invite_code" value={inviteCookie} />
+          ) : hasInviteCode ? (
             <div>
               <label htmlFor="invite_code" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
                 Invite code <span className="font-normal text-[var(--color-muted)]">(optional)</span>
@@ -95,7 +115,7 @@ export default async function SignUpPage({
                 Have a code? Enter it to skip the waitlist and go straight in.
               </p>
             </div>
-          )}
+          ) : null}
 
           <div>
             <label htmlFor="full_name" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
@@ -147,7 +167,7 @@ export default async function SignUpPage({
             formAction={signUp}
             className="w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity cursor-pointer"
           >
-            {waitlist ? 'Join the waitlist →' : 'Create account →'}
+            {showWaitlistFraming ? 'Join the waitlist →' : 'Create account →'}
           </button>
         </form>
 

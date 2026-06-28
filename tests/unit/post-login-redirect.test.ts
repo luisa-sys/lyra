@@ -9,6 +9,7 @@
  */
 
 const mockResolveBetaAccess = jest.fn();
+const mockResolveBetaAccessOpts = jest.fn(); // KAN-337: captures the 2nd (carriedCode) arg
 const mockBetaRedirectUrl = jest.fn((opts?: unknown) => {
   void opts; // accept (and ignore) the opts arg; assertions use toHaveBeenCalledWith
   return 'REDIRECT_RESULT';
@@ -16,9 +17,23 @@ const mockBetaRedirectUrl = jest.fn((opts?: unknown) => {
 const mockIsProdFamily = jest.fn(() => false);
 
 jest.mock('@/lib/beta-access/flow', () => ({
-  resolveBetaAccess: (u: unknown) => mockResolveBetaAccess(u),
+  // The 1st arg still flows to mockResolveBetaAccess (existing assertions
+  // unchanged); the 2nd (carriedCode) is recorded separately for KAN-337.
+  resolveBetaAccess: (u: unknown, o: unknown) => {
+    mockResolveBetaAccessOpts(o);
+    return mockResolveBetaAccess(u);
+  },
   betaRedirectUrl: (o: unknown) => mockBetaRedirectUrl(o),
   isProdFamily: () => mockIsProdFamily(),
+}));
+
+// KAN-337: resolvePostLoginRedirect reads the /join beta-invite cookie.
+let mockInviteCookie: string | undefined;
+jest.mock('next/headers', () => ({
+  cookies: jest.fn().mockResolvedValue({
+    get: (name: string) =>
+      name === 'lyra_invite' && mockInviteCookie ? { value: mockInviteCookie } : undefined,
+  }),
 }));
 
 import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
@@ -31,6 +46,8 @@ function fakeSupabase(user: unknown): any {
 
 beforeEach(() => {
   mockResolveBetaAccess.mockReset();
+  mockResolveBetaAccessOpts.mockReset();
+  mockInviteCookie = undefined;
   mockBetaRedirectUrl.mockClear();
   mockBetaRedirectUrl.mockReturnValue('REDIRECT_RESULT');
   mockIsProdFamily.mockReset();
@@ -76,5 +93,16 @@ describe('resolvePostLoginRedirect', () => {
     expect(mockBetaRedirectUrl).toHaveBeenCalledWith(
       expect.objectContaining({ isProdFamily: false, userStatus: 'live' }),
     );
+  });
+
+  test('KAN-337: passes the /join beta-invite cookie to resolveBetaAccess as carriedCode', async () => {
+    mockInviteCookie = 'INVITE-XYZ';
+    mockResolveBetaAccess.mockResolvedValue({ userStatus: 'live', accessTier: 'beta' });
+    const supabase = fakeSupabase({ id: 'user-9', email: 'new@example.com' });
+
+    await resolvePostLoginRedirect(supabase, 'https://checklyra.com', '/dashboard');
+
+    expect(mockResolveBetaAccess).toHaveBeenCalledWith({ id: 'user-9', email: 'new@example.com' });
+    expect(mockResolveBetaAccessOpts).toHaveBeenCalledWith({ carriedCode: 'INVITE-XYZ' });
   });
 });

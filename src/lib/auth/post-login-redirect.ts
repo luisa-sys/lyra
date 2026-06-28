@@ -11,8 +11,10 @@
  *
  * Extracted from /auth/callback so /auth/confirm reuses it verbatim (KAN-276/278).
  */
+import { cookies } from 'next/headers';
 import type { createClient } from '@/lib/supabase-server';
 import { resolveBetaAccess, betaRedirectUrl, isProdFamily } from '@/lib/beta-access/flow';
+import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -34,9 +36,13 @@ export async function resolvePostLoginRedirect(
       next,
     });
   }
-  const { userStatus, accessTier } = await resolveBetaAccess({
-    id: user.id,
-    email: user.email,
-  });
+  // KAN-337 — a beta-invite deep-link (/join) leaves the code in an httpOnly
+  // cookie; for Google OAuth this is the only carrier (no sign-up form), so read
+  // it here and hand it to resolveBetaAccess for server-side re-validation.
+  const carriedCode = (await cookies()).get(INVITE_COOKIE)?.value;
+  const { userStatus, accessTier } = await resolveBetaAccess(
+    { id: user.id, email: user.email },
+    { carriedCode },
+  );
   return betaRedirectUrl({ origin, isProdFamily: isProdFamily(), userStatus, accessTier, next });
 }
