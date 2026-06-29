@@ -24,8 +24,8 @@
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
     "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
