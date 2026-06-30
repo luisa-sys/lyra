@@ -6,6 +6,15 @@
 The epic was raised from a chat session **without code access**, so several of its
 "unresolved questions" are answered here directly from the codebase.
 
+> **UPDATE 2026-06-30 — your answers applied; KAN-339 / KAN-341 / KAN-342 now COMPLETE + green.**
+> 3 commits on the branch: widget journey `f48c270`, KAN-339+342 `c654c2a`, KAN-341 `915af29`.
+> tsc clean; 141 suites / 1786 unit tests pass. Q1 convene test re-pointed (not weakened);
+> Q2 copy kept (review in dev); Q4 postcode removed everywhere + scrubbed + KAN-153 tests
+> updated; Q5/Q6 Places key reused, global. **Remaining before/at dev:** apply the 2
+> migrations to dev-lyra, the KAN-348 E2E, and a city-discovery *search-UI* surface (the
+> `searchByCity` backend is built + tested — same state as the phone-search backend, which
+> also has no dedicated search page).
+
 ---
 
 ## 1. What's coded vs documented vs blocked
