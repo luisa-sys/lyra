@@ -10,6 +10,7 @@ import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import { canPublishWithAge } from '@/lib/age/gate';
 import { resolveWidgets, resolveOnboardingState } from '@/lib/dashboard/resolve-widgets';
 import { dismissedForState, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
+import { computeProfileCompletion } from '@/lib/dashboard/profile-completion';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -61,9 +62,18 @@ export default async function DashboardPage() {
     hasGifts = (gifts.count ?? 0) > 0;
     hasAffiliations = (affs.count ?? 0) > 0;
   }
-  const completionScore = Number(
-    (profile as { completion_score?: number } | null)?.completion_score ?? 0,
-  );
+  // KAN-349 — `profiles.completion_score` is never maintained (vestigial column,
+  // 0 for all real users), so derive completion from live content. Drives the
+  // empty→drafted journey boundary + the "Completion: N%" display below.
+  const completionScore = computeProfileCompletion({
+    displayName: profile?.display_name,
+    bioShort: (profile as { bio_short?: string | null } | null)?.bio_short,
+    headline: (profile as { headline?: string | null } | null)?.headline,
+    city: (profile as { city?: string | null } | null)?.city,
+    avatarUrl: (profile as { avatar_url?: string | null } | null)?.avatar_url,
+    hasGifts,
+    hasAffiliations,
+  });
   const storedDismissals =
     (profile as { dashboard_widget_state?: DashboardWidgetState } | null)?.dashboard_widget_state ?? {};
   const onboardingState = resolveOnboardingState({
@@ -163,7 +173,7 @@ export default async function DashboardPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--color-muted)]">Completion</span>
-              <span className="text-[var(--color-ink)]">{profile?.completion_score || 0}%</span>
+              <span className="text-[var(--color-ink)]">{completionScore}%</span>
             </div>
           </div>
 
