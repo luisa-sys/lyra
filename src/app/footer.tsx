@@ -59,7 +59,7 @@ export function Footer() {
 
         <p className="text-[12.5px] text-[var(--color-muted)] leading-relaxed max-w-[46em] mx-auto mb-2">
           Lyra gives every ordinary person a voice — a place to be understood,
-          in your own words. Keep it about you.
+          in your own words.
         </p>
 
         <p className="text-[11.5px] text-[var(--color-muted)] leading-relaxed max-w-[46em] mx-auto">
