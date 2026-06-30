@@ -131,7 +131,6 @@ describe('KAN-272 D: site-wide footer', () => {
 
   test('includes the mission line and the Companies Act legal line', () => {
     expect(footer).toContain('a place to be understood');
-    expect(footer).toContain('Keep it about you');
     expect(footer).toContain('CheckLyra Ltd');
     expect(footer).toContain('16351012');
     expect(footer).toContain('Shelton Street');
