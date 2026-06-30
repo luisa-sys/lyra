@@ -32,7 +32,13 @@ record() { # $1=STATUS $2=label $3=detail
   case "$1" in PASS) PASS=$((PASS+1)) ;; FAIL) FAIL=$((FAIL+1)) ;; UNVERIFIED) UNV=$((UNV+1)) ;; esac
 }
 
-cmd_for() { case "$1" in
+cmd_for() {
+  # Per-phase command override via CMD_<phase> (dashes→underscores). Unset in
+  # normal runs, so production behaviour is identical to the case map below;
+  # the unit suite uses it to drive run_phase()'s classification with stubs.
+  local ov; ov="$(eval "printf '%s' \"\${CMD_${1//-/_}-}\"")"
+  if [ -n "$ov" ]; then echo "$ov"; return; fi
+  case "$1" in
   lint)        echo "npm run lint" ;;
   type-check)  echo "npm run type-check" ;;
   unit)        echo "npm run test:unit" ;;
@@ -57,7 +63,20 @@ run_phase() { # $1 label
     record PASS "$label" "ok"
   else
     rc=$?
-    record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    # BUGS-51: a non-zero exit is only a real FAIL if the phase actually RAN and
+    # a test/assertion failed. A missing Playwright browser binary (sandbox
+    # browsers out of lockstep with @playwright/test, CDN blocked) or an empty
+    # test path is an ENVIRONMENT gap — record it UNVERIFIED (loud, exit 1), per
+    # this script's own header philosophy, never FAIL. The patterns are anchored
+    # to Playwright/Jest's exact tooling-gap output so a genuine assertion
+    # failure that merely mentions "install" still FAILs.
+    if grep -qE "Executable doesn'?t exist|Looks like Playwright was just installed|Please run.*playwright install|Failed to download (WebKit|Chromium|Firefox)" "$log"; then
+      record UNVERIFIED "$label" "Playwright browsers unavailable — run 'npx playwright install' (env gap, not a test failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
+    elif grep -qE "No tests found" "$log"; then
+      record UNVERIFIED "$label" "no tests matched this phase's path (env/layout gap, not a failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
+    else
+      record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+    fi
   fi
   rm -f "$log"
 }
