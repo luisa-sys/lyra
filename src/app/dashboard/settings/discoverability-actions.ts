@@ -207,4 +207,40 @@ export async function searchByPhone(phone: string): Promise<SearchResult> {
   return performHashedSearch('phone', hash, user.id);
 }
 
-// KAN-339: searchByPostcode removed. Town/city discovery is delivered in KAN-341.
+// KAN-339: hashed searchByPostcode removed. KAN-341 replaces it with city search.
+
+/**
+ * KAN-341 — town/city discovery. City is coarse and is already public on a
+ * published profile, so (unlike phone) it is NOT hashed: we match PUBLISHED
+ * profiles by their public city. Rate-limited per searcher; authenticated only.
+ */
+export async function searchByCity(city: string): Promise<SearchResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Not authenticated' };
+
+  const q = (city ?? '').trim();
+  if (q.length < 2) return { success: true, matches: [] };
+
+  const rl = rateLimit(`discoverability-search:${user.id}`, SEARCH_RATE_LIMIT);
+  if (rl.limited) {
+    return {
+      success: false,
+      error: `Too many lookups. Try again in ${rl.retryAfter ?? 60} seconds.`,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, slug')
+    .eq('is_published', true)
+    .ilike('city', q)
+    .limit(50);
+  if (error) {
+    return { success: false, error: 'Search failed. Please try again.' };
+  }
+  const matches = (data ?? [])
+    .filter((r): r is { id: string; slug: string } => typeof r.slug === 'string')
+    .map((r) => ({ id: r.id, slug: r.slug }));
+  return { success: true, matches };
+}
