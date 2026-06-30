@@ -144,7 +144,7 @@ function WaitlistLanding() {
               We&rsquo;re opening Lyra a few people at a time.
             </h1>
             <p className="text-[15px] sm:text-base text-[var(--color-muted)] leading-relaxed max-w-md mb-8">
-              Lyra is a calm place to share who you are &mdash; the things you
+              Lyra is a place to share who you are &mdash; the things you
               love, the gifts that land, the boundaries that matter &mdash; with
               the people in your life. Join the waitlist and we&rsquo;ll email
               you the moment your spot opens up.
