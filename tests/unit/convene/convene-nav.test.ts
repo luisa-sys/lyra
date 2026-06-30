@@ -23,10 +23,16 @@ describe('Convene nav entry points (KAN-303)', () => {
     test('gates the header Convene link on the flag', () => {
       expect(src).toMatch(/conveneEnabled &&[\s\S]{0,200}\/dashboard\/convene\/gatherings/);
     });
-    test('gates a landing card on the flag and links to People', () => {
-      expect(src).toMatch(/\/dashboard\/convene\/contacts/);
-      // Both the header link and the landing card are wrapped in `conveneEnabled &&`.
-      expect((src.match(/conveneEnabled &&/g) || []).length).toBeGreaterThanOrEqual(2);
+    test('gates the Convene widget (W6) by wiring the per-user flag into the resolver (KAN-349)', () => {
+      // KAN-349 moved the old inline Convene landing card to the W6 dashboard widget
+      // (src/app/dashboard/widgets/dashboard-widgets.tsx). It stays flag-gated: the page
+      // passes the live per-user flag into resolveWidgets({ conveneEntitled }). Re-pointed,
+      // not weakened — see the resolver assertion below for the actual gating.
+      expect(src).toMatch(/conveneEntitled:\s*conveneEnabled/);
+    });
+    test('the widget resolver only emits the convene widget when entitled (KAN-349)', () => {
+      const resolverSrc = fs.readFileSync(path.join(ROOT, 'src/lib/dashboard/resolve-widgets.ts'), 'utf8');
+      expect(resolverSrc).toMatch(/if \(input\.conveneEntitled\)[\s\S]{0,80}'convene'/);
     });
   });
 

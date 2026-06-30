@@ -38,18 +38,15 @@ import type { ActionResult } from '@/lib/sanitise';
 import { rateLimit } from '@/lib/rate-limit';
 import {
   hashPhoneInput,
-  hashPostcodeInput,
   SEARCH_RATE_LIMIT,
 } from './discoverability-helpers';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 
 interface DiscoverabilityInput {
   phone?: boolean;
-  postcode?: boolean;
   /** Required when phone flips from false → true. Ignored otherwise. */
   phoneValue?: string;
-  /** Required when postcode flips from false → true. Ignored otherwise. */
-  postcodeValue?: string;
+  // KAN-339: postcode discovery removed (replaced by town/city discovery, KAN-341).
 }
 
 export async function setDiscoverability(input: DiscoverabilityInput): Promise<ActionResult> {
@@ -59,7 +56,7 @@ export async function setDiscoverability(input: DiscoverabilityInput): Promise<A
 
   // KAN-309 — per-user feature gate (default on; an admin can revoke). Opting
   // OUT is always allowed so a revoked user can still turn discovery off.
-  if (input.phone === true || input.postcode === true) {
+  if (input.phone === true) {
     const features = await getMyFeatureEntitlements();
     if (!features.discovery) {
       return { success: false, error: 'Discovery is not enabled for your account.' };
@@ -71,7 +68,7 @@ export async function setDiscoverability(input: DiscoverabilityInput): Promise<A
   // column-privilege level — see migration).
   const { data: profile, error: readError } = await supabase
     .from('profiles')
-    .select('id, discoverable_by_phone, discoverable_by_postcode')
+    .select('id, discoverable_by_phone')
     .eq('user_id', user.id)
     .single();
   if (readError || !profile) {
@@ -107,29 +104,7 @@ export async function setDiscoverability(input: DiscoverabilityInput): Promise<A
     }
   }
 
-  // ── Postcode ────────────────────────────────────────────
-  if (typeof input.postcode === 'boolean') {
-    if (input.postcode === true) {
-      if (!input.postcodeValue || typeof input.postcodeValue !== 'string') {
-        return {
-          success: false,
-          error: 'A postcode is required to enable postcode discovery.',
-        };
-      }
-      const hash = hashPostcodeInput(input.postcodeValue);
-      if (!hash) {
-        return {
-          success: false,
-          error: 'Postcode could not be normalised. Use a UK format like SW1A 1AA.',
-        };
-      }
-      updates.discoverable_by_postcode = true;
-      updates.postcode_search_hash = hash;
-    } else {
-      updates.discoverable_by_postcode = false;
-      updates.postcode_search_hash = null;
-    }
-  }
+  // KAN-339: postcode discovery removed (replaced by town/city discovery, KAN-341).
 
   if (Object.keys(updates).length === 0) {
     return { success: true };
@@ -156,7 +131,7 @@ export async function setDiscoverability(input: DiscoverabilityInput): Promise<A
  * itself is never returned.
  */
 export async function getDiscoverability(): Promise<
-  | { success: true; phone: boolean; postcode: boolean }
+  | { success: true; phone: boolean }
   | { success: false; error: string }
 > {
   const supabase = await createClient();
@@ -165,7 +140,7 @@ export async function getDiscoverability(): Promise<
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('discoverable_by_phone, discoverable_by_postcode')
+    .select('discoverable_by_phone')
     .eq('user_id', user.id)
     .single();
   if (error || !data) return { success: false, error: 'Profile not found' };
@@ -173,7 +148,6 @@ export async function getDiscoverability(): Promise<
   return {
     success: true,
     phone: !!data.discoverable_by_phone,
-    postcode: !!data.discoverable_by_postcode,
   };
 }
 
@@ -187,7 +161,7 @@ type SearchResult =
   | { success: false; error: string };
 
 async function performHashedSearch(
-  kind: 'phone' | 'postcode',
+  kind: 'phone',
   hash: string,
   userId: string
 ): Promise<SearchResult> {
@@ -233,15 +207,40 @@ export async function searchByPhone(phone: string): Promise<SearchResult> {
   return performHashedSearch('phone', hash, user.id);
 }
 
-export async function searchByPostcode(postcode: string): Promise<SearchResult> {
+// KAN-339: hashed searchByPostcode removed. KAN-341 replaces it with city search.
+
+/**
+ * KAN-341 — town/city discovery. City is coarse and is already public on a
+ * published profile, so (unlike phone) it is NOT hashed: we match PUBLISHED
+ * profiles by their public city. Rate-limited per searcher; authenticated only.
+ */
+export async function searchByCity(city: string): Promise<SearchResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Not authenticated' };
 
-  const hash = hashPostcodeInput(postcode);
-  if (!hash) {
-    return { success: true, matches: [] };
+  const q = (city ?? '').trim();
+  if (q.length < 2) return { success: true, matches: [] };
+
+  const rl = rateLimit(`discoverability-search:${user.id}`, SEARCH_RATE_LIMIT);
+  if (rl.limited) {
+    return {
+      success: false,
+      error: `Too many lookups. Try again in ${rl.retryAfter ?? 60} seconds.`,
+    };
   }
 
-  return performHashedSearch('postcode', hash, user.id);
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, slug')
+    .eq('is_published', true)
+    .ilike('city', q)
+    .limit(50);
+  if (error) {
+    return { success: false, error: 'Search failed. Please try again.' };
+  }
+  const matches = (data ?? [])
+    .filter((r): r is { id: string; slug: string } => typeof r.slug === 'string')
+    .map((r) => ({ id: r.id, slug: r.slug }));
+  return { success: true, matches };
 }

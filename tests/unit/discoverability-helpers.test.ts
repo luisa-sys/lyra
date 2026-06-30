@@ -1,22 +1,19 @@
 /**
- * KAN-153: unit tests for the pure phone/postcode discoverability helpers.
+ * KAN-153 / KAN-339: unit tests for the pure phone discoverability helpers.
  *
- * These cover:
+ * Covers:
  *   - normalisePhone: E.164 normalisation, UK default, rejects bad input.
- *   - normalisePostcode: uppercase / no-space normalisation, rejects bad
- *     input.
- *   - hashContact: determinism, pepper sensitivity, kind-namespacing.
- *   - hashPhoneInput / hashPostcodeInput: end-to-end with a pepper from env.
+ *   - hashContact: determinism, key sensitivity.
+ *   - hashPhoneInput: end-to-end with a pepper from env.
  *   - getSearchPepper: throws when missing or too short.
  *
- * No Supabase / network — all pure functions.
+ * KAN-339 removed postcode discovery, so the normalisePostcode /
+ * hashPostcodeInput cases are gone with the functions. No Supabase / network.
  */
 import {
   normalisePhone,
-  normalisePostcode,
   hashContact,
   hashPhoneInput,
-  hashPostcodeInput,
   getSearchPepper,
 } from '@/app/dashboard/settings/discoverability-helpers';
 
@@ -67,46 +64,6 @@ describe('normalisePhone', () => {
   });
 });
 
-// ── normalisePostcode ──────────────────────────────────────
-describe('normalisePostcode', () => {
-  test('uppercases and removes spaces', () => {
-    expect(normalisePostcode('sw1a 1aa')).toBe('SW1A1AA');
-    expect(normalisePostcode('SW1A 1AA')).toBe('SW1A1AA');
-  });
-
-  test('handles already-uppercase / no-space', () => {
-    expect(normalisePostcode('M11AE')).toBe('M11AE');
-  });
-
-  test('trims surrounding whitespace', () => {
-    expect(normalisePostcode('  E1 6AN  ')).toBe('E16AN');
-  });
-
-  test('rejects empty string', () => {
-    expect(normalisePostcode('')).toBeNull();
-  });
-
-  test('rejects too short', () => {
-    expect(normalisePostcode('SW1A')).toBeNull();
-  });
-
-  test('rejects non-alphanumerics', () => {
-    expect(normalisePostcode('SW1A-1AA')).toBeNull();
-    expect(normalisePostcode('SW1A!1AA')).toBeNull();
-  });
-
-  test('rejects too long', () => {
-    expect(normalisePostcode('SW1A1AABBB')).toBeNull();
-  });
-
-  test('rejects null/undefined gracefully', () => {
-    // @ts-expect-error — testing runtime behaviour with bad input
-    expect(normalisePostcode(null)).toBeNull();
-    // @ts-expect-error — testing runtime behaviour with bad input
-    expect(normalisePostcode(undefined)).toBeNull();
-  });
-});
-
 // ── hashContact ────────────────────────────────────────────
 describe('hashContact', () => {
   const pepper = 'test-pepper-at-least-16-chars-long';
@@ -122,7 +79,7 @@ describe('hashContact', () => {
     expect(h).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  test('different pepper produces different hash', () => {
+  test('different key produces different hash', () => {
     const a = hashContact('phone', '+447700900000', pepper);
     const b = hashContact('phone', '+447700900000', 'different-pepper-also-long');
     expect(a).not.toBe(b);
@@ -131,14 +88,6 @@ describe('hashContact', () => {
   test('different value produces different hash', () => {
     const a = hashContact('phone', '+447700900000', pepper);
     const b = hashContact('phone', '+447700900001', pepper);
-    expect(a).not.toBe(b);
-  });
-
-  test('phone and postcode kinds are namespaced apart', () => {
-    // Even if a user happened to enter the same string for both, the
-    // resulting hashes MUST differ.
-    const a = hashContact('phone', 'SAMEVALUE', pepper);
-    const b = hashContact('postcode', 'SAMEVALUE', pepper);
     expect(a).not.toBe(b);
   });
 
@@ -176,7 +125,6 @@ describe('getSearchPepper', () => {
 
   test('error message does NOT include the pepper value (privacy)', () => {
     process.env.LYRA_SEARCH_PEPPER = 'secret-pepper-value-that-should-not-leak';
-    // (Pepper IS long enough — but we re-verify the empty case here)
     delete process.env.LYRA_SEARCH_PEPPER;
     try {
       getSearchPepper();
@@ -188,8 +136,8 @@ describe('getSearchPepper', () => {
   });
 });
 
-// ── hashPhoneInput / hashPostcodeInput (end-to-end) ────────
-describe('hashPhoneInput / hashPostcodeInput', () => {
+// ── hashPhoneInput (end-to-end) ────────────────────────────
+describe('hashPhoneInput', () => {
   const originalPepper = process.env.LYRA_SEARCH_PEPPER;
   beforeAll(() => {
     process.env.LYRA_SEARCH_PEPPER = 'unit-test-pepper-long-enough-for-validation';
@@ -210,34 +158,8 @@ describe('hashPhoneInput / hashPostcodeInput', () => {
     expect(a).toBe(c);
   });
 
-  test('different formatting of the same UK postcode produces the SAME hash', () => {
-    const a = hashPostcodeInput('sw1a 1aa');
-    const b = hashPostcodeInput('SW1A1AA');
-    const c = hashPostcodeInput('  SW1A 1AA  ');
-    expect(a).not.toBeNull();
-    expect(a).toBe(b);
-    expect(a).toBe(c);
-  });
-
   test('returns null for unnormalisable phone', () => {
     expect(hashPhoneInput('not a phone')).toBeNull();
     expect(hashPhoneInput('')).toBeNull();
-  });
-
-  test('returns null for unnormalisable postcode', () => {
-    expect(hashPostcodeInput('!')).toBeNull();
-    expect(hashPostcodeInput('')).toBeNull();
-  });
-
-  test('phone and postcode with same normalised form still hash differently', () => {
-    // Crafted overlap: 'SW1A1AA' could theoretically be a normalised
-    // postcode AND… well, it can't be a phone (phones must start with +).
-    // But for a string value that COULD be either, kind-namespacing
-    // ensures distinct hashes. Test directly via hashContact already
-    // covers this; we re-verify via the public end-to-end entry points
-    // by hashing the same normalised string under both kinds manually.
-    const phoneHash = hashPhoneInput('+447700900000');
-    const postcodeHash = hashPostcodeInput('SW1A1AA');
-    expect(phoneHash).not.toBe(postcodeHash);
   });
 });

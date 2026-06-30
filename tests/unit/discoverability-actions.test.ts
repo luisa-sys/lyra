@@ -1,38 +1,30 @@
 /**
- * KAN-153: unit tests for the discoverability server actions.
+ * KAN-153 / KAN-339: unit tests for the discoverability server actions.
  *
- * Covers:
- *   - setDiscoverability flips flag ON and sets hash when given a value.
- *   - setDiscoverability flips flag OFF and clears the hash.
+ * Covers (phone only — KAN-339 removed postcode discovery):
+ *   - setDiscoverability flips the phone flag ON and sets the hash with a value.
+ *   - setDiscoverability flips it OFF and clears the hash.
  *   - setDiscoverability rejects opt-in without a value.
- *   - setDiscoverability rejects an unnormalisable value WITHOUT echoing it
- *     back in the error message.
- *   - searchByPhone / searchByPostcode call the RPC with the right kind/hash.
- *   - search returns generic empty matches for unnormalisable input
- *     (no distinction between "bad input" and "unknown value").
+ *   - setDiscoverability rejects an unnormalisable value WITHOUT echoing it back.
+ *   - searchByPhone calls the RPC with the right kind/hash.
+ *   - search returns generic empty matches for unnormalisable input.
  *   - Rate-limit kicks in after 10 calls per user per hour.
- *   - Plain phone/postcode values NEVER appear in any returned error.
+ *   - Plain phone values NEVER appear in any returned error.
  *
- * Supabase + next/cache are mocked. The pepper is set in beforeAll.
+ * Supabase + next/cache are mocked. The pepper is set before import.
  */
 
-// Set pepper before importing any module that calls getSearchPepper.
 process.env.LYRA_SEARCH_PEPPER = 'unit-test-pepper-long-enough-for-validation';
 
-// Mock next/cache.
 const mockRevalidatePath = jest.fn();
 jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-// KAN-309: setDiscoverability now checks the per-user 'discovery' entitlement
-// before an opt-in. Mock the new dependency as entitled (the default) so the
-// existing behavioural assertions exercise the same path as before.
 jest.mock('@/lib/features/entitlements', () => ({
   getMyFeatureEntitlements: jest.fn(async () => ({ discovery: true })),
 }));
 
-// Capture supabase interactions.
 const mockUpdateCapture = jest.fn();
 const mockUpdateEq = jest.fn().mockResolvedValue({ error: null });
 const mockSelectEq = jest.fn();
@@ -40,11 +32,9 @@ const mockRpc = jest.fn();
 let mockProfileRow: {
   id: string;
   discoverable_by_phone: boolean;
-  discoverable_by_postcode: boolean;
 } | null = {
   id: 'profile-1',
   discoverable_by_phone: false,
-  discoverable_by_postcode: false,
 };
 let mockUserId: string | null = 'test-user-id';
 
@@ -77,7 +67,6 @@ jest.mock('@/lib/supabase-server', () => ({
   })),
 }));
 
-// Mock the rate limiter so we can drive it deterministically.
 const mockRateLimit = jest.fn();
 jest.mock('@/lib/rate-limit', () => {
   const actual = jest.requireActual('@/lib/rate-limit');
@@ -91,7 +80,6 @@ jest.mock('@/lib/rate-limit', () => {
 import {
   setDiscoverability,
   searchByPhone,
-  searchByPostcode,
 } from '@/app/dashboard/settings/discoverability-actions';
 
 beforeEach(() => {
@@ -106,7 +94,6 @@ beforeEach(() => {
   mockProfileRow = {
     id: 'profile-1',
     discoverable_by_phone: false,
-    discoverable_by_postcode: false,
   };
   mockUserId = 'test-user-id';
 });
@@ -132,31 +119,8 @@ describe('setDiscoverability', () => {
     expect(written.phone_search_hash).toBeNull();
   });
 
-  test('enabling postcode with a valid value writes flag + hash', async () => {
-    const result = await setDiscoverability({ postcode: true, postcodeValue: 'SW1A 1AA' });
-    expect(result).toEqual({ success: true });
-    const written = mockUpdateCapture.mock.calls[0][0] as Record<string, unknown>;
-    expect(written.discoverable_by_postcode).toBe(true);
-    expect(typeof written.postcode_search_hash).toBe('string');
-  });
-
-  test('disabling postcode clears the hash to null', async () => {
-    mockProfileRow!.discoverable_by_postcode = true;
-    const result = await setDiscoverability({ postcode: false });
-    expect(result).toEqual({ success: true });
-    const written = mockUpdateCapture.mock.calls[0][0] as Record<string, unknown>;
-    expect(written.discoverable_by_postcode).toBe(false);
-    expect(written.postcode_search_hash).toBeNull();
-  });
-
   test('rejects opting in to phone with no value', async () => {
     const result = await setDiscoverability({ phone: true });
-    expect(result.success).toBe(false);
-    expect(mockUpdateCapture).not.toHaveBeenCalled();
-  });
-
-  test('rejects opting in to postcode with no value', async () => {
-    const result = await setDiscoverability({ postcode: true });
     expect(result.success).toBe(false);
     expect(mockUpdateCapture).not.toHaveBeenCalled();
   });
@@ -167,16 +131,6 @@ describe('setDiscoverability', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       // Critical: the error message MUST NOT contain the user's input.
-      expect(result.error).not.toContain(badInput);
-    }
-    expect(mockUpdateCapture).not.toHaveBeenCalled();
-  });
-
-  test('rejects opting in with an unnormalisable postcode — error does NOT echo the input', async () => {
-    const badInput = 'NOT-A-VALID-POSTCODE!!';
-    const result = await setDiscoverability({ postcode: true, postcodeValue: badInput });
-    expect(result.success).toBe(false);
-    if (!result.success) {
       expect(result.error).not.toContain(badInput);
     }
     expect(mockUpdateCapture).not.toHaveBeenCalled();
@@ -196,9 +150,9 @@ describe('setDiscoverability', () => {
   });
 });
 
-// ── searchByPhone / searchByPostcode ───────────────────────
-describe('searchByPhone / searchByPostcode', () => {
-  test('searchByPhone calls the RPC with kind=phone and a hex hash', async () => {
+// ── searchByPhone ──────────────────────────────────────────
+describe('searchByPhone', () => {
+  test('calls the RPC with kind=phone and a hex hash', async () => {
     mockRpc.mockResolvedValueOnce({ data: [{ id: 'p1', slug: 'alice' }], error: null });
     const result = await searchByPhone('07700900000');
     expect(result).toEqual({ success: true, matches: [{ id: 'p1', slug: 'alice' }] });
@@ -209,50 +163,25 @@ describe('searchByPhone / searchByPostcode', () => {
     expect((args as { p_hash: string }).p_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  test('searchByPostcode calls the RPC with kind=postcode and a hex hash', async () => {
-    mockRpc.mockResolvedValueOnce({ data: [], error: null });
-    const result = await searchByPostcode('SW1A 1AA');
-    expect(result).toEqual({ success: true, matches: [] });
-    expect(mockRpc).toHaveBeenCalledTimes(1);
-    const [, args] = mockRpc.mock.calls[0];
-    expect((args as { p_kind: string }).p_kind).toBe('postcode');
-  });
-
-  test('searchByPhone returns empty matches (NOT an error) for malformed input', async () => {
-    // Indistinguishable response between "bad input" and "no match" —
-    // we should not call the RPC at all in this case.
+  test('returns empty matches (NOT an error) for malformed input', async () => {
     const result = await searchByPhone('not a phone');
     expect(result).toEqual({ success: true, matches: [] });
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  test('searchByPostcode returns empty matches (NOT an error) for malformed input', async () => {
-    const result = await searchByPostcode('!!!');
-    expect(result).toEqual({ success: true, matches: [] });
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  test('searchByPhone surfaces a generic error on RPC failure — no hash leakage', async () => {
+  test('surfaces a generic error on RPC failure — no hash leakage', async () => {
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'pgrst something' } });
     const result = await searchByPhone('07700900000');
     expect(result.success).toBe(false);
     if (!result.success) {
-      // The error must not contain the RPC's internal message OR the hash.
       expect(result.error).not.toContain('pgrst');
       expect(result.error).not.toMatch(/[a-f0-9]{32}/);
     }
   });
 
-  test('searchByPhone rejects unauthenticated callers', async () => {
+  test('rejects unauthenticated callers', async () => {
     mockUserId = null;
     const result = await searchByPhone('07700900000');
-    expect(result.success).toBe(false);
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  test('searchByPostcode rejects unauthenticated callers', async () => {
-    mockUserId = null;
-    const result = await searchByPostcode('SW1A 1AA');
     expect(result.success).toBe(false);
     expect(mockRpc).not.toHaveBeenCalled();
   });
@@ -279,7 +208,6 @@ describe('discoverability search rate-limit', () => {
       expect(result.error).toMatch(/Too many/);
       expect(result.error).toContain('123');
     }
-    // Critical: we must NOT have called the RPC when rate-limited.
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
@@ -295,12 +223,5 @@ describe('discoverability search rate-limit', () => {
     const keys = mockRateLimit.mock.calls.map((c) => c[0]);
     expect(keys).toContain('discoverability-search:user-a');
     expect(keys).toContain('discoverability-search:user-b');
-  });
-
-  test('rate-limit applies to postcode search as well', async () => {
-    mockRateLimit.mockReturnValue({ limited: true, retryAfter: 60 });
-    const result = await searchByPostcode('SW1A 1AA');
-    expect(result.success).toBe(false);
-    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

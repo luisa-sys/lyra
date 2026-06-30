@@ -3,11 +3,13 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
-import ShareProfile from './share-profile';
 import ShareBeta from './share-beta';
-import { betaInviteLink } from '@/lib/beta-access/invite-link';
+import DashboardWidgets, { type WidgetContext } from './widgets/dashboard-widgets';
+import { betaInviteLink, publicSignupUrl } from '@/lib/beta-access/invite-link';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import { canPublishWithAge } from '@/lib/age/gate';
+import { resolveWidgets, resolveOnboardingState } from '@/lib/dashboard/resolve-widgets';
+import { dismissedForState, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
 
 export const metadata = {
   title: 'Dashboard — Lyra',
@@ -39,6 +41,56 @@ export default async function DashboardPage() {
   );
   // KAN-337 — beta-invite deep-link to share (null unless LYRA_INVITE_CODE is set).
   const inviteLink = betaInviteLink();
+
+  // KAN-344/346 — onboarding-progress signals → the status-driven widget journey.
+  const profileId = (profile as { id?: string } | null)?.id;
+  let hasGifts = false;
+  let hasAffiliations = false;
+  if (profileId) {
+    const [gifts, affs] = await Promise.all([
+      supabase
+        .from('profile_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', profileId)
+        .eq('category', 'gift_ideas'),
+      supabase
+        .from('school_affiliations')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', profileId),
+    ]);
+    hasGifts = (gifts.count ?? 0) > 0;
+    hasAffiliations = (affs.count ?? 0) > 0;
+  }
+  const completionScore = Number(
+    (profile as { completion_score?: number } | null)?.completion_score ?? 0,
+  );
+  const storedDismissals =
+    (profile as { dashboard_widget_state?: DashboardWidgetState } | null)?.dashboard_widget_state ?? {};
+  const onboardingState = resolveOnboardingState({
+    isPublished,
+    completionScore,
+    hasGifts,
+    hasAffiliations,
+  });
+  const widgetResolution = resolveWidgets({
+    isPublished,
+    completionScore,
+    hasGifts,
+    hasAffiliations,
+    conveneEntitled: conveneEnabled,
+    dismissed: dismissedForState(storedDismissals, onboardingState),
+  });
+  const widgetCtx: WidgetContext = {
+    state: widgetResolution.state,
+    completionScore,
+    canPublishAge: !needsAgeCheck,
+    profileUrl: profile?.slug
+      ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`
+      : null,
+    displayName: profile?.display_name ?? null,
+    betaLink: inviteLink,
+    signupUrl: publicSignupUrl(),
+  };
 
   return (
     <main className="min-h-screen">
@@ -83,45 +135,11 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* KAN-326: next-steps hub — lead with what to do next while unpublished. */}
-        {!isPublished && (
-          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mb-6">
-            <h3 className="text-lg font-medium text-[var(--color-ink)] mb-4">Get your profile live</h3>
-            <ol className="space-y-3">
-              <li className="flex items-center justify-between gap-3">
-                <span className="text-sm text-[var(--color-ink)]">
-                  <span className="font-medium">1. Build your profile</span>
-                  <span className="text-[var(--color-muted)]"> · {profile?.completion_score || 0}% complete</span>
-                </span>
-                <Link href="/dashboard/profile" className="shrink-0 px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
-                  Edit profile →
-                </Link>
-              </li>
-              {needsAgeCheck && (
-                <li className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-[var(--color-ink)]">
-                    <span className="font-medium">2. Verify your age</span>
-                    <span className="text-[var(--color-muted)]"> · required before publishing</span>
-                  </span>
-                  <Link href="/verify-age" className="shrink-0 px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors">
-                    Verify age →
-                  </Link>
-                </li>
-              )}
-              <li className="flex items-center justify-between gap-3">
-                <span className="text-sm text-[var(--color-ink)]">
-                  <span className="font-medium">{needsAgeCheck ? '3' : '2'}. Publish</span>
-                  <span className="text-[var(--color-muted)]"> · make your profile public</span>
-                </span>
-                <Link href="/dashboard/profile" className="shrink-0 px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors">
-                  Open editor →
-                </Link>
-              </li>
-            </ol>
-          </div>
-        )}
+        {/* KAN-340/346 — status-driven widget journey (replaces the KAN-326 next-steps hub).
+            One primary CTA in empty/drafted; a gifts/affiliations/share/convene stack once published. */}
+        <DashboardWidgets resolution={widgetResolution} ctx={widgetCtx} />
 
-        <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+        <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6">
           <h3 className="text-lg font-medium text-[var(--color-ink)] mb-4">
             Your profile
           </h3>
@@ -154,44 +172,14 @@ export default async function DashboardPage() {
               Edit your profile →
             </Link>
           )}
-
-          {/* KAN-154-B: shareable invite. Only shown once the profile has
-              a slug — before that there's nothing to share, and the
-              fallback CTA would just point at the public landing page. */}
-          {profile?.slug && (
-            <ShareProfile
-              profileUrl={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`}
-              displayName={profile.display_name}
-              betaLink={inviteLink}
-            />
-          )}
+          {/* Profile-sharing moved to the "Share your profile" widget (W5); Convene
+              moved to the Convene widget (W6); both rendered by DashboardWidgets above. */}
         </div>
 
-        {inviteLink && <ShareBeta inviteLink={inviteLink} />}
-
-        {conveneEnabled && (
-          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6">
-            <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">Convene</h3>
-            <p className="text-sm text-[var(--color-muted)] mb-4">
-              Organise gatherings with the people in your life — pick a time that works, suggest a
-              place, and send invites.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/dashboard/convene/gatherings"
-                className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                Your gatherings
-              </Link>
-              <Link
-                href="/dashboard/convene/contacts"
-                className="px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] transition-colors"
-              >
-                People
-              </Link>
-            </div>
-          </div>
-        )}
+        {/* KAN-337/349 — beta-invite share. Once published it lives in the W5 widget;
+            before publishing, show it here too so beta users can invite friends straight
+            away (no duplication — W5's share only appears in the published states). */}
+        {inviteLink && !isPublished && <ShareBeta inviteLink={inviteLink} />}
       </div>
     </main>
   );

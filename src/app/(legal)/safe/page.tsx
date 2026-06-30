@@ -35,8 +35,8 @@ export default function SafePage() {
             happens offline, with people you choose.
           </li>
           <li>
-            <strong>No exact locations.</strong> We don&apos;t show addresses, and postcode search is
-            opt-in and stored scrambled (hashed).
+            <strong>No exact locations.</strong> We don&apos;t show addresses, and we don&apos;t
+            collect or store your postcode.
           </li>
           <li>
             <strong>Extra care for children.</strong> Children&apos;s profiles are parent-managed with
