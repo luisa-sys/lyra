@@ -107,6 +107,18 @@ curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
 
 Both SHAs should match. If they don't, suspect the CodeQL alert dashboard mismatch (alerts only auto-resolve against `main`'s state, may take 24h after merge to refresh).
 
+## Dev E2E & Regression Smoke (post-deploy)
+
+After every `deploy-dev` that touches the dashboard, profile, or onboarding journey, run the checks in **[`docs/DEV_E2E_REGRESSION.md`](DEV_E2E_REGRESSION.md)**. This exists because the CI "Playwright E2E (local build)" gate runs a *local* build with a *fresh* user only — it missed both **BUGS-63** (deployed-build dashboard blank on hard load) and the **KAN-349 `completion_score`** journey gap. Catch these in dev, not in staging/beta/prod.
+
+**The 30-second must-do after any dashboard deploy** — in a logged-in dev browser:
+
+1. Open `https://dev.checklyra.com/dashboard?cb=1` **directly** (a hard load — refresh / typed URL, NOT an in-app soft navigation).
+2. The full dashboard must render (header + a widget + profile card), **not** a blank page / lone footer.
+3. Console: `document.querySelectorAll('main').length` must be **1**. A `2` (a hidden second `<main>`) means the `loading.tsx` Suspense boundary is stuck again = BUGS-63 regression → diagnostic playbook in the doc.
+
+The full widget-journey state matrix, the fresh-user walkthrough, the "dashboard is blank" diagnostic playbook, and dev test-user management (create/confirm via the DB token, drive states by SQL, reset/clean up) live in `docs/DEV_E2E_REGRESSION.md`.
+
 ## Self-Healing Flows (KAN-233)
 
 The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.
