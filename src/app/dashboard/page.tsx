@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { signOut } from '../(auth)/actions';
 import ShareBeta from './share-beta';
 import DashboardWidgets, { type WidgetContext } from './widgets/dashboard-widgets';
-import { betaInviteLink } from '@/lib/beta-access/invite-link';
+import { betaInviteLink, publicSignupUrl } from '@/lib/beta-access/invite-link';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import { canPublishWithAge } from '@/lib/age/gate';
 import { resolveWidgets, resolveOnboardingState } from '@/lib/dashboard/resolve-widgets';
@@ -89,6 +89,7 @@ export default async function DashboardPage() {
       : null,
     displayName: profile?.display_name ?? null,
     betaLink: inviteLink,
+    signupUrl: publicSignupUrl(),
   };
 
   return (
@@ -175,8 +176,10 @@ export default async function DashboardPage() {
               moved to the Convene widget (W6); both rendered by DashboardWidgets above. */}
         </div>
 
-        {/* KAN-337 — beta-access invite link (a standing action, not a journey step). */}
-        {inviteLink && <ShareBeta inviteLink={inviteLink} />}
+        {/* KAN-337/349 — beta-invite share. Once published it lives in the W5 widget;
+            before publishing, show it here too so beta users can invite friends straight
+            away (no duplication — W5's share only appears in the published states). */}
+        {inviteLink && !isPublished && <ShareBeta inviteLink={inviteLink} />}
       </div>
     </main>
   );

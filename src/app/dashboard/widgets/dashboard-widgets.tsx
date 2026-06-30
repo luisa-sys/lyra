@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import ShareProfile from '../share-profile';
+import ShareBeta from '../share-beta';
 import { dismissWidget } from './actions';
 import {
   isDismissible,
@@ -27,7 +27,10 @@ export interface WidgetContext {
   canPublishAge: boolean;
   profileUrl: string | null;
   displayName: string | null;
+  /** The /join?code= deep-link while the waitlist is in place; null once removed. */
   betaLink: string | null;
+  /** The plain public sign-up link (used by the post-waitlist share version). */
+  signupUrl: string;
 }
 
 /** Card shell with an optional server-action dismiss control (top-right ✕). */
@@ -131,10 +134,23 @@ function renderWidget(id: WidgetId, ctx: WidgetContext): ReactNode {
         </WidgetShell>
       );
     case 'share':
-      // Reuses the KAN-326/337 share card (its own heading serves as the title).
+      // KAN-349 — TWO versions of the share card (founder request). While the
+      // waitlist is in place (a betaLink exists) we keep the exact existing
+      // "Share beta access" widget; once the gate is removed we show a sign-up-
+      // link version. Same layout/wording — reuses ShareBeta, not overwritten.
       return (
         <WidgetShell widgetId={id} state={ctx.state}>
-          <ShareProfile profileUrl={ctx.profileUrl} displayName={ctx.displayName} betaLink={ctx.betaLink} bare />
+          {ctx.betaLink ? (
+            <ShareBeta inviteLink={ctx.betaLink} bare />
+          ) : (
+            <ShareBeta
+              inviteLink={ctx.signupUrl}
+              bare
+              title="Share Lyra"
+              description="Invite someone to Lyra — send them this link to sign up and start their own profile."
+              linkLabel="Lyra sign-up link"
+            />
+          )}
         </WidgetShell>
       );
     case 'convene':
