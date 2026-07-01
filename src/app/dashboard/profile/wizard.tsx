@@ -88,9 +88,6 @@ export function ProfileWizard({
           <Link href="/dashboard" className="flex items-center">
             <Image src="/lyra-logo.png" alt="Lyra" width={32} height={32} className="h-8 w-auto" />
           </Link>
-          <span className="text-sm text-[var(--color-muted)]">
-            Step {step + 1} of {STEPS.length}
-          </span>
         </div>
       </header>
 

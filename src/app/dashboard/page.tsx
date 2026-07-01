@@ -63,8 +63,9 @@ export default async function DashboardPage() {
     hasAffiliations = (affs.count ?? 0) > 0;
   }
   // KAN-349 — `profiles.completion_score` is never maintained (vestigial column,
-  // 0 for all real users), so derive completion from live content. Drives the
-  // empty→drafted journey boundary + the "Completion: N%" display below.
+  // 0 for all real users), so derive completion from live content. Used ONLY to
+  // pick which supportive onboarding widget shows (the empty→drafted boundary) —
+  // it is never surfaced to the user as a score/percentage (no completion pressure).
   const completionScore = computeProfileCompletion({
     displayName: profile?.display_name,
     bioShort: (profile as { bio_short?: string | null } | null)?.bio_short,
@@ -92,7 +93,6 @@ export default async function DashboardPage() {
   });
   const widgetCtx: WidgetContext = {
     state: widgetResolution.state,
-    completionScore,
     canPublishAge: !needsAgeCheck,
     profileUrl: profile?.slug
       ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`
@@ -170,10 +170,6 @@ export default async function DashboardPage() {
               <span className={isPublished ? 'text-green-600' : needsAgeCheck ? 'text-amber-600' : 'text-[var(--color-muted)]'}>
                 {isPublished ? 'Public' : needsAgeCheck ? 'Age check' : 'Private'}
               </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--color-muted)]">Completion</span>
-              <span className="text-[var(--color-ink)]">{completionScore}%</span>
             </div>
           </div>
 

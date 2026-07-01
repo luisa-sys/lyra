@@ -22,7 +22,6 @@ import {
 
 export interface WidgetContext {
   state: OnboardingState;
-  completionScore: number;
   /** canPublishWithAge(age_status) — drives W2's "publish" vs "verify age" CTA. */
   canPublishAge: boolean;
   profileUrl: string | null;
@@ -93,10 +92,10 @@ function renderWidget(id: WidgetId, ctx: WidgetContext): ReactNode {
   switch (id) {
     case 'complete_profile':
       return (
-        <WidgetShell widgetId={id} state={ctx.state} title="Complete your profile" accent>
+        <WidgetShell widgetId={id} state={ctx.state} title="Tell people about you" accent>
           <Body>
-            You&rsquo;re {ctx.completionScore}% of the way there. Add a few more details so the
-            people in your life know what you&rsquo;d love.
+            Share a few details so the people in your life know what you&rsquo;d love — no rush,
+            add as much or as little as you like.
           </Body>
           <Cta href="/dashboard/profile" label="Edit profile →" />
         </WidgetShell>
