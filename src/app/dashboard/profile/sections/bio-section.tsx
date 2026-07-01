@@ -31,11 +31,11 @@ export function BioSection({ profile }: { profile: WizardProfile }) {
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           rows={4}
-          maxLength={300}
+          maxLength={600}
           className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent resize-none"
           placeholder="I'm a primary school teacher who loves hiking, terrible puns, and finding the best flat white in town."
         />
-        <p className="text-xs text-[var(--color-muted)] mt-1">{bio.length}/300</p>
+        <p className="text-xs text-[var(--color-muted)] mt-1">{bio.length}/600</p>
       </div>
     </div>
   );

@@ -56,7 +56,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     likes: '💚 Like', dislikes: '💔 Dislike',
     gift_ideas: '🎁 Gift idea', gifts_to_avoid: '🚫 Avoid',
     boundaries: '🛑 Boundary', helpful_to_know: '💡 Helpful to know',
-    favourite_books: '📖 Book', favourite_media: '🎬 Movie/Series',
+    favourite_books: '📖 Book', favourite_media: '🎬 Movie',
     causes: '🌍 Cause', quotes: '💬 Quote',
     proud_of: '🏆 Proud of', life_hacks: '💡 Life hack',
     questions: '❓ Question', billboard: '📢 Billboard',
@@ -64,7 +64,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     // challenges / projects / interests for networking + collaboration.
     current_problems: '🧩 Currently solving',
     // KAN-263: favourites split out for the redesign favourites grid.
-    favourite_tv: '📺 TV show', favourite_places: '📍 Place', favourite_music: '🎵 Music',
+    favourite_tv: '📺 TV show', plays: '🎭 Play', favourite_places: '📍 Place', favourite_music: '🎵 Music',
   };
 
   const handleAdd = () => {

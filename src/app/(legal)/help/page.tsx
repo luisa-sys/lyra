@@ -48,7 +48,7 @@ export default function HelpPage() {
 
         <h2>Why is it taking so long to hear back from you?</h2>
         <p>
-          Lyra is a small team. We read everything and we <em>will</em> reply — just not always
+          We read everything and we <em>will</em> reply — just not always
           quickly. Thank you for bearing with us. 💛
         </p>
 

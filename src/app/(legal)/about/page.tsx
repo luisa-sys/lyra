@@ -52,7 +52,7 @@ export default function AboutPage() {
 
         <p>
           Just honest pages, in people&apos;s own words — a little &ldquo;Wikipedia for real
-          people&rdquo;. Lyra is a small team. We hope it makes knowing each other a little kinder.
+          people&rdquo;. We hope it makes knowing each other a little kinder.
         </p>
 
         <p>

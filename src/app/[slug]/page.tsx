@@ -452,15 +452,12 @@ export default async function PublicProfilePage({ params }: Props) {
 
           {/* Things I love + not for me */}
           <CardSection heading="💛 Things I love, can't get enough of, or have been dreaming about" items={groupedItems['gift_ideas']} />
-          <CardSection heading="💚 Things I'm into" items={groupedItems['likes']} />
           {notForMe.length > 0 && (
             <section className="mt-11">
               <SectionQ>🙅 Things that aren&apos;t really for me</SectionQ>
               <ItemCards items={notForMe} />
             </section>
           )}
-          <CardSection heading="🧭 Helpful to know" items={groupedItems['helpful_to_know']} />
-          <CardSection heading="🚧 My boundaries" items={groupedItems['boundaries']} />
           <CardSection heading="🌍 Causes close to my heart" items={groupedItems['causes']} />
           <CardSection heading="🏆 Things I'm proud of" items={groupedItems['proud_of']} />
 
