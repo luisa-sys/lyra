@@ -6,6 +6,7 @@ import { headers, cookies } from 'next/headers';
 
 import { env } from '@/lib/env';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
+import { isEmailResendCooldown } from './auth-errors';
 
 function getSiteUrl() {
   return env.siteUrl();
@@ -61,6 +62,12 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
+    if (isEmailResendCooldown(error)) {
+      return redirect(
+        '/signup?message=' +
+          encodeURIComponent('Check your email for a link to finish creating your account.'),
+      );
+    }
     return redirect('/signup?error=' + encodeURIComponent(error.message));
   }
 
@@ -92,6 +99,11 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
+    if (isEmailResendCooldown(error)) {
+      return redirect(
+        '/login?message=' + encodeURIComponent('Check your email for a sign-in link.'),
+      );
+    }
     return redirect('/login?error=' + encodeURIComponent(error.message));
   }
 
