@@ -200,7 +200,6 @@ test.describe('Redesign — populated public profile structure', () => {
       /To understand me a little better/i,
       /A few more things about me/i,
       /Things I love/i,
-      /Things I'm into/i,
     ];
     const matches = await Promise.all(
       humanised.map((re) => page.getByText(re).count()),

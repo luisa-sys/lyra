@@ -87,36 +87,12 @@ const SECTIONS: SectionDef[] = [
     description: "The things you'd genuinely love — to receive, to do, or to be surprised by.",
   },
   {
-    id: 'into',
-    label: "Things I'm into",
-    icon: '💚',
-    kind: 'items',
-    categories: ['likes'],
-    description: 'Interests, hobbies, the things you light up about.',
-  },
-  {
     id: 'notforme',
     label: "Things that aren't really for me",
     icon: '🙅',
     kind: 'items',
     categories: ['gifts_to_avoid', 'dislikes'],
     description: "Gentle no-thank-yous — so people don't have to guess.",
-  },
-  {
-    id: 'helpful',
-    label: 'Helpful to know',
-    icon: '🧭',
-    kind: 'items',
-    categories: ['helpful_to_know'],
-    description: 'Practical things that make life easier for the people around you.',
-  },
-  {
-    id: 'myboundaries',
-    label: 'My boundaries',
-    icon: '🚧',
-    kind: 'items',
-    categories: ['boundaries'],
-    description: "Anything you'd gently like respected.",
   },
   {
     id: 'causes',
@@ -139,8 +115,8 @@ const SECTIONS: SectionDef[] = [
     label: 'A few of my favourite things',
     icon: '⭐',
     kind: 'items',
-    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'quotes', 'favourite_places', 'favourite_music'],
-    description: 'Books, films, TV, music, places, and the quotes you come back to.',
+    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'plays', 'quotes', 'favourite_places', 'favourite_music'],
+    description: 'Books, films, TV, plays, music, places, and the quotes you come back to.',
   },
   {
     id: 'tips',
@@ -174,7 +150,6 @@ const SECTIONS: SectionDef[] = [
     description: "Your billboard message, and any other questions you'd love to be asked.",
   },
   { id: 'links', label: 'Links', icon: '🔗', kind: 'links' },
-  { id: 'files', label: 'Files & media', icon: '📎', kind: 'files' },
 ];
 
 export function EditProfileForm({

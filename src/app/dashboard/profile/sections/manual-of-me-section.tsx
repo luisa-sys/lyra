@@ -55,8 +55,8 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       </p>
 
       <MoMField
-        label="Good to know about me"
-        helper="The little things that help people get you."
+        label="Good to know about me / Things I'm into"
+        helper="The little things that help people get you — and the things you're into."
         placeholder="I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
         value={draft.good_to_know}
         onChange={(v) => set('good_to_know', v)}

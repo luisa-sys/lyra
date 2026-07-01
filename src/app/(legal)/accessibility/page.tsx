@@ -27,7 +27,7 @@ export default function AccessibilityPage() {
           <strong>WCAG 2.2 AA</strong>.
         </p>
         <p>
-          We&apos;re a small team and we won&apos;t get everything right first time — if something is
+          We won&apos;t get everything right first time — if something is
           hard to use, please tell us via{" "}
           <Link href="/contact" className="text-[var(--color-sage)]">Contact</Link> and we&apos;ll fix
           it.
