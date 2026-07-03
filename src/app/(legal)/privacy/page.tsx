@@ -30,14 +30,21 @@ export default function PrivacyPolicyPage() {
           <li><strong>Account data:</strong> Email address and display name. Sign-in is passwordless — we email you a secure one-time link, so there&apos;s no password to store.</li>
           <li><strong>Profile data:</strong> Headline, bio, city, country, preferences, gift ideas, likes, dislikes, boundaries, school affiliations, external links, and profile photo — all provided voluntarily by you</li>
           <li><strong>Usage data:</strong> Page views and basic analytics (via Vercel Analytics), collected anonymously unless you opt in</li>
+          <li><strong>Age-assurance result:</strong> A pass/fail outcome and age band from our age-verification provider (Didit), used to confirm you are 18 or over — see <strong>Age assurance</strong> below. We do not receive or store the selfie image used for this check.</li>
         </ul>
-        <p>Lyra is for adults — you must be <strong>18 or over</strong> to create a profile, and it is not intended for children. We do <strong>not</strong> collect: payment information, precise location data, browsing history, or data from third-party sources.</p>
+        <p>Lyra is for adults — you must be <strong>18 or over</strong> to create a profile, and it is not intended for children. We do <strong>not</strong> collect payment information, precise location data, or browsing history. The only data we receive about you from a third party is the age-assurance result described below, which we receive from Didit when you complete the one-time age check.</p>
 
         <h2>Why we collect it (lawful basis)</h2>
         <ul>
           <li><strong>Consent:</strong> You choose to create a profile and share your preferences. You can withdraw consent at any time by deleting your account.</li>
           <li><strong>Legitimate interest:</strong> We use anonymised analytics to improve the service and security logs to protect against abuse.</li>
+          <li><strong>Explicit consent (special category):</strong> The one-time age check uses biometric facial age-estimation, which is special-category data under Art. 9 UK GDPR. We rely on your explicit consent (Art. 9(2)(a)) for that step — see <strong>Age assurance</strong> below.</li>
         </ul>
+
+        <h2>Age assurance (18+ verification)</h2>
+        <p>Lyra is an adults-only service. To keep under-18s out, we ask you to complete a one-time age check provided by <strong>Didit</strong>, our age-assurance provider, acting as our processor. Didit performs a <strong>biometric facial age-estimation</strong> — a selfie &quot;liveness&quot; check — on its own systems, and returns to Lyra only a <strong>result</strong>: whether you passed and an approximate age band.</p>
+        <p><strong>Special-category data.</strong> A facial image used for age estimation is biometric data, which is &quot;special category&quot; personal data under Article 9 of the UK GDPR. This processing is carried out by Didit on our behalf, and our condition for it is your <strong>explicit consent</strong> under Art. 9(2)(a), captured by Didit at the point of the selfie check. You do not have to complete the check, but you cannot create a profile without confirming you are 18 or over.</p>
+        <p><strong>What Lyra receives and stores.</strong> Lyra receives and stores only the pass/fail result and age band. Lyra <strong>never</strong> receives, sees, or stores the selfie image or any biometric template. Didit&apos;s capture, retention, and deletion of the image are governed by Didit&apos;s own privacy notice and by our data-processing agreement with Didit. You can withdraw your consent by deleting your account.</p>
 
         <h2>How we use your data</h2>
         <ul>
@@ -50,13 +57,17 @@ export default function PrivacyPolicyPage() {
         <p>We will <strong>never</strong> sell your data, use it for targeted advertising, or share it with third parties for their marketing purposes.</p>
 
         <h2>Who we share data with</h2>
-        <p>We use the following service providers who process data on our behalf:</p>
+        <p>We use the following service providers, who each act as our processor under a data processing agreement:</p>
         <ul>
-          <li><strong>Supabase</strong> (database hosting, EU region) — stores your profile data</li>
+          <li><strong>Supabase</strong> (database, authentication, and file storage) — stores your profile data, media, and sign-in records</li>
           <li><strong>Vercel</strong> (website hosting) — serves checklyra.com</li>
-          <li><strong>Cloudflare</strong> (DNS and CDN) — routes web traffic</li>
+          <li><strong>Cloudflare</strong> (DNS, CDN, and encrypted backup storage) — routes web traffic and holds our database backups in Cloudflare R2</li>
+          <li><strong>Railway</strong> (application hosting) — runs the MCP integration servers that let AI companions access published profiles</li>
+          <li><strong>Resend</strong> (transactional email) — delivers your sign-in link, event invites, and account notices</li>
+          <li><strong>Didit</strong> (age assurance) — performs the one-time 18+ age check; see <strong>Age assurance</strong> above</li>
+          <li><strong>Google</strong> (sign-in and calendar) — provides optional Google sign-in and, if you connect it, reads your calendar&apos;s free/busy availability to help plan events</li>
         </ul>
-        <p>Each provider has their own GDPR-compliant data processing agreements. We do not transfer data outside the UK/EU. Profile photos are stored in Supabase Storage (EU region). Database backups are stored in Cloudflare R2 with EU jurisdiction and 90-day retention.</p>
+        <p>Each of these providers processes data under its own GDPR-compliant data processing agreement. Some of them are based in, or host data in, the United States. Where personal data is transferred outside the UK, that transfer is protected by the <strong>UK Addendum to the EU Standard Contractual Clauses</strong> (or the UK International Data Transfer Agreement) incorporated by the provider&apos;s DPA, together with encryption in transit and at rest. Database backups are stored, encrypted, in Cloudflare R2 with 90-day retention. Our full sub-processor register is available on request at privacy@checklyra.com.</p>
 
         <h2>Affiliate partners</h2>
         <p>Some of the gift suggestions Lyra surfaces are affiliate links. If you click one and make a purchase, Lyra may earn a small commission from the retailer at no extra cost to you. We work with the following affiliate networks:</p>
