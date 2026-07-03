@@ -207,40 +207,15 @@ export async function searchByPhone(phone: string): Promise<SearchResult> {
   return performHashedSearch('phone', hash, user.id);
 }
 
-// KAN-339: hashed searchByPostcode removed. KAN-341 replaces it with city search.
-
-/**
- * KAN-341 — town/city discovery. City is coarse and is already public on a
- * published profile, so (unlike phone) it is NOT hashed: we match PUBLISHED
- * profiles by their public city. Rate-limited per searcher; authenticated only.
- */
-export async function searchByCity(city: string): Promise<SearchResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
-
-  const q = (city ?? '').trim();
-  if (q.length < 2) return { success: true, matches: [] };
-
-  const rl = rateLimit(`discoverability-search:${user.id}`, SEARCH_RATE_LIMIT);
-  if (rl.limited) {
-    return {
-      success: false,
-      error: `Too many lookups. Try again in ${rl.retryAfter ?? 60} seconds.`,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, slug')
-    .eq('is_published', true)
-    .ilike('city', q)
-    .limit(50);
-  if (error) {
-    return { success: false, error: 'Search failed. Please try again.' };
-  }
-  const matches = (data ?? [])
-    .filter((r): r is { id: string; slug: string } => typeof r.slug === 'string')
-    .map((r) => ({ id: r.id, slug: r.slug }));
-  return { success: true, matches };
-}
+// KAN-339: hashed searchByPostcode removed. KAN-341 replaces postcode
+// discovery with town/city discovery.
+//
+// KAN-341 decision (docs/KAN-349-UX-EPIC-REVIEW.md §4): city discovery is
+// served by the PUBLIC `/search` page (`src/app/search/page.tsx`), which
+// already ilike-matches `profiles.city` alongside name / headline / slug. A
+// dedicated authenticated `searchByCity` server action was prototyped here but
+// never wired to any UI; it duplicated `/search` more weakly (auth-only, exact
+// ilike with no wildcards, no is_homepage_example filter), so it was removed
+// rather than shipped as a second, divergent discovery path. Phone discovery
+// stays hashed and action-based (above) because a phone number is not public
+// profile data; a city is.
