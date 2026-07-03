@@ -87,6 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .select('display_name, headline, bio_short')
     .eq('slug', slug)
     .eq('is_published', true)
+    .eq('is_suspended', false) // SEC-44: service-role render must exclude suspended profiles
     .single();
 
   if (!profile) {
@@ -175,6 +176,7 @@ export default async function PublicProfilePage({ params }: Props) {
     .select('*')
     .eq('slug', slug)
     .eq('is_published', true)
+    .eq('is_suspended', false) // SEC-44: suspended profiles must 404 on the public page, not render
     .single();
 
   if (!profile) {
