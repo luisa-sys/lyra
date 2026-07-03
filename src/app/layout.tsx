@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ConsentedAnalytics } from "./consented-analytics";
 import { CookieConsent } from "./cookie-consent";
 import { Footer } from "./footer";
 import { InstallPrompt } from "./install-prompt";
@@ -120,8 +119,9 @@ export default function RootLayout({
         <CookieConsent />
         <InstallPrompt />
         <ServiceWorkerRegister />
-        <Analytics />
-        <SpeedInsights />
+        {/* SEC-72: analytics + speed-insights only run once the visitor has
+            accepted via the cookie-consent banner (Essential-only = off). */}
+        <ConsentedAnalytics />
       </body>
     </html>
   );
