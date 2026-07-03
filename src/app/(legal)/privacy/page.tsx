@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Privacy Policy</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 17 June 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 3 July 2026</p>
 
         <h2>Who we are</h2>
         <p>Lyra is operated by <strong>CheckLyra Ltd</strong> (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;), a company registered in England &amp; Wales (company no. 16351012; registered office: 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ). CheckLyra Ltd is the data controller for the personal data described here, and is registered with the UK Information Commissioner&apos;s Office (ICO). We are committed to protecting your privacy and handling your personal data transparently.</p>
