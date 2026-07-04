@@ -43,3 +43,32 @@ export const AFFILIATION_SINGULAR: Record<AffiliationType, string> = {
   organisation: 'organisation',
   community: 'community',
 };
+
+/**
+ * KAN-404: schools MUST carry a postcode (full or partial) so people can
+ * tell schools with the same name apart. Organisations and communities
+ * keep location optional. This helper says which affiliation types require
+ * a postcode.
+ */
+export function requiresPostcode(type: string): boolean {
+  return type === 'school';
+}
+
+/**
+ * KAN-404: permissive / international postcode validator. We are NOT
+ * validating against any single country's format — Lyra has an international
+ * user base — so we only require enough structure to be a plausible
+ * postcode: a short-ish token that contains at least one letter AND at least
+ * one digit.
+ *
+ * Accepts: 'SW1A', 'M1', 'SW1A 1AA', 'B33 8TH' (UK full/partial),
+ * and other alphanumeric international codes.
+ * Rejects: '' (empty), 'London' (letters only, no digit),
+ * '12345' (digits only — no way to disambiguate a US-style all-numeric ZIP
+ * from a house number here; the letter+digit rule is the disambiguating
+ * signal we chose for this permissive check).
+ */
+export function isSchoolPostcodeValid(v: string | undefined | null): boolean {
+  const s = (v || '').trim();
+  return s.length >= 2 && s.length <= 12 && /[a-z]/i.test(s) && /\d/.test(s);
+}

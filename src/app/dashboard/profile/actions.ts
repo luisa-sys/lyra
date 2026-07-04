@@ -9,7 +9,7 @@ import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
-import { coerceAffiliationType } from './affiliation-fields';
+import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';
 import {
   coerceSectionVisibility,
   isControllableSectionKey,
@@ -273,6 +273,19 @@ export async function addSchoolAffiliation(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
+  // KAN-404 — schools must carry a postcode (full or partial) so people can
+  // tell schools with the same name apart; orgs/communities keep location
+  // optional. Enforced server-side (the real boundary) BEFORE moderation or
+  // insert. Coerce the type first so a school smuggled in as something else
+  // still hits this gate.
+  const affiliationType = coerceAffiliationType(data.affiliation_type);
+  if (requiresPostcode(affiliationType) && !isSchoolPostcodeValid(data.school_location)) {
+    return {
+      success: false,
+      error: 'Schools need a postcode (full or partial) so people can tell schools with the same name apart.',
+    };
+  }
+
   // KAN-241 + KAN-244 — content moderation + audit log. Affiliations
   // show on the public profile.
   const sanitisedName = sanitiseText(data.school_name, 200);
@@ -305,7 +318,7 @@ export async function addSchoolAffiliation(data: {
       school_name: sanitisedName,
       school_location: sanitisedLoc,
       relationship: data.relationship || 'parent',
-      affiliation_type: coerceAffiliationType(data.affiliation_type),
+      affiliation_type: affiliationType,
     });
 
   if (error) return { success: false, error: error.message };
