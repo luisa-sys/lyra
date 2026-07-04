@@ -181,7 +181,8 @@ describe('KAN-241: addSchoolAffiliation moderation', () => {
   test('clean school name → write succeeds', async () => {
     const result = await addSchoolAffiliation({
       school_name: 'Greenfield Primary',
-      school_location: 'London',
+      // KAN-404 — schools now require a postcode (full or partial).
+      school_location: 'SW1A 1AA',
     });
     expect(result).toEqual({ success: true });
     expect(mockInsertCapture).toHaveBeenCalledWith('school_affiliations', expect.objectContaining({
