@@ -31,6 +31,12 @@ export async function register() {
     return;
   }
 
+  // SEC-55: strip OAuth secrets / PII from events + breadcrumbs before they
+  // leave the process. Complements (does not replace) sendDefaultPii:false.
+  const { scrubSentryEvent, scrubSentryBreadcrumb } = await import(
+    '@/lib/sentry-scrub'
+  );
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const Sentry = await import('@sentry/nextjs');
     Sentry.init({
@@ -43,6 +49,8 @@ export async function register() {
       // Sensitive params (search queries, slugs of private profiles)
       // shouldn't end up in Sentry events.
       sendDefaultPii: false,
+      beforeSend: (event) => scrubSentryEvent(event),
+      beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
       release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
     });
   }
@@ -54,6 +62,8 @@ export async function register() {
       environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
       tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
       sendDefaultPii: false,
+      beforeSend: (event) => scrubSentryEvent(event),
+      beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
       release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
     });
   }
