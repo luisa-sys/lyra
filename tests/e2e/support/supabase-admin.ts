@@ -56,10 +56,14 @@ export function projectRefFromUrl(url: string): string {
  * prod. Throws before any client is constructed or any DB write is attempted.
  */
 export function assertNotProd(url: string): string {
-  if (url.includes(PROD_REF) || url.includes('checklyra.com')) {
+  // Parse the host to an exact project ref rather than substring-matching the
+  // raw URL (a substring check like url.includes('checklyra.com') is unreliable
+  // and flagged by CodeQL). The positive allowlist below is the real guard; the
+  // explicit prod-ref check just gives a clearer error for the prod project.
+  const ref = projectRefFromUrl(url);
+  if (ref === PROD_REF) {
     throw new Error('E2E harness refuses to run against prod Supabase');
   }
-  const ref = projectRefFromUrl(url);
   if (!ALLOWED_REFS.includes(ref)) {
     throw new Error(
       `E2E harness: refusing to run against unrecognised Supabase project ref "${ref}". ` +
