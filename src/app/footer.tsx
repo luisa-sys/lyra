@@ -25,6 +25,7 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/accessibility", label: "Accessibility" },
   { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },
+  { href: "/complaints", label: "Complaints" },
   // KAN-184: the affiliate "Partners" link must stay reachable from the
   // footer — Sovrn's crawler follows it to verify Lyra owns checklyra.com.
   // Not in the mock-up's nine, appended here to preserve that verification.

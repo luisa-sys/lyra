@@ -8,11 +8,11 @@
 
 **Controller:** CheckLyra Ltd (trading as Lyra), registered in England & Wales.
 **Contact:** privacy@checklyra.com · security@checklyra.com
-**ICO registration:** _<to be completed — see KAN-283; Tier 1 fee, £47/yr Direct Debit>_
+**ICO registration:** ZC124222 (CheckLyra Ltd; registered 17 Apr 2026; renewal ~17 Mar 2027; Tier 1, £47/yr Direct Debit).
 **DPO:** Not appointed — not legally required (Lyra is not a public authority and
 core activity is not large-scale special-category or systematic-monitoring
 processing). Founder is the accountable data-protection lead.
-**Last reviewed:** 2026-06-28 · **Next review due:** 2026-12-28 (6-monthly until launch, then annually).
+**Last reviewed:** 2026-07-03 · **Next review due:** 2026-12-28 (6-monthly until launch, then annually).
 
 ---
 

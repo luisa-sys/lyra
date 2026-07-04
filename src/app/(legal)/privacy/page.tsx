@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
         <p className="text-sm text-[var(--color-muted)]">Last updated: 3 July 2026</p>
 
         <h2>Who we are</h2>
-        <p>Lyra is operated by <strong>CheckLyra Ltd</strong> (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;), a company registered in England &amp; Wales (company no. 16351012; registered office: 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ). CheckLyra Ltd is the data controller for the personal data described here, and is registered with the UK Information Commissioner&apos;s Office (ICO). We are committed to protecting your privacy and handling your personal data transparently.</p>
+        <p>Lyra is operated by <strong>CheckLyra Ltd</strong> (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;), a company registered in England &amp; Wales (company no. 16351012; registered office: 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ). CheckLyra Ltd is the data controller for the personal data described here, and is registered with the UK Information Commissioner&apos;s Office (ICO) under registration reference <strong>ZC124222</strong>. We are committed to protecting your privacy and handling your personal data transparently.</p>
 
         <h2>What data we collect</h2>
         <p>When you create a Lyra profile, we collect:</p>
@@ -107,6 +107,17 @@ export default function PrivacyPolicyPage() {
 
         <h2>Changes to this policy</h2>
         <p>We may update this policy from time to time. We will notify you of significant changes via email or a notice on the website.</p>
+
+        <h2>Data protection complaints</h2>
+        <p>If you are unhappy with how we have handled your personal data, you can make a data-protection complaint to us. Email <a href="mailto:privacy@checklyra.com" className="text-[var(--color-sage)]">privacy@checklyra.com</a> with the word &quot;complaint&quot; and a description of your concern, or use our <Link href="/complaints" className="text-[var(--color-sage)]">complaints page</Link>.</p>
+        <p>We will <strong>acknowledge your complaint within 30 days</strong> of receiving it, investigate it without undue delay, keep you informed of progress, and write to you with the outcome. This reflects our statutory duty under the <strong>Data (Use and Access) Act 2025</strong>.</p>
+        <p>If you remain dissatisfied, you have the right to complain to the UK Information Commissioner&apos;s Office (ICO), our supervisory authority:</p>
+        <ul>
+          <li>Online: <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">ico.org.uk/make-a-complaint</a></li>
+          <li>Helpline: 0303 123 1113</li>
+          <li>Post: Information Commissioner&apos;s Office, Wycliffe House, Water Lane, Wilmslow, Cheshire, SK9 5AF</li>
+        </ul>
+        <p>You can complain to the ICO at any time, but we would welcome the chance to resolve your concern first.</p>
 
         <h2>Contact</h2>
         <p>For privacy enquiries: privacy@checklyra.com</p>
