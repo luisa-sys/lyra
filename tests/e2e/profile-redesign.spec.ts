@@ -228,32 +228,18 @@ test.describe('Redesign — populated public profile structure', () => {
 });
 
 /**
- * AUTHENTICATED EDITOR (create/edit/save profile) — DEFERRED.
+ * AUTHENTICATED EDITOR (create/edit/save profile) — NOW IMPLEMENTED (KAN-348).
  *
- * The profile editor (src/app/dashboard/profile/ + edit-profile-form.tsx)
- * sits behind the KAN-258 invite gate + passwordless magic-link sign-in.
- * Driving that end-to-end in CI requires either:
- *   (a) a Playwright storageState captured from a real signed-in session
- *       against the target env's Supabase, refreshed before token expiry, or
- *   (b) a seeded test user + a programmatic session-cookie mint
- *       (service-role-signed JWT) wired into a global-setup project.
+ * This describe was a `test.fixme` placeholder while no session harness existed.
+ * The KAN-348 authenticated E2E harness (option (b): a seeded test user + a
+ * programmatic session mint wired into a Playwright globalSetup project) now
+ * provisions exactly that. The real editor test — "edits a Manual-of-Me box and
+ * the change appears on the published profile" — lives in the AUTHED project so
+ * this anon suite stays credential-free and DB-independent:
  *
- * Both need environment-specific Supabase credentials and a seeded user that
- * this PR does not provision, so shipping them now would mean a flaky or
- * always-skipped passing test. Per the brief we defer rather than ship flake.
- * Tracked as a follow-up (see PR description). When the storageState harness
- * lands, remove the `test.fixme` and assert: editor loads the warm redesign
- * chrome, edits a Manual-of-Me box, saves, and the change appears on the
- * published public profile (edit === published, per the June-2026 spec).
+ *   tests/e2e/authed/journey.authed.spec.ts
+ *     → describe('KAN-271 — authenticated profile editor (was test.fixme)')
+ *
+ * It runs only when E2E_AUTHED is set (globalSetup no-ops otherwise), so the
+ * PR gate that runs THIS file is untouched. Nothing to run here.
  */
-test.describe('Redesign — authenticated profile editor (deferred)', () => {
-  test.fixme(
-    'edits a Manual-of-Me box and the change appears on the published profile',
-    async () => {
-      // Intentionally unimplemented — see the block comment above. Requires a
-      // signed-in Playwright storageState / seeded test user not provisioned
-      // by this PR. test.fixme keeps this visible in the report as a known,
-      // expected-to-fail placeholder rather than a silent skip or flaky pass.
-    },
-  );
-});

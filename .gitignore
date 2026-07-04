@@ -52,6 +52,9 @@ reports/weekly-report-*.md
 # Playwright (KAN-114, KAN-176)
 playwright-report/
 test-results/
+# KAN-348: authed harness storageState + manifest — LIVE session tokens.
+# Runtime-only; must NEVER be committed or uploaded as a public CI artifact.
+tests/e2e/.auth/
 
 # Lighthouse CI output (KAN-176)
 .lighthouseci/
