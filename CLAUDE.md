@@ -501,3 +501,25 @@ See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
 - Sunday 05:00 — Backup restore test
 - Monday 07:00 — Weekly report (emails via Resend)
 - Wednesday 07:00 — Security audit (npm audit + email alerts via Resend)
+
+### Ops routines & the Control-Room heartbeat (KAN-350 / KAN-362)
+
+The scheduled **claude.ai routines** (Daily Security, Weekly Health+Regression,
+Doc-Sync Health-Check, Documentation producer) and the GitHub-Actions crons
+above are indexed in **`docs/OPS_ROUTINES_CONTROL_ROOM.md`** (the repo mirror of
+the Confluence *Ops Routines Control Room*). Rules for any routine (or agent
+editing one):
+
+- **Every routine writes exactly one heartbeat row** to the Ops Routines Control
+  Room Heartbeat table as its **final checkpoint** of each run
+  (`Timestamp | Routine | PASS/FAIL/UNVERIFIED | New tickets/PRs | Next-expected
+  | Notes`). A run that produced no heartbeat is treated by the watchdog as a
+  **missed run**.
+- **One concern → one owner** (KAN-361): liveness = `health-check.yml`;
+  security = the Daily Security routine; test/release = the Weekly
+  Health+Regression routine; doc-sync = the Doc-Sync Health-Check routine. Other
+  routines/reports **cite** the owner's last result, they don't re-derive it.
+- The **watchdog** (`scripts/routine-watchdog.sh`, run inside the Daily Security
+  routine) flags any routine that is OVERDUE or last-FAIL and raises an
+  `ACTION NEEDED` alert. It is READ-ONLY and honest: an unreadable heartbeat is
+  `UNVERIFIED` (exit 1), never a silent PASS.
