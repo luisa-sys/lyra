@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import { Field, SaveButton, type WizardLink } from './types';
 
-export function LinksStep({ links, onAdd, onRemove, onNext, isPending }: {
+export function LinksStep({ links, onAdd, onRemove, onNext, isPending, showContinue = true }: {
   links: WizardLink[];
   onAdd: (data: { title: string; url: string; link_type?: string }) => void;
   onRemove: (id: string) => void; onNext: () => void; isPending: boolean;
+  // KAN-404 (#8/#9): the single-page editor sets showContinue={false} to drop
+  // the misleading "Continue →" button; the legacy wizard keeps the default.
+  showContinue?: boolean;
 }) {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -56,7 +59,7 @@ export function LinksStep({ links, onAdd, onRemove, onNext, isPending }: {
           + Add link
         </button>
       </div>
-      <SaveButton onClick={onNext} isPending={false} label="Continue →" />
+      {showContinue && <SaveButton onClick={onNext} isPending={false} label="Continue →" />}
     </div>
   );
 }

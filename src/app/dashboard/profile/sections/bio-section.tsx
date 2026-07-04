@@ -10,18 +10,17 @@
 import { useState } from 'react';
 import type { WizardProfile } from '../steps/types';
 import { updateProfileFields } from '../actions';
-import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
+import { useAutoSave } from './use-auto-save';
+import { SectionSaveBar } from './section-save-bar';
 
 export function BioSection({ profile }: { profile: WizardProfile }) {
   const [bio, setBio] = useState(profile.bio_short || '');
 
-  const status = useAutoSave(bio, async (v) => updateProfileFields({ bio_short: v }));
+  const { status, flush } = useAutoSave(bio, async (v) => updateProfileFields({ bio_short: v }));
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <AutoSaveStatusLabel status={status} />
-      </div>
+      <SectionSaveBar status={status} onSave={flush} />
       <div>
         <label htmlFor="bio_short" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
           Short bio

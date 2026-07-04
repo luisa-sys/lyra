@@ -54,6 +54,7 @@ export function FilesStep({
   onUpdateVisibility,
   onNext,
   isPending,
+  showContinue = true,
 }: {
   files: WizardFile[];
   onUpload: (formData: FormData) => void;
@@ -61,6 +62,9 @@ export function FilesStep({
   onUpdateVisibility: (id: string, visibility: string) => void;
   onNext: () => void;
   isPending: boolean;
+  // KAN-404 (#8/#9): the single-page editor sets showContinue={false} to drop
+  // the misleading "Continue →" button; the legacy wizard keeps the default.
+  showContinue?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [visibility, setVisibility] = useState<string>('public');
@@ -194,7 +198,7 @@ export function FilesStep({
         )}
       </div>
 
-      <SaveButton onClick={onNext} isPending={false} label="Continue →" />
+      {showContinue && <SaveButton onClick={onNext} isPending={false} label="Continue →" />}
     </div>
   );
 }
