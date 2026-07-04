@@ -3,7 +3,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { isAgeVerificationRequired, canPublishWithAge } from '@/lib/age/gate';
+import { isAgeVerificationRequired, canPublishWithAge, isAgeGatePaused } from '@/lib/age/gate';
 
 const OFF = {} as NodeJS.ProcessEnv;
 const ON = { AGE_VERIFICATION_REQUIRED: 'true' } as unknown as NodeJS.ProcessEnv;
@@ -42,5 +42,51 @@ describe('age gate is applied to BOTH web publish paths (KAN-319 review HIGH fix
     expect(actions).toMatch(/sanitised\.is_published === true/);
     // isAgeVerificationRequired guards both paths → appears at least twice
     expect((actions.match(/isAgeVerificationRequired\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('age-gate reversible PAUSE flag (KAN-404, fail-safe)', () => {
+  const REQUIRED = { AGE_VERIFICATION_REQUIRED: 'true' } as unknown as NodeJS.ProcessEnv;
+
+  it('REQUIRED=true + PAUSED=true → gate relaxed (verification not required, any status may publish)', () => {
+    const env = {
+      AGE_VERIFICATION_REQUIRED: 'true',
+      AGE_GATE_PAUSED: 'true',
+    } as unknown as NodeJS.ProcessEnv;
+    expect(isAgeGatePaused(env)).toBe(true);
+    expect(isAgeVerificationRequired(env)).toBe(false);
+    // With the gate paused, an unverified profile may publish again.
+    expect(canPublishWithAge('none', env)).toBe(true);
+    expect(canPublishWithAge('failed', env)).toBe(true);
+    expect(canPublishWithAge(null, env)).toBe(true);
+  });
+
+  it.each([
+    ['empty string', ''],
+    ['literal false', 'false'],
+    ['one', '1'],
+    ['undefined', undefined],
+  ])('REQUIRED=true + PAUSED=%s → gate STAYS on (fail-safe default)', (_label, paused) => {
+    const env = {
+      AGE_VERIFICATION_REQUIRED: 'true',
+      ...(paused === undefined ? {} : { AGE_GATE_PAUSED: paused }),
+    } as unknown as NodeJS.ProcessEnv;
+    expect(isAgeGatePaused(env)).toBe(false);
+    expect(isAgeVerificationRequired(env)).toBe(true);
+    expect(canPublishWithAge('none', env)).toBe(false);
+    expect(canPublishWithAge('passed', env)).toBe(true);
+  });
+
+  it('default (REQUIRED=true, no PAUSED key at all) → gate on', () => {
+    expect(isAgeGatePaused(REQUIRED)).toBe(false);
+    expect(isAgeVerificationRequired(REQUIRED)).toBe(true);
+    expect(canPublishWithAge('none', REQUIRED)).toBe(false);
+  });
+
+  it('isAgeGatePaused ignores env when REQUIRED is off (pause is meaningless without the gate)', () => {
+    const env = { AGE_GATE_PAUSED: 'true' } as unknown as NodeJS.ProcessEnv;
+    // Gate was never on → still off; pausing an off gate is a no-op.
+    expect(isAgeVerificationRequired(env)).toBe(false);
+    expect(canPublishWithAge('none', env)).toBe(true);
   });
 });
