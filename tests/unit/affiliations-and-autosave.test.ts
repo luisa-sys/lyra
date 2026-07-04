@@ -275,7 +275,9 @@ describe('KAN-220: surface-area regression guards', () => {
     expect(src).toMatch(/AffiliationsSection/);
     expect(src).toMatch(/ItemsStep/);  // reused from legacy steps
     expect(src).toMatch(/LinksStep/);
-    expect(src).toMatch(/FilesStep/);
+    // KAN-404: FilesStep is intentionally unwired (edit == published, and the
+    // public profile no longer renders a Files & media section).
+    expect(src).not.toMatch(/FilesStep/);
     expect(src).toMatch(/ConversationStartersSection|ConversationStartersStep/);
   });
 

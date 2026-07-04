@@ -92,14 +92,13 @@ describe('KAN-143 — public profile page filters by visibility', () => {
     expect(content).toMatch(/isAuthenticated/);
   });
 
-  test('references the two visibility levels viewers can see', () => {
-    // 'draft' is never visible to viewers; the page renders 'public' for
-    // anonymous and 'public'+'members_only' for authenticated. KAN-234
-    // moved the filter from a DB query to an app-side call; the literal
-    // strings still appear in the page for the allowed-visibility list
-    // computation and for the section-default fallback.
-    expect(content).toContain("'members_only'");
-    expect(content).toContain("'public'");
+  test('enforces item visibility via the hybrid-visibility helper (KAN-404)', () => {
+    // KAN-404 removed the file-visibility code that carried the raw
+    // 'members_only' / 'public' literals. Item visibility is now enforced
+    // exclusively through isItemVisibleUnderHybridModel, which resolves each
+    // item's visibility (incl. NULL → section default) against the viewer's
+    // auth state. Guard that the enforcement helper is present.
+    expect(content).toContain('isItemVisibleUnderHybridModel');
   });
 
   test('applies application-level filter via the hybrid helper (defence in depth, KAN-234)', () => {
