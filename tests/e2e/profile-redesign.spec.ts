@@ -225,6 +225,16 @@ test.describe('Redesign — populated public profile structure', () => {
       await expect(affiliationsHeading).toHaveCount(0);
     }
   });
+
+  test('never renders the removed "Files & media" section', async ({ page }) => {
+    // KAN-404: the "Files & media" surface was removed from the editor (#416),
+    // so it must never render on the public profile either — otherwise
+    // edit != published. The section heading must be absent for every profile.
+    const filesHeading = page.getByRole('heading', {
+      name: /Files & media/i,
+    });
+    await expect(filesHeading).toHaveCount(0);
+  });
 });
 
 /**

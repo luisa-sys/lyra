@@ -190,8 +190,6 @@ export default async function PublicProfilePage({ params }: Props) {
   const { data: { user: viewer } } = await cookieClient.auth.getUser();
   const isAuthenticated = viewer !== null;
 
-  const allowedVisibility = isAuthenticated ? ['public', 'members_only'] : ['public'];
-
   const { data: items } = await getSupabase()
     .from('profile_items')
     .select('*')
@@ -219,34 +217,6 @@ export default async function PublicProfilePage({ params }: Props) {
     .eq('profile_id', typedProfile.id)
     .maybeSingle();
   const manualOfMe = (manualOfMeRow as ManualOfMe | null) ?? null;
-
-  const { data: filesRaw } = await getSupabase()
-    .from('profile_files')
-    .select('id, storage_path, file_name, mime_type, size_bytes, visibility')
-    .eq('profile_id', typedProfile.id)
-    .in('visibility', allowedVisibility)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
-  const visibleFiles = (filesRaw ?? []).filter((f) =>
-    isAuthenticated
-      ? f.visibility === 'public' || f.visibility === 'members_only'
-      : f.visibility === 'public',
-  );
-  // BUGS-33 (SEC-03b): profile-files is now a PRIVATE bucket. Mint a short-lived
-  // signed URL (service-role) for each file the viewer is allowed to see, instead
-  // of a public direct URL. Files filtered out above never get a signed URL, so
-  // private/connections files are never world-readable by direct link.
-  const fileSb = getSupabase();
-  const typedFiles = (
-    await Promise.all(
-      visibleFiles.map(async (f) => {
-        const { data: signed } = await fileSb.storage
-          .from('profile-files')
-          .createSignedUrl(f.storage_path as string, 60 * 60);
-        return { ...f, url: signed?.signedUrl ?? null };
-      }),
-    )
-  ).filter((f) => f.url);
 
   const { data: starterRowsRaw } = await getSupabase()
     .from('profile_conversation_starters')
@@ -539,42 +509,6 @@ export default async function PublicProfilePage({ params }: Props) {
                     <span className="text-xs text-[var(--color-muted)]">↗</span>
                   </a>
                 ))}
-              </div>
-            </section>
-          )}
-
-          {/* Files & media */}
-          {typedFiles.length > 0 && (
-            <section className="mt-11">
-              <SectionQ>📎 Files &amp; media</SectionQ>
-              <div className="bg-white border border-[#ece7df] rounded-[10px] px-[18px] py-[15px] mt-3 space-y-1">
-                {typedFiles.map((f) => {
-                  const url = f.url as string;
-                  const isImage = f.mime_type.startsWith('image/');
-                  const isPdf = f.mime_type === 'application/pdf';
-                  return (
-                    <a
-                      key={f.id}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      {...(isPdf ? { download: f.file_name } : {})}
-                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-[#f5f1ea] transition-colors group"
-                    >
-                      {isImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- KAN-265: Supabase Storage, not the Vercel image pipeline
-                        <img src={url} alt={f.file_name} className="w-12 h-12 rounded object-cover shrink-0 bg-[#f3efe8]" loading="lazy" />
-                      ) : (
-                        <span className="text-2xl shrink-0" aria-hidden>📄</span>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[var(--color-ink)] truncate group-hover:text-[var(--color-sage)]">{f.file_name}</p>
-                        <p className="text-xs text-[var(--color-muted)]">{isPdf ? 'PDF' : isImage ? 'Image' : f.mime_type}</p>
-                      </div>
-                      <span className="text-xs text-[var(--color-muted)]">{isPdf ? '↓' : '↗'}</span>
-                    </a>
-                  );
-                })}
               </div>
             </section>
           )}
