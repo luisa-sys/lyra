@@ -19,7 +19,7 @@ import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
  *     length cap mirrors the DB CHECK (≤500 chars). Empty / whitespace-
  *     only answers rejected client- and server-side.
  *
- * The 5-answer cap is enforced by the DB trigger `pcs_cap`; we surface
+ * The answer cap is enforced by the DB trigger `pcs_cap`; we surface
  * it as a user-facing error instead of a raw Postgres exception.
  */
 
@@ -86,10 +86,11 @@ export async function addConversationStarter(input: {
     });
 
   if (error) {
-    // The DB trigger raises a custom message for the 5-cap; surface it
-    // verbatim so the UI can show a clean toast.
-    if (error.message.includes('limit (5)')) {
-      return { success: false, error: 'You can answer up to 5 prompts. Remove one to add another.' };
+    // The DB trigger raises a custom message for the answer cap; surface
+    // it as a clean toast. Match the limit generically (any digits) so the
+    // copy survives future cap changes without a code edit.
+    if (/limit \(\d+\) reached/.test(error.message)) {
+      return { success: false, error: 'You can answer up to 10 prompts. Remove one to add another.' };
     }
     // 23505 = unique_violation on (profile_id, prompt_id)
     if (error.code === '23505') {
