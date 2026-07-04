@@ -31,6 +31,7 @@ export function ConversationStartersStep({
   onRemove,
   onNext,
   isPending,
+  showContinue = true,
 }: {
   prompts: ConversationPrompt[];
   answers: ConversationAnswer[];
@@ -39,6 +40,9 @@ export function ConversationStartersStep({
   onRemove: (id: string) => void;
   onNext: () => void;
   isPending: boolean;
+  // KAN-404 (#8/#9): the single-page editor sets showContinue={false} to drop
+  // the misleading "Continue →" button; the legacy wizard keeps the default.
+  showContinue?: boolean;
 }) {
   const [openPromptId, setOpenPromptId] = useState<string | null>(null);
   const [newAnswer, setNewAnswer] = useState('');
@@ -215,7 +219,7 @@ export function ConversationStartersStep({
         </div>
       )}
 
-      <SaveButton onClick={onNext} isPending={false} label="Continue →" />
+      {showContinue && <SaveButton onClick={onNext} isPending={false} label="Continue →" />}
     </div>
   );
 }

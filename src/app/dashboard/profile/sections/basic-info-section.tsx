@@ -26,7 +26,8 @@ import { useRef, useState, useTransition } from 'react';
 import { Field, type WizardProfile } from '../steps/types';
 import { updateProfileFields, uploadAvatar } from '../actions';
 import { resolveCityFromPostcode } from '../city-actions';
-import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
+import { useAutoSave } from './use-auto-save';
+import { SectionSaveBar } from './section-save-bar';
 
 interface BasicInfoDraft {
   display_name: string;
@@ -48,7 +49,7 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
   const [uploadingAvatar, startUploadAvatar] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const status = useAutoSave(draft, async (v) => {
+  const { status, flush } = useAutoSave(draft, async (v) => {
     return updateProfileFields({
       display_name: v.display_name,
       headline: v.headline,
@@ -110,10 +111,9 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
 
   return (
     <div className="space-y-6">
-      {/* Status indicator — rendered inline so the user can see autosave fire */}
-      <div className="flex justify-end">
-        <AutoSaveStatusLabel status={status} />
-      </div>
+      {/* KAN-404: visible per-section Save (flushes the debounce now) beside
+          the existing autosave status label. */}
+      <SectionSaveBar status={status} onSave={flush} />
 
       {/* Avatar */}
       <div className="flex items-center gap-4">

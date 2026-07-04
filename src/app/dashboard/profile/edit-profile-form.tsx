@@ -23,6 +23,7 @@ import Image from 'next/image';
 import {
   addProfileItem,
   removeProfileItem,
+  updateProfileItem,
   updateProfileItemVisibility,
   addExternalLink,
   removeExternalLink,
@@ -49,6 +50,8 @@ import {
   BioSection,
   ManualOfMeSection,
   AffiliationsSection,
+  AutoSaveStatusLabel,
+  type AutoSaveStatus,
 } from './sections';
 import type { ManualOfMe } from './manual-of-me-fields';
 
@@ -170,6 +173,29 @@ export function EditProfileForm({
   const [isPending, startTransition] = useTransition();
   const [publishError, setPublishError] = useState<string | null>(null);
 
+  // KAN-404 (#8/#9): list sections (items/links/starters) commit each row
+  // instantly on Add/Remove, so there's nothing buffered to flush — a Save
+  // button would be a no-op. Instead give each its own transient
+  // Saving…/Saved indicator, keyed by section id, so every section visibly
+  // shows saved-state while honouring "everything autosaves". A short-lived
+  // 'saved' auto-clears back to 'idle'.
+  const [sectionStatus, setSectionStatus] = useState<Record<string, AutoSaveStatus>>({});
+
+  const runSectionSave = (sectionId: string, action: () => Promise<{ success: boolean } | void>) => {
+    setSectionStatus((prev) => ({ ...prev, [sectionId]: 'saving' }));
+    startTransition(async () => {
+      const res = await action();
+      const ok = res == null || res.success !== false;
+      router.refresh();
+      setSectionStatus((prev) => ({ ...prev, [sectionId]: ok ? 'saved' : 'error' }));
+      if (ok) {
+        setTimeout(() => {
+          setSectionStatus((prev) => (prev[sectionId] === 'saved' ? { ...prev, [sectionId]: 'idle' } : prev));
+        }, 2000);
+      }
+    });
+  };
+
   // SSR-safe: all expanded by default (no flash on desktop). On mount,
   // matchMedia narrows to mobile and we collapse all but the first.
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -194,6 +220,10 @@ export function EditProfileForm({
   };
 
   const renderItemsSection = (s: SectionDef) => (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+      </div>
     <ItemsStep
       title=""
       description={s.description ?? ''}
@@ -202,26 +232,30 @@ export function EditProfileForm({
       // KAN-266: redesign drops per-item visibility.
       hideVisibility
       onAdd={(data) => {
-        startTransition(async () => {
-          await addProfileItem(data);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => addProfileItem(data));
       }}
       onRemove={(id) => {
-        startTransition(async () => {
-          await removeProfileItem(id);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => removeProfileItem(id));
       }}
       onUpdateVisibility={(id, visibility) => {
-        startTransition(async () => {
-          await updateProfileItemVisibility(id, visibility);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => updateProfileItemVisibility(id, visibility));
       }}
+      // KAN-404 (#12): inline edit — call the action directly and await the
+      // result so the row can surface a moderation error in place (a
+      // startTransition without a return value couldn't). router.refresh() on
+      // success re-pulls the persisted row.
+      onEdit={async (id, data) => {
+        const res = await updateProfileItem(id, data);
+        if (res.success) router.refresh();
+        return { success: res.success, error: res.success ? undefined : res.error };
+      }}
+      // KAN-404 (#8/#9): drop the misleading "Continue →" button (it only
+      // collapsed the section). Collapse stays available via the header chevron.
+      showContinue={false}
       onNext={() => toggleSection(s.id)}
       isPending={isPending}
     />
+    </div>
   );
 
   return (
@@ -337,49 +371,46 @@ export function EditProfileForm({
                     {s.kind === 'manual' && <ManualOfMeSection manualOfMe={manualOfMe} />}
                     {s.kind === 'items' && renderItemsSection(s)}
                     {s.kind === 'links' && (
-                      <LinksStep
-                        links={links}
-                        onAdd={(data) => {
-                          startTransition(async () => {
-                            await addExternalLink(data);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeExternalLink(id);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
+                      <div className="space-y-3">
+                        <div className="flex justify-end">
+                          <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+                        </div>
+                        <LinksStep
+                          links={links}
+                          onAdd={(data) => {
+                            runSectionSave(s.id, () => addExternalLink(data));
+                          }}
+                          onRemove={(id) => {
+                            runSectionSave(s.id, () => removeExternalLink(id));
+                          }}
+                          showContinue={false}
+                          onNext={() => toggleSection(s.id)}
+                          isPending={isPending}
+                        />
+                      </div>
                     )}
                     {s.kind === 'starters' && (
-                      <ConversationStartersStep
-                        prompts={conversationPrompts}
-                        answers={conversationAnswers}
-                        onAdd={(input) => {
-                          startTransition(async () => {
-                            await addConversationStarter(input);
-                            router.refresh();
-                          });
-                        }}
-                        onUpdate={(id, answer) => {
-                          startTransition(async () => {
-                            await updateConversationStarter(id, answer);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeConversationStarter(id);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
+                      <div className="space-y-3">
+                        <div className="flex justify-end">
+                          <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+                        </div>
+                        <ConversationStartersStep
+                          prompts={conversationPrompts}
+                          answers={conversationAnswers}
+                          onAdd={(input) => {
+                            runSectionSave(s.id, () => addConversationStarter(input));
+                          }}
+                          onUpdate={(id, answer) => {
+                            runSectionSave(s.id, () => updateConversationStarter(id, answer));
+                          }}
+                          onRemove={(id) => {
+                            runSectionSave(s.id, () => removeConversationStarter(id));
+                          }}
+                          showContinue={false}
+                          onNext={() => toggleSection(s.id)}
+                          isPending={isPending}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -394,7 +425,7 @@ export function EditProfileForm({
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs text-[var(--color-muted)] hidden sm:block">
-              Changes save automatically as you type.
+              Everything saves automatically — use Save on any section to save it right away.
             </p>
             {publishError && (
               <p className="text-xs text-red-700 mt-0.5">{publishError}</p>

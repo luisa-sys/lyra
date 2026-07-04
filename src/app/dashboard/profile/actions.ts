@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
+import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
@@ -232,6 +233,117 @@ export async function updateProfileItemVisibility(
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');
   return { success: true };
+}
+
+// KAN-404 (#12) — richer result for updateProfileItem so the inline editor
+// can optimistically show the saved row. Additive union: existing callers
+// that only read `.success`/`.error` are unaffected.
+export type ItemActionResult =
+  | { success: true; item: WizardItem }
+  | { success: false; error: string };
+
+/**
+ * KAN-404 (#12) — edit an existing profile item's text (title / description /
+ * url). Mirrors `addProfileItem` for sanitise + moderation, and
+ * `updateProfileItemVisibility` for owner-scoping (KAN-260). Only the fields
+ * the caller passes are updated; an empty description clears it to NULL and an
+ * empty url clears it to NULL, so a user can remove a description/link via
+ * edit, not only replace it. Category is intentionally NOT editable here
+ * (text-only edit — changing category is a separate concern).
+ */
+export async function updateProfileItem(
+  itemId: string,
+  data: { title?: string; description?: string; url?: string },
+): Promise<ItemActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (edits are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  // A rate-limit block is always a failure; narrow to the failure shape so it
+  // fits ItemActionResult (which requires `item` on success).
+  if (!rl.allowed) {
+    return { success: false, error: 'error' in rl.result ? rl.result.error : 'Too many changes, please slow down.' };
+  }
+
+  // KAN-260 — belt-and-braces ownership: scope the write to the caller's own
+  // profile in code, not by RLS alone.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  // Build the partial update only from the fields the caller passed, matching
+  // addProfileItem's sanitise + per-field moderation exactly.
+  const updates: Record<string, string | null> = {};
+
+  if (data.title !== undefined) {
+    const sanitisedTitle = sanitiseText(data.title, 200);
+    const titleMod = await moderateAndAudit(supabase, {
+      text: sanitisedTitle,
+      fieldType: 'public',
+      field: 'profile_items.title',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!titleMod.ok) return { success: false, error: titleMod.error };
+    updates.title = sanitisedTitle;
+  }
+
+  if (data.description !== undefined) {
+    // Empty string clears the description to NULL (mirrors the add path).
+    const sanitisedDesc = data.description.trim() !== ''
+      ? sanitiseText(data.description, 1000)
+      : null;
+    if (sanitisedDesc) {
+      const descMod = await moderateAndAudit(supabase, {
+        text: sanitisedDesc,
+        fieldType: 'public',
+        field: 'profile_items.description',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!descMod.ok) return { success: false, error: descMod.error };
+    }
+    updates.description = sanitisedDesc;
+  }
+
+  if (data.url !== undefined) {
+    // Empty → NULL; non-empty must pass sanitiseUrl (http(s) only), same as add.
+    if (data.url.trim() === '') {
+      updates.url = null;
+    } else {
+      const cleaned = sanitiseUrl(data.url);
+      if (!cleaned) {
+        return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+      }
+      updates.url = cleaned;
+    }
+  }
+
+  // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
+  // Re-read the row so the caller still gets the current item back.
+  if (Object.keys(updates).length === 0) {
+    const { data: current, error: readErr } = await supabase
+      .from('profile_items')
+      .select('id, category, title, description, url, visibility')
+      .eq('id', itemId)
+      .eq('profile_id', profile.id)
+      .single();
+    if (readErr || !current) return { success: false, error: readErr?.message ?? 'Item not found' };
+    return { success: true, item: current as WizardItem };
+  }
+
+  const { data: row, error } = await supabase
+    .from('profile_items')
+    .update(updates)
+    .eq('id', itemId)
+    .eq('profile_id', profile.id)
+    .select('id, category, title, description, url, visibility')
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  if (!row) return { success: false, error: 'Item not found' };
+  revalidatePath('/dashboard/profile');
+  return { success: true, item: row as WizardItem };
 }
 
 export async function removeProfileItem(itemId: string): Promise<ActionResult> {
