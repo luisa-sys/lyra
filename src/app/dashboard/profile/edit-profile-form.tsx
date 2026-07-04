@@ -31,21 +31,14 @@ import {
 import {
   ItemsStep,
   LinksStep,
-  FilesStep,
   ConversationStartersStep,
   type WizardProfile,
   type WizardItem,
   type WizardSchool,
   type WizardLink,
-  type WizardFile,
   type ConversationPrompt,
   type ConversationAnswer,
 } from './steps';
-import {
-  uploadProfileFile,
-  removeProfileFile,
-  updateProfileFileVisibility,
-} from './files-actions';
 import {
   addConversationStarter,
   updateConversationStarter,
@@ -59,7 +52,7 @@ import {
 } from './sections';
 import type { ManualOfMe } from './manual-of-me-fields';
 
-type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links' | 'files';
+type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links';
 
 interface SectionDef {
   id: string;
@@ -158,7 +151,6 @@ export function EditProfileForm({
   schools,
   links,
   manualOfMe,
-  files,
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
@@ -169,7 +161,6 @@ export function EditProfileForm({
   schools: WizardSchool[];
   links: WizardLink[];
   manualOfMe: ManualOfMe;
-  files: WizardFile[];
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
   conveneEnabled?: boolean;
@@ -357,31 +348,6 @@ export function EditProfileForm({
                         onRemove={(id) => {
                           startTransition(async () => {
                             await removeExternalLink(id);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
-                    )}
-                    {s.kind === 'files' && (
-                      <FilesStep
-                        files={files}
-                        onUpload={(formData) => {
-                          startTransition(async () => {
-                            await uploadProfileFile(formData);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeProfileFile(id);
-                            router.refresh();
-                          });
-                        }}
-                        onUpdateVisibility={(id, visibility) => {
-                          startTransition(async () => {
-                            await updateProfileFileVisibility(id, visibility);
                             router.refresh();
                           });
                         }}

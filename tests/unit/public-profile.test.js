@@ -39,11 +39,14 @@ describe('Public Profile', () => {
     expect(content).toContain('boundaries');
   });
 
-  // BUGS-33 (SEC-03b): profile-files is a private bucket; files must be served
-  // via short-lived signed URLs, never the public direct-object URL.
-  test('profile files are served via signed URLs, not public bucket URLs', () => {
+  // KAN-404: the public profile no longer renders a Files & media section.
+  // The private-bucket signed-URL machinery (formerly BUGS-33 / SEC-03b) was
+  // intentionally removed so edit == published. Guard that no Files/media
+  // rendering — nor any bucket URL access — reappears on the public page.
+  test('public profile does not render a Files & media section (KAN-404)', () => {
     const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
-    expect(content).toContain('createSignedUrl');
+    expect(content).not.toContain('Files & media');
+    expect(content).not.toContain('createSignedUrl');
     expect(content).not.toContain('object/public/profile-files');
   });
 });
