@@ -59,6 +59,12 @@ A daily run **passes** only if zero 🔴 and zero new 🟠. Record the run in th
 **Defends:** take-down of operations, auth bypass, data theft via the public app.
 
 ### A1 — 🔴 Endpoints alive & TLS healthy
+> **Scope note (KAN-361):** A1 is kept only as the cheap **security-context
+> reachability + TLS gate** for this routine — it is *not* the liveness owner.
+> **Liveness of record = `.github/workflows/health-check.yml` (6-hourly)** plus
+> the Ops Routines Control Room heartbeat (`docs/OPS_ROUTINES_CONTROL_ROOM.md`).
+> Don't expand A1 into a general uptime monitor; if you need liveness history,
+> read health-check.yml's last run, not this probe.
 - **Check:** `curl -sS -o /dev/null -w "%{http_code} %{ssl_verify_result}\n" https://checklyra.com/` and `…/api/health`, `…/.well-known/security.txt`, `https://mcp.checklyra.com/health`.
 - **PASS:** 200 (or expected 503 only if a maintenance worker is *intentionally* up), `ssl_verify_result=0`, cert >30d from expiry (`curl -sIv … 2>&1 | grep 'expire'`).
 - **FAIL:** any 5xx not explained by a deploy, TLS verify ≠ 0, cert <30d → check UptimeRobot + Vercel + Cloudflare; see RUNBOOK "Incident Response".

@@ -1,5 +1,13 @@
 # Lyra Operational Runbook
 
+> **Source of truth (KAN-363).** The **wiki is definitive**; this
+> `docs/RUNBOOK.md` is the **CI/offline mirror** of the Confluence *Operations &
+> Support Runbook* (19988502). **If they differ, the wiki wins and this mirror
+> is regenerated** — do not treat this file as the authority over the wiki. Keep
+> it in step when you change either. (This replaces the earlier "always check
+> RUNBOOK.md in the repo for the authoritative procedures" direction, which is
+> corrected on the wiki page itself under KAN-363.)
+
 ## Environments
 
 Each environment is a fully independent stack: app + Supabase + (where deployed) MCP server. **Keys, sessions, and data do NOT cross environments.**
