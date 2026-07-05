@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase-server';
 import { getAdminServiceClient } from '@/lib/admin';
+import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
 
@@ -104,6 +105,15 @@ export async function generateApiKey(name: string = 'Default'): Promise<{ key?: 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated' };
+
+  // SEC-57: refuse to mint credentials for a suspended (or unverifiable)
+  // account. Fail closed — a suspended user must not be able to obtain a new
+  // MCP API key even if they reach this action directly (the middleware
+  // redirect that normally catches them fails open on a lookup error).
+  const standing = await getAccountStanding(supabase, user.id);
+  if (shouldRefuseIssuance(standing)) {
+    return { error: 'Your account is suspended. API keys cannot be generated.' };
+  }
 
   // Generate a secure random API key
   const rawKey = `lyra_${randomBytes(24).toString('base64url')}`;
