@@ -234,8 +234,12 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
          OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))
   ORDER BY p.proname;
   ```
-- **PASS:** every row is either an intended-public read (documented) or a `trigger`/`event_trigger` return type (not RPC-invokable). No new anon/authenticated grant on a *callable* definer function.
+- **PASS:** every row is either an intended-public read (documented), a `trigger`/`event_trigger` return type (not RPC-invokable), or an **allowlisted self-gating admin RPC** (see *Accepted exceptions* below). No *new* anon/authenticated grant on a *callable* definer function.
 - **FAIL:** a callable definer function exposed to anon/authenticated → 🟡 (🟠 if it mutates or leaks cross-user data) → BUGS-44 pattern; `REVOKE EXECUTE … FROM anon, authenticated, PUBLIC`.
+- **Accepted exceptions — allowlisted, do NOT file a new SEC ticket (SEC-43 / BUGS-60 reconciliation):** the admin-console RPCs `admin_list_users(...)` and `admin_filter_profile_ids(...)` are *intentionally* `authenticated`-executable. They are `SECURITY DEFINER` but **self-gate** on `auth.uid()` + `is_admin` (`... where user_id = auth.uid() and is_admin = true`), so a non-admin caller gets `admin only` (`42501`), never data. The admin pages (`src/app/admin/users/page.tsx`, `actions.ts`) MUST call them via the *authenticated* admin session — a service-role call (`auth.uid()=null`) fails the functions' own guard, so a naive `REVOKE … FROM authenticated` breaks the admin console with **no** security gain (it removes the outer grant while the self-gate stays the real control). `anon`/`PUBLIC` remain revoked. The intended ACL is committed in `supabase/migrations/20260628200000_bugs60_grant_admin_rpc_authenticated.sql` and locked by `tests/unit/sec43-admin-rpc-acl-guard.test.js`.
+  - **Expected steady state (PASS) for these two:** `anon_exec=false` **AND** `auth_exec=true`.
+  - **STILL a FAIL — do file:** either fn shows `anon_exec=true`; a *new* callable definer fn appears; or the self-gate (`auth.uid()` + `is_admin`) is removed from a function body.
+  - **History:** this exact owner-accepted config was re-filed three times (SEC-29 → SEC-42 → SEC-43) before being allowlisted here — the daily probe was repeatedly rediscovering an intended state. Allowlisting it is the fix for the probe noise; the self-gate + committed ACL + this guard are the compensating controls.
 
 ---
 
