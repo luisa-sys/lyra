@@ -30,7 +30,9 @@
 #                   (per the Ops Routines Control Room registry — e.g.
 #                   health-check.yml = liveness), the workflow's enabled-state
 #                   from `gh workflow list`: active | disabled_manually |
-#                   disabled_inactivity. A "disabled" state is a FAIL regardless
+#                   disabled_inactivity (the synonyms `enabled`→active and
+#                   `disabled`/`off`→disabled are also accepted defensively, in
+#                   case GitHub's state strings change). A "disabled" state is a FAIL regardless
 #                   of freshness — the monitoring/backstop is DARK, which is
 #                   strictly worse than a missed heartbeat (SEC-79: an owner
 #                   workflow can sit silently off for weeks). Empty/active =
@@ -91,7 +93,7 @@ FAIL=0; UNV=0; PASS=0
 echo "# routine-watchdog $NOW_ISO ($DOW)"
 
 if [ "$#" -eq 0 ]; then
-  echo "UNVERIFIED	args	no routine checks supplied — pass '<name>|<max_age_min>|<last_iso|->|<outcome>[|weekday]' per routine"
+  echo "UNVERIFIED	args	no routine checks supplied — pass '<name>|<max_age_min>|<last_iso|->|<outcome>[|weekday[|workflow_state]]' per routine"
   echo "# ---"
   echo "# summary	PASS=0	FAIL=0	UNVERIFIED=1	day=$DOW"
   echo "# RESULT: UNVERIFIED"
