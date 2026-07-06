@@ -258,7 +258,9 @@ export async function sendInvites(
     .eq('gathering_id', gatheringId);
   const alreadyLive = new Set(
     (msgs ?? [])
-      .filter((m) => ['queued', 'sent', 'delivered', 'opened', 'clicked'].includes(m.delivery_status as string))
+      // BUGS-62: 'sending' is a live/claimed message too — excluding it would let
+      // a re-queue during a dispatch claim window create a duplicate invite.
+      .filter((m) => ['queued', 'sending', 'sent', 'delivered', 'opened', 'clicked'].includes(m.delivery_status as string))
       .map((m) => m.invitee_id)
   );
 

@@ -29,6 +29,18 @@ import { isFeatureEnabledByUserId } from '@/lib/features/entitlements-service';
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;
 const DEFAULT_CONCURRENCY = 3;
+// BUGS-62: a row claimed to 'sending' by a run that then crashed (or timed out —
+// the route caps at maxDuration=60s) would otherwise be orphaned forever. A
+// later run reclaims any 'sending' row older than this window back to 'queued'.
+// The narrow edge where the original run actually sent before dying re-sends on
+// reclaim — same as the pre-BUGS-62 behaviour (a crashed send left the row
+// 'queued' and the next cron re-sent it), so this is not a regression. A
+// provider idempotency key (Resend Idempotency-Key = message row id) is the
+// planned backstop for that edge; deferred (needs a sign-off to update the
+// KAN-214 source-guard test that pins the exact sendInviteEmail(...) call).
+const STALE_CLAIM_MINUTES = 15;
+
+const CLAIM_COLUMNS = 'id, gathering_id, invitee_id, channel, template_name';
 
 export interface DispatchSummary {
   scanned: number;
@@ -242,6 +254,8 @@ async function processOne(
   const loaded = await loadContext(sb, row);
   if (!loaded.ok) {
     if (loaded.reason === 'not_finalised') {
+      // BUGS-62: transient — release the claim so it retries once finalised.
+      await releaseClaim(sb, row.id);
       summary.skipped_unfinalised++;
       return;
     }
@@ -287,6 +301,8 @@ async function processOne(
         summary.errors.push(`${row.id}: no phone on contact`);
         return;
       }
+      // BUGS-62: Twilio's Messages API has no idempotency-key header, so the
+      // atomic 'sending' claim above is the double-send guard for SMS/WhatsApp.
       result = await sendTwilioMessage({
         to: ctx.recipientPhone,
         channel: row.channel,
@@ -351,6 +367,8 @@ async function processOne(
   }
 
   if (result.code === 'not_in_allowlist') {
+    // BUGS-62: transient — release the claim so it ships once allow-listed.
+    await releaseClaim(sb, row.id);
     summary.blocked_by_allowlist++;
     return;
   }
@@ -368,6 +386,43 @@ async function processOne(
     subject_id: row.invitee_id,
     metadata: { message_id: row.id, code: result.code, detail: detail.slice(0, 200) },
   });
+}
+
+/**
+ * BUGS-62 — atomic queue claim. Flips the given queued rows to 'sending' in a
+ * single UPDATE guarded by `delivery_status = 'queued'`, and RETURNs only the
+ * rows this call actually changed. Under concurrent dispatch runs the guard
+ * makes the claim race-safe: Postgres row-locks serialise the two UPDATEs, the
+ * loser re-evaluates its WHERE against the now-'sending' row and matches nothing,
+ * so each queued row is claimed (and therefore sent) by at most one run.
+ */
+async function claimQueuedRows(
+  sb: SupabaseClient,
+  ids: string[],
+  nowIso: string
+): Promise<QueuedRow[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await sb
+    .from('gathering_invite_messages')
+    .update({ delivery_status: 'sending', claimed_at: nowIso })
+    .in('id', ids)
+    .eq('delivery_status', 'queued')
+    .select(CLAIM_COLUMNS);
+  if (error) throw new Error(`queue claim failed: ${error.message}`);
+  return (data as unknown as QueuedRow[]) ?? [];
+}
+
+/**
+ * BUGS-62 — release a claimed row back to 'queued' (clearing claimed_at) when it
+ * was claimed but not actually sent: allow-list blocks and not-yet-finalised
+ * gatherings are transient conditions that should retry on a later run, so the
+ * row must NOT be left stranded in the transient 'sending' state.
+ */
+async function releaseClaim(sb: SupabaseClient, id: string): Promise<void> {
+  await sb
+    .from('gathering_invite_messages')
+    .update({ delivery_status: 'queued', claimed_at: null })
+    .eq('id', id);
 }
 
 export async function dispatchQueuedInvites(
@@ -388,7 +443,7 @@ export async function dispatchQueuedInvites(
 
   // When hostUserId is given, narrow to that user's gatherings only.
   // The MCP admin tool relies on this so one user can't drain another's queue.
-  let queuedRows: QueuedRow[];
+  let gatheringIds: string[] | null = null;
   if (opts.hostUserId) {
     const { data: gatherings, error: gErr } = await sb
       .from('gatherings')
@@ -396,30 +451,42 @@ export async function dispatchQueuedInvites(
       .eq('host_user_id', opts.hostUserId)
       .is('deleted_at', null);
     if (gErr) throw new Error(`gathering scan failed: ${gErr.message}`);
-    const gatheringIds = (gatherings ?? []).map((g: { id: string }) => g.id);
+    gatheringIds = (gatherings ?? []).map((g: { id: string }) => g.id);
     if (gatheringIds.length === 0) return summary;
-    const { data, error } = await sb
-      .from('gathering_invite_messages')
-      .select('id, gathering_id, invitee_id, channel, template_name')
-      .eq('delivery_status', 'queued')
-      .in('channel', ['email', 'sms', 'whatsapp'])
-      .in('gathering_id', gatheringIds)
-      .order('created_at', { ascending: true })
-      .limit(batchSize);
-    if (error) throw new Error(`queue scan failed: ${error.message}`);
-    queuedRows = (data as QueuedRow[]) ?? [];
-  } else {
-    const { data, error } = await sb
-      .from('gathering_invite_messages')
-      .select('id, gathering_id, invitee_id, channel, template_name')
-      .eq('delivery_status', 'queued')
-      .in('channel', ['email', 'sms', 'whatsapp'])
-      .order('created_at', { ascending: true })
-      .limit(batchSize);
-    if (error) throw new Error(`queue scan failed: ${error.message}`);
-    queuedRows = (data as QueuedRow[]) ?? [];
   }
-  const queue = [...queuedRows];
+
+  // BUGS-62 step 1 — reclaim orphaned 'sending' rows from a prior run that
+  // crashed or timed out mid-batch (older than the staleness window) back to
+  // 'queued', so a claimed-but-never-sent invite is not lost forever.
+  const staleBefore = new Date(Date.now() - STALE_CLAIM_MINUTES * 60_000).toISOString();
+  let reclaim = sb
+    .from('gathering_invite_messages')
+    .update({ delivery_status: 'queued', claimed_at: null })
+    .eq('delivery_status', 'sending')
+    .lt('claimed_at', staleBefore);
+  if (gatheringIds) reclaim = reclaim.in('gathering_id', gatheringIds);
+  const { error: rErr } = await reclaim;
+  if (rErr) throw new Error(`stale-claim reclaim failed: ${rErr.message}`);
+
+  // BUGS-62 step 2 — read candidate queued ids (oldest-first, bounded).
+  let candidateQuery = sb
+    .from('gathering_invite_messages')
+    .select('id')
+    .eq('delivery_status', 'queued')
+    .in('channel', ['email', 'sms', 'whatsapp'])
+    .order('created_at', { ascending: true })
+    .limit(batchSize);
+  if (gatheringIds) candidateQuery = candidateQuery.in('gathering_id', gatheringIds);
+  const { data: candidates, error: cErr } = await candidateQuery;
+  if (cErr) throw new Error(`queue scan failed: ${cErr.message}`);
+  const candidateIds = ((candidates as { id: string }[]) ?? []).map((r) => r.id);
+
+  // BUGS-62 step 3 — atomically CLAIM the candidates: flip 'queued' -> 'sending'
+  // guarded by delivery_status='queued'. Only the RETURNed rows are owned by
+  // this run; a concurrent run racing on the same id loses the guard and claims
+  // nothing, so no invite is ever processed (and sent) twice.
+  const claimed = await claimQueuedRows(sb, candidateIds, new Date().toISOString());
+  const queue = [...claimed];
   summary.scanned = queue.length;
 
   // KAN-309: per-host convene_paid_channels entitlement cache, shared across
@@ -442,4 +509,4 @@ export async function dispatchQueuedInvites(
   return summary;
 }
 
-export const _internal = { loadContext, buildSendInputs };
+export const _internal = { loadContext, buildSendInputs, claimQueuedRows, releaseClaim };
