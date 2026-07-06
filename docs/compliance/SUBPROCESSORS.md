@@ -23,7 +23,7 @@
 | **Cloudflare** | DNS, CDN, Access (admin gate), KV (waitlist emails), R2 (backups) | Processor | US/global | UK Addendum via Cloudflare Customer DPA | ☑ by reference (cloudflare.com/cloudflare-customer-dpa), recorded 2026-07-03 |
 | **Resend** | Transactional email (magic links, invites, notices) | Processor | US | UK Addendum/IDTA via Resend DPA | ☑ by reference (resend.com/legal/dpa), recorded 2026-07-03 |
 | **Didit** | Age-assurance / biometric selfie check (returns pass + band only) | Processor (Art. 9 at provider) | TBC | Confirm DPA + Art. 9 explicit-consent basis + biometric retention | ☐ **confirm — special category** |
-| **Google (OAuth/Calendar)** | Google sign-in; Calendar busy/free (Convene) | Processor | US | UK Addendum via Google Cloud/Workspace DPA | ☐ confirm + record |
+| **Google (OAuth/Calendar/Places)** | Google sign-in; Calendar busy/free (Convene); Places Text Search for the optional town/city finder (postcode/place text sent transiently to resolve a town/city — only the resulting city is stored, the postcode/place text is never persisted by Lyra) | Processor | US | UK Addendum via Google Cloud/Workspace DPA | ☐ confirm + record |
 | **Cloudflare R2** | Encrypted WORM backups (age-encrypted) | Processor | US/global | As Cloudflare above | ☑ by reference (cloudflare.com/cloudflare-customer-dpa), recorded 2026-07-03 |
 | **Affiliate merchants** (Amazon Associates, Bookshop.org, …) | Receive outbound affiliate clicks (no Lyra PII in URLs) | Recipient (not processor) | US/UK | N/A — no personal data transferred by Lyra | n/a |
 | **GitHub** | Source code, CI | Not a processor of user data | US | (internal tooling) | n/a |
