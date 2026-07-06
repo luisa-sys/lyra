@@ -123,8 +123,20 @@ bash scripts/routine-watchdog.sh \
   'weekly-health|11520|2026-06-29T06:30:00Z|PASS' \
   'doc-sync|2000|2026-07-04T08:15:00Z|PASS|weekday' \
   'doc-producer|2000|2026-07-04T08:00:00Z|PASS|weekday' \
-  'health-check|540|2026-07-04T06:00:00Z|PASS'
+  'health-check|540|2026-07-04T06:00:00Z|PASS||active'
 ```
+
+**Workflow-state (optional 6th field — SEC-79).** For a routine OWNED by a
+GitHub-Actions workflow (`health-check.yml` = liveness; `weekly-report.yml` =
+reporting), pass the workflow's enabled-state as the 6th field — leave the 5th
+(weekday) empty if unused: `…|PASS||active`. Values come from
+`gh workflow list --all --json name,state`: `active`, `disabled_manually`, or
+`disabled_inactivity`. A **disabled** state is a **FAIL** ("monitoring is DARK")
+regardless of heartbeat freshness — this makes a silently-disabled owner
+workflow self-detecting instead of a 20-day blind spot (the SEC-79 failure
+mode). An unrecognised state string is `UNVERIFIED`, never a silent pass. The
+Daily Security routine gathers the states with `gh workflow list --all` and
+feeds them for `health-check.yml` and `weekly-report.yml`.
 
 **Where it runs.** The watchdog is folded into the **Daily Security routine**
 (trigger #1 — it already has the Atlassian + GitHub connectors). For any routine

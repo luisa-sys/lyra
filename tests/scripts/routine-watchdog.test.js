@@ -147,4 +147,54 @@ describe('scripts/routine-watchdog.sh', () => {
     const wed = run(['daily-security|1800|2026-07-01T07:00:00Z|PASS'], WED_NOON);
     expect(wed.out).toMatch(/\(Wednesday\)/);
   });
+
+  // --- SEC-79: registry-named owner-workflow disabled detection (optional 6th field) ---
+
+  it('exit 2 + FAIL when an owner workflow is disabled_manually, even if the heartbeat is fresh', () => {
+    // health-check is fresh + last outcome PASS, but the WORKFLOW is disabled →
+    // the liveness backstop is DARK. Must FAIL, not report a green PASS.
+    const { code, out } = run(['health-check|540|2026-07-04T11:00:00Z|PASS||disabled_manually']);
+    expect(out).toMatch(/FAIL\thealth-check/);
+    expect(out).toMatch(/DISABLED \(disabled_manually\)/);
+    expect(out).toMatch(/DARK/);
+    expect(out).toMatch(/# RESULT: FAIL/);
+    expect(code).toBe(2);
+  });
+
+  it('flags disabled_inactivity as FAIL too', () => {
+    const { code, out } = run(['health-check|540|2026-07-04T11:00:00Z|PASS||disabled_inactivity']);
+    expect(out).toMatch(/FAIL\thealth-check/);
+    expect(out).toMatch(/DISABLED \(disabled_inactivity\)/);
+    expect(code).toBe(2);
+  });
+
+  it('the disabled check wins over freshness — a stale AND disabled workflow reports DISABLED, not OVERDUE', () => {
+    const { code, out } = run(['health-check|540|2026-06-01T00:00:00Z|PASS||disabled_manually']);
+    expect(out).toMatch(/FAIL\thealth-check/);
+    expect(out).toMatch(/DISABLED/);
+    expect(out).not.toMatch(/OVERDUE/);
+    expect(code).toBe(2);
+  });
+
+  it('treats an active workflow_state as normal — fresh still PASSes', () => {
+    const { code, out } = run(['health-check|540|2026-07-04T11:00:00Z|PASS||active']);
+    expect(out).toMatch(/PASS\thealth-check/);
+    expect(out).toMatch(/# RESULT: PASS/);
+    expect(code).toBe(0);
+  });
+
+  it('exit 1 + UNVERIFIED on an unrecognised workflow_state (a typo must not mask a real disable)', () => {
+    const { code, out } = run(['health-check|540|2026-07-04T11:00:00Z|PASS||disabledd']);
+    expect(out).toMatch(/UNVERIFIED\thealth-check/);
+    expect(out).toMatch(/unrecognised workflow_state/);
+    expect(code).toBe(1);
+  });
+
+  it('is backward-compatible: a 5-field token (weekday, no state field) still weekend-graces', () => {
+    // Proves adding the 6th field did not shift weekday parsing.
+    const { code, out } = run(['doc-sync|2000|2026-07-02T08:15:00Z|PASS|weekday'], SAT_NOON);
+    expect(out).toMatch(/UNVERIFIED\tdoc-sync/);
+    expect(out).toMatch(/runs weekdays only/);
+    expect(code).toBe(1);
+  });
 });
