@@ -16,8 +16,10 @@ import type {
   GatheringEventData,
   TimeWindow,
   BusyBlock,
+  BusyTimeViewer,
 } from './types';
 import { getFreshAccessToken } from '../oauth-connections';
+import { assertBusyTimeConsent } from '../busy-time-consent';
 
 const BASE = 'https://graph.microsoft.com/v1.0';
 const FETCH_TIMEOUT_MS = 8_000;
@@ -55,7 +57,15 @@ async function readErrorOrThrow(res: Response, op: string): Promise<never> {
 }
 
 export const microsoftCalendarAdapter: CalendarAdapter = {
-  async getFreeBusy(connectionId: string, window: TimeWindow): Promise<BusyBlock[]> {
+  async getFreeBusy(
+    connectionId: string,
+    window: TimeWindow,
+    viewer?: BusyTimeViewer
+  ): Promise<BusyBlock[]> {
+    // SEC-58: refuse to disclose another user's busy-times without consent.
+    if (viewer) {
+      await assertBusyTimeConsent(viewer.viewerUserId, viewer.ownerUserId);
+    }
     const { accessToken } = await getFreshAccessToken(connectionId);
     // Microsoft's /getSchedule expects ISO 8601 with TZ. Graph's responses
     // include both 'start' and 'end' as { dateTime, timeZone } objects.
