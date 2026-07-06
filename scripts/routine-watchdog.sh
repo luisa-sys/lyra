@@ -12,7 +12,7 @@
 #
 # Input model — one CHECK per routine, passed as a positional argument of the
 # form (fields are PIPE-delimited so ISO-8601 timestamps keep their colons):
-#   <name>|<max_age_minutes>|<last_iso8601_or_->|<last_outcome>[|<weekday_only>]
+#   <name>|<max_age_minutes>|<last_iso8601_or_->|<last_outcome>[|<weekday_only>[|<workflow_state>]]
 #
 #   name           routine label (no pipes), e.g. daily-security
 #   max_age_minutes cadence + grace in minutes; a heartbeat older than this is
@@ -26,8 +26,20 @@
 #   weekday_only    optional; "weekday" or "1" means the routine only runs
 #                   Mon–Fri, so an overdue heartbeat on Sat/Sun is OK (grace),
 #                   mirroring doc-sync-healthcheck.sh's weekend-grace idea.
+#   workflow_state  optional; for a routine OWNED by a GitHub-Actions workflow
+#                   (per the Ops Routines Control Room registry — e.g.
+#                   health-check.yml = liveness), the workflow's enabled-state
+#                   from `gh workflow list`: active | disabled_manually |
+#                   disabled_inactivity. A "disabled" state is a FAIL regardless
+#                   of freshness — the monitoring/backstop is DARK, which is
+#                   strictly worse than a missed heartbeat (SEC-79: an owner
+#                   workflow can sit silently off for weeks). Empty/active =
+#                   evaluate freshness as normal. To pass state WITHOUT a
+#                   weekday, leave the weekday field empty:
+#                   'health-check|540|-|-||disabled_manually'.
 #
 #   Example: 'daily-security|1800|2026-07-04T07:00:00Z|PASS'
+#            'health-check|540|2026-07-06T12:00:00Z|PASS||active'
 #
 # Output: one tab-separated line per routine — "<STATUS>\t<name>\t<detail>" —
 # STATUS ∈ PASS | FAIL | UNVERIFIED. Then a machine-readable summary line.
@@ -97,13 +109,33 @@ if [ -z "$NOW_EPOCH" ]; then
   exit 1
 fi
 
-check_one() { # $1 = the raw <name>|<max>|<last>|<outcome>[|weekday] token
+check_one() { # $1 = the raw <name>|<max>|<last>|<outcome>[|weekday[|state]] token
   local raw="$1"
-  local name max last outcome weekday
-  IFS='|' read -r name max last outcome weekday <<EOF
+  local name max last outcome weekday state
+  IFS='|' read -r name max last outcome weekday state <<EOF
 $raw
 EOF
   name="${name:-<unnamed>}"
+
+  # SEC-79 — a registry-named OWNER workflow reported DISABLED means the
+  # monitoring/backstop is DARK: strictly worse than a missed heartbeat (the
+  # exact silent-off-for-weeks failure mode). This is a FAIL regardless of
+  # freshness or recorded outcome, so it is evaluated first. The optional 6th
+  # field carries the workflow's enabled-state, fed from `gh workflow list`.
+  local st; st="$(lower "${state:-}")"
+  case "$st" in
+    ''|active|enabled) : ;;  # not disabled — fall through to freshness eval
+    disabled_manually|disabled_inactivity|disabled|off)
+      echo "FAIL	$name	registry-named owner workflow is DISABLED ($state) — the monitoring/backstop is DARK, not merely a missed heartbeat; re-enable it (SEC-79)"
+      FAIL=$((FAIL+1)); return
+      ;;
+    *)
+      # Unrecognised state — never silently ignore it (a typo must not mask a
+      # real disable). UNVERIFIED, never a silent PASS.
+      echo "UNVERIFIED	$name	unrecognised workflow_state '$state' — expected active|disabled_manually|disabled_inactivity (or empty)"
+      UNV=$((UNV+1)); return
+      ;;
+  esac
 
   # Guard the numeric cadence — a non-integer is a config error, UNVERIFIED.
   if ! printf '%s' "${max:-}" | grep -qE '^[0-9]+$'; then
