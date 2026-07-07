@@ -129,6 +129,60 @@ export async function validateFileMagicBytes(
 }
 
 /**
+ * SEC-52: shared upload preflight so the avatar path and the profile-files
+ * path enforce the SAME validation and can't silently drift. The avatar
+ * uploader historically validated only the browser-declared MIME + size and
+ * skipped the magic-byte check that `uploadProfileFile` enforced — letting a
+ * spoofed-MIME / polyglot file land in the (world-readable) profile-photos
+ * bucket. Routing both callers through one helper closes that gap and keeps
+ * them in lockstep.
+ *
+ * Runs, in order:
+ *   1. presence + non-empty
+ *   2. size cap
+ *   3. declared MIME is in the caller's allow-list
+ *   4. magic-byte signature match (the anti-spoofing check)
+ *
+ * Returns `null` when the file is safe to upload, or a human-readable error
+ * string (mirrors `validateFileMagicBytes`' contract). Callers pass their own
+ * allow-list, size cap, and messages so existing wording stays stable — but
+ * every path is now guaranteed to run the magic-byte check.
+ */
+export interface UploadPreflightOptions {
+  /** MIME types this caller accepts (a subset of ALLOWED_MIMES). */
+  allowedMimes: ReadonlySet<string> | readonly string[];
+  /** Hard byte cap for this caller. */
+  maxBytes: number;
+  emptyMessage?: string;
+  sizeMessage?: string;
+  typeMessage?: string;
+}
+
+export async function preflightUpload(
+  file: File | null | undefined,
+  opts: UploadPreflightOptions,
+): Promise<string | null> {
+  if (!file || file.size === 0) {
+    return opts.emptyMessage ?? 'No file provided';
+  }
+  if (file.size > opts.maxBytes) {
+    return opts.sizeMessage ?? `File exceeds the ${opts.maxBytes}-byte limit`;
+  }
+  const allowed =
+    opts.allowedMimes instanceof Set
+      ? (opts.allowedMimes as ReadonlySet<string>)
+      : new Set<string>(opts.allowedMimes as readonly string[]);
+  if (!allowed.has(file.type)) {
+    return (
+      opts.typeMessage ??
+      `Disallowed type ${file.type}. Allowed: ${[...allowed].join(', ')}`
+    );
+  }
+  // Never trust the declared MIME alone — verify the file's actual bytes.
+  return validateFileMagicBytes(file, file.type);
+}
+
+/**
  * Extension guess from a MIME type. Used to build storage paths since
  * the original filename isn't trusted.
  */
