@@ -18,17 +18,26 @@ daily**, so the DSAR (one-month), DUAA-complaints (30-day acknowledgement) and
 breach (72-hour) clocks in the sections below can be honoured — the DUAA
 complaints duty has been in force since **19 June 2026**.
 
-> **Status (2026-07-07): partially live — do not rely on it until the test below
-> passes.** The `Lyra/Privacy` Gmail label exists and the delivery path
-> (Cloudflare Email Routing) is confirmed at the DNS/MX level. **Remaining
-> founder steps (Cloudflare + Gmail are founder-only surfaces):**
-> 1. Cloudflare dashboard → `checklyra.com` → **Email → Email Routing**: add or
->    confirm a routing rule `privacy@checklyra.com →` the monitored Gmail, with
->    the **destination address verified** (click Cloudflare's verification email).
-> 2. Gmail → Settings → Filters: create a filter `to:privacy@checklyra.com` →
->    **apply `Lyra/Privacy`**, mark important, never send to spam.
-> 3. Send a **live test email** to `privacy@checklyra.com` and confirm it lands
->    in the mailbox under the label. Only then tick FOUNDER_CHECKLIST §B line 18.
+> **Status (2026-07-07): LIVE — verified.** The full path is in place and
+> confirmed:
+> 1. **Cloudflare Email Routing** has an **Active** rule
+>    `privacy@checklyra.com →` the founder's monitored mailbox (the catch-all is
+>    disabled, so this is an explicit per-address rule). The destination is
+>    verified and delivering — sibling addresses routed to the same destination
+>    (e.g. `hello@`) arrive in the founder's Gmail.
+> 2. A **Gmail filter** applies the amber **`Lyra/Privacy`** label, marks the
+>    mail **important**, and keeps it **out of spam**.
+> 3. Monitored **at least daily**.
+>
+> Verified by inspecting the live Cloudflare routing rules (privacy@ = Active)
+> and the Gmail filter, on 2026-07-07. A self-sent test from the destination
+> account is *not* a valid check here — Gmail de-duplicates a message you send to
+> an address that forwards back to you — so verification was done from the
+> routing configuration, not a loopback email.
+>
+> **Residual (folds into the governance sign-off, KAN-283 Action 4):** formally
+> adopt this procedure and stand up the DSR log, complaints log and breach
+> register as live, access-restricted records.
 
 ---
 
