@@ -46,7 +46,11 @@ jest.mock('@/lib/supabase-server', () => {
         Promise.resolve(
           table === 'profiles'
             ? { data: { id: 'profile-1' }, error: null }
-            : { data: null, error: null },
+            : table === 'profile_items'
+              // KAN-404 (#12): updateProfileItem's .update().eq().eq().select()
+              // .single() returns the saved row so the action resolves success.
+              ? { data: { id: 'item-x' }, error: null }
+              : { data: null, error: null },
         ),
       then: (resolve, reject) =>
         Promise.resolve({ error: mockState.mutationError }).then(resolve, reject),
@@ -68,6 +72,7 @@ import {
   removeProfileItem,
   removeSchoolAffiliation,
   removeExternalLink,
+  updateProfileItem,
   updateProfileItemVisibility,
   updateAffiliationVisibility,
 } from '@/app/dashboard/profile/actions';
@@ -97,6 +102,21 @@ describe('KAN-260: profile mutations are owner-scoped in code (not RLS alone)', 
     const res = await updateProfileItemVisibility('item-9', 'public');
     expect(res).toEqual({ success: true });
     expect(ownerScoped('profile_items')).toBe(true);
+  });
+
+  // KAN-404 (#12): editing an item's text is owner-scoped in code too.
+  test('updateProfileItem scopes the update to the caller profile_id', async () => {
+    const res = await updateProfileItem('item-x', { title: 'Hi' });
+    expect(res.success).toBe(true);
+    expect(mockEqCalls['profile_items']).toContainEqual(['id', 'item-x']);
+    expect(ownerScoped('profile_items')).toBe(true);
+  });
+
+  test('updateProfileItem: not authenticated → no write attempted', async () => {
+    mockState.userId = null;
+    const res = await updateProfileItem('item-x', { title: 'Hi' });
+    expect(res).toEqual({ success: false, error: 'Not authenticated' });
+    expect(mockEqCalls['profile_items']).toBeUndefined();
   });
 
   test('removeSchoolAffiliation scopes the delete to the caller profile_id', async () => {

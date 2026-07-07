@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Field, SaveButton, type WizardSchool } from './types';
+import { isSchoolPostcodeValid } from '../affiliation-fields';
 
 export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
   schools: WizardSchool[];
@@ -13,12 +14,23 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [relationship, setRelationship] = useState('parent');
+  const [locationError, setLocationError] = useState('');
+
+  // KAN-404 — schools require a postcode (full or partial).
+  const postcodeInvalid = !isSchoolPostcodeValid(location);
 
   const handleAdd = () => {
     if (!name.trim()) return;
+    if (postcodeInvalid) {
+      setLocationError(
+        'Enter a postcode (full or partial) so people can tell schools with the same name apart.',
+      );
+      return;
+    }
     onAdd({ school_name: name, school_location: location, relationship });
     setName('');
     setLocation('');
+    setLocationError('');
   };
 
   return (
@@ -44,7 +56,20 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
 
       <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
         <Field label="School name" value={name} onChange={setName} placeholder="Greenfield Primary" />
-        <Field label="Location" value={location} onChange={setLocation} placeholder="London" />
+        <div>
+          <Field
+            label="Postcode"
+            value={location}
+            onChange={(v) => {
+              setLocation(v);
+              if (locationError) setLocationError('');
+            }}
+            placeholder="SW1A 1AA"
+          />
+          {locationError && (
+            <p className="mt-1 text-xs text-red-500">{locationError}</p>
+          )}
+        </div>
         <div>
           <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Relationship</label>
           <select value={relationship} onChange={(e) => setRelationship(e.target.value)}
@@ -56,7 +81,7 @@ export function SchoolStep({ schools, onAdd, onRemove, onNext, isPending }: {
             <option value="other">Other</option>
           </select>
         </div>
-        <button onClick={handleAdd} disabled={isPending || !name.trim()}
+        <button onClick={handleAdd} disabled={isPending || !name.trim() || postcodeInvalid}
           className="px-4 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] disabled:opacity-40 transition-colors">
           + Add school
         </button>

@@ -15,8 +15,25 @@
  */
 export type AgeStatus = 'none' | 'pending' | 'passed' | 'failed' | 'manual_review';
 
+/**
+ * KAN-404: reversible age-gate PAUSE flag (TEST-ONLY, SECURITY-SENSITIVE).
+ *
+ * TEMPORARY TEST FLAG. Defaults to enabled/re-gated. Never set
+ * AGE_GATE_PAUSED=true on prod. Unset before any real user traffic.
+ *
+ * Fail-safe by construction: paused ONLY on the exact string 'true'. Any
+ * absence, typo, empty string, or other value → NOT paused (gate stays on).
+ * This is the single chokepoint — because `isAgeVerificationRequired` consults
+ * it, every downstream consumer (publishProfile, the `is_published` field
+ * update path, the dashboard, /verify-age, admin) inherits the pause with no
+ * per-site edits.
+ */
+export function isAgeGatePaused(e: NodeJS.ProcessEnv = process.env): boolean {
+  return e.AGE_GATE_PAUSED === 'true';
+}
+
 export function isAgeVerificationRequired(e: NodeJS.ProcessEnv = process.env): boolean {
-  return e.AGE_VERIFICATION_REQUIRED === 'true';
+  return e.AGE_VERIFICATION_REQUIRED === 'true' && !isAgeGatePaused(e);
 }
 
 /**

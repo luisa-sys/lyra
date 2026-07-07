@@ -59,11 +59,31 @@ jest.mock('@/lib/supabase-server', () => ({
         },
         update: (data: unknown) => {
           mockUpdateCapture(tableName, data);
-          return {
-            eq: () => ({
-              eq: () => Promise.resolve({ error: null }),
+          // KAN-404 (#12): updateProfileItem chains
+          // .update().eq().eq().select().single() to return the saved row.
+          // The `.eq()` result is awaitable (existing update callers) AND
+          // exposes .select().single() (the row-returning path). Additive —
+          // doesn't change the existing empty-return update assertions.
+          const eqResult = {
+            eq: () => eqResult,
+            select: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: {
+                    id: 'test-item-id',
+                    category: 'gift_ideas',
+                    title: 'Updated title',
+                    description: null,
+                    url: null,
+                    visibility: null,
+                  },
+                  error: null,
+                }),
             }),
+            then: (resolve: (v: { error: null }) => unknown) =>
+              Promise.resolve({ error: null }).then(resolve),
           };
+          return { eq: () => eqResult };
         },
       };
     }),
@@ -72,6 +92,7 @@ jest.mock('@/lib/supabase-server', () => ({
 
 import {
   addProfileItem,
+  updateProfileItem,
   addSchoolAffiliation,
   addExternalLink,
   updateProfileFields,
@@ -141,6 +162,63 @@ describe('KAN-241: addProfileItem moderation', () => {
   });
 });
 
+// ───────────── updateProfileItem (KAN-404 #12) ─────────────
+
+describe('KAN-404: updateProfileItem moderation + write', () => {
+  test('clean title + description → updates profile_items with sanitised values', async () => {
+    const result = await updateProfileItem('item-1', {
+      title: 'Fresh title',
+      description: 'A clean description',
+    });
+    expect(result.success).toBe(true);
+    expect(mockUpdateCapture).toHaveBeenCalledWith(
+      'profile_items',
+      expect.objectContaining({
+        title: 'Fresh title',
+        description: 'A clean description',
+      }),
+    );
+  });
+
+  test('empty description clears it to null', async () => {
+    await updateProfileItem('item-1', { title: 'Keep', description: '' });
+    expect(mockUpdateCapture).toHaveBeenCalledWith(
+      'profile_items',
+      expect.objectContaining({ description: null }),
+    );
+  });
+
+  test('profane title → blocked, no update to profile_items', async () => {
+    const result = await updateProfileItem('item-1', { title: 'fuck this' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/inappropriate language/i);
+    }
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
+  });
+
+  test('profane description → blocked, no update to profile_items', async () => {
+    const result = await updateProfileItem('item-1', {
+      title: 'Coffee',
+      description: 'this fuck is great',
+    });
+    expect(result.success).toBe(false);
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
+  });
+
+  test('invalid url (javascript:) → blocked with http(s) error, no update', async () => {
+    const result = await updateProfileItem('item-1', {
+      title: 'Coffee',
+      url: 'javascript:alert(1)',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/http:\/\/ or https:\/\//i);
+    }
+    expect(mockUpdateCapture).not.toHaveBeenCalledWith('profile_items', expect.anything());
+  });
+});
+
 // ───────────── updateProfileFields ─────────────
 
 describe('KAN-241: updateProfileFields moderation', () => {
@@ -181,7 +259,8 @@ describe('KAN-241: addSchoolAffiliation moderation', () => {
   test('clean school name → write succeeds', async () => {
     const result = await addSchoolAffiliation({
       school_name: 'Greenfield Primary',
-      school_location: 'London',
+      // KAN-404 — schools now require a postcode (full or partial).
+      school_location: 'SW1A 1AA',
     });
     expect(result).toEqual({ success: true });
     expect(mockInsertCapture).toHaveBeenCalledWith('school_affiliations', expect.objectContaining({

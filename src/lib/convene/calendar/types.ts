@@ -18,6 +18,22 @@ export interface BusyBlock {
   end: string; // ISO 8601 UTC
 }
 
+/**
+ * SEC-58 busy-time consent context. Passed to `getFreeBusy` so the adapter can
+ * enforce the SEC-18 sharing opt-in before disclosing another user's calendar.
+ *
+ * Omit it only when the caller is reading its OWN calendar; supplying it (with
+ * `viewerUserId === ownerUserId`) is the safe default and always permitted.
+ * When `viewerUserId !== ownerUserId` the adapter refuses unless the owner has
+ * consented (fail-closed).
+ */
+export interface BusyTimeViewer {
+  /** The user requesting the busy-times (the "viewer"). */
+  viewerUserId: string;
+  /** The user who OWNS the calendar connection being read (the "target"). */
+  ownerUserId: string;
+}
+
 export interface CalendarAttendee {
   email: string;
   displayName?: string;
@@ -34,8 +50,19 @@ export interface GatheringEventData {
 }
 
 export interface CalendarAdapter {
-  /** Read busy/free blocks for the user's primary calendar in a window. */
-  getFreeBusy(connectionId: string, window: TimeWindow): Promise<BusyBlock[]>;
+  /**
+   * Read busy/free blocks for the user's primary calendar in a window.
+   *
+   * When `viewer` is supplied and `viewer.viewerUserId !== viewer.ownerUserId`,
+   * the adapter enforces the SEC-58 busy-time consent gate before fetching and
+   * throws `BusyTimeConsentError` if the owner has not opted in. Omitting
+   * `viewer` (or passing viewer === owner) reads the caller's own calendar.
+   */
+  getFreeBusy(
+    connectionId: string,
+    window: TimeWindow,
+    viewer?: BusyTimeViewer
+  ): Promise<BusyBlock[]>;
 
   /** Create a calendar event on the user's primary calendar. */
   createEvent(

@@ -42,9 +42,9 @@ describe('SEC-18 HMAC contact hashing', () => {
     expect(a).not.toBe(c);
   });
 
-  test('kind namespacing holds under HMAC', () => {
-    expect(hashContact('phone', 'SAMEVALUE', KEY)).not.toBe(hashContact('postcode', 'SAMEVALUE', KEY));
-  });
+  // KAN-339: the phone/postcode kind-namespacing test was removed with postcode
+  // discovery — only the 'phone' ContactKind remains, so two kinds can't be
+  // compared. hashContact still namespaces by `kind` in the HMAC message.
 
   test('getContactSearchHmacKey prefers CONTACT_SEARCH_HMAC_KEY, falls back to the pepper', () => {
     const orig = process.env.CONTACT_SEARCH_HMAC_KEY;

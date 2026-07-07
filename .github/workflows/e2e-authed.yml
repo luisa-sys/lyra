@@ -1,0 +1,105 @@
+name: E2E Authed Journey (dev/staging)
+
+# KAN-348: the AUTHENTICATED onboarding-journey E2E suite.
+#
+# Separate from the cred-free PR gate (e2e-tests.yml) so that gate stays
+# credential-free and can never be turned red by the authed harness. This job
+# seeds deterministic test users via a service-role key and mints real sessions,
+# so it needs dev/staging Supabase secrets that DO NOT YET EXIST.
+#
+# TRIGGER: workflow_dispatch ONLY for now. It is intentionally NOT wired to
+# `push: develop` / a nightly schedule yet — with no secrets provisioned it would
+# fail every push and turn develop red. Once the founder provisions the
+# E2E_SUPABASE_* secrets (scoped to dev/staging, NEVER prod), enable the
+# `push`/`schedule` triggers below.
+#
+#   on:
+#     push:
+#       branches: [develop]
+#     schedule:
+#       - cron: '0 6 * * *'   # nightly
+#
+# The suite NEVER touches prod: supabase-admin.ts hard-guards the prod ref/host,
+# and the shell guard step below is defence-in-depth.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed dev/staging URL to run against'
+        required: false
+        default: 'https://dev.checklyra.com'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authed-e2e:
+    name: Playwright authed journey (dev/staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Fixed seed emails mean concurrent runs against the same env would race on
+    # delete/create — serialise per env.
+    concurrency:
+      group: e2e-authed-${{ github.event.inputs.base_url }}
+      cancel-in-progress: false
+    env:
+      CI: 'true'
+      E2E_AUTHED: '1'
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.checklyra.com' }}
+      # Harness creds — DISTINCT from the app's own SUPABASE_* so they never leak
+      # into an app runtime. Scope these GitHub Secrets to DEV/STAGING, NEVER prod.
+      E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      # Vercel/Cloudflare bypass header for protected deploy URLs (optional).
+      VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Prod guard (defence-in-depth)
+        # The code guard in supabase-admin.ts already refuses prod; this fails
+        # the job even earlier if anyone points it at prod.
+        run: |
+          case "$E2E_SUPABASE_URL" in
+            *llzkgprqewuwkiwclowi*|*checklyra.com*)
+              echo "::error::refusing to run the authed harness against prod Supabase"
+              exit 1
+              ;;
+          esac
+          case "$BASE_URL" in
+            *//checklyra.com*|*//beta.checklyra.com*)
+              echo "::error::authed harness must target dev/staging, not the prod family"
+              exit 1
+              ;;
+          esac
+          echo "prod guard passed"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authed journey
+        run: npx playwright test --project=authed-journey
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report-authed
+          # NOTE: exclude tests/e2e/.auth (live session tokens) from any upload.
+          path: |
+            playwright-report/
+            !tests/e2e/.auth/
+          retention-days: 14

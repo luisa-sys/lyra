@@ -6,7 +6,7 @@ export interface WizardProfile {
   bio_short: string | null;
   city: string | null;
   region: string | null;
-  postcode_prefix: string | null;
+  // KAN-339: postcode_prefix removed (postcode no longer collected/stored).
   country: string | null;
   // KAN-186: ISO-3166 alpha-2 country where gifts for this profile should
   // ship. Separate from `country` (which is freeform display text). NULL

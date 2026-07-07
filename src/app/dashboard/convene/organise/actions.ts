@@ -189,7 +189,14 @@ export async function getHostBusyTimes(
 
   try {
     const adapter = adapterFor('google');
-    const busy = await adapter.getFreeBusy(connection.id, { start, end });
+    // SEC-58: host reads their OWN calendar (connection is owner-scoped above),
+    // so viewer === owner and the consent gate is a no-op — but we thread the
+    // viewer explicitly so any future non-owner caller is gated by construction.
+    const busy = await adapter.getFreeBusy(
+      connection.id,
+      { start, end },
+      { viewerUserId: user.id, ownerUserId: user.id }
+    );
     return { ok: true, connected: true, busy: busy.map((b) => ({ start: b.start, end: b.end })) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not read your calendar' };

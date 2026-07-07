@@ -25,6 +25,7 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/accessibility", label: "Accessibility" },
   { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },
+  { href: "/complaints", label: "Complaints" },
   // KAN-184: the affiliate "Partners" link must stay reachable from the
   // footer — Sovrn's crawler follows it to verify Lyra owns checklyra.com.
   // Not in the mock-up's nine, appended here to preserve that verification.
@@ -59,7 +60,7 @@ export function Footer() {
 
         <p className="text-[12.5px] text-[var(--color-muted)] leading-relaxed max-w-[46em] mx-auto mb-2">
           Lyra gives every ordinary person a voice — a place to be understood,
-          in your own words. Keep it about you.
+          in your own words.
         </p>
 
         <p className="text-[11.5px] text-[var(--color-muted)] leading-relaxed max-w-[46em] mx-auto">

@@ -7,21 +7,21 @@
 > review + sign-off. Tick as you go; record dates/references inline.
 
 ## A. Legal registration & money (do first — cheap, enforcement risk)
-- [ ] **Pay the ICO data-protection fee** — ico.org.uk/registration, Tier 1, **£47/yr by Direct Debit** (£52 by card). Declare ≤10 staff / ≤£632k turnover. _Not registering is itself an enforcement matter._
-  - Registration reference: ________  ·  Renewal date: ________  ·  Calendar reminder set: ☐
-- [ ] Add the ICO reference to the public **privacy notice** + the ROPA header.
+- [x] **Pay the ICO data-protection fee** — ico.org.uk/registration, Tier 1, **£47/yr by Direct Debit** (£52 by card). Declare ≤10 staff / ≤£632k turnover. _Not registering is itself an enforcement matter._
+  - Registration reference: **ZC124222**  ·  Renewal date: **~17 Mar 2027**  ·  Calendar reminder set: ☐ _(founder to set)_
+- [x] Add the ICO reference to the public **privacy notice** + the ROPA header. _(done — ZC124222 in privacy/page.tsx + ROPA.md)_
 
 ## B. Data-protection documents (review + sign off the drafts in this folder)
 - [ ] **ROPA.md** — review; correct any data category / lawful basis; sign off.
-- [ ] **SUBPROCESSORS.md** — for each vendor, **accept/reference its DPA online** and record the date + link. Subscribe to sub-processor-change notices.
+- [ ] **SUBPROCESSORS.md** — for each vendor, **accept/reference its DPA online** and record the date + link. Subscribe to sub-processor-change notices. _(Supabase signed + Vercel/Cloudflare(R2)/Resend recorded by reference 2026-07-03; **Didit, Google, Railway still ☐**.)_
 - [ ] **RETENTION_SCHEDULE.md** — confirm the proposed periods.
 - [ ] **DSAR_BREACH_COMPLAINTS.md** — adopt; make `privacy@checklyra.com` live + monitored.
-- [ ] **DPIA** — complete a DPIA (audience + age-assurance/biometric-adjacent + contact/calendar data warrant one). Use the ICO template. _Not drafted here — needs the controller's risk judgement._
+- [ ] **DPIA** — **Drafted — `docs/compliance/DPIA.md` (SEC-70).** Complete the risk scores (likelihood × severity) + residual-risk cells, decide whether ICO prior consultation is needed, and sign off. Consolidate/retire the two Confluence DRAFT DPIAs (27000875, 27033667) in favour of the repo canonical.
 - [ ] Confirm **Didit** (age provider): Art. 9 basis (explicit consent), biometric retention/deletion, transfer mechanism, and that Lyra never stores the raw selfie. ← special-category, highest diligence.
 
 ## C. Publish the public-facing pieces (before 18+ launch)
-- [ ] Privacy notice names controller, ICO ref, lawful bases, retention, DSAR route, **complaints route**, transfer safeguard.
-- [ ] **DUAA complaints channel** visible on site/support (live duty from **19 Jun 2026**: 30-day acknowledgement, outcome, ICO signposting).
+- [x] Privacy notice names controller, ICO ref (ZC124222), lawful bases, retention, DSAR route, **complaints route**, transfer safeguard. _(done — privacy/page.tsx)_
+- [x] **DUAA complaints channel** visible on site/support (live duty from **19 Jun 2026**: 30-day acknowledgement, outcome, ICO signposting). _(done — /complaints page + footer link + privacy-notice section; **founder must make privacy@checklyra.com live + monitored** to honour the 30-day duty.)_
 
 ## D. Governance / change control (SEC-3, GOV-01) — GitHub admin
 - [ ] Turn on branch protection on `main` + `beta` (both repos): **require ≥1 approving review**, **enable "Require review from Code Owners"** (CODEOWNERS now exists), set **enforce_admins = true**.

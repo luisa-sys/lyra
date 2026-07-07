@@ -28,7 +28,7 @@ const visibilityShort: Record<string, string> = {
 // KAN-234: short label for the NULL/inherit case in the per-item selector.
 const INHERIT_SHORT = '↗ Inherit';
 
-export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onNext, isPending, hideVisibility = false }: {
+export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onEdit, onNext, isPending, hideVisibility = false, showContinue = true }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
   // KAN-219 — items now carry an optional URL (Python `lyra-app` parity).
   // Server-side `addProfileItem` runs the value through `sanitiseUrl`, which
@@ -37,6 +37,12 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   onAdd: (data: { category: string; title: string; description?: string; url?: string; visibility?: string }) => void;
   onRemove: (id: string) => void;
   onUpdateVisibility: (id: string, visibility: string) => void;
+  // KAN-404 (#12) — edit an existing item's text (title/description/url).
+  // Optional so legacy wizard callers that don't pass it keep compiling and
+  // simply don't render the inline Edit affordance. Returns the action result
+  // so the row can surface a moderation error in place (same red-text pattern
+  // as blocked adds) without a page reload.
+  onEdit?: (id: string, data: { title?: string; description?: string; url?: string }) => Promise<{ success: boolean; error?: string }>;
   onNext: () => void; isPending: boolean;
   // KAN-266: the June-2026 redesign drops per-item visibility (the profile is
   // simply public; affiliations are the only hidden-by-default thing). When
@@ -44,6 +50,11 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   // rendered and new items inherit the section default (NULL → public). The
   // legacy wizard still passes hideVisibility=false to keep its controls.
   hideVisibility?: boolean;
+  // KAN-404 (#8/#9): the single-page editor sets showContinue={false} to drop
+  // the misleading "Continue →" button (it only collapsed the section, which
+  // read as navigation that went nowhere). The legacy wizard keeps the default
+  // true so "Continue →" still advances steps there — zero legacy change.
+  showContinue?: boolean;
 }) {
   const [category, setCategory] = useState(categories[0]);
   const [itemTitle, setItemTitle] = useState('');
@@ -52,11 +63,52 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   // KAN-234: new items default to '' (inherit from section default).
   const [itemVisibility, setItemVisibility] = useState<string>('');
 
+  // KAN-404 (#12): inline edit state. Only one row edits at a time.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startEdit = (item: WizardItem) => {
+    setEditingId(item.id);
+    setEditTitle(item.title);
+    setEditDesc(item.description ?? '');
+    setEditUrl(item.url ?? '');
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!onEdit || !editTitle.trim()) return;
+    setEditSaving(true);
+    setEditError(null);
+    const res = await onEdit(id, {
+      title: editTitle.trim(),
+      // Send description/url even when empty so the user can CLEAR them
+      // (the action treats '' description as null; '' url as "no URL").
+      description: editDesc,
+      url: editUrl.trim(),
+    });
+    setEditSaving(false);
+    if (res.success) {
+      setEditingId(null);
+      setEditError(null);
+    } else {
+      setEditError(res.error ?? 'Could not save. Please try again.');
+    }
+  };
+
   const categoryLabels: Record<string, string> = {
     likes: '💚 Like', dislikes: '💔 Dislike',
     gift_ideas: '🎁 Gift idea', gifts_to_avoid: '🚫 Avoid',
     boundaries: '🛑 Boundary', helpful_to_know: '💡 Helpful to know',
-    favourite_books: '📖 Book', favourite_media: '🎬 Movie/Series',
+    favourite_books: '📖 Book', favourite_media: '🎬 Movie',
     causes: '🌍 Cause', quotes: '💬 Quote',
     proud_of: '🏆 Proud of', life_hacks: '💡 Life hack',
     questions: '❓ Question', billboard: '📢 Billboard',
@@ -64,7 +116,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
     // challenges / projects / interests for networking + collaboration.
     current_problems: '🧩 Currently solving',
     // KAN-263: favourites split out for the redesign favourites grid.
-    favourite_tv: '📺 TV show', favourite_places: '📍 Place', favourite_music: '🎵 Music',
+    favourite_tv: '📺 TV show', plays: '🎭 Play', favourite_places: '📍 Place', favourite_music: '🎵 Music',
   };
 
   const handleAdd = () => {
@@ -96,56 +148,119 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((item: WizardItem) => (
-            <div key={item.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--color-ink)]">
-                  <span className="opacity-60">{categoryLabels[item.category] || item.category}</span> — {item.title}
-                  {/* KAN-219: ↗ chip when an item has a URL. Open in new tab
-                      with noopener+noreferrer to prevent tab-nabbing. */}
-                  {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-1.5 text-xs text-[var(--color-sage)] hover:underline"
-                      aria-label={`Open link for ${item.title}`}
+            <div key={item.id} className="bg-white rounded-lg border border-[var(--color-border)] px-4 py-3">
+              {onEdit && editingId === item.id ? (
+                /* KAN-404 (#12): inline edit mode — reuses the add-form input
+                   styling. Save runs onEdit; a moderation block shows in place. */
+                <div className="space-y-3">
+                  <Field label="Title" value={editTitle} onChange={setEditTitle} placeholder="e.g. Dark chocolate, hiking boots" />
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Description (optional)</label>
+                    <input
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
+                      placeholder="Any extra detail"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-ink)] mb-1" htmlFor={`edit-item-url-${item.id}`}>
+                      Link (optional)
+                    </label>
+                    <input
+                      id={`edit-item-url-${item.id}`}
+                      type="url"
+                      value={editUrl}
+                      onChange={(e) => setEditUrl(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
+                      placeholder="https://example.com/this-book"
+                    />
+                  </div>
+                  {editError && <p role="alert" className="text-sm text-red-600">{editError}</p>}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(item.id)}
+                      disabled={editSaving || isPending || !editTitle.trim()}
+                      className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
                     >
-                      ↗
-                    </a>
-                  )}
-                </p>
-                {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
-              </div>
-              <div className="flex items-center gap-2 ml-3">
-                {!hideVisibility && (
-                  <>
-                    <label className="sr-only" htmlFor={`vis-${item.id}`}>Visibility</label>
-                    <select
-                      id={`vis-${item.id}`}
-                      aria-label={`Visibility for ${item.title}`}
-                      // KAN-234: NULL stored visibility → '' in the form = inherit.
-                      // Known string → its real value. Unknown string → 'public' (defence).
-                      value={
-                        item.visibility == null || item.visibility === ''
-                          ? ''
-                          : visibilityShort[item.visibility]
-                            ? item.visibility
-                            : 'public'
-                      }
-                      onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
-                      disabled={isPending}
-                      className="text-xs px-2 py-1 rounded border border-[var(--color-border)] bg-white text-[var(--color-ink)]"
+                      {editSaving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={editSaving}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
                     >
-                      {VISIBILITY_OPTIONS.map((opt) => (
-                        <option key={opt.value || 'inherit'} value={opt.value}>
-                          {opt.value === '' ? INHERIT_SHORT : visibilityShort[opt.value]}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
-              </div>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-ink)]">
+                      <span className="opacity-60">{categoryLabels[item.category] || item.category}</span> — {item.title}
+                      {/* KAN-219: ↗ chip when an item has a URL. Open in new tab
+                          with noopener+noreferrer to prevent tab-nabbing. */}
+                      {item.url && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-1.5 text-xs text-[var(--color-sage)] hover:underline"
+                          aria-label={`Open link for ${item.title}`}
+                        >
+                          ↗
+                        </a>
+                      )}
+                    </p>
+                    {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 ml-3">
+                    {!hideVisibility && (
+                      <>
+                        <label className="sr-only" htmlFor={`vis-${item.id}`}>Visibility</label>
+                        <select
+                          id={`vis-${item.id}`}
+                          aria-label={`Visibility for ${item.title}`}
+                          // KAN-234: NULL stored visibility → '' in the form = inherit.
+                          // Known string → its real value. Unknown string → 'public' (defence).
+                          value={
+                            item.visibility == null || item.visibility === ''
+                              ? ''
+                              : visibilityShort[item.visibility]
+                                ? item.visibility
+                                : 'public'
+                          }
+                          onChange={(e) => onUpdateVisibility(item.id, e.target.value)}
+                          disabled={isPending}
+                          className="text-xs px-2 py-1 rounded border border-[var(--color-border)] bg-white text-[var(--color-ink)]"
+                        >
+                          {VISIBILITY_OPTIONS.map((opt) => (
+                            <option key={opt.value || 'inherit'} value={opt.value}>
+                              {opt.value === '' ? INHERIT_SHORT : visibilityShort[opt.value]}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    {/* KAN-404 (#12): Edit is only offered when a handler is wired
+                        (redesign editor); the legacy wizard omits onEdit. */}
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        disabled={isPending}
+                        className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    <button onClick={() => onRemove(item.id)} disabled={isPending} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -207,7 +322,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
           + Add item
         </button>
       </div>
-      <SaveButton onClick={onNext} isPending={false} label="Continue →" />
+      {showContinue && <SaveButton onClick={onNext} isPending={false} label="Continue →" />}
     </div>
   );
 }

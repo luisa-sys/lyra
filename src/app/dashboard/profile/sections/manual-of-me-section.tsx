@@ -12,7 +12,8 @@ import { useState } from 'react';
 import type { ManualOfMe } from '../manual-of-me-fields';
 import { MANUAL_OF_ME_MAX_LENGTHS } from '../manual-of-me-fields';
 import { updateManualOfMe } from '../manual-of-me-actions';
-import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
+import { useAutoSave } from './use-auto-save';
+import { SectionSaveBar } from './section-save-bar';
 
 interface ManualOfMeDraft {
   good_to_know: string;
@@ -35,7 +36,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
 
   // `updateManualOfMe` takes Record<string, string | null>; ManualOfMeDraft's
   // typed keys narrow it to a literal-keyed object, so we widen explicitly.
-  const status = useAutoSave(draft, async (v) =>
+  const { status, flush } = useAutoSave(draft, async (v) =>
     updateManualOfMe(v as unknown as Record<string, string | null>),
   );
 
@@ -46,17 +47,15 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
   // in the same order the public profile renders them.
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <AutoSaveStatusLabel status={status} />
-      </div>
+      <SectionSaveBar status={status} onSave={flush} />
 
       <p className="text-sm text-[var(--color-muted)]">
         A few little prompts to help people understand you. Every one is optional — fill in only what feels right.
       </p>
 
       <MoMField
-        label="Good to know about me"
-        helper="The little things that help people get you."
+        label="Good to know about me / Things I'm into"
+        helper="The little things that help people get you — and the things you're into."
         placeholder="I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
         value={draft.good_to_know}
         onChange={(v) => set('good_to_know', v)}

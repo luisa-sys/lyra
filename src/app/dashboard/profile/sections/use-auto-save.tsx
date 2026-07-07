@@ -15,6 +15,14 @@
  *   - Returns a status the section can render in its header
  *     ("Saving…" / "Saved" / "Save failed").
  *
+ * KAN-404 (#8/#9): the hook ALSO returns a `flush()` function so a visible
+ * per-section Save button can force-save the newest value immediately
+ * instead of waiting for the 800ms debounce. flush() cancels the pending
+ * timer, runs the save once with the latest value, and drives the same
+ * saving→saved / saving→error status transitions. The debounce, the
+ * first-render skip, the 800ms default, and the last-write-wins semantics
+ * are all unchanged — only an eager, user-initiated path was added.
+ *
  * The 800ms default is a balance between "feels instant" and "respects
  * the user's pause". Server Actions deduplicate concurrent writes
  * through Postgres transactions; if the user types again during a
@@ -22,7 +30,8 @@
  * matching what users expect from auto-save.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { runSave } from './auto-save-core';
 
 export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -31,15 +40,36 @@ export type AutoSaveResult =
   | { success: false; error: string }
   | void;
 
+export interface UseAutoSaveReturn {
+  status: AutoSaveStatus;
+  /**
+   * Force-save the latest value immediately, bypassing the debounce.
+   * Cancels any pending debounced save first so the two paths never race.
+   * Resolves once the save (and its status transition) has settled.
+   */
+  flush: () => Promise<void>;
+}
+
 export function useAutoSave<T>(
   value: T,
   save: (v: T) => Promise<AutoSaveResult>,
   debounceMs: number = 800,
-): AutoSaveStatus {
-  // Hold save in a ref so that re-creating the function on each parent
-  // render doesn't continually re-trigger the effect.
+): UseAutoSaveReturn {
+  // Hold `save` and the newest `value` in refs so flush() can force-save the
+  // current value with the current save fn, and so re-creating `save` on every
+  // parent render doesn't re-trigger the debounce effect. Both are synced in a
+  // commit effect — react-hooks/refs disallows writing refs during render, and
+  // an effect commits before any user click can call flush(), so the refs are
+  // always current at flush time.
   const saveRef = useRef(save);
-  saveRef.current = save;
+  const latestValueRef = useRef(value);
+  useEffect(() => {
+    saveRef.current = save;
+    latestValueRef.current = value;
+  });
+
+  // Track the live debounce timer so flush() can cancel it.
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [status, setStatus] = useState<AutoSaveStatus>('idle');
   const isFirstRender = useRef(true);
@@ -49,25 +79,31 @@ export function useAutoSave<T>(
       isFirstRender.current = false;
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- KAN-220/KAN-404: reset the visible status to 'idle' as a new debounce window is armed. Guarded by the first-render skip above, so it never fires on mount and can't cascade; it only runs in response to a user edit changing `value`.
     setStatus('idle');
-    const timer = setTimeout(async () => {
-      setStatus('saving');
-      try {
-        const result = await saveRef.current(value);
-        if (result && 'success' in result && result.success === false) {
-          setStatus('error');
-        } else {
-          setStatus('saved');
-        }
-      } catch {
-        setStatus('error');
-      }
+    const timer = setTimeout(() => {
+      timerRef.current = null;
+      // Debounce path: save the value captured for THIS window (last-write-wins
+      // across overlapping windows, unchanged from KAN-220).
+      void runSave(saveRef.current, value, setStatus);
     }, debounceMs);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- KAN-220: saveRef intentionally not a dep; re-creating the save function on every parent render would otherwise re-trigger the effect. See file comment.
+    timerRef.current = timer;
+    return () => {
+      clearTimeout(timer);
+      if (timerRef.current === timer) timerRef.current = null;
+    };
   }, [value, debounceMs]);
 
-  return status;
+  const flush = useCallback(async () => {
+    // Cancel any in-flight debounce so the eager save is the last write.
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    await runSave(saveRef.current, latestValueRef.current, setStatus);
+  }, []);
+
+  return { status, flush };
 }
 
 /** Small render-helper for the autosave status indicator. Sections that

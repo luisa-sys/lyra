@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * KAN-153: Settings UI for opt-in phone/postcode discovery.
+ * KAN-153 / KAN-339: Settings UI for opt-in phone discovery.
  *
- * Two independent toggles. Enabling a toggle reveals an input where the
- * user enters their phone or postcode, which is then hashed server-side
- * and stored. We never display the previously-stored value (we don't have
- * it — only the hash is persisted), and disabling clears the hash.
+ * One toggle. Enabling it reveals an input where the user enters their phone
+ * number, which is hashed server-side and stored. We never display the
+ * previously-stored value (only the hash is persisted); disabling clears the hash.
  *
- * Consent copy is deliberately explicit per the privacy review on KAN-153.
+ * KAN-339: postcode discovery removed for privacy/data-minimisation. Coarse
+ * town/city discovery (KAN-341) replaces the location-based discovery path.
  */
 import { useEffect, useState, useTransition } from 'react';
 import { setDiscoverability, getDiscoverability } from './discoverability-actions';
@@ -18,11 +18,8 @@ type Banner = { type: 'success' | 'error'; text: string } | null;
 export function DiscoverabilityClient() {
   const [isPending, startTransition] = useTransition();
   const [phoneEnabled, setPhoneEnabled] = useState(false);
-  const [postcodeEnabled, setPostcodeEnabled] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
-  const [postcodeInput, setPostcodeInput] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(false);
-  const [showPostcodeInput, setShowPostcodeInput] = useState(false);
   const [banner, setBanner] = useState<Banner>(null);
 
   useEffect(() => {
@@ -30,7 +27,6 @@ export function DiscoverabilityClient() {
       const result = await getDiscoverability();
       if (result.success) {
         setPhoneEnabled(result.phone);
-        setPostcodeEnabled(result.postcode);
       }
     });
   }, []);
@@ -75,50 +71,12 @@ export function DiscoverabilityClient() {
     });
   };
 
-  const handlePostcodeToggle = (next: boolean) => {
-    setBanner(null);
-    if (next) {
-      setShowPostcodeInput(true);
-      return;
-    }
-    startTransition(async () => {
-      const result = await setDiscoverability({ postcode: false });
-      if (result.success) {
-        setPostcodeEnabled(false);
-        setShowPostcodeInput(false);
-        setPostcodeInput('');
-        setBanner({ type: 'success', text: 'Postcode discovery disabled.' });
-      } else {
-        setBanner({ type: 'error', text: result.error });
-      }
-    });
-  };
-
-  const handlePostcodeSubmit = () => {
-    setBanner(null);
-    if (!postcodeInput) return;
-    startTransition(async () => {
-      const result = await setDiscoverability({ postcode: true, postcodeValue: postcodeInput });
-      if (result.success) {
-        setPostcodeEnabled(true);
-        setShowPostcodeInput(false);
-        setPostcodeInput('');
-        setBanner({
-          type: 'success',
-          text: 'Postcode discovery enabled. Your postcode is stored only as a salted hash.',
-        });
-      } else {
-        setBanner({ type: 'error', text: result.error });
-      }
-    });
-  };
-
   return (
     <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
-      <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Discovery by phone or postcode</h2>
+      <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">Discovery by phone number</h2>
       <p className="text-sm text-[var(--color-muted)] mb-4">
-        Let people who know your phone number or postcode find your profile. Both are off by default.
-        Lyra never stores your number or postcode in plain text — only a one-way salted hash that can be
+        Let people who know your phone number find your profile. It&rsquo;s off by default.
+        Lyra never stores your number in plain text — only a one-way salted hash that can be
         matched against an exact lookup but cannot be reversed.
       </p>
 
@@ -135,7 +93,7 @@ export function DiscoverabilityClient() {
       )}
 
       {/* ── Phone toggle ────────────────────────────────────── */}
-      <div className="mb-6 pb-6 border-b border-[var(--color-border)]">
+      <div>
         <div className="flex items-start justify-between gap-4 mb-2">
           <div className="flex-1">
             <label htmlFor="discover-phone" className="block text-sm font-medium text-[var(--color-ink)]">
@@ -174,55 +132,6 @@ export function DiscoverabilityClient() {
             </button>
             <button
               onClick={() => { setShowPhoneInput(false); setPhoneInput(''); }}
-              disabled={isPending}
-              className="px-3 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Postcode toggle ─────────────────────────────────── */}
-      <div>
-        <div className="flex items-start justify-between gap-4 mb-2">
-          <div className="flex-1">
-            <label htmlFor="discover-postcode" className="block text-sm font-medium text-[var(--color-ink)]">
-              Allow discovery by postcode
-            </label>
-            <p className="text-xs text-[var(--color-muted)] mt-1">
-              Anyone who knows your exact full postcode will be able to find your profile.
-              Partial postcodes and prefix searches are not supported.
-            </p>
-          </div>
-          <input
-            id="discover-postcode"
-            type="checkbox"
-            checked={postcodeEnabled || showPostcodeInput}
-            disabled={isPending}
-            onChange={(e) => handlePostcodeToggle(e.target.checked)}
-            className="mt-1 h-5 w-5 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
-          />
-        </div>
-        {showPostcodeInput && !postcodeEnabled && (
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              value={postcodeInput}
-              onChange={(e) => setPostcodeInput(e.target.value)}
-              placeholder="SW1A 1AA"
-              autoComplete="off"
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-            />
-            <button
-              onClick={handlePostcodeSubmit}
-              disabled={isPending || !postcodeInput}
-              className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              Enable
-            </button>
-            <button
-              onClick={() => { setShowPostcodeInput(false); setPostcodeInput(''); }}
               disabled={isPending}
               className="px-3 py-2 rounded-lg bg-[#f4efe7] text-sm font-medium text-[var(--color-ink)] hover:bg-[#ece7df] transition-colors"
             >

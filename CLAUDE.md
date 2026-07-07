@@ -429,6 +429,8 @@ These have caused real bugs. Read before making related changes:
 
     First hit: KAN-209 (2026-05-17) after adding `RESEND_API_KEY` to develop scope — invite dispatcher kept failing with `RESEND_API_KEY not set` until a doc-only chore PR triggered a redeploy. Second hit: KAN-88 (2026-05-17) `OAUTH_JWT_SIGNING_SECRET` — same fix. **Bake the chore-PR-to-redeploy pattern in any time you set a branch-scoped env var as part of getting a feature live on dev.**
 
+22. **Next.js `loading.tsx` can permanently hide streamed content on a hard load**: A route segment's `loading.tsx` creates a Suspense boundary whose streamed content can fail to reveal on a hard page load (direct URL visit or refresh) on some deployed builds (confirmed on Next 16.2.6) — the real page content stays inside React's hidden streaming holder (`<div hidden>`) while the loading skeleton shows, so the page renders blank except the site-wide footer. Client-side navigation into the same route is unaffected (no fresh Suspense boundary), which makes the bug easy to miss in normal manual testing. Discovered 2026-07-03: this blanked the ENTIRE `/dashboard` segment (not just widget-specific code) on hard load/refresh — confirmed in-browser; service worker, CSP, and PPR were ruled out as causes. Tracked under BUGS-63, fixed in PR #424 by removing the segment's `loading.tsx` (trade-off: no instant skeleton during the async render, acceptable vs. a blank dashboard). **If a route with a `loading.tsx` renders blank on a hard load but works fine via client-side navigation, suspect this first.** Deeper root cause (likely a Next 16 streaming / `@sentry/nextjs` interaction) is an open follow-up.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
@@ -501,3 +503,25 @@ See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
 - Sunday 05:00 — Backup restore test
 - Monday 07:00 — Weekly report (emails via Resend)
 - Wednesday 07:00 — Security audit (npm audit + email alerts via Resend)
+
+### Ops routines & the Control-Room heartbeat (KAN-350 / KAN-362)
+
+The scheduled **claude.ai routines** (Daily Security, Weekly Health+Regression,
+Doc-Sync Health-Check, Documentation producer) and the GitHub-Actions crons
+above are indexed in **`docs/OPS_ROUTINES_CONTROL_ROOM.md`** (the repo mirror of
+the Confluence *Ops Routines Control Room*). Rules for any routine (or agent
+editing one):
+
+- **Every routine writes exactly one heartbeat row** to the Ops Routines Control
+  Room Heartbeat table as its **final checkpoint** of each run
+  (`Timestamp | Routine | PASS/FAIL/UNVERIFIED | New tickets/PRs | Next-expected
+  | Notes`). A run that produced no heartbeat is treated by the watchdog as a
+  **missed run**.
+- **One concern → one owner** (KAN-361): liveness = `health-check.yml`;
+  security = the Daily Security routine; test/release = the Weekly
+  Health+Regression routine; doc-sync = the Doc-Sync Health-Check routine. Other
+  routines/reports **cite** the owner's last result, they don't re-derive it.
+- The **watchdog** (`scripts/routine-watchdog.sh`, run inside the Daily Security
+  routine) flags any routine that is OVERDUE or last-FAIL and raises an
+  `ACTION NEEDED` alert. It is READ-ONLY and honest: an unreadable heartbeat is
+  `UNVERIFIED` (exit 1), never a silent PASS.

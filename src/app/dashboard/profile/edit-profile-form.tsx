@@ -23,6 +23,7 @@ import Image from 'next/image';
 import {
   addProfileItem,
   removeProfileItem,
+  updateProfileItem,
   updateProfileItemVisibility,
   addExternalLink,
   removeExternalLink,
@@ -31,21 +32,14 @@ import {
 import {
   ItemsStep,
   LinksStep,
-  FilesStep,
   ConversationStartersStep,
   type WizardProfile,
   type WizardItem,
   type WizardSchool,
   type WizardLink,
-  type WizardFile,
   type ConversationPrompt,
   type ConversationAnswer,
 } from './steps';
-import {
-  uploadProfileFile,
-  removeProfileFile,
-  updateProfileFileVisibility,
-} from './files-actions';
 import {
   addConversationStarter,
   updateConversationStarter,
@@ -56,10 +50,12 @@ import {
   BioSection,
   ManualOfMeSection,
   AffiliationsSection,
+  AutoSaveStatusLabel,
+  type AutoSaveStatus,
 } from './sections';
 import type { ManualOfMe } from './manual-of-me-fields';
 
-type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links' | 'files';
+type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links';
 
 interface SectionDef {
   id: string;
@@ -87,36 +83,12 @@ const SECTIONS: SectionDef[] = [
     description: "The things you'd genuinely love — to receive, to do, or to be surprised by.",
   },
   {
-    id: 'into',
-    label: "Things I'm into",
-    icon: '💚',
-    kind: 'items',
-    categories: ['likes'],
-    description: 'Interests, hobbies, the things you light up about.',
-  },
-  {
     id: 'notforme',
     label: "Things that aren't really for me",
     icon: '🙅',
     kind: 'items',
     categories: ['gifts_to_avoid', 'dislikes'],
     description: "Gentle no-thank-yous — so people don't have to guess.",
-  },
-  {
-    id: 'helpful',
-    label: 'Helpful to know',
-    icon: '🧭',
-    kind: 'items',
-    categories: ['helpful_to_know'],
-    description: 'Practical things that make life easier for the people around you.',
-  },
-  {
-    id: 'myboundaries',
-    label: 'My boundaries',
-    icon: '🚧',
-    kind: 'items',
-    categories: ['boundaries'],
-    description: "Anything you'd gently like respected.",
   },
   {
     id: 'causes',
@@ -139,8 +111,8 @@ const SECTIONS: SectionDef[] = [
     label: 'A few of my favourite things',
     icon: '⭐',
     kind: 'items',
-    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'quotes', 'favourite_places', 'favourite_music'],
-    description: 'Books, films, TV, music, places, and the quotes you come back to.',
+    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'plays', 'quotes', 'favourite_places', 'favourite_music'],
+    description: 'Books, films, TV, plays, music, places, and the quotes you come back to.',
   },
   {
     id: 'tips',
@@ -174,7 +146,6 @@ const SECTIONS: SectionDef[] = [
     description: "Your billboard message, and any other questions you'd love to be asked.",
   },
   { id: 'links', label: 'Links', icon: '🔗', kind: 'links' },
-  { id: 'files', label: 'Files & media', icon: '📎', kind: 'files' },
 ];
 
 export function EditProfileForm({
@@ -183,7 +154,6 @@ export function EditProfileForm({
   schools,
   links,
   manualOfMe,
-  files,
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
@@ -194,7 +164,6 @@ export function EditProfileForm({
   schools: WizardSchool[];
   links: WizardLink[];
   manualOfMe: ManualOfMe;
-  files: WizardFile[];
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
   conveneEnabled?: boolean;
@@ -203,6 +172,29 @@ export function EditProfileForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [publishError, setPublishError] = useState<string | null>(null);
+
+  // KAN-404 (#8/#9): list sections (items/links/starters) commit each row
+  // instantly on Add/Remove, so there's nothing buffered to flush — a Save
+  // button would be a no-op. Instead give each its own transient
+  // Saving…/Saved indicator, keyed by section id, so every section visibly
+  // shows saved-state while honouring "everything autosaves". A short-lived
+  // 'saved' auto-clears back to 'idle'.
+  const [sectionStatus, setSectionStatus] = useState<Record<string, AutoSaveStatus>>({});
+
+  const runSectionSave = (sectionId: string, action: () => Promise<{ success: boolean } | void>) => {
+    setSectionStatus((prev) => ({ ...prev, [sectionId]: 'saving' }));
+    startTransition(async () => {
+      const res = await action();
+      const ok = res == null || res.success !== false;
+      router.refresh();
+      setSectionStatus((prev) => ({ ...prev, [sectionId]: ok ? 'saved' : 'error' }));
+      if (ok) {
+        setTimeout(() => {
+          setSectionStatus((prev) => (prev[sectionId] === 'saved' ? { ...prev, [sectionId]: 'idle' } : prev));
+        }, 2000);
+      }
+    });
+  };
 
   // SSR-safe: all expanded by default (no flash on desktop). On mount,
   // matchMedia narrows to mobile and we collapse all but the first.
@@ -228,6 +220,10 @@ export function EditProfileForm({
   };
 
   const renderItemsSection = (s: SectionDef) => (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+      </div>
     <ItemsStep
       title=""
       description={s.description ?? ''}
@@ -236,26 +232,30 @@ export function EditProfileForm({
       // KAN-266: redesign drops per-item visibility.
       hideVisibility
       onAdd={(data) => {
-        startTransition(async () => {
-          await addProfileItem(data);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => addProfileItem(data));
       }}
       onRemove={(id) => {
-        startTransition(async () => {
-          await removeProfileItem(id);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => removeProfileItem(id));
       }}
       onUpdateVisibility={(id, visibility) => {
-        startTransition(async () => {
-          await updateProfileItemVisibility(id, visibility);
-          router.refresh();
-        });
+        runSectionSave(s.id, () => updateProfileItemVisibility(id, visibility));
       }}
+      // KAN-404 (#12): inline edit — call the action directly and await the
+      // result so the row can surface a moderation error in place (a
+      // startTransition without a return value couldn't). router.refresh() on
+      // success re-pulls the persisted row.
+      onEdit={async (id, data) => {
+        const res = await updateProfileItem(id, data);
+        if (res.success) router.refresh();
+        return { success: res.success, error: res.success ? undefined : res.error };
+      }}
+      // KAN-404 (#8/#9): drop the misleading "Continue →" button (it only
+      // collapsed the section). Collapse stays available via the header chevron.
+      showContinue={false}
       onNext={() => toggleSection(s.id)}
       isPending={isPending}
     />
+    </div>
   );
 
   return (
@@ -371,74 +371,46 @@ export function EditProfileForm({
                     {s.kind === 'manual' && <ManualOfMeSection manualOfMe={manualOfMe} />}
                     {s.kind === 'items' && renderItemsSection(s)}
                     {s.kind === 'links' && (
-                      <LinksStep
-                        links={links}
-                        onAdd={(data) => {
-                          startTransition(async () => {
-                            await addExternalLink(data);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeExternalLink(id);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
-                    )}
-                    {s.kind === 'files' && (
-                      <FilesStep
-                        files={files}
-                        onUpload={(formData) => {
-                          startTransition(async () => {
-                            await uploadProfileFile(formData);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeProfileFile(id);
-                            router.refresh();
-                          });
-                        }}
-                        onUpdateVisibility={(id, visibility) => {
-                          startTransition(async () => {
-                            await updateProfileFileVisibility(id, visibility);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
+                      <div className="space-y-3">
+                        <div className="flex justify-end">
+                          <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+                        </div>
+                        <LinksStep
+                          links={links}
+                          onAdd={(data) => {
+                            runSectionSave(s.id, () => addExternalLink(data));
+                          }}
+                          onRemove={(id) => {
+                            runSectionSave(s.id, () => removeExternalLink(id));
+                          }}
+                          showContinue={false}
+                          onNext={() => toggleSection(s.id)}
+                          isPending={isPending}
+                        />
+                      </div>
                     )}
                     {s.kind === 'starters' && (
-                      <ConversationStartersStep
-                        prompts={conversationPrompts}
-                        answers={conversationAnswers}
-                        onAdd={(input) => {
-                          startTransition(async () => {
-                            await addConversationStarter(input);
-                            router.refresh();
-                          });
-                        }}
-                        onUpdate={(id, answer) => {
-                          startTransition(async () => {
-                            await updateConversationStarter(id, answer);
-                            router.refresh();
-                          });
-                        }}
-                        onRemove={(id) => {
-                          startTransition(async () => {
-                            await removeConversationStarter(id);
-                            router.refresh();
-                          });
-                        }}
-                        onNext={() => toggleSection(s.id)}
-                        isPending={isPending}
-                      />
+                      <div className="space-y-3">
+                        <div className="flex justify-end">
+                          <AutoSaveStatusLabel status={sectionStatus[s.id] ?? 'idle'} />
+                        </div>
+                        <ConversationStartersStep
+                          prompts={conversationPrompts}
+                          answers={conversationAnswers}
+                          onAdd={(input) => {
+                            runSectionSave(s.id, () => addConversationStarter(input));
+                          }}
+                          onUpdate={(id, answer) => {
+                            runSectionSave(s.id, () => updateConversationStarter(id, answer));
+                          }}
+                          onRemove={(id) => {
+                            runSectionSave(s.id, () => removeConversationStarter(id));
+                          }}
+                          showContinue={false}
+                          onNext={() => toggleSection(s.id)}
+                          isPending={isPending}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -453,7 +425,7 @@ export function EditProfileForm({
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs text-[var(--color-muted)] hidden sm:block">
-              Changes save automatically as you type.
+              Everything saves automatically — use Save on any section to save it right away.
             </p>
             {publishError && (
               <p className="text-xs text-red-700 mt-0.5">{publishError}</p>

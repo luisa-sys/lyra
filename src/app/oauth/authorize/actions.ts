@@ -16,6 +16,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
+import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { issueAuthCode } from '@/lib/oauth/codes';
 import { recordConsent } from '@/lib/oauth/consents';
 import { getOauthClient } from '@/lib/oauth/clients';
@@ -80,6 +81,15 @@ export async function submitConsent(input: DecideInput): Promise<void> {
 
   if (input.decision === 'deny') {
     redirect(buildErrorRedirect(input.redirect_uri, 'access_denied', 'user denied authorization', state));
+  }
+
+  // SEC-57: refuse to issue an authorization code for a suspended (or
+  // unverifiable) account. Fail closed — a suspended user must not be able to
+  // complete an OAuth grant even by POSTing directly to this action. Send them
+  // to the in-app suspended page rather than back to the client with a code.
+  const standing = await getAccountStanding(sb, user!.id);
+  if (shouldRefuseIssuance(standing)) {
+    redirect('/suspended');
   }
 
   // Allow path — record consent + issue code + redirect.

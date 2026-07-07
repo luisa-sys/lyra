@@ -85,13 +85,23 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
     expect(src).toMatch(/500/);
   });
 
-  test('server-actions file surfaces the 5-answer cap as a clean error', () => {
+  test('server-actions file surfaces the answer cap as a clean error', () => {
     const src = readFileSync(
       resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'),
       'utf-8',
     );
-    expect(src).toMatch(/limit \(5\)/);
-    expect(src).toMatch(/up to 5/);
+    // KAN-404 #14: the actions file now matches the trigger message with a
+    // robust regex (any digit count) rather than a hard-coded "limit (5)",
+    // and the friendly copy advertises the raised cap of 10.
+    expect(src).toMatch(/limit \\\(\\d\+\\\) reached/);
+    expect(src).toMatch(/up to 10/);
+
+    // Coverage not weakened: the robust regex the actions file uses must
+    // still map the LEGACY 'limit (5) reached' message (e.g. a stale DB
+    // env pre-migration) as well as the new 'limit (10) reached'.
+    const capRegex = /limit \(\d+\) reached/;
+    expect(capRegex.test('Conversation-starter answer limit (5) reached')).toBe(true);
+    expect(capRegex.test('Conversation-starter answer limit (10) reached')).toBe(true);
   });
 
   test('wizard step component exists', () => {

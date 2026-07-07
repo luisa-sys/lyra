@@ -3,14 +3,28 @@
 import { useState } from 'react';
 
 /**
- * KAN-337 — standalone "Share beta access" card.
+ * KAN-337 / KAN-349 — shareable link card (used by W5 + the standing beta share).
  *
- * Shows the beta-invite deep-link (`/join?code=…`) with a one-click copy. The
- * link carries the skip-the-waitlist code, so anyone the user shares it with
- * lands on sign-up and goes straight into the beta. Shown on the dashboard only
- * when LYRA_INVITE_CODE is configured (the parent passes a non-null link).
+ * Defaults render the original "Share beta access" widget verbatim (used while
+ * the waitlist is in place — the link carries the skip-the-waitlist code). The
+ * same layout is reused for the post-waitlist version by passing a different
+ * title/description/link (e.g. a plain sign-up link once the gate is removed),
+ * so the wording/layout the founder likes is preserved, not overwritten.
  */
-export default function ShareBeta({ inviteLink }: { inviteLink: string }) {
+export default function ShareBeta({
+  inviteLink,
+  title = 'Share beta access',
+  description = 'Lyra is invite-only right now. Send this link to someone you’d like to bring in — it skips the waitlist and drops them straight into the beta.',
+  linkLabel = 'Beta invite link',
+  bare = false,
+}: {
+  inviteLink: string;
+  title?: string;
+  description?: string;
+  linkLabel?: string;
+  /** KAN-349: drop the outer card so it can be embedded in the W5 widget shell. */
+  bare?: boolean;
+}) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   async function handleCopy() {
@@ -28,19 +42,16 @@ export default function ShareBeta({ inviteLink }: { inviteLink: string }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6">
-      <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">Share beta access</h3>
-      <p className="text-sm text-[var(--color-muted)] mb-4">
-        Lyra is invite-only right now. Send this link to someone you&rsquo;d like to bring in — it
-        skips the waitlist and drops them straight into the beta.
-      </p>
+    <div className={bare ? '' : 'bg-white rounded-xl border border-[var(--color-border)] p-6 mt-6'}>
+      <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">{title}</h3>
+      <p className="text-sm text-[var(--color-muted)] mb-4">{description}</p>
 
-      <label htmlFor="beta-invite-link" className="sr-only">
-        Beta invite link
+      <label htmlFor="share-link-input" className="sr-only">
+        {linkLabel}
       </label>
       <div className="flex flex-col sm:flex-row gap-2">
         <input
-          id="beta-invite-link"
+          id="share-link-input"
           type="text"
           readOnly
           value={inviteLink}

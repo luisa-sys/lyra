@@ -30,3 +30,13 @@ export function betaInviteLink(): string | null {
   const origin = isProdFamily() ? 'https://checklyra.com' : env.siteUrl();
   return buildBetaInviteLink(origin, code);
 }
+
+/**
+ * KAN-349: the public sign-up URL to share once the waitlist/gate is removed
+ * (the post-waitlist counterpart to betaInviteLink — a plain sign-up link, no
+ * skip-the-waitlist code). Same public front door as the beta invite link.
+ */
+export function publicSignupUrl(): string {
+  const origin = isProdFamily() ? 'https://checklyra.com' : env.siteUrl();
+  return `${origin.replace(/\/+$/, '')}/signup`;
+}

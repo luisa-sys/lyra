@@ -30,7 +30,7 @@ export default function HelpPage() {
 
         <h2>How do people find me?</h2>
         <p>
-          By name, school, organisation, or the first part of your postcode. Your affiliations help
+          By name, school, or organisation. Your affiliations help
           people find you <em>even when they&apos;re hidden</em> from your public page.
         </p>
 
@@ -48,7 +48,7 @@ export default function HelpPage() {
 
         <h2>Why is it taking so long to hear back from you?</h2>
         <p>
-          Lyra is a small team. We read everything and we <em>will</em> reply — just not always
+          We read everything and we <em>will</em> reply — just not always
           quickly. Thank you for bearing with us. 💛
         </p>
 
