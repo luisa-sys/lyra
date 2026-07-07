@@ -49,4 +49,13 @@ describe('Public Profile', () => {
     expect(content).not.toContain('createSignedUrl');
     expect(content).not.toContain('object/public/profile-files');
   });
+
+  // KAN-404: Play (🎭) favourites are addable in the editor but were not being
+  // rendered on the public profile (FAV_DEFS had no 'plays' entry, so Play items
+  // saved but never showed). Guard that the public favourites grid includes it.
+  test("public profile renders the 'plays' favourites category (KAN-404)", () => {
+    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    expect(content).toContain("'plays'");
+    expect(content).toContain('Favourite plays');
+  });
 });

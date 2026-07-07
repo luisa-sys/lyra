@@ -301,6 +301,7 @@ export default async function PublicProfilePage({ params }: Props) {
     ['favourite_media', 'Favourite films'],
     ['favourite_books', 'Favourite books'],
     ['favourite_tv', 'Favourite TV shows'],
+    ['plays', 'Favourite plays'],
     ['quotes', 'Favourite quotes'],
     ['favourite_places', 'Favourite places'],
     ['favourite_music', 'Favourite music & bands'],
