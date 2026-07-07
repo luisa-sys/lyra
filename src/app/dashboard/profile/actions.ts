@@ -16,6 +16,7 @@ import {
   isControllableSectionKey,
   type SectionVisibility,
 } from './section-visibility';
+import { preflightUpload } from '@/lib/file-magic-bytes';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -658,29 +659,34 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   if (!rl.allowed) return rl.result;
 
   const file = formData.get('avatar') as File | null;
-  if (!file || file.size === 0) return { success: false, error: 'No file provided' };
 
-  // Validate MIME type server-side
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { success: false, error: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF' };
-  }
-
-  // Validate file size
-  if (file.size > MAX_FILE_SIZE) {
-    return { success: false, error: 'File too large. Maximum size is 5MB' };
-  }
+  // SEC-52 — shared preflight: presence, 5MB cap, allowed image MIME AND
+  // magic-byte signature. The declared MIME is browser-controlled and
+  // trivially spoofable, so a spoofed-MIME/polyglot must be rejected here
+  // before it reaches the world-readable profile-photos bucket. This is the
+  // SAME helper uploadProfileFile uses so the two paths can't drift.
+  const preflightError = await preflightUpload(file, {
+    allowedMimes: ALLOWED_IMAGE_TYPES,
+    maxBytes: MAX_FILE_SIZE,
+    emptyMessage: 'No file provided',
+    typeMessage: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF',
+    sizeMessage: 'File too large. Maximum size is 5MB',
+  });
+  if (preflightError) return { success: false, error: preflightError };
+  // preflightUpload guarantees a present, valid File past this point.
+  const avatar = file as File;
 
   // Determine extension from MIME type
   const extMap: Record<string, string> = {
     'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
   };
-  const ext = extMap[file.type] || 'jpg';
+  const ext = extMap[avatar.type] || 'jpg';
   const filePath = `${user!.id}/avatar.${ext}`;
 
   // Upload to Supabase Storage (upsert to overwrite existing)
   const { error: uploadError } = await supabase.storage
     .from('profile-photos')
-    .upload(filePath, file, { upsert: true, contentType: file.type });
+    .upload(filePath, avatar, { upsert: true, contentType: avatar.type });
 
   if (uploadError) return { success: false, error: uploadError.message };
 

@@ -6,7 +6,7 @@ import { sanitiseText, type ActionResult } from '@/lib/sanitise';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { coerceVisibility } from './visibility';
 import {
-  validateFileMagicBytes,
+  preflightUpload,
   ALLOWED_MIMES,
   extensionForMime,
   type AllowedMime,
@@ -77,23 +77,19 @@ export async function uploadProfileFile(formData: FormData): Promise<ActionResul
   if (!(file instanceof File)) {
     return { success: false, error: 'No file supplied' };
   }
-  if (file.size === 0) {
-    return { success: false, error: 'File is empty' };
-  }
-  if (file.size > MAX_BYTES) {
-    return { success: false, error: `File exceeds 10 MB limit (got ${file.size} bytes)` };
-  }
-  if (!ALLOWED_MIMES.has(file.type as AllowedMime)) {
-    return {
-      success: false,
-      error: `Disallowed type ${file.type}. Allowed: ${[...ALLOWED_MIMES].join(', ')}`,
-    };
-  }
 
-  // Magic-byte check — never trust the declared MIME alone.
-  const magicError = await validateFileMagicBytes(file, file.type);
-  if (magicError) {
-    return { success: false, error: magicError };
+  // SEC-52 — shared preflight: presence, 10MB cap, allowed MIME AND magic-byte
+  // signature (never trust the declared MIME alone). Same helper as
+  // uploadAvatar so the two upload paths can't drift apart.
+  const preflightError = await preflightUpload(file, {
+    allowedMimes: ALLOWED_MIMES,
+    maxBytes: MAX_BYTES,
+    emptyMessage: 'File is empty',
+    sizeMessage: `File exceeds 10 MB limit (got ${file.size} bytes)`,
+    typeMessage: `Disallowed type ${file.type}. Allowed: ${[...ALLOWED_MIMES].join(', ')}`,
+  });
+  if (preflightError) {
+    return { success: false, error: preflightError };
   }
 
   const displayName = sanitiseText(
