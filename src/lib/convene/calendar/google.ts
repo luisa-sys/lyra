@@ -18,8 +18,10 @@ import type {
   GatheringEventData,
   TimeWindow,
   BusyBlock,
+  BusyTimeViewer,
 } from './types';
 import { getFreshAccessToken } from '../oauth-connections';
+import { assertBusyTimeConsent } from '../busy-time-consent';
 
 const BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -57,7 +59,15 @@ async function readErrorOrThrow(res: Response, op: string): Promise<never> {
 }
 
 export const googleCalendarAdapter: CalendarAdapter = {
-  async getFreeBusy(connectionId: string, window: TimeWindow): Promise<BusyBlock[]> {
+  async getFreeBusy(
+    connectionId: string,
+    window: TimeWindow,
+    viewer?: BusyTimeViewer
+  ): Promise<BusyBlock[]> {
+    // SEC-58: refuse to disclose another user's busy-times without consent.
+    if (viewer) {
+      await assertBusyTimeConsent(viewer.viewerUserId, viewer.ownerUserId);
+    }
     const { accessToken } = await getFreshAccessToken(connectionId);
     const res = await googleFetch(accessToken, 'POST', '/freeBusy', {
       timeMin: window.start.toISOString(),

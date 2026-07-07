@@ -31,6 +31,7 @@ Four **independent** axes per environment — verify each matches this table fir
 | **Beta-invite deep-link** (KAN-337) | off (no code) | `…/join?code=` works + dashboard "Share beta access" card | same — share link uses `checklyra.com` host |
 | **Homepage examples seeded** | 6 (`@seed`) — not shown (waitlist landing) | 6 (`@seed`) — **shown** in band | 6 (`@seed`) — not shown (waitlist landing) |
 | **`AGE_VERIFICATION_REQUIRED`** | per env (confirm) | `true` | `true` |
+| **`AGE_GATE_PAUSED`** (KAN-404, TEST-ONLY) | unset | unset | **unset — never `true` on prod** |
 | **MCP** | `mcp-dev.checklyra.com` (dev key) | `mcp.checklyra.com` (prod key) | `mcp.checklyra.com` (prod key) |
 
 **Pre-flight checks** (quick `curl` / DB, do these before the cases):
@@ -129,6 +130,15 @@ tested once until its account is removed. See **§6 Reset** to clear test accoun
 
 > `AGE_VERIFICATION_REQUIRED=true` on beta/prod. Age status lives in
 > `profiles.age_status` (`none`/`pending`/`passed`/`failed`/`manual_review`).
+>
+> **TEST-ONLY reversible pause (`AGE_GATE_PAUSED`, KAN-404):** to exercise the
+> "gate off" behaviour on a non-prod env without clearing `AGE_VERIFICATION_REQUIRED`,
+> set `AGE_GATE_PAUSED=true` (exact string). This makes `isAgeVerificationRequired()`
+> return `false` at the single chokepoint (`src/lib/age/gate.ts`), so every publish
+> path relaxes at once. Fail-safe: any absence/typo/empty/other value = gate stays
+> on. **Security-sensitive: never set `AGE_GATE_PAUSED=true` on prod, and unset it
+> before any real user traffic.** A SEC reminder should confirm it is unset on all
+> envs once KAN-404 testing completes.
 
 ### C1 — Cannot publish without age passed
 - **Pre:** a `live`/`beta` user with `age_status='none'`, profile editor open.

@@ -24,6 +24,8 @@
  * non-prefixed `IS_SENTRY_ENABLED`.
  */
 import * as Sentry from '@sentry/nextjs';
+// SEC-55: strip OAuth secrets / PII from events + breadcrumbs before they ship.
+import { scrubSentryEvent, scrubSentryBreadcrumb } from '@/lib/sentry-scrub';
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -39,6 +41,8 @@ if (dsn) {
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
     sendDefaultPii: false,
+    beforeSend: (event) => scrubSentryEvent(event),
+    beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
     release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
   });
 }

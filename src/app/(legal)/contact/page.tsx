@@ -30,7 +30,7 @@ export default function ContactPage() {
 
         <p>Questions, problems, ideas, or just hello — send us a note below.</p>
         <p className="text-[var(--color-muted)]">
-          Lyra is a small team, so replies can take a little while. We read everything, and
+          Replies can take a little while. We read everything, and
           we&apos;ll always come back to you. 💛
         </p>
         <p className="text-sm text-[var(--color-muted)]">

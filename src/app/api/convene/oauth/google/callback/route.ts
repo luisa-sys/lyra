@@ -6,10 +6,11 @@
  * profile to capture provider_account_id + display_name, and upserts the
  * canonical oauth_connections row.
  *
- * Diagnostics: every step logs progress so a Cloudflare 502 (function
- * timeout) can be localised. Each external HTTP call carries an explicit
- * AbortSignal timeout so we surface a clean 502 with detail instead of
- * letting the function hang to the Vercel maxDuration.
+ * Diagnostics: every step logs progress (server-side only) so a Cloudflare 502
+ * (function timeout) can be localised. Each external HTTP call carries an
+ * explicit AbortSignal timeout so we surface a clean 502 instead of letting the
+ * function hang to the Vercel maxDuration. Error responses return a stable error
+ * code only — upstream/DB detail is logged, never echoed to the caller (SEC-76).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -159,7 +160,9 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'token_exchange_failed', { msg });
-    return NextResponse.json({ error: 'token_exchange_failed', detail: msg }, { status: 502 });
+    // SEC-76 (web-oauth-6): msg can carry upstream provider body text — log it
+    // server-side (above) but return only the stable error code to the caller.
+    return NextResponse.json({ error: 'token_exchange_failed' }, { status: 502 });
   }
 
   if (!tokens.refresh_token) {
@@ -176,7 +179,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'userinfo_failed', { msg });
-    return NextResponse.json({ error: 'userinfo_failed', detail: msg }, { status: 502 });
+    return NextResponse.json({ error: 'userinfo_failed' }, { status: 502 });
   }
 
   logStep(reqId, 'upsert_start', { sub: userInfo.sub });
@@ -192,7 +195,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'upsert_failed', { msg });
-    return NextResponse.json({ error: 'persist_failed', detail: msg }, { status: 500 });
+    return NextResponse.json({ error: 'persist_failed' }, { status: 500 });
   }
   logStep(reqId, 'upsert_done');
 

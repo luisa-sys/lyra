@@ -19,8 +19,8 @@
  */
 import { createHmac } from 'crypto';
 
-/** What kind of contact value is being hashed. */
-export type ContactKind = 'phone' | 'postcode';
+/** What kind of contact value is being hashed. KAN-339: postcode removed; phone only. */
+export type ContactKind = 'phone';
 
 /** Per-user rate-limit for lookup attempts (defence against enumeration). */
 export const SEARCH_RATE_LIMIT = {
@@ -95,29 +95,6 @@ export function normalisePhone(input: string): string | null {
 }
 
 /**
- * Normalise a UK postcode to the canonical "AA9 9AA" (or shorter) form,
- * but for hashing we collapse to a no-space uppercase representation so
- * "SW1A 1AA" and "sw1a1aa" hash identically.
- *
- * Returns null when the input is empty or obviously non-postcode-shaped.
- * We do NOT enforce the full UK postcode regex here — the search hash
- * matches whatever the user opts in with, and over-tight validation
- * would surprise users with edge-case but real postcodes (e.g. crown
- * dependencies, BFPO).
- */
-export function normalisePostcode(input: string): string | null {
-  if (typeof input !== 'string') return null;
-  const trimmed = input.trim();
-  if (trimmed.length === 0) return null;
-  // Uppercase, remove all whitespace.
-  const collapsed = trimmed.toUpperCase().replace(/\s+/g, '');
-  // Conservative shape check: alphanumerics only, length 5-8 (UK postcodes
-  // are 5-7 chars without space; allow 8 to be forgiving).
-  if (!/^[A-Z0-9]{5,8}$/.test(collapsed)) return null;
-  return collapsed;
-}
-
-/**
  * Deterministic HMAC-SHA-256 hash, hex digest (SEC-18, F-04 part 2).
  *
  * Format: HMAC-SHA-256(key, kind || ':' || value)
@@ -154,12 +131,8 @@ export function hashPhoneInput(input: string): string | null {
   if (!normalised) return null;
   return hashContact('phone', normalised, getContactSearchHmacKey());
 }
-
-export function hashPostcodeInput(input: string): string | null {
-  const normalised = normalisePostcode(input);
-  if (!normalised) return null;
-  return hashContact('postcode', normalised, getContactSearchHmacKey());
-}
+// KAN-339: hashPostcodeInput / normalisePostcode removed — postcode discovery is
+// gone (replaced by town/city discovery, KAN-341).
 
 /**
  * Generic shape for the rate-limit store. Injected so tests can swap in a

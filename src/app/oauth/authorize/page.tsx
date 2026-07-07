@@ -12,6 +12,7 @@
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/lib/oauth/authorize';
+import { getAccountStanding } from '@/lib/account-status';
 import { getConsent } from '@/lib/oauth/consents';
 import { submitConsent, switchAccountAndContinue } from './actions';
 import type { Metadata } from 'next';
@@ -80,6 +81,16 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     next.searchParams.set('code_challenge', req.codeChallenge);
     next.searchParams.set('code_challenge_method', req.codeChallengeMethod);
     redirect(`/login?next=${encodeURIComponent(next.pathname + next.search)}`);
+  }
+
+  // SEC-57: don't even show the consent screen to a suspended user (the
+  // middleware normally catches this on navigation; this is defence-in-depth).
+  // Only redirect on a POSITIVE suspension — a transient lookup error must not
+  // send a good-standing user to /suspended. The actual code mint in
+  // submitConsent still fails closed on 'unknown'.
+  const standing = await getAccountStanding(sb, user!.id);
+  if (standing === 'suspended') {
+    redirect('/suspended');
   }
 
   // Auto-skip consent if user has already granted the same (or wider)

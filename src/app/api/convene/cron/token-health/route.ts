@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { getFreshAccessToken } from '@/lib/convene/oauth-connections';
+import { timingSafeStrEqual } from '@/lib/convene/cron-auth';
 
 const HEALTH_BATCH_SIZE = 50;
 const HEALTH_CONCURRENCY = 5;
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
   // Vercel Cron sends Authorization: Bearer <CRON_SECRET>
   const authHeader = req.headers.get('authorization');
   const expected = process.env.CRON_SECRET;
-  if (!expected || authHeader !== `Bearer ${expected}`) {
+  const expectedHeader = `Bearer ${expected}`;
+  if (!expected || !timingSafeStrEqual(authHeader, expectedHeader)) {
     return NextResponse.json({ ok: false, error: 'unauthorised' }, { status: 401 });
   }
 

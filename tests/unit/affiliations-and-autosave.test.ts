@@ -79,6 +79,8 @@ import {
   AFFILIATION_SINGULAR,
   coerceAffiliationType,
   isAffiliationType,
+  requiresPostcode,
+  isSchoolPostcodeValid,
 } from '@/app/dashboard/profile/affiliation-fields';
 
 beforeEach(() => {
@@ -135,12 +137,56 @@ describe('KAN-220: affiliation-fields helpers', () => {
   });
 });
 
+// ─────────── 2b. KAN-404 postcode helpers ───────────
+
+describe('KAN-404: requiresPostcode', () => {
+  test('only schools require a postcode', () => {
+    expect(requiresPostcode('school')).toBe(true);
+    expect(requiresPostcode('organisation')).toBe(false);
+    expect(requiresPostcode('community')).toBe(false);
+    // Anything that isn't literally 'school' does not require a postcode.
+    expect(requiresPostcode('club')).toBe(false);
+    expect(requiresPostcode('')).toBe(false);
+  });
+});
+
+describe('KAN-404: isSchoolPostcodeValid (permissive / international)', () => {
+  test('accepts UK full and partial postcodes', () => {
+    expect(isSchoolPostcodeValid('SW1A')).toBe(true);
+    expect(isSchoolPostcodeValid('M1')).toBe(true);
+    expect(isSchoolPostcodeValid('SW1A 1AA')).toBe(true);
+    expect(isSchoolPostcodeValid('B33 8TH')).toBe(true);
+  });
+
+  test('trims surrounding whitespace before validating', () => {
+    expect(isSchoolPostcodeValid('  M1  ')).toBe(true);
+  });
+
+  test('rejects empty, nullish, and letters-only or digits-only values', () => {
+    expect(isSchoolPostcodeValid('')).toBe(false);
+    expect(isSchoolPostcodeValid('   ')).toBe(false);
+    expect(isSchoolPostcodeValid(undefined)).toBe(false);
+    expect(isSchoolPostcodeValid(null)).toBe(false);
+    expect(isSchoolPostcodeValid('London')).toBe(false); // letters only, no digit
+    expect(isSchoolPostcodeValid('12345')).toBe(false); // digits only, no letter
+  });
+
+  test('rejects a single character and over-long tokens', () => {
+    expect(isSchoolPostcodeValid('A')).toBe(false); // too short (< 2)
+    expect(isSchoolPostcodeValid('A1')).toBe(true); // exactly 2, letter + digit
+    expect(isSchoolPostcodeValid('ABCDEFGHIJ12')).toBe(true); // 12 chars, letter + digit
+    expect(isSchoolPostcodeValid('ABCDEFGHIJK12')).toBe(false); // 13 chars, too long
+  });
+});
+
 // ─────────── 3. addSchoolAffiliation server action ───────────
 
 describe('KAN-220: addSchoolAffiliation — affiliation_type handling', () => {
   test('inserts with affiliation_type=school by default (pre-KAN-220 caller compat)', async () => {
     const result = await addSchoolAffiliation({
       school_name: 'Greenfield Primary',
+      // KAN-404 — schools now require a postcode (full or partial).
+      school_location: 'SW1A 1AA',
     });
     expect(result).toEqual({ success: true });
     expect(mockInsertCapture).toHaveBeenCalledWith(
@@ -174,6 +220,8 @@ describe('KAN-220: addSchoolAffiliation — affiliation_type handling', () => {
   test('coerces unknown affiliation_type to "school" (defence in depth alongside DB CHECK)', async () => {
     await addSchoolAffiliation({
       school_name: 'Attempted bypass',
+      // KAN-404 — coerced to 'school', so a valid postcode is required.
+      school_location: 'SW1A 1AA',
       affiliation_type: 'club',
     });
     expect(mockInsertCapture).toHaveBeenCalledWith(
@@ -184,13 +232,16 @@ describe('KAN-220: addSchoolAffiliation — affiliation_type handling', () => {
   test('still sanitises school_name + location alongside affiliation_type', async () => {
     await addSchoolAffiliation({
       school_name: 'School <b>name</b>',
-      school_location: '<p>London</p>',
+      // KAN-404 — a valid school postcode ('M1') that is short enough to pass
+      // the permissive validator on the raw input yet still carries HTML, so
+      // we keep exercising the HTML-stripping path on both fields.
+      school_location: '<i>M1</i>',
       affiliation_type: 'school',
     });
     expect(mockInsertCapture).toHaveBeenCalledWith(
       expect.objectContaining({
         school_name: 'School name',
-        school_location: 'London',
+        school_location: 'M1',
         affiliation_type: 'school',
       }),
     );
@@ -199,10 +250,76 @@ describe('KAN-220: addSchoolAffiliation — affiliation_type handling', () => {
   test('relationship defaults to "parent" alongside affiliation_type=school', async () => {
     await addSchoolAffiliation({
       school_name: 'Primary',
+      // KAN-404 — schools now require a postcode (full or partial).
+      school_location: 'SW1A 1AA',
       affiliation_type: 'school',
     });
     expect(mockInsertCapture).toHaveBeenCalledWith(
       expect.objectContaining({ relationship: 'parent', affiliation_type: 'school' }),
+    );
+  });
+});
+
+// ─────────── 3b. KAN-404 — school postcode requirement ───────────
+
+describe('KAN-404: addSchoolAffiliation postcode requirement', () => {
+  const POSTCODE_ERROR =
+    'Schools need a postcode (full or partial) so people can tell schools with the same name apart.';
+
+  test('rejects a school with no postcode and never inserts', async () => {
+    const result = await addSchoolAffiliation({
+      school_name: 'Greenfield Primary',
+      affiliation_type: 'school',
+    });
+    expect(result).toEqual({ success: false, error: POSTCODE_ERROR });
+    expect(mockInsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('rejects a school with an invalid postcode (no digit) and never inserts', async () => {
+    const result = await addSchoolAffiliation({
+      school_name: 'Greenfield Primary',
+      school_location: 'London',
+      affiliation_type: 'school',
+    });
+    expect(result).toEqual({ success: false, error: POSTCODE_ERROR });
+    expect(mockInsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('rejects a school even when the type is smuggled in as something else (coerced to school)', async () => {
+    const result = await addSchoolAffiliation({
+      school_name: 'Attempted bypass',
+      affiliation_type: 'club', // coerces to 'school' → postcode required
+    });
+    expect(result).toEqual({ success: false, error: POSTCODE_ERROR });
+    expect(mockInsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('accepts an organisation with an empty location (location stays optional)', async () => {
+    const result = await addSchoolAffiliation({
+      school_name: 'Acme Ltd',
+      affiliation_type: 'organisation',
+    });
+    expect(result).toEqual({ success: true });
+    expect(mockInsertCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        affiliation_type: 'organisation',
+        school_name: 'Acme Ltd',
+        school_location: null,
+      }),
+    );
+  });
+
+  test('accepts a community with an empty location (location stays optional)', async () => {
+    const result = await addSchoolAffiliation({
+      school_name: 'Local running club',
+      affiliation_type: 'community',
+    });
+    expect(result).toEqual({ success: true });
+    expect(mockInsertCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        affiliation_type: 'community',
+        school_location: null,
+      }),
     );
   });
 });
@@ -275,7 +392,9 @@ describe('KAN-220: surface-area regression guards', () => {
     expect(src).toMatch(/AffiliationsSection/);
     expect(src).toMatch(/ItemsStep/);  // reused from legacy steps
     expect(src).toMatch(/LinksStep/);
-    expect(src).toMatch(/FilesStep/);
+    // KAN-404: FilesStep is intentionally unwired (edit == published, and the
+    // public profile no longer renders a Files & media section).
+    expect(src).not.toMatch(/FilesStep/);
     expect(src).toMatch(/ConversationStartersSection|ConversationStartersStep/);
   });
 

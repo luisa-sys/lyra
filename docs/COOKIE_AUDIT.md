@@ -2,11 +2,13 @@
 
 > Enumerates every cookie set on a Lyra visitor's browser, who sets it, on which domain, what changes (if anything) when affiliate links land. This is the canonical reference for the public `/cookies` and `/privacy` pages — keep it in sync when behaviour changes.
 
-Last audit: 2026-05-16.
+Last audit: 2026-05-16. Reconciled 2026-07-03 (SEC-72 — analytics now consent-gated).
 
 ## Cookies set on `*.checklyra.com`
 
 All current cookies are **strictly necessary** under UK GDPR / PECR. No consent is required for these because the user cannot expect the site to work without them.
+
+> **Analytics gating (SEC-72).** Vercel Analytics + Speed Insights are cookieless (no storage/access of information on the visitor's device — see the row below), so PECR Reg. 6 does not strictly require prior consent for them. Even so, Lyra treats analytics as **non-essential** and runs it **only after the visitor chooses "Accept all"** on the consent banner. "Essential only" (decline), or making no choice, keeps analytics off. The gate lives in `src/app/consented-analytics.tsx` (decision in `src/app/consent-state.ts`); the banner writes the choice in `src/app/cookie-consent.tsx`. This makes the banner's two buttons functional and keeps the privacy policy's "opt out of analytics via the cookie consent banner" claim honest.
 
 | Cookie | Set by | Purpose | Duration | Category |
 |---|---|---|---|---|
@@ -44,7 +46,7 @@ For internal analytics (per-merchant EPC, monthly reconciliation against Sovrn's
 
 ## Decisions arising from this audit
 
-1. **No cookie consent banner change required.** All cookies are essential. No new opt-in mechanic is needed for affiliate-link clicks because the cookie boundary is at Sovrn's domain, not ours.
+1. **No cookie consent banner change required *for affiliate-link clicks*.** All *cookies* are essential and the affiliate cookie boundary is at Sovrn's domain, not ours, so no new opt-in mechanic is needed for clicks. (Separately, SEC-72 later made the existing banner's analytics choice functional — see the "Analytics gating" note above. That did not add a cookie; it gated the cookieless Vercel Analytics behind explicit accept.)
 2. **No "Marketing / Affiliate" category in the consent UI.** Earlier drafts of KAN-193 considered adding one — confirmed unnecessary because Lyra sets no marketing/affiliate cookies on its own domain.
 3. **Privacy policy updated** (this PR) to explicitly disclose Sovrn as an affiliate partner, what data they receive when a user clicks, and the legitimate-interest lawful basis.
 4. **Cookie policy updated** (this PR) to add an "Affiliate links" section pointing out that the cookies are set off-domain, not by us, with links to Sovrn's and the retailer's policies.

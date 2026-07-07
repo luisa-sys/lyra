@@ -24,7 +24,10 @@ export const ALLOWED_PROFILE_FIELDS = [
   'bio_short',
   'city',
   'region',
-  'postcode_prefix',
+  // KAN-339: `postcode_prefix` removed — postcode is no longer collected, stored,
+  // or used for discovery (replaced by town/city discovery, KAN-341). The column
+  // is retained nullable + scrubbed by the KAN-339 migration; it is no longer
+  // user-editable, so it is intentionally absent from this allowlist.
   'country',
   'avatar_url',
   'is_published',
