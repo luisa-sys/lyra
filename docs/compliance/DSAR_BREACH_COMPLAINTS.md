@@ -6,7 +6,29 @@
 > (privacy notice / support pages) must link them before launch.
 
 **Controller:** CheckLyra Ltd (Lyra). **Intake:** privacy@checklyra.com.
-**Last reviewed:** 2026-06-28.
+**Last reviewed:** 2026-07-07.
+
+### Intake routing & monitoring (KAN-283, Action 1)
+
+`privacy@checklyra.com` is received via **Cloudflare Email Routing** (the zone MX
+resolves to `*.mx.cloudflare.net`, confirmed 2026-07-07) and forwarded to the
+**founder's monitored personal mailbox (Gmail)**, where a dedicated amber
+**`Lyra/Privacy`** label collects it. **Monitoring cadence: checked at least
+daily**, so the DSAR (one-month), DUAA-complaints (30-day acknowledgement) and
+breach (72-hour) clocks in the sections below can be honoured — the DUAA
+complaints duty has been in force since **19 June 2026**.
+
+> **Status (2026-07-07): partially live — do not rely on it until the test below
+> passes.** The `Lyra/Privacy` Gmail label exists and the delivery path
+> (Cloudflare Email Routing) is confirmed at the DNS/MX level. **Remaining
+> founder steps (Cloudflare + Gmail are founder-only surfaces):**
+> 1. Cloudflare dashboard → `checklyra.com` → **Email → Email Routing**: add or
+>    confirm a routing rule `privacy@checklyra.com →` the monitored Gmail, with
+>    the **destination address verified** (click Cloudflare's verification email).
+> 2. Gmail → Settings → Filters: create a filter `to:privacy@checklyra.com` →
+>    **apply `Lyra/Privacy`**, mark important, never send to spam.
+> 3. Send a **live test email** to `privacy@checklyra.com` and confirm it lands
+>    in the mailbox under the label. Only then tick FOUNDER_CHECKLIST §B line 18.
 
 ---
 

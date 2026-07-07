@@ -15,7 +15,7 @@
 - [ ] **ROPA.md** — review; correct any data category / lawful basis; sign off.
 - [ ] **SUBPROCESSORS.md** — for each vendor, **accept/reference its DPA online** and record the date + link. Subscribe to sub-processor-change notices. _(Supabase signed + Vercel/Cloudflare(R2)/Resend recorded by reference 2026-07-03; **Didit, Google, Railway still ☐**.)_
 - [ ] **RETENTION_SCHEDULE.md** — confirm the proposed periods.
-- [ ] **DSAR_BREACH_COMPLAINTS.md** — adopt; make `privacy@checklyra.com` live + monitored.
+- [~] **DSAR_BREACH_COMPLAINTS.md** — adopt; make `privacy@checklyra.com` live + monitored. _(2026-07-07, in progress: destination decided — the founder's monitored Gmail + amber `Lyra/Privacy` label, checked ≥daily. Gmail label created; Cloudflare Email Routing confirmed at DNS level. **Remaining (founder-only): add/verify the Cloudflare routing rule + a Gmail filter, then send a test email** — steps in DSAR_BREACH_COMPLAINTS.md → "Intake routing & monitoring". Tick on a successful test.)_
 - [ ] **DPIA** — **Drafted — `docs/compliance/DPIA.md` (SEC-70).** Complete the risk scores (likelihood × severity) + residual-risk cells, decide whether ICO prior consultation is needed, and sign off. Consolidate/retire the two Confluence DRAFT DPIAs (27000875, 27033667) in favour of the repo canonical.
 - [ ] Confirm **Didit** (age provider): Art. 9 basis (explicit consent), biometric retention/deletion, transfer mechanism, and that Lyra never stores the raw selfie. ← special-category, highest diligence.
 
