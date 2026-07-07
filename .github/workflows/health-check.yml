@@ -17,7 +17,7 @@ jobs:
     name: All-Environment Health Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
       - name: Run smoke tests (all environments)
         # KAN-323: expose the admin-MCP health-check toggle (Actions variable) and the
         # optional Cloudflare Access service-token (secrets) to the script. Unset values
