@@ -28,6 +28,22 @@ function escapeICS(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }
 
+function sanitiseParamText(s: string): string {
+  // SEC-76 (web-convene-5): ORGANIZER/ATTENDEE build DQUOTE-quoted CN="..."
+  // params and mailto: values by raw interpolation. A double-quote, or a CR/LF,
+  // in a user-supplied name/email would break out of the quoted param and let
+  // an attacker smuggle extra iCalendar params or whole properties. RFC 5545
+  // §3.2 forbids DQUOTE and control chars inside a quoted param value, so strip
+  // them (and CR/LF from the mailto value) rather than escape. Clean input
+  // (e.g. "Luisa", "luisa@example.com") is unchanged.
+  return Array.from(s)
+    .filter((ch) => {
+      const cp = ch.codePointAt(0) ?? 0;
+      return cp > 0x1f && cp !== 0x7f && ch !== '"';
+    })
+    .join('');
+}
+
 function toICSDate(iso: string): string {
   // YYYYMMDDTHHMMSSZ
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -50,12 +66,17 @@ export function buildICS(input: ICSEventInput): string {
   const dtstart = toICSDate(input.startISO);
   const dtend = toICSDate(input.endISO);
 
-  const organizer = input.organizerName
-    ? `ORGANIZER;CN="${input.organizerName}":mailto:${input.organizerEmail}`
-    : `ORGANIZER:mailto:${input.organizerEmail}`;
-  const attendee = input.attendeeName
-    ? `ATTENDEE;CN="${input.attendeeName}";RSVP=TRUE:mailto:${input.attendeeEmail}`
-    : `ATTENDEE;RSVP=TRUE:mailto:${input.attendeeEmail}`;
+  const organizerEmail = sanitiseParamText(input.organizerEmail);
+  const attendeeEmail = sanitiseParamText(input.attendeeEmail);
+  const organizerName = input.organizerName ? sanitiseParamText(input.organizerName) : undefined;
+  const attendeeName = input.attendeeName ? sanitiseParamText(input.attendeeName) : undefined;
+
+  const organizer = organizerName
+    ? `ORGANIZER;CN="${organizerName}":mailto:${organizerEmail}`
+    : `ORGANIZER:mailto:${organizerEmail}`;
+  const attendee = attendeeName
+    ? `ATTENDEE;CN="${attendeeName}";RSVP=TRUE:mailto:${attendeeEmail}`
+    : `ATTENDEE;RSVP=TRUE:mailto:${attendeeEmail}`;
 
   const lines = [
     'BEGIN:VCALENDAR',

@@ -1,6 +1,13 @@
 # Lyra Platform — Endpoint Health Audit
 # Generated: 31 March 2026
 
+> ⚠️ **POINT-IN-TIME SNAPSHOT — 31 Mar 2026. Do not treat as current.**
+> The status codes below (e.g. prod `503`) reflect that single date and have
+> since changed. **Liveness of record = `.github/workflows/health-check.yml`
+> (6-hourly) + the Ops Routines Control Room heartbeat** (see
+> `docs/OPS_ROUTINES_CONTROL_ROOM.md`), not this file. Kept for the
+> infrastructure IDs and the historical baseline only (KAN-361).
+
 ## Live Endpoints (verified)
 
 ### Production

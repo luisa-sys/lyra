@@ -69,7 +69,7 @@ describe('KAN-193: privacy policy — Affiliate partners section', () => {
   });
 
   test('Last updated date reflects this PR', () => {
-    expect(content).toContain('17 June 2026');
+    expect(content).toContain('3 July 2026');
   });
 });
 

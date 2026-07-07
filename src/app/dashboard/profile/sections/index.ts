@@ -10,4 +10,5 @@ export { BioSection } from './bio-section';
 export { ManualOfMeSection } from './manual-of-me-section';
 export { AffiliationsSection } from './affiliations-section';
 export { useAutoSave, AutoSaveStatusLabel } from './use-auto-save';
-export type { AutoSaveStatus, AutoSaveResult } from './use-auto-save';
+export type { AutoSaveStatus, AutoSaveResult, UseAutoSaveReturn } from './use-auto-save';
+export { SectionSaveBar } from './section-save-bar';

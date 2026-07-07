@@ -12,16 +12,16 @@ import { SaveButton, type ConversationPrompt, type ConversationAnswer } from './
  *      edit + remove. Edit is in-place (no separate route) to keep the
  *      flow tight in a multi-step wizard.
  *   2. **Unanswered** — prompts not yet answered, each clickable to
- *      expand into an answer form. Hidden when the 5-answer cap is hit
+ *      expand into an answer form. Hidden when the answer cap is hit
  *      so the user isn't tempted by something they can't add.
  *
- * 5-answer cap is enforced at the DB layer (BEFORE INSERT trigger); the
+ * The answer cap is enforced at the DB layer (BEFORE INSERT trigger); the
  * UI mirrors it for a friendly nudge and to hide the "add" affordances
  * when at limit.
  */
 
 const ANSWER_MAX = 500;
-const ANSWER_CAP = 5;
+const ANSWER_CAP = 10;
 
 export function ConversationStartersStep({
   prompts,
@@ -31,6 +31,7 @@ export function ConversationStartersStep({
   onRemove,
   onNext,
   isPending,
+  showContinue = true,
 }: {
   prompts: ConversationPrompt[];
   answers: ConversationAnswer[];
@@ -39,6 +40,9 @@ export function ConversationStartersStep({
   onRemove: (id: string) => void;
   onNext: () => void;
   isPending: boolean;
+  // KAN-404 (#8/#9): the single-page editor sets showContinue={false} to drop
+  // the misleading "Continue →" button; the legacy wizard keeps the default.
+  showContinue?: boolean;
 }) {
   const [openPromptId, setOpenPromptId] = useState<string | null>(null);
   const [newAnswer, setNewAnswer] = useState('');
@@ -215,7 +219,7 @@ export function ConversationStartersStep({
         </div>
       )}
 
-      <SaveButton onClick={onNext} isPending={false} label="Continue →" />
+      {showContinue && <SaveButton onClick={onNext} isPending={false} label="Continue →" />}
     </div>
   );
 }

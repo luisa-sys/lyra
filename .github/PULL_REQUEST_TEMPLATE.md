@@ -16,3 +16,4 @@ KAN-XX
 - [ ] Coverage has not decreased
 - [ ] No eslint-disable or ts-ignore without KAN-XX reference
 - [ ] ARCHITECTURE.md updated if architectural changes were made
+- [ ] Ops routine / Control-Room registry updated if scheduled-routine behaviour, cadence, or ownership changed — `docs/OPS_ROUTINES_CONTROL_ROOM.md` + the Confluence Control Room (or N/A) (KAN-359)

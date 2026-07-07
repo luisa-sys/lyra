@@ -67,42 +67,91 @@ jobs:
 
           echo "✓ Report initialised: $REPORT"
 
-      # ── Section 1: Endpoint Health ─────────────────────────
-      # KAN-160: 403 from CI runners is treated as ✅ with explanatory note
-      # because GitHub Actions runner IPs are bot-blocked by Cloudflare.
-      # See gotcha #7 in CLAUDE.md.
+      # ── Section 1: Endpoint Health (liveness-of-record cite) ───
+      # KAN-361: liveness of record is health-check.yml (6-hourly), not this
+      # report. Section 1 no longer re-curls the endpoint list; it READS the
+      # last health-check.yml run conclusion via `gh run list` and cites it,
+      # marking the citation STALE (⚠️) if that run is older than the 6h+grace
+      # window — no silent green (Workflow Integrity Policy). A single MCP
+      # /health curl is kept as a labelled same-instant spot-check only.
       - name: Section 1 — Endpoint Health
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           OUT="$RUNNER_TEMP/sections/01-endpoint-health.md"
           echo "## 1. Endpoint Health" > "$OUT"
           echo "" >> "$OUT"
-          echo "| Endpoint | Status | Notes |" >> "$OUT"
-          echo "|----------|--------|-------|" >> "$OUT"
-
-          for pair in \
-            "https://checklyra.com|Production" \
-            "https://checklyra.com/privacy|Privacy" \
-            "https://checklyra.com/terms|Terms" \
-            "https://checklyra.com/cookies|Cookies" \
-            "https://checklyra.com/sitemap.xml|Sitemap" \
-            "https://checklyra.com/robots.txt|robots.txt" \
-            "https://mcp.checklyra.com/health|MCP Health"; do
-            URL="${pair%%|*}"
-            LABEL="${pair##*|}"
-            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
-              -A "Mozilla/5.0 (compatible; LyraReport/1.0)" "$URL" 2>/dev/null || echo "000")
-            case "$CODE" in
-              200)   echo "| $LABEL | ✅ 200 | OK |" >> "$OUT" ;;
-              503)   echo "| $LABEL | ✅ 503 | Maintenance page (expected) |" >> "$OUT" ;;
-              403)   echo "| $LABEL | ✅ 403 | CI bot-block (page is up — see KAN-160) |" >> "$OUT" ;;
-              000)   echo "| $LABEL | ❌ DNS/timeout | Could not reach host |" >> "$OUT" ;;
-              *)     echo "| $LABEL | ⚠️ $CODE | Unexpected — investigate |" >> "$OUT" ;;
-            esac
-          done
+          echo "_Liveness of record: \`health-check.yml\` (6-hourly). This section" >> "$OUT"
+          echo "cites its last run rather than re-probing endpoints (KAN-361)._" >> "$OUT"
           echo "" >> "$OUT"
-          echo "section-1=ok" >> "$QUALITY_FILE"
+
+          # Read the most recent health-check.yml run (conclusion + createdAt).
+          if HC_JSON=$(gh run list --repo "${{ github.repository }}" \
+                --workflow=health-check.yml -L 1 \
+                --json conclusion,createdAt,status,url 2>"$RUNNER_TEMP/hc.err"); then
+            HC_COUNT=$(echo "$HC_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")
+            if [ "$HC_COUNT" -eq 0 ]; then
+              echo "❌ DATA UNAVAILABLE — no health-check.yml runs found in history." >> "$OUT"
+              echo "" >> "$OUT"
+              echo "section-1=failed:no-health-check-runs" >> "$QUALITY_FILE"
+              echo "::error::Section 1 — no health-check.yml runs found"
+            else
+              HC_CONCLUSION=$(echo "$HC_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[0].get('conclusion') or 'in_progress')")
+              HC_CREATED=$(echo "$HC_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[0].get('createdAt',''))")
+              HC_URL=$(echo "$HC_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[0].get('url',''))")
+
+              # Stale if the last run is older than 6h + 1h grace (7h).
+              STALE=$(HC_CREATED="$HC_CREATED" python3 -c "
+          import os, sys, datetime
+          created = os.environ.get('HC_CREATED', '')
+          try:
+              t = datetime.datetime.fromisoformat(created.replace('Z', '+00:00'))
+              age = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
+              print('stale' if age > 7 * 3600 else 'fresh')
+          except Exception:
+              print('unknown')
+          ")
+
+              echo "| Source | Last run | Age | Result |" >> "$OUT"
+              echo "|--------|----------|-----|--------|" >> "$OUT"
+              case "$HC_CONCLUSION" in
+                success) RESULT="✅ success" ;;
+                failure) RESULT="❌ failure" ;;
+                *)       RESULT="⚠️ $HC_CONCLUSION" ;;
+              esac
+              AGE_LABEL="$STALE"
+              [ "$STALE" = "stale" ] && AGE_LABEL="⚠️ STALE (>7h old)"
+              echo "| [health-check.yml]($HC_URL) | $HC_CREATED | $AGE_LABEL | $RESULT |" >> "$OUT"
+              echo "" >> "$OUT"
+
+              # Quality: green only if the cited run is both fresh AND success.
+              if [ "$HC_CONCLUSION" = "success" ] && [ "$STALE" = "fresh" ]; then
+                echo "section-1=ok" >> "$QUALITY_FILE"
+              elif [ "$STALE" = "stale" ]; then
+                echo "section-1=partial:health-check-cite-stale" >> "$QUALITY_FILE"
+                echo "::warning::Section 1 — cited health-check.yml run is stale (>7h old)"
+              else
+                echo "section-1=failed:last-health-check-$HC_CONCLUSION" >> "$QUALITY_FILE"
+                echo "::error::Section 1 — last health-check.yml run conclusion=$HC_CONCLUSION"
+              fi
+            fi
+          else
+            ERR=$(head -c 200 "$RUNNER_TEMP/hc.err")
+            echo "❌ DATA UNAVAILABLE — could not read health-check.yml runs: $ERR" >> "$OUT"
+            echo "" >> "$OUT"
+            echo "section-1=failed:gh-run-list-error" >> "$QUALITY_FILE"
+            echo "::error::Section 1 — gh run list failed: $ERR"
+          fi
+
+          # Same-instant spot-check of the MCP /health endpoint only (labelled).
+          # Liveness of record remains health-check.yml above.
+          MCP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 \
+            -A "Mozilla/5.0 (compatible; LyraReport/1.0)" \
+            "https://mcp.checklyra.com/health" 2>/dev/null || echo "000")
+          echo "_MCP /health spot-check (liveness-of-record = health-check.yml): HTTP $MCP_CODE._" >> "$OUT"
+          echo "" >> "$OUT"
 
       # ── Section 2: Database Metrics ────────────────────────
       - name: Section 2 — Database Metrics
@@ -323,6 +372,15 @@ jobs:
           set -euo pipefail
           OUT="$RUNNER_TEMP/sections/05-security.md"
           echo "## 5. Security" > "$OUT"
+          echo "" >> "$OUT"
+          # KAN-361: the authoritative security posture is the Daily Security
+          # routine (docs/DAILY_SECURITY_CHECK.md), which files SEC tickets and
+          # records a heartbeat in the Ops Routines Control Room. The counts
+          # below are a convenience snapshot of Dependabot/CodeQL only — for
+          # the full picture read that routine's last run-log row.
+          echo "_Source of record: **Daily Security routine** (docs/DAILY_SECURITY_CHECK.md" >> "$OUT"
+          echo "→ Ops Routines Control Room heartbeat). Counts below are a Dependabot/CodeQL" >> "$OUT"
+          echo "convenience snapshot only._" >> "$OUT"
           echo "" >> "$OUT"
 
           if [ -z "${GH_TOKEN:-}" ]; then

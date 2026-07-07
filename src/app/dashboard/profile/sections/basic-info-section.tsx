@@ -25,7 +25,9 @@
 import { useRef, useState, useTransition } from 'react';
 import { Field, type WizardProfile } from '../steps/types';
 import { updateProfileFields, uploadAvatar } from '../actions';
-import { AutoSaveStatusLabel, useAutoSave } from './use-auto-save';
+import { resolveCityFromPostcode } from '../city-actions';
+import { useAutoSave } from './use-auto-save';
+import { SectionSaveBar } from './section-save-bar';
 
 interface BasicInfoDraft {
   display_name: string;
@@ -47,7 +49,7 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
   const [uploadingAvatar, startUploadAvatar] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const status = useAutoSave(draft, async (v) => {
+  const { status, flush } = useAutoSave(draft, async (v) => {
     return updateProfileFields({
       display_name: v.display_name,
       headline: v.headline,
@@ -58,6 +60,27 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
 
   const set = <K extends keyof BasicInfoDraft>(key: K, value: BasicInfoDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
+
+  // KAN-341 — postcode→town lookup. The postcode lives in local state only and is
+  // discarded immediately after the lookup; we store just the resolved city.
+  const [postcodeInput, setPostcodeInput] = useState('');
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookingUp, startLookup] = useTransition();
+
+  const handlePostcodeLookup = () => {
+    const pc = postcodeInput.trim();
+    if (!pc) return;
+    setLookupError(null);
+    startLookup(async () => {
+      const result = await resolveCityFromPostcode(pc);
+      if (result.success) {
+        set('city', result.city);
+        setPostcodeInput('');
+      } else {
+        setLookupError(result.error);
+      }
+    });
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,10 +111,9 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
 
   return (
     <div className="space-y-6">
-      {/* Status indicator — rendered inline so the user can see autosave fire */}
-      <div className="flex justify-end">
-        <AutoSaveStatusLabel status={status} />
-      </div>
+      {/* KAN-404: visible per-section Save (flushes the debounce now) beside
+          the existing autosave status label. */}
+      <SectionSaveBar status={status} onSave={flush} />
 
       {/* Avatar */}
       <div className="flex items-center gap-4">
@@ -144,6 +166,34 @@ export function BasicInfoSection({ profile }: { profile: WizardProfile }) {
           onChange={(v) => set('headline', v)}
           placeholder="Mum, teacher, coffee lover"
         />
+        {/* KAN-341 — optional: resolve your town from a postcode (postcode never stored). */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">
+            Find your town from a postcode{' '}
+            <span className="font-normal text-[var(--color-muted)]">(optional)</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={postcodeInput}
+              onChange={(e) => setPostcodeInput(e.target.value)}
+              placeholder="e.g. SW1A 1AA"
+              autoComplete="off"
+              className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={handlePostcodeLookup}
+              disabled={lookingUp || !postcodeInput.trim()}
+              className="shrink-0 px-4 py-2 rounded-lg bg-[#f4efe7] text-[var(--color-ink)] text-sm font-medium hover:bg-[#ece7df] disabled:opacity-50 transition-colors"
+            >
+              {lookingUp ? 'Finding…' : 'Find town'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            We use your postcode once to fill in your town — we never store it.
+          </p>
+          {lookupError && <p className="mt-1 text-xs text-red-500">{lookupError}</p>}
+        </div>
         <Field
           label="City"
           value={draft.city}

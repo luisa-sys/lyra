@@ -25,6 +25,20 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      # Bundle the remaining minor/patch bumps so Dependabot opens a couple of
+      # grouped PRs per week instead of ~14 individual ones (KAN-406). Majors are
+      # excluded via update-types, so a breaking bump still gets its own PR for
+      # review (e.g. eslint 9→10, jose 5→6 need code changes).
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -35,3 +49,8 @@ updates:
       - "ci"
     commit-message:
       prefix: "ci"
+    # One grouped PR for GitHub Actions bumps instead of one per action.
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -1,5 +1,13 @@
 name: Weekly Security Audit
 
+# KAN-361 — Belt-and-braces only. This workflow is intentionally a thin
+# dependency-vulnerability net (`npm audit`, fail on high/critical). It is NOT
+# the authoritative security sweep: that is the **Daily Security routine**
+# (docs/DAILY_SECURITY_CHECK.md), which owns the full pen-test / RLS / edge /
+# MCP posture and files SEC tickets. Keep this workflow lean — do not grow it
+# into a second security sweep; add new security coverage to the Daily Security
+# routine instead. See docs/OPS_ROUTINES_CONTROL_ROOM.md for the owner map.
+
 on:
   schedule:
     - cron: '0 7 * * 3'  # Wednesday 07:00 UTC

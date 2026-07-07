@@ -25,10 +25,13 @@ export default function ShareProfile({
   profileUrl,
   displayName,
   betaLink,
+  bare = false,
 }: {
   profileUrl?: string | null;
   displayName?: string | null;
   betaLink?: string | null;
+  /** KAN-346: drop the section divider styling when embedded as a dashboard widget. */
+  bare?: boolean;
 }) {
   const initialText = buildInviteText({
     profileUrl,
@@ -58,7 +61,7 @@ export default function ShareProfile({
   }
 
   return (
-    <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+    <div className={bare ? '' : 'mt-6 pt-6 border-t border-[var(--color-border)]'}>
       <h3 className="text-lg font-medium text-[var(--color-ink)] mb-1">
         Share Lyra with a friend
       </h3>

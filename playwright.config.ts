@@ -37,8 +37,30 @@ const webServer = process.env.E2E_LOCAL_SERVER
         reuseExistingServer: true,
       };
 
+// KAN-348: the authenticated journey lives under tests/e2e/authed/ and must NOT
+// run in the anon projects (chromium/mobile-safari) — it needs a seeded session.
+// The anon PR gate ignores it entirely; the authed project runs only when
+// E2E_AUTHED is set (so the cred-free gate is a NO-OP).
+const AUTHED_MATCH = /journey\.authed\.spec\.ts/;
+
+// The authed project exists ONLY when E2E_AUTHED is set. Each describe in the
+// journey spec picks its own storageState via test.use({ storageState }), so no
+// project-level storageState is set here.
+const authedProjects = process.env.E2E_AUTHED
+  ? [
+      {
+        name: 'authed-journey',
+        testMatch: AUTHED_MATCH,
+        use: { ...devices['Desktop Chrome'] },
+      },
+    ]
+  : [];
+
 export default defineConfig({
   testDir: './tests/e2e',
+  // KAN-348: globalSetup is a no-op unless E2E_AUTHED is set (see
+  // tests/e2e/global-setup.ts) — the anon gate makes zero Supabase calls.
+  globalSetup: require.resolve('./tests/e2e/global-setup'),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -51,8 +73,11 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
+    // Anon projects: explicitly ignore the authed spec so it never runs without
+    // a seeded session (would 500 / redirect to /login under dummy env).
+    { name: 'chromium', testIgnore: AUTHED_MATCH, use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-safari', testIgnore: AUTHED_MATCH, use: { ...devices['iPhone 14'] } },
+    ...authedProjects,
   ],
   webServer,
 });
