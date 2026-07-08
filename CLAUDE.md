@@ -42,6 +42,19 @@ Before starting any task, Claude must:
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
+7. **Plan the doc footprint** — identify up front which system-map / wiki pages the work will touch (Architecture & Infrastructure, Data Model & Security) per the **Documentation Definition-of-Done** below. Docs are part of "done", not a follow-up ticket.
+
+## Documentation Definition-of-Done (KAN-359)
+
+Docs are part of "done", not a separate ticket. **Before closing any epic — and on every feature PR — confirm:**
+
+- [ ] Live **system map** updated where affected — Confluence **Architecture & Infrastructure** and/or **Data Model & Security** (+ repo `docs/` mirrors such as `ARCHITECTURE.md`): any new/changed service, table, env var, route, scheduled job, or security boundary.
+- [ ] Any **design decision** recorded as an ADR and linked from the epic.
+- [ ] **Jira ↔ wiki** cross-linked — the epic cites the wiki page(s); the page cites the Jira key.
+- [ ] **`docs/TEST_AUDIT_2026Q2.md`** refreshed if test gates, floors, or coverage changed.
+- [ ] PR-template item _"Docs / system map updated — or N/A with reason"_ ticked honestly.
+
+`N/A` is acceptable for pure logic/test/infra-only changes, but must state why. Full runbook version: `docs/RUNBOOK.md` → "Documentation Definition-of-Done". Watched by the `DOC_SYNC_HEALTHCHECK_ROUTINE` and guarded by `tests/unit/doc-dod.test.js`.
 
 ## Parallel Claude sessions — use git worktrees
 
