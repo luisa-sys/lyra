@@ -21,8 +21,7 @@
  */
 
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 
 /**
  * The set of action strings we accept in moderation_logs. The DB column
@@ -103,9 +102,7 @@ export async function getCurrentAdmin(): Promise<AdminUser | null> {
  * already have verified the requester is an admin before reaching here.
  */
 export function getAdminServiceClient() {
-  return createServiceClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export interface LogModerationActionInput {

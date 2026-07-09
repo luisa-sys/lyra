@@ -14,8 +14,7 @@
  */
 
 import { createClient } from '@/lib/supabase-server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { applyTransition, type GatheringStatus } from '@/lib/convene/gatherings/state-machine';
 import { adapterFor } from '@/lib/convene/calendar';
 import { getConnectionForUser } from '@/lib/convene/oauth-connections';
@@ -26,9 +25,7 @@ type Result = { ok: true } | { ok: false; error: string };
 type SendSummary = { queued: number; sent: number; blocked_by_allowlist: number; failed: number };
 
 function admin() {
-  return createSupabaseAdmin(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 async function authedUser(): Promise<{ userId: string } | { error: string }> {

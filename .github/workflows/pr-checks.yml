@@ -30,6 +30,13 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Service-role client centralisation check (KAN-352)
+        # Static scan forbidding any call to env.supabaseServiceRoleKey()
+        # outside src/lib/supabase-service.ts. The service-role client
+        # bypasses all RLS; centralising its construction in one hardened
+        # factory means a hardening change lands once, not ~30 times.
+        # Allow-list with # service-role-ok: <reason>.
+        run: bash scripts/check-service-role-client.sh
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and

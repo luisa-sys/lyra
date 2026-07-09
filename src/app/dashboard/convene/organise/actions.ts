@@ -20,8 +20,7 @@
  */
 
 import { createClient } from '@/lib/supabase-server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { scoreVenue } from '@/lib/recommend/convene/score-venue';
 import type { VenueCandidate, VenueContext } from '@/lib/recommend/convene/types';
@@ -41,9 +40,7 @@ import {
 } from './organise-fields';
 
 function admin() {
-  return createSupabaseAdmin(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 async function authed() {

@@ -6,8 +6,7 @@
  * caring about refresh mechanics.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { refreshAccessToken as refreshGoogleAccessToken } from '@/lib/convene/google/oauth';
 import { refreshAccessToken as refreshMicrosoftAccessToken } from '@/lib/convene/microsoft/oauth';
 import {
@@ -17,9 +16,7 @@ import {
 } from '@/lib/convene/vault';
 
 function admin() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export interface OAuthConnection {

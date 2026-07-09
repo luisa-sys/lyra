@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient as createServiceRoleClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { createClient } from '@/lib/supabase-server';
 import { env } from '@/lib/env';
 import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
@@ -39,7 +39,7 @@ export async function redeemWaitlistCode(formData: FormData): Promise<void> {
     redirect('/waitlist?error=invalid');
   }
 
-  const svc = createServiceRoleClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  const svc = createServiceRoleClient();
   const { update } = computeAccessTransition('enable_beta', {
     now: new Date().toISOString(),
   });

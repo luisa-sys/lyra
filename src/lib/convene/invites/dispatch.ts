@@ -13,8 +13,8 @@
  * vercel.json) AND can be invoked one-shot from an admin tool later.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { sendInviteEmail, type SendResult } from './email';
 import { sendTwilioMessage, type SendResult as TwilioSendResult } from './twilio';
 import { buildICS } from './ics';
@@ -65,9 +65,7 @@ interface JoinedContext {
 }
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /**
