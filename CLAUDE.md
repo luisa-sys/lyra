@@ -37,7 +37,7 @@ This file contains instructions and policies that Claude must follow when workin
 Before starting any task, Claude must:
 
 1. **Check Jira** — confirm a ticket exists for the work, or create one. Never start work without a tracked ticket.
-2. **Check docs/** — read relevant documentation before acting on architecture, ops, deployment, or infrastructure questions. Key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md.
+2. **Check the wiki index first, then docs/** — the Confluence wiki index **_Lyra — System Documentation_** (space TWC, page `19922947`) is the **definitive source of truth** for architecture, operations, security, and compliance. **Read it FIRST** before any architecture, ops, deployment, infrastructure, or security work — it is the sectioned map to every authoritative page (System & Architecture, Operations & Runbooks, Security & Risk, Data Protection & Compliance, Routines & Automation). The repo `docs/` holds _mirrored copies_ of the critical runbook/compliance elements for CI and offline use — key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md. If the code and a wiki page disagree, fix the page (the KAN-359 Documentation Definition-of-Done). Wiki professionalisation is tracked under KAN-360.
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
