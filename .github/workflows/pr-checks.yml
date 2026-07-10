@@ -30,6 +30,12 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: macOS Finder-duplicate file check (KAN-357)
+        # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
+        # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
+        # canonical module, are never imported, and confuse audits. Fails the
+        # PR if any tracked path carries the suffix. Allow-list in the script.
+        run: bash scripts/check-macos-duplicate-files.sh
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and
