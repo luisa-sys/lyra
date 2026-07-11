@@ -10,38 +10,143 @@ function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
 }
 
+// SEC-71 (UK-GDPR Art. 15/20): the subject-access / data-portability export
+// must cover EVERY table keyed to the person, and must stay in lockstep with
+// the deletion cascade in deleteAccount() below — export and erasure have to
+// describe the same data set. We read with the service-role admin client (not
+// the RLS-scoped user client) for two reasons: (1) completeness — some rows
+// live in fail-closed, service-role-only tables (no owner SELECT policy), and
+// an RLS-scoped read would silently return empty and present a partial export
+// as complete; (2) symmetry with the deletion cascade, which is also
+// service-role. Every query below is explicitly scoped to the authenticated
+// user's own rows (owner_user_id / profile_id / their own gathering ids), so
+// there is no over-exposure. Secret material (api-key hashes, OAuth token
+// vault refs, RSVP tokens) is redacted by column selection.
 export async function exportUserData(): Promise<string> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return JSON.stringify({ error: 'Not authenticated' });
 
-  const { data: profile } = await supabase
+  const admin = getAdminServiceClient();
+
+  // Track partial-fetch failures so we never present an incomplete export as
+  // a clean one (Workflow & Backup Integrity Policy: distinguish "0" from
+  // "fetch failed"). Any error surfaces in the export payload.
+  const fetchErrors: string[] = [];
+  const record = (label: string, error: { message: string } | null) => {
+    if (error) fetchErrors.push(`${label}: ${error.message}`);
+  };
+
+  const { data: profile, error: profileErr } = await admin
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
     .single();
 
-  if (!profile) return JSON.stringify({ error: 'Profile not found' });
+  if (profileErr || !profile) return JSON.stringify({ error: 'Profile not found' });
 
-  const { data: items } = await supabase
-    .from('profile_items')
-    .select('*')
-    .eq('profile_id', profile.id);
+  const profileId = profile.id as string;
 
-  const { data: schools } = await supabase
-    .from('school_affiliations')
-    .select('*')
-    .eq('profile_id', profile.id);
+  // --- Profile-keyed personal data ---------------------------------------
+  const { data: items, error: itemsErr } = await admin
+    .from('profile_items').select('*').eq('profile_id', profileId);
+  record('profile_items', itemsErr);
 
-  const { data: links } = await supabase
-    .from('external_links')
-    .select('*')
-    .eq('profile_id', profile.id);
+  const { data: schools, error: schoolsErr } = await admin
+    .from('school_affiliations').select('*').eq('profile_id', profileId);
+  record('school_affiliations', schoolsErr);
 
-  const { data: apiKeys } = await supabase
+  const { data: links, error: linksErr } = await admin
+    .from('external_links').select('*').eq('profile_id', profileId);
+  record('external_links', linksErr);
+
+  const { data: manualOfMe, error: momErr } = await admin
+    .from('profile_manual_of_me').select('*').eq('profile_id', profileId);
+  record('profile_manual_of_me', momErr);
+
+  const { data: conversationStarters, error: csErr } = await admin
+    .from('profile_conversation_starters').select('*').eq('profile_id', profileId);
+  record('profile_conversation_starters', csErr);
+
+  // File metadata only — the binary lives in storage, not in this JSON.
+  const { data: files, error: filesErr } = await admin
+    .from('profile_files').select('*').eq('profile_id', profileId);
+  record('profile_files', filesErr);
+
+  // Automated moderation flags raised against this profile's content.
+  const { data: moderationFlags, error: modErr } = await admin
+    .from('content_moderation_flags').select('*').eq('profile_id', profileId);
+  record('content_moderation_flags', modErr);
+
+  // --- User-keyed personal data ------------------------------------------
+  const { data: apiKeys, error: keysErr } = await admin
     .from('api_keys')
     .select('id, key_prefix, name, created_at, last_used_at, revoked_at')
     .eq('user_id', user.id);
+  record('api_keys', keysErr);
+
+  // OAuth connections — redact the Vault secret references and never emit
+  // token material.
+  const { data: oauthConnections, error: oauthErr } = await admin
+    .from('oauth_connections')
+    .select('id, provider, provider_account_id, display_name, scope_granted, status, access_token_expires_at, last_used_at, created_at, updated_at, deleted_at')
+    .eq('owner_user_id', user.id);
+  record('oauth_connections', oauthErr);
+
+  // Reports this user filed against others.
+  const { data: reportsFiled, error: reportsErr } = await admin
+    .from('reports')
+    .select('id, profile_id, profile_item_id, reason, note, status, created_at, resolved_at')
+    .eq('reporter_user_id', user.id);
+  record('reports_filed', reportsErr);
+
+  // Address book: contacts the user owns, plus their contact methods.
+  const { data: contacts, error: contactsErr } = await admin
+    .from('contacts').select('*').eq('owner_user_id', user.id);
+  record('contacts', contactsErr);
+
+  const contactIds = (contacts || []).map((c) => c.id as string);
+  let contactMethods: unknown[] = [];
+  if (contactIds.length) {
+    const { data, error } = await admin
+      .from('contact_methods').select('*').in('contact_id', contactIds);
+    record('contact_methods', error);
+    contactMethods = data || [];
+  }
+
+  // --- Convene: gatherings the user hosts, plus their child rows ----------
+  const { data: gatherings, error: gathErr } = await admin
+    .from('gatherings').select('*').eq('host_user_id', user.id);
+  record('gatherings', gathErr);
+
+  const gatheringIds = (gatherings || []).map((g) => g.id as string);
+  let gatheringInvitees: unknown[] = [];
+  let proposedSlots: unknown[] = [];
+  let inviteMessages: unknown[] = [];
+  if (gatheringIds.length) {
+    // Redact the RSVP bearer token — it's a live credential, not portability data.
+    const invitees = await admin
+      .from('gathering_invitees')
+      .select('id, gathering_id, contact_id, status, dietary_overrides, plus_ones, notes, invited_at, responded_at, created_at, updated_at')
+      .in('gathering_id', gatheringIds);
+    record('gathering_invitees', invitees.error);
+    gatheringInvitees = invitees.data || [];
+
+    const slots = await admin
+      .from('gathering_proposed_slots').select('*').in('gathering_id', gatheringIds);
+    record('gathering_proposed_slots', slots.error);
+    proposedSlots = slots.data || [];
+
+    const messages = await admin
+      .from('gathering_invite_messages').select('*').in('gathering_id', gatheringIds);
+    record('gathering_invite_messages', messages.error);
+    inviteMessages = messages.data || [];
+  }
+
+  // Convene activity log for the user's own actions.
+  const { data: gatheringEvents, error: eventsErr } = await admin
+    .from('gathering_events_log').select('*').eq('actor_user_id', user.id);
+  record('gathering_events_log', eventsErr);
 
   return JSON.stringify({
     exported_at: new Date().toISOString(),
@@ -50,7 +155,23 @@ export async function exportUserData(): Promise<string> {
     items: items || [],
     schools: schools || [],
     links: links || [],
+    manual_of_me: manualOfMe || [],
+    conversation_starters: conversationStarters || [],
+    files: files || [],
+    moderation_flags: moderationFlags || [],
     api_keys: apiKeys || [],
+    oauth_connections: oauthConnections || [],
+    reports_filed: reportsFiled || [],
+    contacts: contacts || [],
+    contact_methods: contactMethods,
+    gatherings: gatherings || [],
+    gathering_invitees: gatheringInvitees,
+    gathering_proposed_slots: proposedSlots,
+    gathering_invite_messages: inviteMessages,
+    gathering_events_log: gatheringEvents || [],
+    // Present only when one or more sections failed to fetch — the export is
+    // then known-incomplete and must not be treated as a full SAR response.
+    ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
   }, null, 2);
 }
 
