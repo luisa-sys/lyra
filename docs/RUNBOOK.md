@@ -6,7 +6,9 @@
 > is regenerated** — do not treat this file as the authority over the wiki. Keep
 > it in step when you change either. (This replaces the earlier "always check
 > RUNBOOK.md in the repo for the authoritative procedures" direction, which is
-> corrected on the wiki page itself under KAN-363.)
+> corrected on the wiki page itself under KAN-363.) See
+> [`docs/DOC_SOURCE_OF_TRUTH.md`](./DOC_SOURCE_OF_TRUTH.md) for the single
+> canonical statement of which surface is authoritative for each doc class.
 
 ## Environments
 
