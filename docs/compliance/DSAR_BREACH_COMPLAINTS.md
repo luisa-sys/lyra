@@ -63,7 +63,11 @@ requester within the first month, with reasons.
    — request via the provider). Use the ROPA as the checklist.
 4. **Action** the right: access → export the user's data in a portable format
    (JSON/CSV); erasure → run the deletion/anonymisation per RETENTION_SCHEDULE.md
-   (note the time-limited backup exception); rectification → correct + confirm.
+   (note the time-limited **backup** exception, and — only for accounts that have
+   taken moderation/admin actions — the **moderation-audit actor** Art.17(3)(b)
+   retention exception: erase everything lawful, retain the audit trail + the
+   account it references for the audit-retention window, and record this with its
+   expiry in the response); rectification → correct + confirm.
 5. **Respond** with the data/outcome and signpost the complaints route + ICO.
 6. **Close** the log entry with the outcome date.
 
