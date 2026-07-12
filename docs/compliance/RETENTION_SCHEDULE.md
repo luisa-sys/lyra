@@ -19,7 +19,7 @@
 | Gatherings / invitees / RSVPs | Supabase | While the gathering exists; suggest purge ~12 months after the event | Manual/cron purge of past gatherings | ☐ define purge job |
 | **Waitlist emails (DP-04)** | **Cloudflare KV** | **Add a TTL — proposed 12 months**, then auto-expire; bring into the data map | Set KV `expirationTtl` on write in the maintenance worker | ☐ **implement TTL (SEC-2)** |
 | Transactional email logs | Resend | Per Resend default (typically ~30 days) — confirm | Provider-side | ☐ confirm Resend window |
-| Affiliate click events | Supabase | Raw events ~13 months, then aggregate-only | Cron aggregate + purge raw | ☐ define purge job |
+| Affiliate click events | Supabase | Raw events ~13 months, then aggregate-only | Cron purge raw (SEC-74: `affiliate_clicks_purge_expired` via `/api/retention/cron/sweep`, gated by `RETENTION_ENABLED`; window `RETENTION_AFFILIATE_CLICKS_MONTHS`, default 13) | ◑ purge job built (SEC-74); enable + confirm window per env |
 | Moderation / admin audit logs | Supabase | **Retain ≥ 12 months** (security/audit; do not auto-delete short-term) | Reviewed, not auto-purged within the window | ☑ audit-first writes |
 | Operational/web logs (IP, UA) | Cloudflare/Vercel/Railway | Per platform default (short) — confirm | Provider-side | ☐ confirm windows |
 | Encrypted backups (WORM) | Cloudflare R2 | Per DISASTER_RECOVERY.md (object-lock window) | Object-lock expiry | ☑ see DR doc |
@@ -37,4 +37,6 @@ to be immediate where they are securely isolated and expire on schedule).
 1. **Waitlist KV TTL (DP-04)** — set `expirationTtl` in the maintenance worker so waitlist emails expire (proposed 12 months). _Small worker change; two-step Cloudflare deploy._
 2. **Account-deletion purge** — verify the deletion flow demonstrably purges/anonymises in Supabase (not just deactivates).
 3. **Past-gathering + affiliate-raw purge jobs** — define and schedule.
+   - **Affiliate-raw purge — BUILT (SEC-74).** `affiliate_clicks_purge_expired(cutoff)` (SECURITY DEFINER, service_role-only; refuses null/future cutoffs) driven by the retention sweep at `/api/retention/cron/sweep` (Sun 03:00 UTC). Gated behind `RETENTION_ENABLED` (default OFF) so nothing is deleted until the window is confirmed and the flag is enabled per environment. Window is config (`RETENTION_AFFILIATE_CLICKS_MONTHS`, default 13). _Remaining: Luisa confirms the 13-month window, then set `RETENTION_ENABLED=true` per env._
+   - **Past-gathering purge — still to define** (cascade vs anonymise across invitees/RSVPs/messages/events-log is a policy call).
 4. Confirm provider-side windows (Resend, Didit, platform logs) and record them above.
