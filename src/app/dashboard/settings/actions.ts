@@ -5,6 +5,14 @@ import { getAdminServiceClient } from '@/lib/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
+import * as Sentry from '@sentry/nextjs';
+
+// SEC-75 leg (b): external systems that may still hold a copy of a deleted
+// user's data after the Postgres cascade runs. On deletion we RECORD (not call)
+// an erasure obligation naming these so an ops follow-up — which holds the KV /
+// processor write credentials — can action and close each one. Not exported:
+// a 'use server' file may only export async functions (BUGS-12 / gotcha #18).
+const ERASURE_PROCESSORS = ['cloudflare_kv_waitlist', 'resend', 'didit', 'google'];
 
 function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
@@ -81,6 +89,27 @@ export async function deleteAccount() {
           "We couldn't delete your account automatically. Please contact us and we'll remove it for you.",
         ),
     );
+  }
+
+  // SEC-75 leg (b): the auth cascade erased everything in Postgres, but copies
+  // may persist in external processors (Resend/Didit/Google) and Cloudflare KV
+  // (waitlist email). Record a durable erasure obligation for an ops follow-up
+  // to action. Best-effort: a logging failure must NOT block the user's erasure
+  // right — capture it to Sentry so the missed obligation is still surfaced.
+  try {
+    const { error: obligationError } = await admin.rpc('record_erasure_obligation', {
+      p_subject_user_id: userId,
+      p_subject_email: user.email ?? null,
+      p_processors: ERASURE_PROCESSORS,
+      p_notes: 'Account hard-deleted; external processor / KV copies pending erasure (SEC-75 leg b).',
+    });
+    if (obligationError) {
+      Sentry.captureException(new Error(`record_erasure_obligation failed: ${obligationError.message}`), {
+        tags: { area: 'erasure-obligation', ticket: 'SEC-75' },
+      });
+    }
+  } catch (e) {
+    Sentry.captureException(e, { tags: { area: 'erasure-obligation', ticket: 'SEC-75' } });
   }
 
   // Best-effort: remove now-orphaned storage objects (the DB cascade
