@@ -27,7 +27,7 @@
 - [ ] Turn on branch protection on `main` + `beta` (both repos): **require ≥1 approving review**, **enable "Require review from Code Owners"** (CODEOWNERS now exists), set **enforce_admins = true**.
 - [ ] Give `staging` at least the PR Quality Gate as a required status check.
 - [ ] Protect `lyra-mcp-server/main` with required checks + review.
-- [ ] Add **Ben's GitHub handle** to the security-critical lines in `/CODEOWNERS` so PRs get an independent reviewer (until then, the compensating control is the self-review checklist below + post-merge review).
+- [ ] Add **Ben's GitHub handle** to the security-critical lines in `/.github/CODEOWNERS` (the single, GitHub-enforced CODEOWNERS; there is no longer a root duplicate — SEC-3, 2026-07-13) so PRs get an independent reviewer (until then, the compensating control is the self-review checklist below + post-merge review).
 - [ ] Mirror `CODEOWNERS` + `SECURITY.md` into `lyra-mcp-server` (and `lyra-admin-mcp-server`).
 
 ## E. Security hygiene (SEC-21 and related — founder-gated)
