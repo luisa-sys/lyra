@@ -139,6 +139,21 @@ jobs:
           echo "::error::Could not verify beta CI for $BETA_SHORT after $MAX_ATTEMPTS attempts."
           exit 1
 
+  # SEC-86 Finding A (release-flow gate) — DOCUMENTED RESIDUAL, decision pending Luisa.
+  # This job runs the irreversible beta -> main merge + push. It intentionally carries
+  # NO `environment:` block, so the GitHub required-reviewers gate (attached to the
+  # `production` Environment, which is referenced only by the DOWNSTREAM
+  # deploy-production.yml) does NOT guard the merge itself — only the later Vercel deploy.
+  # The sole gate on the merge today is the typed workflow_dispatch confirm input
+  # (== "PRODUCTION"), backed by verify-source (beta CI green), SHA-matched smoke tests,
+  # and auto-rollback. Whether to upgrade to a merge-time reviewer gate (add
+  # `environment: production` to this job) or accept the residual for the solo-maintainer
+  # release flow is Luisa's call; the production Environment's required-reviewers setting
+  # must also be confirmed in GitHub repo settings (not visible from workflow files).
+  # See docs/RELEASE_POLICY.md -> "Release-flow gate (SEC-86 Finding A)".
+  # check-workflow-integrity.sh Pattern 5 keeps this gap explicit and pins the
+  # typed-confirm control so it can never be silently removed.
+  # integrity-ok: sec-86 residual documented in docs/RELEASE_POLICY.md; typed-confirm gate preserved; merge-time reviewer upgrade is a pending Luisa decision.
   merge-and-push:
     name: Merge beta → main
     needs: verify-source

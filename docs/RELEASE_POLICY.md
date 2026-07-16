@@ -65,6 +65,24 @@ The reasoning is asymmetric:
 - Auto-promote to **staging** is safe — staging is gated by Vercel SSO, no real users see it
 - Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users
 
+## Release-flow gate (SEC-86 Finding A)
+
+The `beta → main` merge in `promote-to-production.yml` is the highest-blast-radius, effectively irreversible action in the project. It is worth being precise about what gates it today:
+
+- The **`merge-and-push` job** performs the `git merge beta` + `git push origin main` (pushed with `LYRA_RELEASE_PAT` so the downstream `deploy-production.yml` fires — see CLAUDE.md gotcha #16). This job declares **no `environment:` block**.
+- The **`production` GitHub Environment** — the only place GitHub *required-reviewers* can attach — is referenced solely by `deploy-production.yml`'s `deploy-production` job, which runs **after** the merge to `main`.
+
+**Net residual:** any required-reviewers configured on the `production` Environment guard the Vercel *deploy*, not the *merge*. The sole gate on the irreversible merge is the typed `workflow_dispatch` input (`Type "PRODUCTION"`). Anyone with repo-write who can dispatch the workflow can land `beta` on `main` by typing the fixed string, with no second pair of eyes on the merge itself. Compensating controls that remain in force: `verify-source` (beta CI must be green at HEAD), SHA-matched production smoke tests, and `auto-rollback` on smoke failure.
+
+**Decision pending (Luisa):** either
+
+1. **Add a merge-time reviewer gate** — put `environment: production` on the `merge-and-push` job so required-reviewers fire *before* the merge. This adds a manual approval step to the solo-maintainer release flow (you approve your own dispatch), which may or may not be worth the friction; **or**
+2. **Accept the residual** — keep the typed-confirm gate as the merge control and rely on the compensating controls above.
+
+Either way, the `production` Environment's *required-reviewers* setting must be confirmed in **GitHub repo settings** (it is not verifiable from the workflow files).
+
+Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
+
 ## Reference
 
 - KAN-173 (this policy): <https://checklyra.atlassian.net/browse/KAN-173>
