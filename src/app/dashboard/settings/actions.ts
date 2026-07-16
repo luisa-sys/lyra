@@ -184,14 +184,23 @@ export async function updatePassword(currentPassword: string, newPassword: strin
 
   if (newPassword.length < 6) return { error: 'New password must be at least 6 characters' };
 
-  // Verify current password by re-authenticating
-  if (user.email) {
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (signInError) return { error: 'Current password is incorrect' };
+  // SEC-82: current-password proof is mandatory. The re-auth below needs an
+  // email (signInWithPassword is email+password), so previously the whole
+  // check was wrapped in `if (user.email)` — meaning an emailless account
+  // (e.g. OAuth-provisioned) could set a new password with ZERO proof of the
+  // old one from any authenticated session. There is no way to prove knowledge
+  // of the current password without an email, so refuse: the user must add an
+  // email first, which routes them back through the proof-carrying path.
+  if (!user.email) {
+    return { error: 'Add an email address to your account before setting a password.' };
   }
+
+  // Verify current password by re-authenticating
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (signInError) return { error: 'Current password is incorrect' };
 
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
