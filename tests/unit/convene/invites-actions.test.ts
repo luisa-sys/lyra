@@ -20,6 +20,11 @@ let inviteeSingle: Record<string, unknown> | null = { id: 'i1', gathering_id: 'g
 let messageRows: { invitee_id: string; delivery_status: string }[] = [];
 let venueRow: { id: string } | null = { id: 'v1' };
 let updateError: unknown = null;
+// SEC-81 / SEC-57: the invite actions now look up the host's account standing
+// via profiles.is_suspended. Default is good-standing so the happy paths are
+// unchanged; individual tests flip is_suspended / the row / the error.
+let profileRow: Record<string, unknown> | null = { is_suspended: false };
+let profileError: unknown = null;
 
 const captured = {
   gatheringUpdate: [] as Record<string, unknown>[],
@@ -88,6 +93,17 @@ function adminFrom(table: string) {
   if (table === 'gathering_events_log') {
     return { insert: (row: Record<string, unknown>) => (captured.events.push(row), Promise.resolve({ error: null })) };
   }
+  if (table === 'profiles') {
+    // SEC-81 / SEC-57 account-standing lookup (getAccountStanding).
+    return {
+      select: () => {
+        const c: Record<string, unknown> = {};
+        c.eq = () => c;
+        c.maybeSingle = async () => ({ data: profileRow, error: profileError });
+        return c;
+      },
+    };
+  }
   return { select: () => ({ then: (r: (v: unknown) => unknown) => r({ data: [], error: null }) }) };
 }
 
@@ -146,6 +162,8 @@ beforeEach(() => {
   messageRows = [];
   venueRow = { id: 'v1' };
   updateError = null;
+  profileRow = { is_suspended: false };
+  profileError = null;
   captured.gatheringUpdate = [];
   captured.inviteeUpdate = [];
   captured.events = [];
@@ -227,6 +245,32 @@ describe('sendInvites', () => {
     const res = await sendInvites('g1');
     expect(res.ok).toBe(false);
   });
+
+  // SEC-81 / SEC-57 — a suspended host must not be able to emit invite emails.
+  test('refuses a suspended host, queues nothing, never dispatches', async () => {
+    profileRow = { is_suspended: true };
+    const res = await sendInvites('g1');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/suspended/i);
+    expect(mockPersist).not.toHaveBeenCalled();
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+
+  test('fails closed when the standing lookup errors (treated as suspended)', async () => {
+    profileError = { message: 'transient read failure' };
+    profileRow = null;
+    const res = await sendInvites('g1');
+    expect(res.ok).toBe(false);
+    expect(mockPersist).not.toHaveBeenCalled();
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+
+  test('fails closed when no profile row exists (unknown standing)', async () => {
+    profileRow = null;
+    const res = await sendInvites('g1');
+    expect(res.ok).toBe(false);
+    expect(mockPersist).not.toHaveBeenCalled();
+  });
 });
 
 describe('resendInvite', () => {
@@ -252,6 +296,24 @@ describe('resendInvite', () => {
     mockUserId = null;
     const res = await resendInvite('i1');
     expect(res.ok).toBe(false);
+  });
+
+  // SEC-81 / SEC-57 — suspended host cannot resend either.
+  test('refuses a suspended host and never re-queues', async () => {
+    profileRow = { is_suspended: true };
+    const res = await resendInvite('i1');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/suspended/i);
+    expect(mockPersist).not.toHaveBeenCalled();
+    expect(mockDispatch).not.toHaveBeenCalled();
+  });
+
+  test('fails closed on a standing-lookup error', async () => {
+    profileError = { message: 'transient read failure' };
+    profileRow = null;
+    const res = await resendInvite('i1');
+    expect(res.ok).toBe(false);
+    expect(mockPersist).not.toHaveBeenCalled();
   });
 });
 
