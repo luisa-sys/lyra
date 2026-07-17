@@ -24,6 +24,14 @@ jobs:
         # workflow re-introduces a banned pattern. See script source for
         # rationale and the # integrity-ok: allow-list mechanism.
         run: bash scripts/check-workflow-integrity.sh
+      - name: Action SHA-pinning check (SEC-77 F-22)
+        # Static scan of .github/workflows/*.yml: every remote action must be
+        # pinned to a full 40-hex commit SHA, never a mutable @tag/@branch.
+        # A mutable ref lets upstream change CI code without our review
+        # (supply-chain vector). The one-time pin already happened (SEC-20
+        # #356); this is the durable regression guard. Exempt local (./)
+        # reusables; escape hatch is '# integrity-ok: pin <reason>'.
+        run: bash scripts/check-action-pinning.sh
       - name: Server-action export check (BUGS-12)
         # Static scan of every `'use server'` file in src/ for non-async
         # exports. Next.js 16+ rejects these at action-invocation time
