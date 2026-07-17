@@ -83,6 +83,20 @@ Either way, the `production` Environment's *required-reviewers* setting must be 
 
 Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
 
+## Credential / separation-of-duties residual (SEC-66)
+
+The same `merge-and-push` job that performs the `beta → main` merge authenticates its push with **`LYRA_RELEASE_PAT`** — a **long-lived, broad** personal-access token (Contents + Workflows: *write*, chosen so the push both lands on `main` and can carry workflow-file changes; see CLAUDE.md gotcha #16). Because the push is made *as that token*, it **structurally bypasses branch protection** on `main`:
+
+- Whoever (or whatever) holds the PAT can write **review-free** to production `main` and to workflow definitions across branches.
+- Compromise or misuse of the single secret yields direct, unreviewed write to the highest-blast-radius branch in the project — the separation-of-duties gap SEC-66 tracks.
+
+**The real fix is a credential + repo-settings change (Luisa's call), not a workflow-file edit:**
+
+1. Migrate the promote push to a **short-lived, fine-grained token** — a GitHub App installation token, or an expiring fine-grained PAT scoped to Contents + Workflows on this one repo only — so no long-lived broad credential sits in the release path; **and**
+2. Run the promote from a **protected GitHub Environment with a required reviewer**, so the merge push is backed by an approval gate rather than a static secret.
+
+`verify-release-pat.yml` remains the scope-drift canary for the current PAT, and rotation is recorded in `docs/SECURITY_ROTATION.md`. Because the fix lives in credentials and repo settings (not the workflow YAML), the residual is kept **explicit and non-expanding** by `scripts/check-workflow-integrity.sh` **Pattern 6**: any workflow that runs `git push origin main` while referencing `secrets.LYRA_RELEASE_PAT` must carry an `# integrity-ok: sec-66` waiver. This pins the broad-PAT-to-main path to its single audited location (`promote-to-production.yml`'s `merge-and-push` job) and fails CI if a *new* workflow starts pushing to `main` with the broad PAT without that being a documented, reviewed decision. The waiver is **decision-neutral** — like Pattern 5a it does not force a particular fix, only surfaces the residual until SEC-66 is resolved.
+
 ## Reference
 
 - KAN-173 (this policy): <https://checklyra.atlassian.net/browse/KAN-173>
