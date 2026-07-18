@@ -30,6 +30,17 @@ on:
       confirm:
         description: 'Type "PRODUCTION" to confirm (case sensitive)'
         required: true
+      # SEC-77: distinguishes a MANUAL feature release (default) from the
+      # SEC-22 weekly routine's AUTO fix-only promote. In 'auto-fix-only' mode
+      # the merge-and-push job runs scripts/check-fix-only-promote.sh, which
+      # HARD-FAILS if any commit in main..beta is a feature (or otherwise not an
+      # unambiguous non-feature change) — converting the previously procedural
+      # fix-only gate into a machine-enforced one. Manual promotes leave this at
+      # 'manual' and are gated by the typed-confirm above (Luisa's sign-off).
+      promote_mode:
+        description: "'manual' (default, Luisa feature release) or 'auto-fix-only' (SEC-22 routine — enforces fix-only)"
+        required: false
+        default: 'manual'
 
 permissions:
   contents: write
@@ -159,6 +170,19 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+      # SEC-77: machine-checked fix-only gate. Runs BEFORE the irreversible
+      # beta -> main merge, so a blocked auto-promote leaves main untouched. In
+      # 'manual' mode the script is a no-op (Luisa's typed-confirm is the gate);
+      # in 'auto-fix-only' mode it hard-fails if any commit in origin/main..
+      # origin/beta is a feature / breaking / ambiguous change. This is an
+      # explicit mode branch, NOT a silent-skip on a missing secret (KAN-167).
+      - name: Fix-only auto-promote gate (SEC-77)
+        env:
+          PROMOTE_MODE: ${{ github.event.inputs.promote_mode }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main beta
+          BASE=origin/main HEAD=origin/beta bash scripts/check-fix-only-promote.sh "${PROMOTE_MODE:-manual}"
       - name: Merge beta into main
         id: merge
         env:
