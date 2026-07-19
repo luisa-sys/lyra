@@ -30,6 +30,15 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Routine ownership guard (KAN-361)
+        # Static scan asserting the "one concern → one owner" markers from the
+        # KAN-361 routine de-dup are still present — e.g. weekly-report.yml
+        # Section 1 reads health-check.yml (liveness owner) instead of
+        # re-curling, and security-audit.yml stays a demoted belt-and-braces
+        # audit deferring to the Daily Security routine. Fails the PR if an
+        # edit silently re-introduces the quadruplicated probing the ticket
+        # removed. Owner map: docs/OPS_ROUTINES_CONTROL_ROOM.md.
+        run: bash scripts/check-routine-ownership.sh
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and
