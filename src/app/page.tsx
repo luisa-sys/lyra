@@ -40,6 +40,24 @@ function getSupabase() {
   return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
 }
 
+/**
+ * The one-line answer to "what is this?".
+ *
+ * Shared by BOTH homepage modes deliberately. The waitlist front door (prod)
+ * and the showcase (beta/dev) are separate components, so this sentence used to
+ * exist only on the waitlist side — meaning beta, where people actually land
+ * after being invited, explained nothing at all beyond "Be understood.".
+ *
+ * The waitlist mode appends its own "join the waitlist" line; the showcase must
+ * NOT, because everyone seeing it already has access.
+ */
+const LYRA_DESCRIPTION = (
+  <>
+    Lyra is a place to share who you are &mdash; the things you love, the gifts
+    that land, the boundaries that matter &mdash; with the people in your life.
+  </>
+);
+
 async function getPublishedProfiles(): Promise<HomeProfile[]> {
   try {
     const supabase = getSupabase();
@@ -144,10 +162,8 @@ function WaitlistLanding() {
               We&rsquo;re opening Lyra a few people at a time.
             </h1>
             <p className="text-[15px] sm:text-base text-[var(--color-muted)] leading-relaxed max-w-md mb-8">
-              Lyra is a place to share who you are &mdash; the things you
-              love, the gifts that land, the boundaries that matter &mdash; with
-              the people in your life. Join the waitlist and we&rsquo;ll email
-              you the moment your spot opens up.
+              {LYRA_DESCRIPTION} Join the waitlist and we&rsquo;ll email you the
+              moment your spot opens up.
             </p>
             <Link
               href="/signup"
@@ -256,8 +272,11 @@ export default async function Home({
               className="h-[92px] w-auto"
               priority
             />
-            <p className="text-base sm:text-lg text-[var(--color-muted)] mt-4 mb-7">
+            <p className="text-base sm:text-lg text-[var(--color-muted)] mt-4 mb-5">
               Be understood.
+            </p>
+            <p className="text-[15px] sm:text-base text-[var(--color-muted)] leading-relaxed max-w-md mb-7">
+              {LYRA_DESCRIPTION}
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
               <Link
