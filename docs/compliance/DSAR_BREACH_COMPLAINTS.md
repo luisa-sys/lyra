@@ -58,9 +58,10 @@ requester within the first month, with reasons.
 1. **Acknowledge** on receipt; start the one-month clock.
 2. **Verify identity** proportionately (confirm control of the account email).
    Don't over-collect ID. If genuinely unverifiable, explain and pause the clock.
-3. **Locate** the data: Supabase (profile, contacts, gatherings, tokens, age
-   result), Cloudflare KV (waitlist), Resend (email logs), Didit (age/biometric
-   — request via the provider). Use the ROPA as the checklist.
+3. **Locate** the data: Supabase (profile, contacts, gatherings, tokens, 18+
+   declaration timestamp), Cloudflare KV (waitlist), Resend (email logs). Use
+   the ROPA as the checklist. _(Didit was removed as a processor 2026-07-20 —
+   there is no longer any age/biometric data held by a provider to request.)_
 4. **Action** the right: access → export the user's data in a portable format
    (JSON/CSV); erasure → run the deletion/anonymisation per RETENTION_SCHEDULE.md
    (note the time-limited backup exception); rectification → correct + confirm.

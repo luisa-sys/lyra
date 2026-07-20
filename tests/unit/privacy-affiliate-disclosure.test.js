@@ -69,7 +69,10 @@ describe('KAN-193: privacy policy — Affiliate partners section', () => {
   });
 
   test('Last updated date reflects this PR', () => {
-    expect(content).toContain('3 July 2026');
+    // KAN-407: bumped when the age section was rewritten for the 18+
+    // self-declaration. The privacy notice's date must move whenever its
+    // substance does — that is the point of this assertion.
+    expect(content).toContain('20 July 2026');
   });
 });
 

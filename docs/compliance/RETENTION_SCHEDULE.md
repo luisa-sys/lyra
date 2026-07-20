@@ -12,8 +12,7 @@
 |---|---|---|---|---|
 | Account + auth (`auth.users`, profile core) | Supabase | While account active; **purge or anonymise within 30 days** of a verified deletion request | Account-deletion flow must purge/anonymise the profile + cascade rows | ☐ confirm flow purges |
 | Profile content ("Manual of Me", media) | Supabase DB + Storage | While account active / published | Removed on unpublish or account deletion; Storage objects deleted | ☐ confirm Storage delete |
-| Age-assurance result (`age_status`, band, ref) | Supabase | While account active (proof of assurance) | Removed with account | ☑ stored result only (no biometric) |
-| Didit biometric (selfie) | Didit | **Per Didit's policy — confirm + record** | Provider-side | ☐ confirm Didit retention |
+| 18+ self-declaration (`age_declared_18_at` timestamp) | Supabase | While account active | Removed with account | ☑ timestamp only — no DOB, no biometric, no provider result |
 | Contacts + contact methods (third parties) | Supabase | While the owning account/contact exists | Removed when the user deletes the contact or the account | ☐ confirm cascade |
 | Google Calendar OAuth token | Supabase (encrypted) | Until the user disconnects or deletes the account | Deleted on disconnect (`lyra_disconnect_provider`) / account deletion | ☑ disconnect deletes token |
 | Gatherings / invitees / RSVPs | Supabase | While the gathering exists; suggest purge ~12 months after the event | Manual/cron purge of past gatherings | ☐ define purge job |
@@ -37,4 +36,4 @@ to be immediate where they are securely isolated and expire on schedule).
 1. **Waitlist KV TTL (DP-04)** — set `expirationTtl` in the maintenance worker so waitlist emails expire (proposed 12 months). _Small worker change; two-step Cloudflare deploy._
 2. **Account-deletion purge** — verify the deletion flow demonstrably purges/anonymises in Supabase (not just deactivates).
 3. **Past-gathering + affiliate-raw purge jobs** — define and schedule.
-4. Confirm provider-side windows (Resend, Didit, platform logs) and record them above.
+4. Confirm provider-side windows (Resend, platform logs) and record them above. _(Didit removed 2026-07-20 — no provider-side age/biometric retention to confirm.)_

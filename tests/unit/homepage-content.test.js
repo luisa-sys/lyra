@@ -193,12 +193,18 @@ describe('KAN-273/287: Production waitlist front door', () => {
     // KAN-326: sign-up framing keys off isProdFamily() (prod OR beta), not
     // isProdDeploy() (prod only), so the copy matches the waitlist gate beta also
     // enforces — beta now shows "join the waitlist" instead of "Create account".
+    // KAN-407: the CTA copy moved into the signup-form.tsx client component;
+    // the isProdFamily decision still lives on the server page.
+    const signupForm = fs.readFileSync(
+      path.join(__dirname, '../../src/app/(auth)/signup/signup-form.tsx'),
+      'utf8',
+    );
     expect(signup).toContain('isProdFamily');
     expect(signup).toContain('Join the Lyra waitlist');
-    expect(signup).toContain('Join the waitlist');
+    expect(signupForm).toContain('Join the waitlist');
     // Default copy preserved for the non-prod-family path (dev/stage without the flag).
     expect(signup).toContain('Create your profile');
-    expect(signup).toContain('Create account');
+    expect(signupForm).toContain('Create account');
   });
 
   test('dev mirrors the prod waitlist front door via LYRA_FORCE_WAITLIST (framing only)', () => {
