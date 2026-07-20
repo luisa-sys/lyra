@@ -31,7 +31,7 @@ interface ProfileFull {
   access_tier: 'beta' | 'prod';
   suspended_at: string | null;
   suspension_reason: string | null;
-  age_status: string;
+  age_declared_18_at: string | null;
   created_at: string;
 }
 
@@ -48,7 +48,7 @@ async function loadProfile(slug: string): Promise<ProfileFull | null> {
   const supabase = getAdminServiceClient();
   const { data } = await supabase
     .from('profiles')
-    .select('id, user_id, display_name, slug, headline, bio_short, is_published, is_suspended, is_admin, user_status, access_tier, suspended_at, suspension_reason, age_status, created_at')
+    .select('id, user_id, display_name, slug, headline, bio_short, is_published, is_suspended, is_admin, user_status, access_tier, suspended_at, suspension_reason, age_declared_18_at, created_at')
     .eq('slug', slug)
     .maybeSingle();
   return (data ?? null) as ProfileFull | null;
@@ -149,43 +149,6 @@ async function setPublishedState(formData: FormData, publish: boolean) {
   redirect(`/admin/users/${slug}`);
 }
 
-const AGE_STATUSES = ['none', 'pending', 'passed', 'failed', 'manual_review'];
-
-async function actionSetAgeStatus(formData: FormData) {
-  'use server';
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const profileId = String(formData.get('profileId') ?? '');
-  const slug = String(formData.get('slug') ?? '');
-  const status = String(formData.get('status') ?? '');
-  if (!AGE_STATUSES.includes(status)) {
-    redirect(`/admin/users/${slug}`);
-  }
-  // Self-moderation guard (mirror setSuspendState / setPublishedState).
-  if (profileId === admin.profileId) {
-    redirect(`/admin/users/${slug}`);
-  }
-
-  await logModerationAction({
-    admin,
-    action: 'set_age_status',
-    targetProfileId: profileId,
-    metadata: { age_status: status },
-  });
-
-  const supabase = getAdminServiceClient();
-  await supabase
-    .from('profiles')
-    .update({
-      age_status: status,
-      age_checked_at: new Date().toISOString(),
-      age_provider: 'admin_override',
-    })
-    .eq('id', profileId);
-
-  redirect(`/admin/users/${slug}`);
-}
 
 async function actionDeleteItem(formData: FormData) {
   'use server';
@@ -226,10 +189,9 @@ export default async function UserDetailPage({
   const entitlements = await getProfileEntitlements(profile.id);
   const isSelf = profile.id === admin.profileId;
 
-  const ageGateOn = process.env.AGE_VERIFICATION_REQUIRED === 'true';
   const st = userStatusBadge(profile);
   const ac = accessBadge(profile.access_tier);
-  const pb = publishBadge(profile, ageGateOn);
+  const pb = publishBadge(profile);
 
   const renderFeatureRow = (k: FeatureKey) => {
     const cfg = FEATURE_CONFIG[k];
@@ -434,50 +396,28 @@ export default async function UserDetailPage({
         </div>
       </section>
 
-      {!isSelf && (
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
-        <h2 className="text-base font-medium text-[var(--color-ink)]">Age verification</h2>
-        <p className="text-xs text-[var(--color-muted)] mt-1 mb-3">
-          Status:{' '}
-          <span
-            className={
-              'text-xs px-2 py-0.5 rounded-full ' +
-              (profile.age_status === 'passed'
-                ? 'bg-green-50 text-green-700'
-                : profile.age_status === 'failed'
-                ? 'bg-red-50 text-red-700'
-                : 'bg-[#f4efe7] text-[var(--color-muted)]')
-            }
-          >
-            {profile.age_status}
-          </span>
-          {' '}— the publish gate enforces this only when{' '}
-          <code className="text-[var(--color-ink)]">AGE_VERIFICATION_REQUIRED</code> is on. Override
-          (audited):
+        <h2 className="text-base font-medium text-[var(--color-ink)]">Age (18+ self-declaration)</h2>
+        <p className="text-xs text-[var(--color-muted)] mt-1">
+          {profile.age_declared_18_at ? (
+            <>
+              Confirmed they are 18 or over at sign-up on{' '}
+              <span className="text-[var(--color-ink)]">
+                {new Date(profile.age_declared_18_at).toLocaleString('en-GB')}
+              </span>
+              .
+            </>
+          ) : (
+            <>
+              No declaration on record — this account was created before the 18+
+              confirmation was introduced.
+            </>
+          )}
+          {' '}Lyra records the user&rsquo;s own declaration; it is not a verified age
+          check, so there is nothing for an admin to override here. Use suspend if an
+          account should not be on the platform.
         </p>
-        <div className="flex flex-wrap gap-2">
-          {AGE_STATUSES.map((s) => (
-            <form key={s} action={actionSetAgeStatus}>
-              <input type="hidden" name="profileId" value={profile.id} />
-              <input type="hidden" name="slug" value={profile.slug} />
-              <input type="hidden" name="status" value={s} />
-              <button
-                type="submit"
-                disabled={profile.age_status === s}
-                className={
-                  'text-xs px-3 py-1.5 rounded-full transition-colors ' +
-                  (profile.age_status === s
-                    ? 'bg-[var(--color-ink)] text-white opacity-50 cursor-not-allowed'
-                    : 'bg-[#f4efe7] text-[var(--color-ink)] hover:bg-[#ece7df]')
-                }
-              >
-                {s}
-              </button>
-            </form>
-          ))}
-        </div>
       </section>
-      )}
 
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white">
         <h2 className="text-base font-medium text-[var(--color-ink)] mb-3">Items</h2>
