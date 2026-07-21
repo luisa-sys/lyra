@@ -1,17 +1,20 @@
 /**
- * KAN-282: public "How we check your age" summary.
+ * Public, plain-English summary of how Lyra handles the 18+ rule.
  *
- * Ofcom's Highly Effective Age Assurance guidance requires a service that
- * restricts access to adults to publish an easy-to-find, plain-English summary
- * of its age-assurance process. This is that page. (Copy is provisional and
- * should be reviewed/signed off by Luisa before age checks are switched on.)
+ * Lyra restricts access to adults, so it publishes an easy-to-find statement of
+ * how it does that. As of July 2026 the answer is a self-declaration at sign-up:
+ * the previous provider-run facial age-estimation check (KAN-282, Didit) has
+ * been removed, along with all the biometric processing it involved.
+ *
+ * Keep this page honest about what it is — a declaration, not a verification.
+ * Overstating it would be worse than having no page at all.
  */
 import Link from 'next/link';
 import Image from 'next/image';
 
 export const metadata = {
-  title: 'How we check your age — Lyra',
-  description: 'How Lyra confirms that members are over 18, and what data we keep.',
+  title: 'How we handle age on Lyra — Lyra',
+  description: 'Lyra is for over-18s. How we ask, what we record, and what we do not collect.',
 };
 
 export default function HowWeCheckYourAgePage() {
@@ -26,60 +29,57 @@ export default function HowWeCheckYourAgePage() {
       </header>
 
       <article className="max-w-2xl mx-auto px-4 py-12 space-y-6 text-[var(--color-ink)]">
-        <h1 className="text-2xl font-medium font-[family-name:var(--font-serif)]">How we check your age</h1>
+        <h1 className="text-2xl font-medium font-[family-name:var(--font-serif)]">
+          How we handle age on Lyra
+        </h1>
 
         <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-          Lyra is an adults-only (18+) service. Before a profile can be published, we confirm the
-          member is over 18 using a privacy-preserving age check. This page explains how it works
-          and what we keep.
+          Lyra is an adults-only (18+) service. Before you create a profile we ask you one
+          question — whether you are 18 or over — and you have to confirm that you are in
+          order to carry on.
         </p>
 
         <section className="space-y-2">
-          <h2 className="text-base font-medium">The method</h2>
+          <h2 className="text-base font-medium">What we record</h2>
           <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-            We use <strong>facial age estimation</strong> provided by our age-assurance partner,
-            Didit. You take a short selfie in their secure flow; their system estimates your age.
-            A simple date-of-birth box or tick-box is not enough on its own, so we don&rsquo;t rely
-            on one.
+            Only that you confirmed it, and when. That is the whole record.
           </p>
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-medium">What we store</h2>
+          <h2 className="text-base font-medium">What we don&rsquo;t ask for</h2>
           <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-            We store only a <strong>yes/no age result</strong>, the date of the check, and a
-            reference number from the provider. We do <strong>not</strong> store your selfie, your
-            image, or your date of birth — the photo is processed by the provider and deleted after
-            the estimate.
+            We don&rsquo;t ask for your date of birth. We don&rsquo;t ask for ID or any
+            document. We don&rsquo;t take a selfie, scan your face, or run age-estimation
+            software. Lyra holds no biometric data about you at all.
           </p>
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-medium">If the estimate is borderline</h2>
+          <h2 className="text-base font-medium">Being straight with you about this</h2>
           <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-            To be confident at the 18 boundary, anyone whose estimate is close to 18 is asked to
-            complete a stronger check (for example a document check) rather than being passed or
-            refused on a near-18 guess. If a check can&rsquo;t confirm you&rsquo;re over 18, your
-            profile stays private and you can contact us to review it.
+            This is a self-declaration, not a verified age check — we are recording what you
+            have told us. It works alongside our{' '}
+            <Link href="/terms" className="underline hover:text-[var(--color-sage)]">
+              Terms of Service
+            </Link>
+            , which require you to be 18 or over to use Lyra. If we find out an account
+            belongs to someone under 18, we suspend it and delete their data.
           </p>
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-medium">Accessibility & alternatives</h2>
+          <h2 className="text-base font-medium">What changed in July 2026</h2>
           <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-            If you can&rsquo;t or would prefer not to take a selfie, an alternative check is
-            available. If you have any difficulty, email{' '}
-            <a href="mailto:hello@checklyra.com" className="underline hover:text-[var(--color-sage)]">
-              hello@checklyra.com
-            </a>.
+            Lyra previously used a third-party provider to estimate your age from a selfie.
+            We have removed that check entirely. No image is sent anywhere, and we no longer
+            hold any age-estimation result. You can read the detail in our{' '}
+            <Link href="/privacy" className="underline hover:text-[var(--color-sage)]">
+              Privacy Policy
+            </Link>
+            .
           </p>
         </section>
-
-        <p className="text-xs text-[var(--color-muted)]">
-          See also our{' '}
-          <Link href="/privacy" className="underline hover:text-[var(--color-sage)]">privacy policy</Link>
-          {' '}for the legal basis and retention details.
-        </p>
       </article>
     </main>
   );

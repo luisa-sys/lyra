@@ -209,6 +209,11 @@ export async function createOauthClient(input: RegisterClientInput): Promise<Reg
     application_type: input.application_type,
     token_endpoint_auth_method: input.token_endpoint_auth_method,
     scopes: 'lyra:full',
+    // SEC-76 (web-oauth-7): DCR-registered clients are never first-party.
+    // Explicit (the column also defaults false) so the anti-phishing default
+    // survives even if the DB default is ever changed. An admin flips this to
+    // true out-of-band for genuinely first-party clients.
+    is_first_party: false,
   });
 
   if (error) throw new Error(`client registration failed: ${error.message}`);
@@ -238,6 +243,9 @@ export interface ClientRecord {
   token_endpoint_auth_method: string;
   scopes: string;
   revoked_at: string | null;
+  // SEC-76 (web-oauth-7): true only for admin-verified first-party clients.
+  // DCR clients are false and render as "Unverified app" on the consent screen.
+  is_first_party: boolean;
 }
 
 export async function getOauthClient(clientId: string): Promise<ClientRecord | null> {
@@ -245,7 +253,7 @@ export async function getOauthClient(clientId: string): Promise<ClientRecord | n
   const { data } = await sb
     .from('oauth_clients')
     .select(
-      'client_id, client_secret_hash, client_name, redirect_uris, grant_types, response_types, application_type, token_endpoint_auth_method, scopes, revoked_at'
+      'client_id, client_secret_hash, client_name, redirect_uris, grant_types, response_types, application_type, token_endpoint_auth_method, scopes, revoked_at, is_first_party'
     )
     .eq('client_id', clientId)
     .maybeSingle();

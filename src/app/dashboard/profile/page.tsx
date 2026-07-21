@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from './manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
-import { canPublishWithAge } from '@/lib/age/gate';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -87,13 +86,6 @@ export default async function ProfilePage() {
     };
   });
 
-  // KAN-326: when the age gate is on and the user isn't verified, the editor
-  // shows a "verify your age" banner + button instead of a (silently failing)
-  // publish action.
-  const needsAgeCheck = !canPublishWithAge(
-    (profile as { age_status?: string | null }).age_status,
-  );
-
   return (
     <EditProfileForm
       profile={profile}
@@ -104,7 +96,6 @@ export default async function ProfilePage() {
       conversationPrompts={conversationPrompts || []}
       conversationAnswers={conversationAnswers}
       conveneEnabled={await isConveneEnabledForCurrentUser()}
-      needsAgeCheck={needsAgeCheck}
     />
   );
 }

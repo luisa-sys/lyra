@@ -13,11 +13,13 @@
 
 ## B. Data-protection documents (review + sign off the drafts in this folder)
 - [ ] **ROPA.md** — review; correct any data category / lawful basis; sign off.
-- [ ] **SUBPROCESSORS.md** — for each vendor, **accept/reference its DPA online** and record the date + link. Subscribe to sub-processor-change notices. _(Supabase signed + Vercel/Cloudflare(R2)/Resend recorded by reference 2026-07-03; **Didit, Google, Railway still ☐**.)_
+- [ ] **SUBPROCESSORS.md** — for each vendor, **accept/reference its DPA online** and record the date + link. Subscribe to sub-processor-change notices. _(Supabase signed + Vercel/Cloudflare(R2)/Resend recorded by reference 2026-07-03; **Google, Railway still ☐**. Didit removed 2026-07-20 — no longer a processor.)_
 - [ ] **RETENTION_SCHEDULE.md** — confirm the proposed periods.
-- [ ] **DSAR_BREACH_COMPLAINTS.md** — adopt; make `privacy@checklyra.com` live + monitored.
+- [x] **DSAR_BREACH_COMPLAINTS.md** — `privacy@checklyra.com` is **live + monitored** _(2026-07-07 verified: an Active Cloudflare Email Routing rule delivers privacy@ to the founder's monitored Gmail; an amber `Lyra/Privacy` filter labels it, marks it important, keeps it out of spam; checked ≥daily. Confirmed from the live Cloudflare routing rules — see DSAR_BREACH_COMPLAINTS.md → "Intake routing & monitoring")._ **Still to do (governance sign-off, Action 4):** formally adopt the procedure + instantiate the DSR / complaints / breach logs.
 - [ ] **DPIA** — **Drafted — `docs/compliance/DPIA.md` (SEC-70).** Complete the risk scores (likelihood × severity) + residual-risk cells, decide whether ICO prior consultation is needed, and sign off. Consolidate/retire the two Confluence DRAFT DPIAs (27000875, 27033667) in favour of the repo canonical.
-- [ ] Confirm **Didit** (age provider): Art. 9 basis (explicit consent), biometric retention/deletion, transfer mechanism, and that Lyra never stores the raw selfie. ← special-category, highest diligence.
+- [x] ~~Confirm **Didit** (age provider): Art. 9 basis, biometric retention/deletion, transfer mechanism, no raw selfie stored.~~ **CLOSED 2026-07-20 — no longer applicable.** The biometric age check was removed; Didit is not a processor. This was the only special-category diligence item on the list.
+- [ ] **Revoke the Didit account / API credentials** now the integration is retired (`DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET` on the Vercel Production scope), and delete any data held in the Didit dashboard.
+- [ ] **Legal check on self-declaration (NEW 2026-07-20).** Age assurance moved from a provider biometric check to an 18+ self-declaration. Confirm with a data-protection adviser that this is proportionate for Lyra, and that the Online Safety Act's *highly effective age assurance* duty is not engaged (Lyra hosts no pornography or "primary priority content"). The ROPA lawful basis changed from Art. 6(1)(c) legal obligation to Art. 6(1)(b) contract on the same reasoning — see ROPA.md P3.
 
 ## C. Publish the public-facing pieces (before 18+ launch)
 - [x] Privacy notice names controller, ICO ref (ZC124222), lawful bases, retention, DSAR route, **complaints route**, transfer safeguard. _(done — privacy/page.tsx)_

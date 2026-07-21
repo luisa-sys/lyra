@@ -195,6 +195,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname === '/join' || // KAN-337: beta-invite deep-link sets a cookie + redirects to /signup
+    pathname === '/confirm-age' || // 18+ declaration: ask before the waitlist bounce, not after
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico';

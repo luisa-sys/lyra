@@ -6,7 +6,38 @@
 > (privacy notice / support pages) must link them before launch.
 
 **Controller:** CheckLyra Ltd (Lyra). **Intake:** privacy@checklyra.com.
-**Last reviewed:** 2026-06-28.
+**Last reviewed:** 2026-07-07.
+
+### Intake routing & monitoring (KAN-283, Action 1)
+
+`privacy@checklyra.com` is received via **Cloudflare Email Routing** (the zone MX
+resolves to `*.mx.cloudflare.net`, confirmed 2026-07-07) and forwarded to the
+**founder's monitored personal mailbox (Gmail)**, where a dedicated amber
+**`Lyra/Privacy`** label collects it. **Monitoring cadence: checked at least
+daily**, so the DSAR (one-month), DUAA-complaints (30-day acknowledgement) and
+breach (72-hour) clocks in the sections below can be honoured — the DUAA
+complaints duty has been in force since **19 June 2026**.
+
+> **Status (2026-07-07): LIVE — verified.** The full path is in place and
+> confirmed:
+> 1. **Cloudflare Email Routing** has an **Active** rule
+>    `privacy@checklyra.com →` the founder's monitored mailbox (the catch-all is
+>    disabled, so this is an explicit per-address rule). The destination is
+>    verified and delivering — sibling addresses routed to the same destination
+>    (e.g. `hello@`) arrive in the founder's Gmail.
+> 2. A **Gmail filter** applies the amber **`Lyra/Privacy`** label, marks the
+>    mail **important**, and keeps it **out of spam**.
+> 3. Monitored **at least daily**.
+>
+> Verified by inspecting the live Cloudflare routing rules (privacy@ = Active)
+> and the Gmail filter, on 2026-07-07. A self-sent test from the destination
+> account is *not* a valid check here — Gmail de-duplicates a message you send to
+> an address that forwards back to you — so verification was done from the
+> routing configuration, not a loopback email.
+>
+> **Residual (folds into the governance sign-off, KAN-283 Action 4):** formally
+> adopt this procedure and stand up the DSR log, complaints log and breach
+> register as live, access-restricted records.
 
 ---
 
@@ -27,9 +58,10 @@ requester within the first month, with reasons.
 1. **Acknowledge** on receipt; start the one-month clock.
 2. **Verify identity** proportionately (confirm control of the account email).
    Don't over-collect ID. If genuinely unverifiable, explain and pause the clock.
-3. **Locate** the data: Supabase (profile, contacts, gatherings, tokens, age
-   result), Cloudflare KV (waitlist), Resend (email logs), Didit (age/biometric
-   — request via the provider). Use the ROPA as the checklist.
+3. **Locate** the data: Supabase (profile, contacts, gatherings, tokens, 18+
+   declaration timestamp), Cloudflare KV (waitlist), Resend (email logs). Use
+   the ROPA as the checklist. _(Didit was removed as a processor 2026-07-20 —
+   there is no longer any age/biometric data held by a provider to request.)_
 4. **Action** the right: access → export the user's data in a portable format
    (JSON/CSV); erasure → run the deletion/anonymisation per RETENTION_SCHEDULE.md
    (note the time-limited backup exception); rectification → correct + confirm.
