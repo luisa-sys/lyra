@@ -22,8 +22,6 @@ import {
 
 export interface WidgetContext {
   state: OnboardingState;
-  /** canPublishWithAge(age_status) — drives W2's "publish" vs "verify age" CTA. */
-  canPublishAge: boolean;
   profileUrl: string | null;
   displayName: string | null;
   /** The /join?code= deep-link while the waitlist is in place; null once removed. */
@@ -101,15 +99,10 @@ function renderWidget(id: WidgetId, ctx: WidgetContext): ReactNode {
         </WidgetShell>
       );
     case 'publish':
-      return ctx.canPublishAge ? (
+      return (
         <WidgetShell widgetId={id} state={ctx.state} title="Publish your profile" accent>
           <Body>Your profile is ready — publish it so people can find you on Lyra.</Body>
           <Cta href="/dashboard/profile" label="Open editor →" />
-        </WidgetShell>
-      ) : (
-        <WidgetShell widgetId={id} state={ctx.state} title="Verify your age to publish" accent>
-          <Body>A quick age check is required before your profile can go public.</Body>
-          <Cta href="/verify-age" label="Verify age →" />
         </WidgetShell>
       );
     case 'add_gifts':

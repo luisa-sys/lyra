@@ -1,9 +1,15 @@
 /**
  * SEC-73: the public privacy policy must disclose every active sub-processor
- * (Didit, Resend, Railway, Google, Cloudflare, Supabase, Vercel) and must
- * transparently describe the biometric age-assurance step and its Art. 9
- * explicit-consent basis. The policy must stay in sync with the internal
- * sub-processor register (docs/compliance/SUBPROCESSORS.md).
+ * (Resend, Railway, Google, Cloudflare, Supabase, Vercel) and must accurately
+ * describe how Lyra establishes that a user is 18+. The policy must stay in
+ * sync with the internal sub-processor register (docs/compliance/SUBPROCESSORS.md).
+ *
+ * KAN-407 (2026-07-20): the biometric age-assurance assertions below were
+ * INVERTED, not deleted. Lyra removed the Didit facial age-estimation check, so
+ * a policy that still described biometric special-category processing would be
+ * describing something that does not happen — the opposite compliance failure.
+ * The suite now locks in the absence of that processing, and Didit is no longer
+ * an active sub-processor.
  *
  * These are compliance-locking assertions (UK GDPR Arts. 9, 13-14). If one
  * breaks, raise with Luisa before changing it — do not weaken the assertion.
@@ -27,7 +33,7 @@ describe('SEC-73: privacy policy — sub-processor disclosure', () => {
   });
 
   test('names every active infrastructure processor', () => {
-    for (const vendor of ['Supabase', 'Vercel', 'Cloudflare', 'Railway', 'Resend', 'Didit', 'Google']) {
+    for (const vendor of ['Supabase', 'Vercel', 'Cloudflare', 'Railway', 'Resend', 'Google']) {
       expect(content).toContain(vendor);
     }
   });
@@ -52,7 +58,7 @@ describe('SEC-73: privacy policy — sub-processor disclosure', () => {
   });
 });
 
-describe('SEC-73: privacy policy — biometric age assurance', () => {
+describe('KAN-407: privacy policy — 18+ self-declaration (no biometric)', () => {
   const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
   let content;
 
@@ -60,32 +66,51 @@ describe('SEC-73: privacy policy — biometric age assurance', () => {
     content = fs.readFileSync(filePath, 'utf8');
   });
 
-  test('has a dedicated age-assurance section', () => {
-    expect(content).toContain('Age assurance');
+  test('has a dedicated age section', () => {
+    expect(content).toContain('<h2>Age (18+)</h2>');
   });
 
-  test('discloses the biometric facial age-estimation step', () => {
-    expect(content).toMatch(/biometric/i);
-    expect(content).toMatch(/facial age-estimation|selfie/i);
+  test('states plainly that the user confirms they are 18 or over', () => {
+    expect(content).toMatch(/18 or over/i);
+    expect(content).toMatch(/confirm/i);
   });
 
-  test('identifies the data as special category under Art. 9', () => {
-    expect(content).toMatch(/special.category/i);
-    expect(content).toContain('Art. 9');
+  test('is honest that this is a self-declaration, not a verified check', () => {
+    // Overstating a self-declaration as a verified age check would itself be a
+    // misleading-notice problem. Lock the honesty in.
+    expect(content).toMatch(/self-declaration/i);
+    expect(content).toMatch(/not an independently verified check|not a verified/i);
   });
 
-  test('states the lawful condition is explicit consent (Art. 9(2)(a))', () => {
-    expect(content).toMatch(/explicit consent/i);
-    expect(content).toContain('Art. 9(2)(a)');
+  test('states that no DOB, document, or biometric is collected', () => {
+    expect(content).toMatch(/do not ask for your date of birth/i);
+    expect(content).toMatch(/identity documents/i);
+    expect(content).toMatch(/facial scanning|biometric/i);
   });
 
-  test('states Lyra never receives or stores the raw biometric image', () => {
-    expect(content).toMatch(/never<\/?\w+>?\s*(receives|receive)/i);
-    expect(content.toLowerCase()).toContain('age band');
+  test('states Lyra holds no Art. 9 special-category data', () => {
+    expect(content).toMatch(/no special-category data/i);
+    expect(content).toContain('Article 9');
   });
 
-  test('names Didit as the age-assurance processor', () => {
+  test('records that the previous biometric check was removed', () => {
+    // Art. 13-14 transparency: a material change to how age is handled should be
+    // visible to users, not silently swapped out.
+    expect(content).toMatch(/removed that check/i);
     expect(content).toContain('Didit');
+  });
+
+  test('makes no claim that Lyra performs a biometric or provider age check', () => {
+    expect(content).not.toMatch(/Art\. 9\(2\)\(a\)/);
+    expect(content).not.toMatch(/we (use|run) (a )?biometric/i);
+    // "age band" is allowed ONLY inside the past-tense note about what was
+    // removed — never as something Lyra currently collects.
+    const mentions = [...content.matchAll(/age band/gi)];
+    expect(mentions.length).toBeGreaterThan(0); // the change note must survive
+    for (const m of mentions) {
+      const preceding = content.slice(Math.max(0, m.index - 240), m.index);
+      expect(preceding).toMatch(/no longer|removed|previously|Until July/i);
+    }
   });
 });
 
@@ -100,7 +125,7 @@ describe('SEC-73: policy stays in sync with the sub-processor register', () => {
   test('every processor vendor named in the policy also appears in the register', () => {
     const register = fs.readFileSync(registerPath, 'utf8');
     const policy = fs.readFileSync(policyPath, 'utf8');
-    for (const vendor of ['Supabase', 'Vercel', 'Cloudflare', 'Railway', 'Resend', 'Didit', 'Google']) {
+    for (const vendor of ['Supabase', 'Vercel', 'Cloudflare', 'Railway', 'Resend', 'Google']) {
       expect(policy).toContain(vendor);
       expect(register).toContain(vendor);
     }
