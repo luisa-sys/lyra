@@ -1,13 +1,11 @@
 /**
- * Public, plain-English summary of how Lyra handles the 18+ rule.
- *
- * Lyra restricts access to adults, so it publishes an easy-to-find statement of
- * how it does that. As of July 2026 the answer is a self-declaration at sign-up:
- * the previous provider-run facial age-estimation check (KAN-282, Didit) has
- * been removed, along with all the biometric processing it involved.
+ * Public, plain-English summary of how Lyra handles the 18+ rule: a
+ * self-declaration at sign-up (no age-verification provider, no biometric).
  *
  * Keep this page honest about what it is — a declaration, not a verification.
- * Overstating it would be worse than having no page at all.
+ * Overstating it would be worse than having no page at all. Keep it minimal:
+ * users don't need implementation or vendor detail, only what we do and don't
+ * collect.
  */
 import Link from 'next/link';
 import Image from 'next/image';
@@ -65,19 +63,6 @@ export default function HowWeCheckYourAgePage() {
             </Link>
             , which require you to be 18 or over to use Lyra. If we find out an account
             belongs to someone under 18, we suspend it and delete their data.
-          </p>
-        </section>
-
-        <section className="space-y-2">
-          <h2 className="text-base font-medium">What changed in July 2026</h2>
-          <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-            Lyra previously used a third-party provider to estimate your age from a selfie.
-            We have removed that check entirely. No image is sent anywhere, and we no longer
-            hold any age-estimation result. You can read the detail in our{' '}
-            <Link href="/privacy" className="underline hover:text-[var(--color-sage)]">
-              Privacy Policy
-            </Link>
-            .
           </p>
         </section>
       </article>
