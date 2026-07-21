@@ -12,6 +12,7 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { resolveEntitlements, type FeatureKey } from './registry';
+import { isFeatureGloballyEnabled } from './global-switches-service';
 
 function serviceClient() {
   return createServiceClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
@@ -76,5 +77,8 @@ export async function isPaidLinksAllowedForRecipient(
 ): Promise<boolean> {
   if (!recipientId) return false;
   if (!isPaidLinksComplianceReady()) return false;
+  // KAN-408: the environment's global paid-referrals switch is a hard master —
+  // an admin turning it off stops all monetisation for that environment.
+  if (!(await isFeatureGloballyEnabled('paid_gift_links'))) return false;
   return isFeatureEnabledByProfile(recipientId, 'paid_gift_links');
 }

@@ -58,7 +58,10 @@ export type ModerationAction =
   | 'unpublish'
   | 'republish'
   // KAN-319: admin override of age-verification status (e.g. manual_review/exempt)
-  | 'set_age_status';
+  | 'set_age_status'
+  // KAN-408: environment-scoped global feature switch (env recorded in metadata)
+  | 'enable_global_feature'
+  | 'disable_global_feature';
 
 export interface AdminUser {
   userId: string;
