@@ -229,4 +229,25 @@ describe('sanitiseSearchTerm', () => {
   test('returns empty string when only metacharacters are supplied', () => {
     expect(sanitiseSearchTerm(',(),%_')).toBe('');
   });
+
+  // ── SEC-59 (2026-07-13): strip-set unified with the MCP surfaces ──
+  // `.` and `:` are PostgREST operator separators (column.operator.value; casts
+  // use `:`) and `"` is a quote — the admin-MCP sanitiser already stripped these,
+  // so the web + user-MCP strip-set is aligned UP to the same defensive superset.
+  test('strips PostgREST operator separators . and : (SEC-59 parity)', () => {
+    const out = sanitiseSearchTerm('display_name.ilike:foo');
+    expect(out).not.toContain('.');
+    expect(out).not.toContain(':');
+  });
+
+  test('strips double quotes (SEC-59 parity)', () => {
+    expect(sanitiseSearchTerm('a"b')).toBe('a b');
+  });
+
+  test('the unified strip-set covers exactly , ( ) * % _ . : " and backslash', () => {
+    // every metacharacter collapses to nothing usable
+    expect(sanitiseSearchTerm(',()*%_.:"\\')).toBe('');
+    // a benign name/slug is preserved (letters, digits, spaces, hyphens, apostrophes)
+    expect(sanitiseSearchTerm("O'Brien-Smith 3")).toBe("O'Brien-Smith 3");
+  });
 });
