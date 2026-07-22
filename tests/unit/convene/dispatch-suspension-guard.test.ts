@@ -25,6 +25,8 @@ function makeQuery(result: { data: unknown; error: unknown }) {
   c.in = () => c;
   c.order = () => c;
   c.limit = () => c;
+  c.update = () => c;
+  c.lt = () => c;
   c.maybeSingle = async () => result;
   // Thenable so `await sb.from(...).select(...).eq(...).is(...)` resolves.
   c.then = (resolve: (v: unknown) => unknown) => resolve(result);
