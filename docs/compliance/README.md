@@ -17,8 +17,9 @@ First-pass UK data-protection documentation for CheckLyra Ltd (Lyra), created
 | [DSAR_BREACH_COMPLAINTS.md](DSAR_BREACH_COMPLAINTS.md) | Data-subject rights (1 month), breach (72h), DUAA complaints (30-day) | Art. 12–22, 33/34; DUAA 2025 |
 | [FOUNDER_CHECKLIST.md](FOUNDER_CHECKLIST.md) | One-page list of founder-only actions (ICO fee, DPAs, branch protection, sign-offs) | — |
 
-**Also relevant (existing):** `/SECURITY.md` (vuln disclosure), `/CODEOWNERS`
-(SEC-3 change-control), `docs/DISASTER_RECOVERY.md` (SEC-23 backups/restore),
+**Also relevant (existing):** `/SECURITY.md` (vuln disclosure), `/.github/CODEOWNERS`
+(SEC-3 change-control — single source of truth; GitHub enforces the `.github/` copy),
+`docs/DISASTER_RECOVERY.md` (SEC-23 backups/restore),
 `docs/SECURITY_ROTATION.md` (secret rotation). The Risk Register lives in
 Confluence (TWC "Lyra Risk Register"); the SEC Jira epic (SEC-1) tracks findings.
 

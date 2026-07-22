@@ -38,6 +38,13 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: CODEOWNERS single-source-of-truth check (SEC-3)
+        # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
+        # docs/) and silently ignores the rest, so two CODEOWNERS files means
+        # the lower-precedence one's ownership rules are dead. This guard fails
+        # the PR if more than one exists (or none, or the winning file has no
+        # default `* @owner`). See SEC-3 / GOV-01.
+        run: bash scripts/check-codeowners-single.sh
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
