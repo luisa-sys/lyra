@@ -1,9 +1,10 @@
 /**
  * KAN-309 follow-on: per-user Convene gate.
  *
- * Effective rule (env = master kill-switch):
- *   Convene is available to a user IFF  CONVENE_ENABLED  AND  the user is
- *   entitled to the 'convene' feature.
+ * Effective rule (env = master kill-switch, KAN-408 adds the admin global switch):
+ *   Convene is available to a user IFF  CONVENE_ENABLED  AND  the environment's
+ *   global 'convene' switch is on  AND  the user is entitled to the 'convene'
+ *   feature.
  *
  * Kept in a separate module from the sync, dependency-free isConveneEnabled()
  * (src/lib/convene/flags.ts) so cron/oauth/infra routes that have no user can
@@ -12,10 +13,15 @@
  */
 import { isConveneEnabled } from './flags';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
 
-/** True only if Convene is enabled in this env AND the current user is entitled. */
+/**
+ * True only if Convene is enabled in this env (env var) AND the admin global
+ * switch for this environment is on AND the current user is entitled.
+ */
 export async function isConveneEnabledForCurrentUser(): Promise<boolean> {
   if (!isConveneEnabled()) return false;
+  if (!(await isFeatureGloballyEnabled('convene'))) return false;
   const entitlements = await getMyFeatureEntitlements();
   return entitlements.convene === true;
 }

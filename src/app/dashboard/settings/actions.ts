@@ -5,6 +5,7 @@ import { getAdminServiceClient } from '@/lib/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
+import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
 import * as Sentry from '@sentry/nextjs';
 
 // SEC-75 leg (b): external systems that may still hold a copy of a deleted
@@ -269,6 +270,13 @@ export async function generateApiKey(name: string = 'Default'): Promise<{ key?: 
   const standing = await getAccountStanding(supabase, user.id);
   if (shouldRefuseIssuance(standing)) {
     return { error: 'Your account is suspended. API keys cannot be generated.' };
+  }
+
+  // KAN-408: MCP access (Administration via MCP) can be turned off globally per
+  // environment. When it is, refuse to mint new keys. (Full enforcement over
+  // existing keys is the MCP-server lockstep follow-up, KAN-222.)
+  if (!(await isFeatureGloballyEnabled('mcp'))) {
+    return { error: 'MCP access is currently disabled.' };
   }
 
   // Generate a secure random API key

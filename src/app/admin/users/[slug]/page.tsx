@@ -12,6 +12,9 @@ import Link from 'next/link';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
 import { getProfileEntitlements } from '@/lib/features/entitlements-service';
 import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/lib/features/registry';
+import { getGlobalSwitches } from '@/lib/features/global-switches-service';
+import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/lib/features/global-features';
+import { getDeployEnv } from '@/lib/deploy-env';
 import { setFeatureEntitlement } from '../actions';
 import { userStatusBadge, accessBadge, publishBadge } from '../status-badges';
 
@@ -188,6 +191,22 @@ export default async function UserDetailPage({
   const items = await loadItems(profile.id);
   const entitlements = await getProfileEntitlements(profile.id);
   const isSelf = profile.id === admin.profileId;
+
+  // KAN-408: hide per-user toggles for features that are OFF at the global level
+  // in THIS environment — a globally-off feature cannot be overridden per user,
+  // so no per-user control is shown (only a read-only pointer to /admin/features).
+  const globalSwitches = await getGlobalSwitches(getDeployEnv());
+  const hiddenUserFeatureKeys = new Set<FeatureKey>();
+  const globallyOffLabels: string[] = [];
+  for (const gk of GLOBAL_FEATURE_KEYS) {
+    const uk = GLOBAL_FEATURE_CONFIG[gk].userFeatureKey;
+    if (uk && !globalSwitches[gk]) {
+      hiddenUserFeatureKeys.add(uk);
+      globallyOffLabels.push(GLOBAL_FEATURE_CONFIG[gk].label);
+    }
+  }
+  const visibleTestKeys = TEST_FEATURE_KEYS.filter((k) => !hiddenUserFeatureKeys.has(k));
+  const visibleGaKeys = GA_FEATURE_KEYS.filter((k) => !hiddenUserFeatureKeys.has(k));
 
   const st = userStatusBadge(profile);
   const ac = accessBadge(profile.access_tier);
@@ -375,15 +394,30 @@ export default async function UserDetailPage({
       <section className="p-5 rounded-xl border border-[var(--color-border)] bg-white space-y-5">
         <h2 className="text-base font-medium text-[var(--color-ink)]">Feature access</h2>
 
-        <div>
-          <h3 className="text-sm font-medium text-[var(--color-ink)]">Test features</h3>
-          <p className="text-xs text-[var(--color-muted)] mt-0.5 mb-2">
-            Experimental, off by default — the set we trial with beta users. Each also needs its environment switch on to take effect.
+        {globallyOffLabels.length > 0 && (
+          <p className="text-xs text-[var(--color-muted)] bg-[#f4efe7] rounded-lg px-3 py-2">
+            {globallyOffLabels.join(', ')} {globallyOffLabels.length === 1 ? 'is' : 'are'} off
+            globally in this environment, so {globallyOffLabels.length === 1 ? 'its' : 'their'}{' '}
+            per-user control{globallyOffLabels.length === 1 ? ' is' : 's are'} hidden. Manage global
+            switches in{' '}
+            <Link href="/admin/features" className="underline">
+              Features
+            </Link>
+            .
           </p>
-          <div className="divide-y divide-[var(--color-border)]">
-            {TEST_FEATURE_KEYS.map(renderFeatureRow)}
+        )}
+
+        {visibleTestKeys.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-[var(--color-ink)]">Test features</h3>
+            <p className="text-xs text-[var(--color-muted)] mt-0.5 mb-2">
+              Experimental, off by default — the set we trial with beta users. Each also needs its environment switch on to take effect.
+            </p>
+            <div className="divide-y divide-[var(--color-border)]">
+              {visibleTestKeys.map(renderFeatureRow)}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <h3 className="text-sm font-medium text-[var(--color-ink)]">Default-on features</h3>
@@ -391,7 +425,7 @@ export default async function UserDetailPage({
             On for everyone. You can still turn one off for this user — they’ll then show a “features disabled” badge.
           </p>
           <div className="divide-y divide-[var(--color-border)]">
-            {GA_FEATURE_KEYS.map(renderFeatureRow)}
+            {visibleGaKeys.map(renderFeatureRow)}
           </div>
         </div>
       </section>
