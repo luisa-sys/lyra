@@ -192,14 +192,20 @@ export async function deleteAccount() {
   const admin = getAdminServiceClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
-    // The only expected failure is an account with non-deletable audit
-    // rows (a moderator's moderation_logs are ON DELETE RESTRICT). Don't
-    // half-delete anything — leave the account intact and ask them to
-    // contact us.
+    // The only expected failure is an account that has performed moderation/
+    // admin actions: moderation_logs.actor_user_id is ON DELETE RESTRICT and
+    // the log is append-only + tamper-evident (SEC-64), so the auth-user
+    // delete is blocked by those audit rows. Per SEC-75 (UK-GDPR Art.17(3)(b),
+    // retention for a legal obligation), the moderation audit trail — and the
+    // actor identity it references — is retained as a documented, time-limited
+    // erasure exception (see docs/compliance/RETENTION_SCHEDULE.md +
+    // DSAR_BREACH_COMPLAINTS.md). Don't half-delete anything; route the person
+    // to the privacy inbox, which erases everything lawful and records what
+    // must be retained and why.
     return redirect(
       '/dashboard/settings?error=' +
         encodeURIComponent(
-          "We couldn't delete your account automatically. Please contact us and we'll remove it for you.",
+          'Your account includes moderation/admin audit records we are legally required to keep, so it cannot be deleted automatically. Please email privacy@checklyra.com — we will erase everything we lawfully can and explain what must be retained.',
         ),
     );
   }
