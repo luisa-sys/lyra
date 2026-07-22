@@ -28,7 +28,6 @@ export interface BulkUserRow {
   user_status: 'not_applied' | 'waitlist' | 'live';
   access_tier: 'beta' | 'prod';
   is_published: boolean;
-  age_status: string | null;
   is_suspended: boolean;
   is_admin: boolean;
   has_revoked_ga_feature: boolean;
@@ -43,13 +42,11 @@ export default function BulkBar({
   total,
   selfProfileId,
   filter,
-  ageGateOn,
 }: {
   rows: BulkUserRow[];
   total: number;
   selfProfileId: string;
   filter: UserFilter;
-  ageGateOn: boolean;
 }) {
   const selectable = rows.filter((r) => r.id !== selfProfileId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -167,7 +164,7 @@ export default function BulkBar({
             const isSelf = u.id === selfProfileId;
             const st = userStatusBadge(u);
             const ac = accessBadge(u.access_tier);
-            const pb = publishBadge(u, ageGateOn);
+            const pb = publishBadge(u);
             return (
               <div key={u.id} className="flex items-center gap-3 p-4">
                 <input
