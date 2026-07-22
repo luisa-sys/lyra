@@ -38,6 +38,13 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Doc mirror-manifest presence check (KAN-363)
+        # Parses the mirror manifest in docs/DOC_SOURCE_OF_TRUTH.md and fails
+        # the PR if any critical runbook/compliance doc listed there as a
+        # repo mirror has been deleted or renamed out of the tree — the
+        # cheapest form of doc drift. Presence only; content drift-vs-wiki is
+        # a separate founder/ops-gated leg of KAN-363.
+        run: bash scripts/check-doc-mirror-manifest.sh
       - name: CODEOWNERS single-source-of-truth check (SEC-3)
         # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
         # docs/) and silently ignores the rest, so two CODEOWNERS files means
