@@ -29,8 +29,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { getRecommendations, getProfileInsights } from '@/lib/recommend';
 
 interface ProfileRow {
@@ -49,7 +48,7 @@ interface ItemRow {
 }
 
 function getServiceClient() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 export async function GET(
@@ -103,12 +102,15 @@ export async function GET(
       insights,
     },
     {
-      // Caches well — the underlying data only changes when the user
-      // updates their profile. 5-minute SWR balances freshness against
-      // load. Anyone hitting this URL more often is almost certainly
-      // automation; the cache will keep them off the DB.
+      // SEC-82: private + short TTL, aligned with the V2 route. The previous
+      // `public, s-maxage=300, swr=900` let a shared/edge cache keep serving a
+      // profile's recommendations for up to ~5 min fresh / 15 min stale AFTER
+      // it was suspended — the DB filters `is_suspended=false`, but a fill that
+      // predates the suspension outlives it on the CDN. `private` keeps it off
+      // shared caches and `max-age=60` bounds any per-client staleness to a
+      // minute, matching the suspension posture already chosen for V2.
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900',
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
       },
     },
   );

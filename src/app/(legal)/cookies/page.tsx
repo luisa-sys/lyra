@@ -1,12 +1,18 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { getActiveDisclosures } from '@/lib/compliance/disclosures';
 
 export const metadata = {
   title: 'Cookie Policy — Lyra',
   description: 'How Lyra uses cookies and similar technologies.',
 };
 
-export default function CookiePolicyPage() {
+// KAN-408: the affiliate-cookies section reflects whether paid referrals are
+// live in this environment (global-switch table + env floor).
+export const dynamic = 'force-dynamic';
+
+export default async function CookiePolicyPage() {
+  const disclose = await getActiveDisclosures();
   return (
     <main className="min-h-screen bg-[var(--color-paper)]">
       <nav className="border-b border-[var(--color-border)]/60">
@@ -56,13 +62,17 @@ export default function CookiePolicyPage() {
         <p>When you sign in with Google, Google may set its own cookies as part of the authentication process. These are governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">Google&apos;s Privacy Policy</a>. Lyra does not control these cookies.</p>
         <p>Vercel, our hosting provider, may collect anonymised performance data. See <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">Vercel&apos;s Privacy Policy</a> for details. Cloudflare, which protects and routes our traffic, may set a <code>__cf_bm</code> cookie for bot detection. See <a href="https://developers.cloudflare.com/fundamentals/reference/policies-compliances/cloudflare-cookies/" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">Cloudflare&apos;s cookie documentation</a>.</p>
 
-        <h2>Affiliate links</h2>
-        <p>Some gift suggestions on Lyra are affiliate links. Clicking one routes you through an affiliate network (currently <strong>Sovrn Commerce</strong>) and then to the retailer. <strong>Lyra does not set any cookies on your browser as part of this flow.</strong> The affiliate network and the retailer may set their own cookies <em>on their own domains</em>, governed by their own policies:</p>
-        <ul>
-          <li><a href="https://www.sovrn.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">Sovrn Commerce privacy policy</a> — cookies set on Sovrn&apos;s redirect domain</li>
-          <li>Each retailer&apos;s own cookie policy applies once you reach their site</li>
-        </ul>
-        <p>You can use Lyra entirely without clicking an affiliate link — just ignore the recommendations. There is no Lyra-side toggle to disable because there is nothing Lyra-side to disable; declining a non-Lyra cookie is done at the affiliate network&apos;s or retailer&apos;s site. See the <Link href="/partners" className="text-[var(--color-sage)]">affiliate partners page</Link> for the full disclosure.</p>
+        {disclose.affiliate && (
+          <>
+            <h2>Affiliate links</h2>
+            <p>Some gift suggestions on Lyra are affiliate links. Clicking one routes you through an affiliate network (currently <strong>Sovrn Commerce</strong>) and then to the retailer. <strong>Lyra does not set any cookies on your browser as part of this flow.</strong> The affiliate network and the retailer may set their own cookies <em>on their own domains</em>, governed by their own policies:</p>
+            <ul>
+              <li><a href="https://www.sovrn.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-[var(--color-sage)]">Sovrn Commerce privacy policy</a> — cookies set on Sovrn&apos;s redirect domain</li>
+              <li>Each retailer&apos;s own cookie policy applies once you reach their site</li>
+            </ul>
+            <p>You can use Lyra entirely without clicking an affiliate link — just ignore the recommendations. There is no Lyra-side toggle to disable because there is nothing Lyra-side to disable; declining a non-Lyra cookie is done at the affiliate network&apos;s or retailer&apos;s site. See the <Link href="/partners" className="text-[var(--color-sage)]">affiliate partners page</Link> for the full disclosure.</p>
+          </>
+        )}
 
         <h2>Managing cookies</h2>
         <p>Since Lyra only uses essential cookies, disabling them will prevent the site from working correctly (you won&apos;t be able to stay signed in). You can clear cookies at any time through your browser settings:</p>

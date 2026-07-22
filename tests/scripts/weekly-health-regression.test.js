@@ -115,4 +115,49 @@ describe('scripts/weekly-health-regression.sh', () => {
       expect(res.status).toBe(2);
     });
   });
+
+  // SEC-91 (2026-07-22): the runner now runs the SAME npm-audit gate as
+  // pr-checks.yml + every deploy-*.yml, so a RED dependency gate (which blocks
+  // all PRs + the deploy chain) is surfaced by the runner, not found by hand.
+  it('includes an `audit` phase in the default set and maps it to the real gate', () => {
+    expect(source).toMatch(/PHASES="\$\{PHASES:-[^}]*\baudit\b[^}]*\}"/);
+    expect(source).toMatch(/audit\)\s*echo\s*"npm audit --audit-level=high"/);
+  });
+
+  describe('the audit phase: real vuln FAILs, registry-unreachable is UNVERIFIED', () => {
+    let dir = '';
+    let res2;
+    const stub = (d, name, body) => {
+      const p = path.join(d, name);
+      fs.writeFileSync(p, `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+      return p;
+    };
+    const runWith = (auditBody) => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whr-audit-'));
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"stub"}');
+      fs.mkdirSync(path.join(dir, 'node_modules'));
+      const env = {
+        ...process.env,
+        PHASES: 'audit',
+        RUN_E2E: '0',
+        CMD_audit: stub(dir, 'audit.sh', auditBody),
+      };
+      return spawnSync('bash', [SCRIPT], { cwd: dir, env, encoding: 'utf8' });
+    };
+    const line = (label) =>
+      res2.stdout.split('\n').find((l) => l.split('\t')[1] === label) || '';
+    afterEach(() => { if (dir) { fs.rmSync(dir, { recursive: true, force: true }); dir = ''; } });
+
+    it('marks a genuine high advisory FAIL (real vuln, network reached)', () => {
+      res2 = runWith('echo "# npm audit report"; echo "sharp <0.35.0 high"; echo "3 high severity vulnerabilities"; exit 1');
+      expect(line('audit').startsWith('FAIL')).toBe(true);
+      expect(res2.status).toBe(2);
+    });
+
+    it('marks a registry-unreachable audit UNVERIFIED, not FAIL', () => {
+      res2 = runWith('echo "npm error code ENOTFOUND"; echo "npm error network request to https://registry.npmjs.org failed, reason: getaddrinfo ENOTFOUND"; exit 1');
+      expect(line('audit').startsWith('UNVERIFIED')).toBe(true);
+      expect(res2.status).toBe(1);
+    });
+  });
 });

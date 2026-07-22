@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import type { MetadataRoute } from 'next';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -15,10 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic profile pages
   let profilePages: MetadataRoute.Sitemap = [];
   try {
-    const supabase = createClient(
-      env.supabaseUrl(),
-      env.supabaseServiceRoleKey()
-    );
+    const supabase = createServiceRoleClient();
 
     const { data: profiles } = await supabase
       .from('profiles')

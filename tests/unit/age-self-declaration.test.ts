@@ -117,17 +117,24 @@ describe('the declaration is not user-writable', () => {
   });
 });
 
-describe('the provider age gate is genuinely gone', () => {
-  it('no publish path consults age', () => {
+// KAN-408 reverses KAN-407's removal: the provider (Didit) age check is
+// re-introduced as an OPT-IN, environment-scoped switch (age_verification,
+// default OFF). The self-declaration above remains the always-on baseline; the
+// provider gate only enforces where an admin has turned the switch ON.
+describe('the provider age gate is re-introduced as an opt-in switch (KAN-408)', () => {
+  it('both publish paths consult the (switch-gated) provider age check', () => {
     const actions = fs.readFileSync(
       path.join(root, 'src/app/dashboard/profile/actions.ts'),
       'utf8',
     );
-    expect(actions).not.toContain('canPublishWithAge');
-    expect(actions).not.toContain('AGE_GATE_BLOCK_MESSAGE');
+    expect((actions.match(/isProviderAgeCheckActive\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(actions).toContain('AGE_GATE_BLOCK_MESSAGE');
   });
 
-  it('the gate module no longer exists', () => {
+  it('the old env-var gate module stays gone; the switch-gated module replaces it', () => {
+    // gate.ts was the AGE_VERIFICATION_REQUIRED env-var gate — it stays deleted.
     expect(fs.existsSync(path.join(root, 'src/lib/age/gate.ts'))).toBe(false);
+    // provider-gate.ts is the new switch-keyed gate.
+    expect(fs.existsSync(path.join(root, 'src/lib/age/provider-gate.ts'))).toBe(true);
   });
 });

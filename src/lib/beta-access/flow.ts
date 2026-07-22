@@ -12,7 +12,7 @@
  *    beta.checklyra.com, not-live -> the beta waitlist. Dev/stage stay on their
  *    own origin and let the in-app middleware gate handle waitlisting.
  */
-import { createClient as createServiceRoleClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 import { sendBetaQueueNotice } from './email';
 import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
@@ -91,7 +91,7 @@ export async function resolveBetaAccess(
   opts?: { carriedCode?: string },
 ): Promise<{ userStatus: UserStatus; accessTier: AccessTier }> {
   try {
-    const svc = createServiceRoleClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+    const svc = createServiceRoleClient();
 
     const { data: profile } = await svc
       .from('profiles')

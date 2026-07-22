@@ -37,11 +37,24 @@ This file contains instructions and policies that Claude must follow when workin
 Before starting any task, Claude must:
 
 1. **Check Jira** — confirm a ticket exists for the work, or create one. Never start work without a tracked ticket.
-2. **Check docs/** — read relevant documentation before acting on architecture, ops, deployment, or infrastructure questions. Key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md.
+2. **Check the wiki index first, then docs/** — the Confluence wiki index **_Lyra — System Documentation_** (space TWC, page `19922947`) is the **definitive source of truth** for architecture, operations, security, and compliance. **Read it FIRST** before any architecture, ops, deployment, infrastructure, or security work — it is the sectioned map to every authoritative page (System & Architecture, Operations & Runbooks, Security & Risk, Data Protection & Compliance, Routines & Automation). The repo `docs/` holds _mirrored copies_ of the critical runbook/compliance elements for CI and offline use — key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md. If the code and a wiki page disagree, fix the page (the KAN-359 Documentation Definition-of-Done). Wiki professionalisation is tracked under KAN-360.
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
+7. **Plan the doc footprint** — identify up front which system-map / wiki pages the work will touch (Architecture & Infrastructure, Data Model & Security) per the **Documentation Definition-of-Done** below. Docs are part of "done", not a follow-up ticket.
+
+## Documentation Definition-of-Done (KAN-359)
+
+Docs are part of "done", not a separate ticket. **Before closing any epic — and on every feature PR — confirm:**
+
+- [ ] Live **system map** updated where affected — Confluence **Architecture & Infrastructure** and/or **Data Model & Security** (+ repo `docs/` mirrors such as `ARCHITECTURE.md`): any new/changed service, table, env var, route, scheduled job, or security boundary.
+- [ ] Any **design decision** recorded as an ADR and linked from the epic.
+- [ ] **Jira ↔ wiki** cross-linked — the epic cites the wiki page(s); the page cites the Jira key.
+- [ ] **`docs/TEST_AUDIT_2026Q2.md`** refreshed if test gates, floors, or coverage changed.
+- [ ] PR-template item _"Docs / system map updated — or N/A with reason"_ ticked honestly.
+
+`N/A` is acceptable for pure logic/test/infra-only changes, but must state why. Full runbook version: `docs/RUNBOOK.md` → "Documentation Definition-of-Done". Watched by the `DOC_SYNC_HEALTHCHECK_ROUTINE` and guarded by `tests/unit/doc-dod.test.js`.
 
 ## Parallel Claude sessions — use git worktrees
 
@@ -246,7 +259,7 @@ The pipeline is: **develop → staging → beta → main** (promotion-based, fou
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **800 tests** (60 suites) in lyra (unit + scripts; E2E + integration not counted), **91 tests** (5 suites) in lyra-mcp-server
+- Current test floor: **2118 tests** (172 suites) in lyra (unit + scripts; E2E + integration not counted), **91 tests** (5 suites) in lyra-mcp-server
 
 ## Test Integrity Policy
 
