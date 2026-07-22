@@ -96,10 +96,6 @@ export default async function UsersConsolePage({
   const admin = (await getCurrentAdmin())!; // layout already gated
   const page = Math.max(1, Number(sp.page ?? '1') || 1);
   const filter = buildFilter(sp);
-  // Age gate is a server env flag; the publish-status badge needs it to tell
-  // "age check" (blocked) from "private" (just unpublished).
-  const ageGateOn = process.env.AGE_VERIFICATION_REQUIRED === 'true';
-
   const [{ rows, total, error }, counts] = await Promise.all([listUsers(filter, page), stageCounts()]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -153,7 +149,7 @@ export default async function UsersConsolePage({
           Could not load users: {error}
         </p>
       ) : (
-        <BulkBar rows={rows} total={total} selfProfileId={admin.profileId} filter={filter} ageGateOn={ageGateOn} />
+        <BulkBar rows={rows} total={total} selfProfileId={admin.profileId} filter={filter} />
       )}
 
       {totalPages > 1 && (

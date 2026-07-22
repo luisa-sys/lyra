@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
 
       <article className="max-w-3xl mx-auto px-6 py-10 prose prose-stone prose-sm">
         <h1 className="text-2xl font-[family-name:var(--font-serif)] text-[var(--color-ink)]">Privacy Policy</h1>
-        <p className="text-sm text-[var(--color-muted)]">Last updated: 3 July 2026</p>
+        <p className="text-sm text-[var(--color-muted)]">Last updated: 20 July 2026</p>
 
         <h2>Who we are</h2>
         <p>Lyra is operated by <strong>CheckLyra Ltd</strong> (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;), a company registered in England &amp; Wales (company no. 16351012; registered office: 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ). CheckLyra Ltd is the data controller for the personal data described here, and is registered with the UK Information Commissioner&apos;s Office (ICO) under registration reference <strong>ZC124222</strong>. We are committed to protecting your privacy and handling your personal data transparently.</p>
@@ -30,21 +30,20 @@ export default function PrivacyPolicyPage() {
           <li><strong>Account data:</strong> Email address and display name. Sign-in is passwordless — we email you a secure one-time link, so there&apos;s no password to store.</li>
           <li><strong>Profile data:</strong> Headline, bio, city, country, preferences, gift ideas, likes, dislikes, boundaries, school affiliations, external links, and profile photo — all provided voluntarily by you</li>
           <li><strong>Usage data:</strong> Page views and basic analytics (via Vercel Analytics), collected anonymously unless you opt in</li>
-          <li><strong>Age-assurance result:</strong> A pass/fail outcome and age band from our age-verification provider (Didit), used to confirm you are 18 or over — see <strong>Age assurance</strong> below. We do not receive or store the selfie image used for this check.</li>
+          <li><strong>Age confirmation:</strong> The fact that you confirmed you are 18 or over, and the date and time you confirmed it — see <strong>Age (18+)</strong> below. We do <strong>not</strong> ask for your date of birth.</li>
         </ul>
-        <p>Lyra is for adults — you must be <strong>18 or over</strong> to create a profile, and it is not intended for children. We do <strong>not</strong> collect payment information, precise location data, or browsing history. The only data we receive about you from a third party is the age-assurance result described below, which we receive from Didit when you complete the one-time age check.</p>
+        <p>Lyra is for adults — you must be <strong>18 or over</strong> to create a profile, and it is not intended for children. We do <strong>not</strong> collect payment information, precise location data, browsing history, date of birth, identity documents, or biometric data. We do not receive any data about you from third-party data brokers or profiling services.</p>
 
         <h2>Why we collect it (lawful basis)</h2>
         <ul>
           <li><strong>Consent:</strong> You choose to create a profile and share your preferences. You can withdraw consent at any time by deleting your account.</li>
           <li><strong>Legitimate interest:</strong> We use anonymised analytics to improve the service and security logs to protect against abuse.</li>
-          <li><strong>Explicit consent (special category):</strong> The one-time age check uses biometric facial age-estimation, which is special-category data under Art. 9 UK GDPR. We rely on your explicit consent (Art. 9(2)(a)) for that step — see <strong>Age assurance</strong> below.</li>
         </ul>
 
-        <h2>Age assurance (18+ verification)</h2>
-        <p>Lyra is an adults-only service. To keep under-18s out, we ask you to complete a one-time age check provided by <strong>Didit</strong>, our age-assurance provider, acting as our processor. Didit performs a <strong>biometric facial age-estimation</strong> — a selfie &quot;liveness&quot; check — on its own systems, and returns to Lyra only a <strong>result</strong>: whether you passed and an approximate age band.</p>
-        <p><strong>Special-category data.</strong> A facial image used for age estimation is biometric data, which is &quot;special category&quot; personal data under Article 9 of the UK GDPR. This processing is carried out by Didit on our behalf, and our condition for it is your <strong>explicit consent</strong> under Art. 9(2)(a), captured by Didit at the point of the selfie check. You do not have to complete the check, but you cannot create a profile without confirming you are 18 or over.</p>
-        <p><strong>What Lyra receives and stores.</strong> Lyra receives and stores only the pass/fail result and age band. Lyra <strong>never</strong> receives, sees, or stores the selfie image or any biometric template. Didit&apos;s capture, retention, and deletion of the image are governed by Didit&apos;s own privacy notice and by our data-processing agreement with Didit. You can withdraw your consent by deleting your account.</p>
+        <h2>Age (18+)</h2>
+        <p>Lyra is an adults-only service. Before you can create a profile we ask you a single question — whether you are 18 or over — and you must confirm that you are in order to continue. We record your answer and the date and time you gave it.</p>
+        <p><strong>What we do not collect.</strong> We do not ask for your date of birth, we do not ask you for identity documents, and we do not use facial scanning, age-estimation software, or any other biometric check. Lyra holds no special-category data under Article 9 of the UK GDPR for this or any other purpose.</p>
+        <p><strong>What this means.</strong> This is a self-declaration: it records what you have told us, and it is not an independently verified check of your age. We rely on it together with our <Link href="/terms" className="text-[var(--color-sage)]">Terms of Service</Link>, which require you to be 18 or over to use Lyra. If we become aware that an account belongs to someone under 18, we will suspend it and delete the associated personal data.</p>
 
         <h2>How we use your data</h2>
         <ul>
@@ -64,7 +63,6 @@ export default function PrivacyPolicyPage() {
           <li><strong>Cloudflare</strong> (DNS, CDN, and encrypted backup storage) — routes web traffic and holds our database backups in Cloudflare R2</li>
           <li><strong>Railway</strong> (application hosting) — runs the MCP integration servers that let AI companions access published profiles</li>
           <li><strong>Resend</strong> (transactional email) — delivers your sign-in link, event invites, and account notices</li>
-          <li><strong>Didit</strong> (age assurance) — performs the one-time 18+ age check; see <strong>Age assurance</strong> above</li>
           <li><strong>Google</strong> (sign-in, calendar, and town/city lookup) — provides optional Google sign-in; if you connect it, reads your calendar&apos;s free/busy availability to help plan events; and, when you use the optional town/city finder, resolves a postcode or place name you type into a town/city using the <strong>Google Places API</strong>. Only the resulting town/city is saved to your profile — the postcode or place text you type is sent to Google solely to perform that lookup and is <strong>never stored by Lyra</strong>.</li>
         </ul>
         <p>Each of these providers processes data under its own GDPR-compliant data processing agreement. Some of them are based in, or host data in, the United States. Where personal data is transferred outside the UK, that transfer is protected by the <strong>UK Addendum to the EU Standard Contractual Clauses</strong> (or the UK International Data Transfer Agreement) incorporated by the provider&apos;s DPA, together with encryption in transit and at rest. Database backups are stored, encrypted, in Cloudflare R2 with 90-day retention. Our full sub-processor register is available on request at privacy@checklyra.com.</p>

@@ -449,3 +449,38 @@ When deploying a feature with MCP changes:
 4. End-to-end test exercises the MCP tool from a real agent on `dev.checklyra.com`.
 
 Reverse the order on rollback (web first, then MCP).
+
+## Documentation Definition-of-Done (KAN-359)
+
+Documentation drifts from code unless keeping it current is part of "done". This
+Definition of Done (DoD) is mandatory for every epic and every feature PR — it is
+how the live system map, the design docs, and `docs/` stay in step with what
+actually ships.
+
+**Before an epic can be closed, it must:**
+
+1. Update the live **system map** — the Confluence **Architecture & Infrastructure**
+   and/or **Data Model & Security** pages (and their repo mirrors under `docs/`,
+   e.g. `ARCHITECTURE.md`) — to reflect any new/changed service, table, env var,
+   route, scheduled job, or security boundary.
+2. Record any **design decision** as a short ADR ("context → decision →
+   consequences") and link it from the epic.
+3. **Link Jira ↔ wiki** — the epic references the wiki page(s) it updated, and
+   those pages reference the epic/Jira key.
+4. Refresh **`docs/TEST_AUDIT_2026Q2.md`** (or the current quarter's audit) when
+   test gates, floors, or coverage change.
+
+**Per-PR gate:** every PR ticks the PR-template checklist item _"Docs / system map
+updated — or N/A with reason"_. `N/A` is a valid answer for pure logic/test/infra
+changes, but it must state why.
+
+**Enforcement / watchers:**
+
+- The `DOC_SYNC_HEALTHCHECK_ROUTINE` (weekday Claude routine) catches the failure
+  mode where the doc-sync log claims "in sync" but a repo's real `main` has moved
+  ahead. See `docs/DOC_SYNC_HEALTHCHECK_ROUTINE.md`.
+- `tests/unit/doc-dod.test.js` guards the presence of this DoD across
+  `docs/RUNBOOK.md`, `CLAUDE.md`, and the PR template so it cannot be silently
+  removed.
+
+Source: KAN-359 · Epic KAN-350 (Phase-4 documentation hygiene).

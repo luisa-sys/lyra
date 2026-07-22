@@ -22,7 +22,6 @@
 | **Railway** | MCP server hosting (user-MCP + admin-MCP) | Processor | US | UK Addendum/IDTA via Railway DPA | ☐ confirm + record |
 | **Cloudflare** | DNS, CDN, Access (admin gate), KV (waitlist emails), R2 (backups) | Processor | US/global | UK Addendum via Cloudflare Customer DPA | ☑ by reference (cloudflare.com/cloudflare-customer-dpa), recorded 2026-07-03 |
 | **Resend** | Transactional email (magic links, invites, notices) | Processor | US | UK Addendum/IDTA via Resend DPA | ☑ by reference (resend.com/legal/dpa), recorded 2026-07-03 |
-| **Didit** | Age-assurance / biometric selfie check (returns pass + band only) | Processor (Art. 9 at provider) | TBC | Confirm DPA + Art. 9 explicit-consent basis + biometric retention | ☐ **confirm — special category** |
 | **Google (OAuth/Calendar/Places)** | Google sign-in; Calendar busy/free (Convene); Places Text Search for the optional town/city finder (postcode/place text sent transiently to resolve a town/city — only the resulting city is stored, the postcode/place text is never persisted by Lyra) | Processor | US | UK Addendum via Google Cloud/Workspace DPA | ☐ confirm + record |
 | **Cloudflare R2** | Encrypted WORM backups (age-encrypted) | Processor | US/global | As Cloudflare above | ☑ by reference (cloudflare.com/cloudflare-customer-dpa), recorded 2026-07-03 |
 | **Affiliate merchants** (Amazon Associates, Bookshop.org, …) | Receive outbound affiliate clicks (no Lyra PII in URLs) | Recipient (not processor) | US/UK | N/A — no personal data transferred by Lyra | n/a |
@@ -32,8 +31,8 @@
 
 > **Action (founder):** the four infrastructure DPAs are now recorded (Supabase
 > signed 2026-07-03 via PandaDoc; Vercel, Cloudflare/R2, and Resend recorded
-> by-reference 2026-07-03). Only **Didit** (special category — highest diligence),
-> **Google** (Workspace/Cloud DPA for calendar.readonly), and **Railway** remain
+> by-reference 2026-07-03). Only **Google** (Workspace/Cloud DPA for
+> calendar.readonly) and **Railway** remain
 > marked ☐ — accept each vendor's standard DPA online and record the acceptance
 > date + link in this table. These vendors incorporate the UK Addendum/IDTA by
 > reference, so no bespoke negotiation is needed.
@@ -42,9 +41,8 @@
 
 For each US-based processor the transfer relies on the UK Addendum to the EU
 SCCs (or the UK IDTA) as the Art. 46 safeguard. Lyra's data is low-sensitivity
-consumer profile data (no financial, health, or government-ID data is stored by
-Lyra; the only biometric step is performed by Didit, which returns a result, not
-the image). The residual risk from US government access (FISA 702 / EO 12333) is
+consumer profile data — no financial, health, government-ID, or biometric data
+is processed by Lyra or on its behalf. The residual risk from US government access (FISA 702 / EO 12333) is
 low for this dataset: it is not of foreign-intelligence interest, volumes are
 small, and the major vendors publish transparency reports and challenge
 over-broad requests. Mitigations: encryption in transit and at rest, encryption
@@ -54,12 +52,17 @@ change. **Conclusion (draft): transfers are permissible under the UK
 Addendum/IDTA with the above supplementary measures.** Founder to confirm
 per-vendor and re-assess on any change to the vendor's posture.
 
-**Didit is the exception requiring extra diligence** — biometric processing is
-Art. 9 special-category. Confirm (1) Didit's Art. 9 lawful basis (explicit
-consent, captured by Didit at the point of the selfie), (2) Didit's retention
-and deletion of the biometric image, (3) the transfer mechanism for Didit's
-region, and (4) that Lyra never receives or stores the raw biometric. Record the
-outcome here before relying on the age-assurance flow at scale.
+> **Didit removed 2026-07-20.** Didit was previously listed here as an
+> age-assurance processor performing a biometric selfie check, and carried the
+> highest diligence requirement of any vendor (Art. 9 special-category). **The
+> age check has been removed from Lyra**: no image is sent, no result is
+> received, and Didit processes nothing for Lyra. Age is now a self-declaration
+> recorded as a single timestamp. The four outstanding Didit diligence items
+> (Art. 9 basis, biometric retention/deletion, transfer mechanism, no-raw-
+> biometric confirmation) are **closed as no longer applicable**.
+>
+> If any Didit account or API credential still exists, revoke it — see
+> FOUNDER_CHECKLIST.md.
 
 ## Onward sub-processors
 Each processor maintains its own sub-processor list (e.g. Supabase→AWS,

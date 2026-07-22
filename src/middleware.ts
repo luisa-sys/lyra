@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { withParentCookieDomain } from '@/lib/cookie-domain';
 import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
+import { buildCspReportOnly } from '@/lib/security-headers';
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -13,8 +14,34 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
+// SEC-63: per-request CSP nonce, base64 of 16 random bytes. Edge runtime
+// provides Web Crypto (crypto.getRandomValues) + btoa globally.
+function generateCspNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+// SEC-63: stamp the staged nonce CSP as Report-Only on a document response.
+// Report-Only NEVER blocks — browsers only surface violations — so this is a
+// zero-risk observation step ahead of enforcing the nonce policy (the follow-up
+// SEC-63 leg, which also wires the nonce into first-party scripts + flips to
+// the enforced `Content-Security-Policy` header + adds a deploy-time header
+// smoke). Applied only to document-serving responses; redirects/JSON errors
+// don't need a CSP.
+function stampCspReportOnly(res: NextResponse, csp: string): NextResponse {
+  res.headers.set('Content-Security-Policy-Report-Only', csp);
+  return res;
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // SEC-63: derive a per-request nonce + the Report-Only nonce CSP once, then
+  // stamp it on each document-serving response before it returns.
+  const cspReportOnly = buildCspReportOnly(generateCspNonce());
 
   // KAN-309: admin.checklyra.com host routing. Enforced only when
   // ADMIN_HOST_ENFORCED=true (set on prod once the DNS + Cloudflare Access app
@@ -61,7 +88,7 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next();
+    return stampCspReportOnly(NextResponse.next(), cspReportOnly);
   }
 
   let supabaseResponse = NextResponse.next({
@@ -122,11 +149,11 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/admin' + (pathname === '/' ? '' : pathname);
         const rewrite = NextResponse.rewrite(url);
         supabaseResponse.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
-        return rewrite;
+        return stampCspReportOnly(rewrite, cspReportOnly);
       }
       // Already an /admin path (or passthrough) — serve it, and crucially skip
       // the beta gate below so an admin isn't bounced to /waitlist.
-      return supabaseResponse;
+      return stampCspReportOnly(supabaseResponse, cspReportOnly);
     }
     // Any non-admin host must never serve /admin — send it to the subdomain.
     if (pathname.startsWith('/admin')) {
@@ -195,6 +222,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname === '/signup' ||
     pathname === '/join' || // KAN-337: beta-invite deep-link sets a cookie + redirects to /signup
+    pathname === '/confirm-age' || // 18+ declaration: ask before the waitlist bounce, not after
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico';
@@ -244,7 +272,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return stampCspReportOnly(supabaseResponse, cspReportOnly);
 }
 
 export const config = {
