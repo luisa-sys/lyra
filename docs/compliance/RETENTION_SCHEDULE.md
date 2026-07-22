@@ -32,6 +32,25 @@ age out per the DR retention window (document this in the DSAR response as a
 lawful, time-limited exception — erasure from immutable backups is not required
 to be immediate where they are securely isolated and expire on schedule).
 
+### External-processor / KV propagation — record-only (SEC-75 leg b)
+The in-app `deleteAccount()` flow hard-deletes everything Lyra holds in Postgres
+(the `auth.users` cascade). Copies that live **outside** Postgres — Cloudflare KV
+(waitlist email), Resend (transactional-email logs), Didit (biometric
+verification), Google (Calendar OAuth) — cannot be reached from that request
+(the app holds no KV/processor **write** credentials there). Rather than fail
+the user's erasure on a processor call, deletion now **records** a durable
+erasure obligation: on each successful hard-delete it writes a row to
+`public.erasure_obligations` (service-role only; `subject_user_id`,
+`subject_email`, `processors[]`, `status='pending'`) via the SECURITY DEFINER
+`record_erasure_obligation(...)` function (migration
+`20260712160000_sec75_erasure_obligations.sql`). This makes the Art. 17
+propagation duty **auditable** instead of prose-only. **The obligation is not the
+erasure** — an ops follow-up (holding the KV/processor write creds) actions each
+`pending` row and sets it `completed`/`not_applicable`. Recording is best-effort
+and never blocks the user's erasure; a recording failure is captured to Sentry so
+the missed obligation is still surfaced. _Ops follow-up: live KV purge (needs KV
+write creds) + confirm/close Resend/Didit/Google provider-side windows._
+
 ### Erasure exception — moderation/admin audit actor identity (Art.17(3)(b))
 **Who this affects:** the narrow class of users who have ever taken a moderation
 or admin action (an `is_admin`/moderator account) and therefore appear as
