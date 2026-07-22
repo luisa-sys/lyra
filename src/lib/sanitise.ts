@@ -61,10 +61,17 @@ export function sanitiseUrl(input: string, maxLength = 2048): string {
  * that could turn the query into a match-all. Strip those metacharacters (and the
  * backslash) before the term reaches the query builder. Returns '' when nothing
  * usable remains so the caller can skip the query rather than match everything.
+ *
+ * SEC-59 (2026-07-13): unify the strip-set across all three surfaces (web +
+ * lyra-mcp-server + lyra-admin-mcp-server) so a query sanitised on one surface is
+ * sanitised identically on the others. The admin-MCP sanitiser already stripped
+ * the fuller defensive set — `.` and `:` are PostgREST operator separators
+ * (`column.operator.value`, casts/ranges use `:`) and `"` is a quote — so this
+ * strip-set is aligned UP to that superset: `, ( ) * % _ . : " \`.
  */
 export function sanitiseSearchTerm(input: string, maxLength = 100): string {
   return input
-    .replace(/[,()*%_\\]/g, ' ')
+    .replace(/[,()*%_.:"\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLength);

@@ -59,12 +59,12 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 | `SENTRY_READ_TOKEN` | _(optional)_ | Reserved for live Sentry panels on `/admin/monitoring` |
 | `UPTIMEROBOT_API_KEY` | _(optional)_ | Lights up the UptimeRobot status on `/admin/monitoring` |
 | `PAID_LINKS_COMPLIANCE_READY` | _(unset = off)_ | KAN-309: gates the `paid_gift_links` per-user entitlement. Monetised affiliate links are produced only when this is `true` (FTC/ASA/CMA disclosure KAN-192 + cookie/GDPR consent KAN-193 shipped) **and** the recipient is entitled **and** `SOVRN_API_KEY` is set. |
-| `AGE_VERIFICATION_REQUIRED` | _(unset = off)_ | KAN-319: env-wide age-gate switch. When `true`, a profile can publish only if `age_status='passed'`. |
-| `AGE_GATE_PAUSED` | _(unset = NOT paused)_ | **KAN-404, TEST-ONLY, security-sensitive.** Reversible pause for the age gate: when **exactly** `true`, `isAgeVerificationRequired()` returns `false` even if `AGE_VERIFICATION_REQUIRED=true`, relaxing every publish path at the single chokepoint in `src/lib/age/gate.ts`. Fail-safe: any absence/typo/empty/other value = NOT paused (gate stays on). **Never set on prod. Unset before any real user traffic.** |
-| `DIDIT_API_KEY` | _(unset = dormant)_ | KAN-282: Didit age-estimation API key. With this + `DIDIT_WORKFLOW_ID` set, `/verify-age` runs the real hosted selfie flow; unset → the page shows "coming soon" (feature inert). |
-| `DIDIT_WORKFLOW_ID` | _(unset)_ | KAN-282: the Didit workflow (age estimation + ID fallback). |
-| `DIDIT_WEBHOOK_SECRET` | _(unset)_ | KAN-282: HMAC secret for verifying the `/api/age/didit/webhook` signature. Without it the webhook rejects all calls (fail-closed). |
-| `DIDIT_API_BASE` | `https://verification.didit.me` | KAN-282: override the Didit API base if needed. |
+| `AGE_VERIFICATION_REQUIRED` | _(retired 2026-07-20)_ | **Unused.** The age publish-gate was removed; nothing reads this. Unset it. |
+| `AGE_GATE_PAUSED` | _(retired 2026-07-20)_ | **Unused.** Paused a gate that no longer exists. Unset it. |
+| `DIDIT_API_KEY` | _(retired 2026-07-20)_ | **Unused** — Didit integration dormant. Unset it and revoke the credential. |
+| `DIDIT_WORKFLOW_ID` | _(retired 2026-07-20)_ | **Unused** — Didit integration dormant. Unset it and revoke the credential. |
+| `DIDIT_WEBHOOK_SECRET` | _(retired 2026-07-20)_ | **Unused** — Didit integration dormant. Unset it and revoke the credential. |
+| `DIDIT_API_BASE` | _(retired 2026-07-20)_ | **Unused** — Didit integration dormant. Unset it and revoke the credential. |
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
@@ -102,21 +102,63 @@ Per-user feature toggles live in `feature_entitlements` (see above); a feature i
 
 > **Ops note:** admin **bulk** actions fire a native `confirm("<action> — N users?")` dialog before applying; single-user actions (entitlements, age override, suspend, publish) do not. The bulk transitions live only in the `/admin/users` bulk bar — `/admin/beta-queue` simply redirects to `/admin/users?stage=waitlist`.
 
-### Age verification (KAN-282 / KAN-319) — live on production 2026-06-23
+### Age: 18+ self-declaration (replaced the Didit check, 2026-07-20)
 
-Lyra is an adults-only (18+) service; publishing is gated behind an age check.
+Lyra is an adults-only (18+) service. Age is established by a **self-declaration
+at sign-up**, not by a provider check and not by a publish-time gate.
 
-**The gate.** When `AGE_VERIFICATION_REQUIRED=true` (Production), a profile may be published only if `age_status='passed'`. Enforced on **both** publish paths (`publishProfile()` and the allow-listed `is_published` field update) in `src/app/dashboard/profile/actions.ts`, via `canPublishWithAge()` in `src/lib/age/gate.ts`. Flag unset → the gate is a no-op.
+**The question.** `/signup` asks "I confirm I am 18 or over" above *both*
+account-creation paths. The tick is required to proceed: the email form's submit
+and the "Continue with Google" button are disabled until it's set
+(`src/app/(auth)/signup/signup-form.tsx` — this is why that block is a client
+component), and `signUp()` re-checks it server-side so a hand-crafted POST can't
+skip it.
 
-`age_status` (`profiles.age_status`): `none` (default) · `pending` (in-flight) · `passed` (≥18 confirmed — may publish) · `failed` (<18 / declined) · `manual_review` (borderline 18–22, or provider "in review").
+**Carrying it.** The email path puts the declaration in `user_metadata`
+(`age_declared_18: true`) *and* an httpOnly cookie; the Google path has no form
+to carry it, so it uses the cookie alone — the same mechanism KAN-337 uses for
+the beta-invite code.
 
-**The Didit flow.** `/verify-age` (logged-in, unverified) → **Start age check** → `createAgeSession()` POSTs to Didit (`/v3/session/`) with the profile id as `vendor_data` → user is redirected to Didit's **hosted selfie** flow (facial age estimation). **Lyra never receives or stores a selfie or DOB — only a yes/no age signal.** Didit posts the signed decision to **`/api/age/didit/webhook`**; the handler verifies the HMAC signature, maps the decision (`mapDecisionToAgeStatus`: ≥23 → `passed`, 18–22 → `manual_review`, <18/declined → `failed`) and persists `age_status` (idempotent; non-terminal `pending` is ignored). `/verify-age/callback` confirms server-side too.
+**Recording it.** `resolvePostLoginRedirect()` (`src/lib/auth/post-login-redirect.ts`)
+is the shared chokepoint for both auth routes, so it stamps
+`profiles.age_declared_18_at` once, via the service role. It **degrades open**:
+the check is wrapped in try/catch because an attestation must never be able to
+lock users out of sign-in.
 
-- **Config:** `DIDIT_API_KEY` + `DIDIT_WORKFLOW_ID` (+ `DIDIT_WEBHOOK_SECRET`, optional `DIDIT_API_BASE`). With the first two set, `isDiditConfigured()` is true and the real flow runs; unset → `/verify-age` shows "coming soon".
-- **Webhook:** subscribe Didit to the **verification status / decision** event (Approved / Declined / In Review) → `https://checklyra.com/api/age/didit/webhook`; the signing secret must equal `DIDIT_WEBHOOK_SECRET` (fail-closed if absent).
-- **Admin override:** `/admin/users/[slug]` has audited age-status buttons (`none`/`pending`/`passed`/`failed`/`manual_review`) — the manual path for borderline / `manual_review` cases (writes `age_provider='admin_override'`, logs to `moderation_logs`).
+**The backstop.** `signInWithGoogle` is shared with `/login`, and OAuth always
+creates the user if they don't exist — so a brand-new Google account can reach a
+session without ever seeing the sign-up form. Anyone who arrives with no
+declaration on record (that case, or an account predating this) is diverted to
+**`/confirm-age`**, a one-question page, before reaching the dashboard. This is
+what makes the 18+ question a real gate rather than a checkbox on one of two
+routes. `/confirm-age` is exempt from the beta gate in `middleware.ts` so a
+waitlisted user is asked before the waitlist bounce, not after.
 
-**Production rollout (2026-06-23):** Didit secrets set on the Production Vercel scope, `AGE_VERIFICATION_REQUIRED=true`, shipped via the standard `develop → … → main` promotion. **Prebuilt-deployment note:** prod runs prebuilt deployments, so env-var changes only take effect on the **next** production release (the prod build bakes them in) — set the gate/secrets *before* the final promote, never expecting a live toggle.
+**What is NOT collected:** no date of birth, no identity document, no selfie, no
+biometric, no age band. `age_declared_18_at` is a bare timestamp. Retiring the
+provider check removed Lyra's **only** Article 9 special-category processing —
+see `docs/compliance/DPIA.md`.
+
+**Not a security control.** A self-declaration is by construction something any
+user can assert. Do not gate anything sensitive on `age_declared_18_at`; it is
+evidence that the 18+ rule was put to the user and affirmed, nothing more. It is
+deliberately absent from `ALLOWED_PROFILE_FIELDS`, so the profile update action
+cannot write it.
+
+**Dormant Didit code.** The provider integration (`src/lib/age/didit.ts`,
+`age-service.ts`, `/api/age/didit/webhook`, `/verify-age/callback`) is **left in
+the repo, unreferenced**, so the decision is reversible. `/verify-age` is now a
+redirect to `/dashboard/profile` rather than a 404, for old links. The legacy
+columns (`age_status`, `age_checked_at`, `age_provider`, `age_provider_ref`)
+remain in `profiles`, unused — dropping them is destructive and needs its own
+sign-off.
+
+**Retired env vars** — unset these; nothing reads them any more:
+`AGE_VERIFICATION_REQUIRED`, `AGE_GATE_PAUSED`, `DIDIT_API_KEY`,
+`DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET`, `DIDIT_API_BASE` (Vercel, all
+scopes) and `AGE_VERIFICATION_REQUIRED` on both Railway MCP services. The MCP
+server's mirrored publish gate (`requireAgeVerifiedToPublish`) was removed in
+lockstep.
 
 ## CI/CD Pipeline
 

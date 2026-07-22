@@ -42,13 +42,20 @@ processing). Founder is the accountable data-protection lead.
 - **Retention:** while account active / published; removed on unpublish or deletion.
 - **Recipients/processors:** Supabase (DB + Storage for media), Vercel, Cloudflare.
 
-### P3 — Age assurance (Online Safety Act)
-- **Personal data:** age-check result (`age_status`), age band (`age_range`), provider reference (`age_provider_ref`), timestamp. The **biometric selfie itself is processed by the provider (Didit), not stored by Lyra** — Lyra receives only pass/fail + band.
-- **Purpose:** verify the user is 18+ before publishing (OSA / platform policy).
-- **Lawful basis:** Art. 6(1)(c) **legal obligation** (age assurance under the Online Safety Act) and/or Art. 6(1)(f) legitimate interests (child-safety). Provider's biometric step relies on the user's explicit consent captured by the provider.
-- **Special category:** the selfie is biometric (Art. 9) **at the provider**; Lyra's stored result is not biometric. Confirm Didit's Art. 9 basis (explicit consent) in their DPA.
-- **Retention:** result retained while account active (proof of assurance); provider retention per Didit's policy — confirm and record.
-- **Recipients/processors:** Didit (age-verification provider), Supabase.
+### P3 — 18+ self-declaration
+> **Changed 2026-07-20.** This activity previously described a provider-run
+> biometric facial age-estimation (Didit). That check has been **removed**. Lyra
+> no longer sends any image to an age-assurance provider, no longer receives a
+> pass/fail result or age band, and no longer has Didit as a processor. The
+> removal eliminated Lyra's **only** Article 9 special-category processing.
+
+- **Personal data:** a single timestamp (`profiles.age_declared_18_at`) recording that the user confirmed they are 18 or over, and when. No date of birth, no age band, no document, no image, no biometric.
+- **Purpose:** apply and evidence Lyra's adults-only (18+) rule.
+- **Lawful basis:** Art. 6(1)(b) **contract** — being 18+ is a term of service (see /terms), so recording the user's confirmation is necessary to provide the service on those terms. Supported by Art. 6(1)(f) legitimate interests (keeping an adults-only service adults-only).
+- **Special category:** **none.** No Art. 9 data is processed for this activity, or anywhere else in Lyra.
+- **Retention:** while the account is active; removed with the account.
+- **Recipients/processors:** Supabase only.
+- **Note on the Online Safety Act:** the previous entry claimed Art. 6(1)(c) legal obligation citing the OSA. Lyra does not host pornography or "primary priority content", so the OSA's *highly effective age assurance* duty is not the driver here — the 18+ rule is Lyra's own contractual term. **Confirm this characterisation with a data-protection adviser before relying on it** (see FOUNDER_CHECKLIST.md).
 
 ### P4 — Convene: contacts, calendars & gatherings
 - **Personal data:** contact names + contact methods (email/phone) of **third parties**; Google Calendar busy/free times via OAuth; encrypted OAuth refresh token; gathering details, invitees, RSVPs.

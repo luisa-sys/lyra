@@ -18,7 +18,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { RATE_LIMITS } from '@/lib/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
 import {
   validateRegisterInput,
   createOauthClient,
@@ -29,12 +30,10 @@ export async function POST(req: NextRequest) {
   // SEC-19 / F-05: per-IP rate limit. DCR is unauthenticated and inserts an
   // oauth_clients row per call — cap it to stop DB-flooding and phishing-client
   // seeding on the Lyra-branded consent screen.
-  const ip =
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown';
-  const { limited, retryAfter } = rateLimit(`oauth-register:${ip}`, RATE_LIMITS.oauthRegister);
+  // SEC-62: now backed by the SHARED store so the cap holds across serverless
+  // instances (falls back to the in-memory limiter if the store is down).
+  const ip = clientIpFromHeaders(req.headers);
+  const { limited, retryAfter } = await sharedRateLimit(`oauth-register:${ip}`, RATE_LIMITS.oauthRegister);
   if (limited) {
     return NextResponse.json(
       { error: 'too_many_requests', error_description: 'Too many client registrations. Please try again later.' },
