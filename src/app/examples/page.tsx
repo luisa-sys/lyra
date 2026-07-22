@@ -2,8 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isProdDeploy } from "@/lib/beta-access/flow";
 
 /**
@@ -45,7 +44,8 @@ interface ExampleProfile {
 }
 
 function getSupabase() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  // KAN-352: the service-role client must come from the one hardened factory.
+  return createServiceRoleClient();
 }
 
 async function getExampleProfiles(): Promise<ExampleProfile[]> {
