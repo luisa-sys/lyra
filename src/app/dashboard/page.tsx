@@ -7,7 +7,6 @@ import ShareBeta from './share-beta';
 import DashboardWidgets, { type WidgetContext } from './widgets/dashboard-widgets';
 import { betaInviteLink, publicSignupUrl } from '@/lib/beta-access/invite-link';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
-import { canPublishWithAge } from '@/lib/age/gate';
 import { resolveWidgets, resolveOnboardingState } from '@/lib/dashboard/resolve-widgets';
 import { dismissedForState, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
 import { computeProfileCompletion } from '@/lib/dashboard/profile-completion';
@@ -36,10 +35,6 @@ export default async function DashboardPage() {
   // stay hidden until Convene is enabled (beta).
   const conveneEnabled = await isConveneEnabledForCurrentUser();
   const isPublished = !!profile?.is_published;
-  // KAN-326: publish-status hub — show the age step only when the gate blocks publishing.
-  const needsAgeCheck = !canPublishWithAge(
-    (profile as { age_status?: string | null } | null)?.age_status,
-  );
   // KAN-337 — beta-invite deep-link to share (null unless LYRA_INVITE_CODE is set).
   const inviteLink = betaInviteLink();
 
@@ -93,7 +88,6 @@ export default async function DashboardPage() {
   });
   const widgetCtx: WidgetContext = {
     state: widgetResolution.state,
-    canPublishAge: !needsAgeCheck,
     profileUrl: profile?.slug
       ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://checklyra.com'}/${profile.slug}`
       : null,
@@ -167,8 +161,8 @@ export default async function DashboardPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--color-muted)]">Status</span>
-              <span className={isPublished ? 'text-green-600' : needsAgeCheck ? 'text-amber-600' : 'text-[var(--color-muted)]'}>
-                {isPublished ? 'Public' : needsAgeCheck ? 'Age check' : 'Private'}
+              <span className={isPublished ? 'text-green-600' : 'text-[var(--color-muted)]'}>
+                {isPublished ? 'Public' : 'Private'}
               </span>
             </div>
           </div>

@@ -10,13 +10,11 @@
  * tokens — that's done separately via /oauth/revoke.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export interface ConsentRecord {

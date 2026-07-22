@@ -10,16 +10,14 @@
  * the JSON response to /oauth/token and the client's memory.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { randomBytes, createHash, randomUUID } from 'crypto';
 import { oauthConfig } from './config';
 import { issueAccessTokenJti } from './access-tokens';
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export function generateRefreshToken(): string {

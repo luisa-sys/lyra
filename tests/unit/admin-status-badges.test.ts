@@ -55,21 +55,14 @@ describe('accessBadge', () => {
   });
 });
 
-describe('publishBadge (public > age check > private)', () => {
-  it('published -> public regardless of age', () => {
-    expect(publishBadge({ is_published: true, age_status: 'none' }, true).label).toBe('public');
+// KAN-407: the publish-time age gate was removed, so the third "age check"
+// state is gone — a profile is public or private and age never blocks it.
+describe('publishBadge (public > private)', () => {
+  it('published -> public', () => {
+    expect(publishBadge({ is_published: true }).label).toBe('public');
   });
 
-  it('unpublished + gate on + not passed -> age check', () => {
-    expect(publishBadge({ is_published: false, age_status: 'none' }, true).label).toBe('age check');
-    expect(publishBadge({ is_published: false, age_status: 'pending' }, true).label).toBe('age check');
-  });
-
-  it('unpublished + gate on + passed -> private', () => {
-    expect(publishBadge({ is_published: false, age_status: 'passed' }, true).label).toBe('private');
-  });
-
-  it('unpublished + gate off -> private (age irrelevant)', () => {
-    expect(publishBadge({ is_published: false, age_status: 'none' }, false).label).toBe('private');
+  it('unpublished -> private', () => {
+    expect(publishBadge({ is_published: false }).label).toBe('private');
   });
 });

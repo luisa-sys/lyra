@@ -10,14 +10,11 @@
  *   - recordRsvpResponse: invitee accepts/declines/tentative
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { randomBytes } from 'crypto';
 
 function admin() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /** Base64url — 32 random bytes ≈ 43 chars. URL-safe (no /, +, =, padding). */
