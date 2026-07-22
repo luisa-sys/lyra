@@ -5,6 +5,7 @@ import { createClient as createServiceRoleClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase-server';
 import { env } from '@/lib/env';
 import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
+import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 
 /**
  * KAN-336 — redeem a skip-the-waitlist code from the /waitlist page.
@@ -39,11 +40,31 @@ export async function redeemWaitlistCode(formData: FormData): Promise<void> {
     redirect('/waitlist?error=invalid');
   }
 
+  // SEC-82: defence-in-depth — a suspended account must not be able to
+  // self-elevate to beta by pasting the code. Mirror the SEC-57 issuance guard
+  // and fail closed on anything other than confirmed good standing. (Middleware
+  // already routes a suspended user to /suspended, but that gate fails open on a
+  // lookup error; this narrow check does not.)
+  const standing = await getAccountStanding(supabase, user.id);
+  if (shouldRefuseIssuance(standing)) {
+    redirect('/waitlist?error=suspended');
+  }
+
   const svc = createServiceRoleClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
   const { update } = computeAccessTransition('enable_beta', {
     now: new Date().toISOString(),
   });
-  await svc.from('profiles').update(update).eq('user_id', user.id);
+  // SEC-82: don't swallow the grant failure. Previously the update error was
+  // ignored and the user was sent to /dashboard as if it had succeeded, so a
+  // failed grant produced a silently-still-waitlisted account with no signal.
+  const { error: grantError } = await svc
+    .from('profiles')
+    .update(update)
+    .eq('user_id', user.id);
+  if (grantError) {
+    console.error('[waitlist] beta grant failed:', grantError.message);
+    redirect('/waitlist?error=grant_failed');
+  }
 
   redirect('/dashboard');
 }
