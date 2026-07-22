@@ -16,18 +16,18 @@
  * gates remain the hard, fail-closed layer. (An admin-driven OFF is a written
  * row, which we DO honour.)
  */
-import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { getDeployEnv, type DeployEnv } from '@/lib/deploy-env';
 import {
   resolveGlobalSwitches,
   type GlobalFeatureKey,
 } from './global-features';
 
+// KAN-352: service-role construction MUST go through the one hardened factory
+// (createServiceRoleClient) — not an inline createClient — so the guard in
+// scripts/check-service-role-client.sh stays green. Mirrors entitlements-service.ts.
 function serviceClient() {
-  return createServiceClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /**
