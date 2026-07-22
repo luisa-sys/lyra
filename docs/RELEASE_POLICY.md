@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `develop` → `staging` | **Weekly, automatic** | Sunday 23:00 UTC | Forces the staging chain to run every week so `deploy-staging.yml` doesn't go a month without exercise. |
 | `staging` → `beta` | Manual | When ready to expose changes to beta testers | Beta hits real prod data, so the move beyond staging is a deliberate decision. |
-| `beta` → `main` | Manual | When beta has been exercised against real users | Highest blast radius. Always human-supervised. |
+| `beta` → `main` | Manual (narrow fix-only exception) | When beta has been exercised against real users | Highest blast radius. Human-supervised by default; a single owner-authorised exception lets the weekly routine auto-promote **fix-only** releases — see "What stays manual". |
 
 **The chain MUST be exercised at least weekly.** If `auto-promote-to-staging.yml` skips for any reason, the weekly report flags it red — see "Skip behaviour" below.
 
@@ -59,11 +59,51 @@ A skip is **not the same as a failure**. We never want a green-looking workflow 
 ## What stays manual
 
 - **`staging` → `beta`** — `gh workflow run promote-staging-to-beta.yml -f confirm=promote`. No cron. Decision made when beta-testable changes have soaked on staging.
-- **`beta` → `main` (production)** — `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`. No cron, ever. This is the highest-blast-radius decision in the entire project.
+- **`beta` → `main` (production)** — `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`. This is the highest-blast-radius decision in the entire project. **There is no scheduled/auto-promote-to-production workflow** — production is only ever promoted by an explicit `workflow_dispatch` of `promote-to-production.yml` (typing `PRODUCTION` to confirm).
 
 The reasoning is asymmetric:
 - Auto-promote to **staging** is safe — staging is gated by Vercel SSO, no real users see it
-- Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users
+- Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users. This is why there is no cron and no standalone auto-promote-to-production workflow.
+
+### The one owner-authorised exception (fix-only, 2026-06-21)
+
+The default above ("features are manual, always human-supervised") has a single narrow exception, authorised by Luisa on 2026-06-21 and canonical in `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`:
+
+- The **weekly health + regression routine** MAY drive a `beta` → `main` promotion **only when *every* change pending on `develop` ahead of `main` is a bug-FIX** (a BUGS/SEC defect, `fix:`-type — no new feature, user-facing capability, route, table, MCP tool, or migration), with the full suite green through staging + beta.
+- If **any** pending change is a feature, or fix-vs-feature is ambiguous → the routine **STOPS and requires manual sign-off**.
+- Even in the exception, promotion still runs through the same `promote-to-production.yml` `workflow_dispatch` (built-in smoke + auto-rollback). The routine never pushes to `main`/`beta`/`staging` directly and there is still no scheduled auto-promote-to-production workflow.
+
+**Doc/code reconciliation (SEC-77, finding ci-drift-1):** the fix-only gate is **procedural** — it is applied by the routine agent reading the pending commit range, *not* by a machine-checked guard inside the workflow. `promote-to-production.yml` itself does not yet hard-fail on a pending `feat:` commit. Implementing that machine-checked fix-only guard (hard-fail on any non-`fix:` change in `main..beta`) is tracked as a follow-up hardening on SEC-77; until it lands, the exception's safety depends on the routine's own fix-only judgement plus the manual-dispatch confirmation.
+
+## Release-flow gate (SEC-86 Finding A)
+
+The `beta → main` merge in `promote-to-production.yml` is the highest-blast-radius, effectively irreversible action in the project. It is worth being precise about what gates it today:
+
+- The **`merge-and-push` job** performs the `git merge beta` + `git push origin main` (pushed with `LYRA_RELEASE_PAT` so the downstream `deploy-production.yml` fires — see CLAUDE.md gotcha #16). This job declares **no `environment:` block**.
+- The **`production` GitHub Environment** — the only place GitHub *required-reviewers* can attach — is referenced solely by `deploy-production.yml`'s `deploy-production` job, which runs **after** the merge to `main`.
+
+**Net residual:** any required-reviewers configured on the `production` Environment guard the Vercel *deploy*, not the *merge*. The sole gate on the irreversible merge is the typed `workflow_dispatch` input (`Type "PRODUCTION"`). Anyone with repo-write who can dispatch the workflow can land `beta` on `main` by typing the fixed string, with no second pair of eyes on the merge itself. Compensating controls that remain in force: `verify-source` (beta CI must be green at HEAD), SHA-matched production smoke tests, and `auto-rollback` on smoke failure.
+
+**Decision pending (Luisa):** either
+
+1. **Add a merge-time reviewer gate** — put `environment: production` on the `merge-and-push` job so required-reviewers fire *before* the merge. This adds a manual approval step to the solo-maintainer release flow (you approve your own dispatch), which may or may not be worth the friction; **or**
+2. **Accept the residual** — keep the typed-confirm gate as the merge control and rely on the compensating controls above.
+
+Either way, the `production` Environment's *required-reviewers* setting must be confirmed in **GitHub repo settings** (it is not verifiable from the workflow files).
+
+Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
+
+## Machine-checked fix-only auto-promote gate (SEC-77)
+
+There is one owner-authorised exception (2026-06-21) to "no cron, ever" on `beta → main`: the SEC-22 weekly health/regression routine MAY auto-promote to production **only when every change pending on `beta` ahead of `main` is a bug-FIX — never a feature** (see `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`). Until SEC-77 this "every pending change is a fix" condition was **procedural** — enforced only by the routine-agent's judgement, with nothing in the workflow to stop a feature slipping through and auto-shipping to a minors' platform unattended.
+
+It is now **machine-enforced**:
+
+- `promote-to-production.yml` takes a `promote_mode` input (`manual` default, or `auto-fix-only`). Both the manual feature release and the SEC-22 auto path share the one workflow; the input is what tells them apart.
+- In **`manual`** mode the gate is a no-op — a manual feature release is authorised by Luisa's typed `PRODUCTION` confirm, and features are expected.
+- In **`auto-fix-only`** mode the `merge-and-push` job runs `scripts/check-fix-only-promote.sh` **before** the irreversible `git merge beta` + `git push origin main`. The script inspects every non-merge commit in `origin/main..origin/beta` and **hard-fails** (blocking the merge, leaving `main` untouched) if any is a **feature** (`feat`), a **breaking change** (`<type>!:`), or **anything without an unambiguous non-feature conventional-commit type**. Merge commits are skipped; an empty range fails closed.
+- The fallback on a hard fail is exactly the policy's prescribed one: **stop the auto-promote and require manual sign-off** (re-dispatch without `promote_mode=auto-fix-only`). A false positive therefore only forces a human — safe — while a false negative (a feature auto-ships) is the failure mode the gate biases hard against.
+- **Allow-list (the one policy knob):** the non-feature types treated as fix-only live in `ALLOWED_TYPES` at the top of `scripts/check-fix-only-promote.sh` (`fix revert docs chore ci build test style`). It deliberately errs strict — `perf`/`refactor` are treated as feature-class (they can change runtime behaviour) and force manual sign-off. Widen or narrow it only as a reviewed policy decision.
 
 ## Reference
 
@@ -75,3 +115,4 @@ The reasoning is asymmetric:
 - `.github/workflows/promote-to-staging.yml` — the manual workflow (auto-promote calls the same logic)
 - `.github/workflows/promote-to-production.yml` — direct-merge flow as of 2026-05-15 (BUGS-16 fix)
 - `.github/workflows/auto-promote-to-staging.yml` — the scheduled wrapper
+- `scripts/check-fix-only-promote.sh` — SEC-77 machine-checked fix-only gate for the `auto-fix-only` production promote (unit-tested in `tests/scripts/check-fix-only-promote.test.js`)
