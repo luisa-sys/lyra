@@ -19,6 +19,7 @@ import { getRecommendations } from '@/lib/recommend';
 import RecommendationsSection from './recommendations-section';
 import V2RecommendationsSection from './v2-recommendations-section';
 import ReportButton from './report-button';
+import { decodeSlug } from './slug-utils';
 import { headers } from 'next/headers';
 import { isIsoAlpha2, normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
@@ -81,7 +82,9 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  // Decode + NFC-normalise to match the stored slug (see PublicProfilePage).
+  const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
     .from('profiles')
@@ -170,7 +173,13 @@ function CardSection({ heading, items }: { heading: string; items: ProfileItem[]
 }
 
 export default async function PublicProfilePage({ params }: Props) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  // The dynamic route param arrives PERCENT-ENCODED for any non-ASCII slug
+  // (e.g. "rosa-martínez" → "rosa-mart%C3%ADnez"), so it must be decoded before
+  // the lookup — an undecoded "%C3%AD" never matches the stored "í" and the
+  // profile 404s. Slugs are stored in Unicode NFC, so normalise to NFC too so a
+  // decomposed (NFD) form still matches. ASCII slugs are unaffected (no-op).
+  const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
     .from('profiles')
