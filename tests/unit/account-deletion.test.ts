@@ -22,13 +22,16 @@ jest.mock('@/lib/supabase-server', () => ({
   }),
 }));
 
-// Service-role admin client: deletes the auth user + storage objects.
+// Service-role admin client: deletes the auth user + storage objects, and
+// (SEC-75 leg b) records the external-processor erasure obligation via RPC.
 const mockAdminDeleteUser = jest.fn();
 const mockStorageList = jest.fn();
 const mockStorageRemove = jest.fn();
+const mockRpc = jest.fn();
 jest.mock('@/lib/admin', () => ({
   getAdminServiceClient: () => ({
     auth: { admin: { deleteUser: (...a: unknown[]) => mockAdminDeleteUser(...a) } },
+    rpc: (...a: unknown[]) => mockRpc(...a),
     storage: {
       from: () => ({
         list: (...a: unknown[]) => mockStorageList(...a),
@@ -38,12 +41,21 @@ jest.mock('@/lib/admin', () => ({
   }),
 }));
 
+// SEC-75 leg (b) added a `@sentry/nextjs` import to the action for the
+// best-effort obligation-logging catch path. Mock it so the unit test doesn't
+// pull in Sentry's runtime (which needs network egress).
+const mockCaptureException = jest.fn();
+jest.mock('@sentry/nextjs', () => ({
+  captureException: (...a: unknown[]) => mockCaptureException(...a),
+}));
+
 import { deleteAccount } from '@/app/dashboard/settings/actions';
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123', email: 'a@b.com' } } });
   mockAdminDeleteUser.mockResolvedValue({ data: {}, error: null });
+  mockRpc.mockResolvedValue({ data: 'oblig-1', error: null });
   mockStorageList.mockResolvedValue({ data: [] });
   mockStorageRemove.mockResolvedValue({ error: null });
   mockSignOut.mockResolvedValue({ error: null });
@@ -83,6 +95,44 @@ describe('KAN-259: deleteAccount (true erasure)', () => {
     mockStorageList.mockRejectedValue(new Error('storage unavailable'));
     await expect(deleteAccount()).rejects.toThrow('REDIRECT');
     expect(mockAdminDeleteUser).toHaveBeenCalled();
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockRedirect).toHaveBeenLastCalledWith('/');
+  });
+});
+
+describe('SEC-75 leg (b): erasure-obligation recording', () => {
+  test('records an obligation for the deleted user with email + external processors', async () => {
+    await expect(deleteAccount()).rejects.toThrow('REDIRECT');
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    const [fn, args] = mockRpc.mock.calls[0];
+    expect(fn).toBe('record_erasure_obligation');
+    expect(args.p_subject_user_id).toBe('user-123');
+    expect(args.p_subject_email).toBe('a@b.com');
+    // Must name every external system that may still hold a copy.
+    expect(args.p_processors).toEqual(
+      expect.arrayContaining(['cloudflare_kv_waitlist', 'resend', 'didit', 'google']),
+    );
+    expect(typeof args.p_notes).toBe('string');
+  });
+
+  test('does NOT record an obligation when the auth deletion fails (nothing was erased)', async () => {
+    mockAdminDeleteUser.mockResolvedValue({ data: {}, error: { message: 'update or delete on table violates foreign key' } });
+    await expect(deleteAccount()).rejects.toThrow('REDIRECT');
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  test('a returned RPC error is captured to Sentry but does not block the erasure', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'insert failed' } });
+    await expect(deleteAccount()).rejects.toThrow('REDIRECT');
+    expect(mockCaptureException).toHaveBeenCalledTimes(1);
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockRedirect).toHaveBeenLastCalledWith('/');
+  });
+
+  test('a thrown RPC error is captured to Sentry but does not block the erasure', async () => {
+    mockRpc.mockRejectedValue(new Error('network down'));
+    await expect(deleteAccount()).rejects.toThrow('REDIRECT');
+    expect(mockCaptureException).toHaveBeenCalledTimes(1);
     expect(mockSignOut).toHaveBeenCalled();
     expect(mockRedirect).toHaveBeenLastCalledWith('/');
   });

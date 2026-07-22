@@ -20,6 +20,7 @@ import { adapterFor } from '@/lib/convene/calendar';
 import { getConnectionForUser } from '@/lib/convene/oauth-connections';
 import { generateRsvpToken, persistQueuedInvite, setInviteeRsvpToken } from '@/lib/convene/invites/repository';
 import { dispatchQueuedInvites } from '@/lib/convene/invites/dispatch';
+import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 
 type Result = { ok: true } | { ok: false; error: string };
 type SendSummary = { queued: number; sent: number; blocked_by_allowlist: number; failed: number };
@@ -225,6 +226,14 @@ export async function sendInvites(
   const userId = a.userId;
 
   const sb = admin();
+
+  // SEC-81 / SEC-57: a suspended host must not be able to emit invite emails.
+  // Mirror the credential-issuance guard (dashboard/settings/actions.ts) — fail
+  // CLOSED on anything other than a positively-confirmed good-standing account.
+  if (shouldRefuseIssuance(await getAccountStanding(sb, userId))) {
+    return { ok: false, error: 'Your account is suspended. Invites cannot be sent.' };
+  }
+
   // ownership-ok: host_user_id filter (KAN-306)
   const { data: g } = await sb
     .from('gatherings')
@@ -289,6 +298,12 @@ export async function resendInvite(inviteeId: string): Promise<Result> {
   const userId = a.userId;
 
   const sb = admin();
+
+  // SEC-81 / SEC-57: refuse a resend for a suspended host (fail closed).
+  if (shouldRefuseIssuance(await getAccountStanding(sb, userId))) {
+    return { ok: false, error: 'Your account is suspended. Invites cannot be sent.' };
+  }
+
   const { data: inv } = await sb
     .from('gathering_invitees')
     .select('id, gathering_id, status')
