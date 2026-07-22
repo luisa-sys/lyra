@@ -105,6 +105,38 @@ It is now **machine-enforced**:
 - The fallback on a hard fail is exactly the policy's prescribed one: **stop the auto-promote and require manual sign-off** (re-dispatch without `promote_mode=auto-fix-only`). A false positive therefore only forces a human — safe — while a false negative (a feature auto-ships) is the failure mode the gate biases hard against.
 - **Allow-list (the one policy knob):** the non-feature types treated as fix-only live in `ALLOWED_TYPES` at the top of `scripts/check-fix-only-promote.sh` (`fix revert docs chore ci build test style`). It deliberately errs strict — `perf`/`refactor` are treated as feature-class (they can change runtime behaviour) and force manual sign-off. Widen or narrow it only as a reviewed policy decision.
 
+## Release-flow gate (SEC-86 Finding A)
+
+The `beta → main` merge in `promote-to-production.yml` is the highest-blast-radius, effectively irreversible action in the project. It is worth being precise about what gates it today:
+
+- The **`merge-and-push` job** performs the `git merge beta` + `git push origin main` (pushed with `LYRA_RELEASE_PAT` so the downstream `deploy-production.yml` fires — see CLAUDE.md gotcha #16). This job declares **no `environment:` block**.
+- The **`production` GitHub Environment** — the only place GitHub *required-reviewers* can attach — is referenced solely by `deploy-production.yml`'s `deploy-production` job, which runs **after** the merge to `main`.
+
+**Net residual:** any required-reviewers configured on the `production` Environment guard the Vercel *deploy*, not the *merge*. The sole gate on the irreversible merge is the typed `workflow_dispatch` input (`Type "PRODUCTION"`). Anyone with repo-write who can dispatch the workflow can land `beta` on `main` by typing the fixed string, with no second pair of eyes on the merge itself. Compensating controls that remain in force: `verify-source` (beta CI must be green at HEAD), SHA-matched production smoke tests, and `auto-rollback` on smoke failure.
+
+**Decision pending (Luisa):** either
+
+1. **Add a merge-time reviewer gate** — put `environment: production` on the `merge-and-push` job so required-reviewers fire *before* the merge. This adds a manual approval step to the solo-maintainer release flow (you approve your own dispatch), which may or may not be worth the friction; **or**
+2. **Accept the residual** — keep the typed-confirm gate as the merge control and rely on the compensating controls above.
+
+Either way, the `production` Environment's *required-reviewers* setting must be confirmed in **GitHub repo settings** (it is not verifiable from the workflow files).
+
+Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
+
+## Credential / separation-of-duties residual (SEC-66)
+
+The same `merge-and-push` job that performs the `beta → main` merge authenticates its push with **`LYRA_RELEASE_PAT`** — a **long-lived, broad** personal-access token (Contents + Workflows: *write*, chosen so the push both lands on `main` and can carry workflow-file changes; see CLAUDE.md gotcha #16). Because the push is made *as that token*, it **structurally bypasses branch protection** on `main`:
+
+- Whoever (or whatever) holds the PAT can write **review-free** to production `main` and to workflow definitions across branches.
+- Compromise or misuse of the single secret yields direct, unreviewed write to the highest-blast-radius branch in the project — the separation-of-duties gap SEC-66 tracks.
+
+**The real fix is a credential + repo-settings change (Luisa's call), not a workflow-file edit:**
+
+1. Migrate the promote push to a **short-lived, fine-grained token** — a GitHub App installation token, or an expiring fine-grained PAT scoped to Contents + Workflows on this one repo only — so no long-lived broad credential sits in the release path; **and**
+2. Run the promote from a **protected GitHub Environment with a required reviewer**, so the merge push is backed by an approval gate rather than a static secret.
+
+`verify-release-pat.yml` remains the scope-drift canary for the current PAT, and rotation is recorded in `docs/SECURITY_ROTATION.md`. Because the fix lives in credentials and repo settings (not the workflow YAML), the residual is kept **explicit and non-expanding** by `scripts/check-workflow-integrity.sh` **Pattern 6**: any workflow that runs `git push origin main` while referencing `secrets.LYRA_RELEASE_PAT` must carry an `# integrity-ok: sec-66` waiver. This pins the broad-PAT-to-main path to its single audited location (`promote-to-production.yml`'s `merge-and-push` job) and fails CI if a *new* workflow starts pushing to `main` with the broad PAT without that being a documented, reviewed decision. The waiver is **decision-neutral** — like Pattern 5a it does not force a particular fix, only surfaces the residual until SEC-66 is resolved.
+
 ## Reference
 
 - KAN-173 (this policy): <https://checklyra.atlassian.net/browse/KAN-173>

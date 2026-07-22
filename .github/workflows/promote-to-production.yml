@@ -165,6 +165,18 @@ jobs:
   # check-workflow-integrity.sh Pattern 5 keeps this gap explicit and pins the
   # typed-confirm control so it can never be silently removed.
   # integrity-ok: sec-86 residual documented in docs/RELEASE_POLICY.md; typed-confirm gate preserved; merge-time reviewer upgrade is a pending Luisa decision.
+  #
+  # SEC-66 (separation-of-duties) — DOCUMENTED RESIDUAL, decision pending Luisa.
+  # The push below authenticates with LYRA_RELEASE_PAT, a long-lived broad token
+  # (Contents + Workflows: write). A push made with that PAT bypasses branch
+  # protection on main — the token holder can write review-free to prod `main`
+  # and to workflow definitions. The real fix (short-lived fine-grained GitHub
+  # App / expiring PAT + protected Environment with a required reviewer) is a
+  # credentials/repo-settings change and is Luisa's call; it cannot be expressed
+  # in this workflow file. check-workflow-integrity.sh Pattern 6 keeps this
+  # broad-PAT-to-main path explicit and pinned to this single audited location.
+  # See docs/RELEASE_POLICY.md -> "Credential / separation-of-duties residual (SEC-66)".
+  # integrity-ok: sec-66 broad-PAT push-to-main is a documented SoD residual pending the fine-grained-token + protected-Environment fix (Luisa decision).
   merge-and-push:
     name: Merge beta → main
     needs: verify-source

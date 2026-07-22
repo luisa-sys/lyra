@@ -184,6 +184,43 @@ for f in "$WORKFLOW_DIR"/*.yml; do
   fi
 done
 
+# ── Pattern 6: broad long-lived PAT pushing to main (SEC-66 / separation-of-duties) ──
+# Sibling of Pattern 5 on the SAME merge-and-push job. The beta -> main promote
+# pushes with LYRA_RELEASE_PAT — a long-lived, broad token (Contents +
+# Workflows: write). A push authenticated by that PAT structurally bypasses
+# branch protection on main: whoever (or whatever) holds the token can write
+# review-free to prod `main` and to workflow definitions across branches. That
+# is the separation-of-duties gap SEC-66 tracks.
+#
+# The *real* fix is a credential/repo-settings change that is Luisa's call:
+# migrate to a short-lived, fine-grained GitHub App installation token (or an
+# expiring fine-grained PAT with minimal repo selection) and run the promote
+# from a protected Environment with a required reviewer. That cannot be
+# expressed in a workflow file alone, so — exactly like Pattern 5a — this check
+# is waiver-based and decision-neutral: it does not force a particular fix, it
+# only makes the residual EXPLICIT and NON-EXPANDING.
+#
+# Invariant: any workflow that runs `git push origin main` while referencing
+# `secrets.LYRA_RELEASE_PAT` must carry an explicit `# integrity-ok: sec-66`
+# waiver documenting the SoD residual. This pins the broad-PAT-to-main path to
+# its single audited location (promote-to-production.yml's merge-and-push job)
+# and fails CI if a NEW workflow starts pushing to main with the broad PAT
+# without that being a documented, reviewed decision.
+# See docs/RELEASE_POLICY.md -> "Credential / separation-of-duties residual (SEC-66)".
+for f in "$WORKFLOW_DIR"/*.yml; do
+  [ -f "$f" ] || continue
+
+  if grep -qE 'git push origin main([^a-zA-Z0-9_-]|$)' "$f" \
+     && grep -qE 'secrets\.LYRA_RELEASE_PAT' "$f"; then
+    if ! grep -qiE '# integrity-ok:.*sec-66' "$f"; then
+      echo "::error file=$f::Pattern 6: pushes to main using the broad long-lived LYRA_RELEASE_PAT, bypassing branch protection, with no documented SoD residual."
+      echo "    The push-to-main path must use a short-lived fine-grained token behind a protected Environment (SEC-66),"
+      echo "    OR the residual must be documented in docs/RELEASE_POLICY.md and allow-listed with '# integrity-ok: sec-66 <reason>'."
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+  fi
+done
+
 echo ""
 if [ "$PROBLEMS" -eq 0 ]; then
   echo "✓ No workflow integrity issues found"
