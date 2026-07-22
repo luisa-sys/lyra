@@ -37,11 +37,24 @@ This file contains instructions and policies that Claude must follow when workin
 Before starting any task, Claude must:
 
 1. **Check Jira** — confirm a ticket exists for the work, or create one. Never start work without a tracked ticket.
-2. **Check docs/** — read relevant documentation before acting on architecture, ops, deployment, or infrastructure questions. Key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md.
+2. **Check the wiki index first, then docs/** — the Confluence wiki index **_Lyra — System Documentation_** (space TWC, page `19922947`) is the **definitive source of truth** for architecture, operations, security, and compliance. **Read it FIRST** before any architecture, ops, deployment, infrastructure, or security work — it is the sectioned map to every authoritative page (System & Architecture, Operations & Runbooks, Security & Risk, Data Protection & Compliance, Routines & Automation). The repo `docs/` holds _mirrored copies_ of the critical runbook/compliance elements for CI and offline use — key docs: ARCHITECTURE.md, RUNBOOK.md, JIRA_TICKET_STANDARD.md, SECURITY_ROTATION.md. If the code and a wiki page disagree, fix the page (the KAN-359 Documentation Definition-of-Done). Wiki professionalisation is tracked under KAN-360.
 3. **Check for existing work** — search the codebase and recent PRs to avoid duplicating effort.
 4. **Run tests before and after** — every change must leave tests green.
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
+7. **Plan the doc footprint** — identify up front which system-map / wiki pages the work will touch (Architecture & Infrastructure, Data Model & Security) per the **Documentation Definition-of-Done** below. Docs are part of "done", not a follow-up ticket.
+
+## Documentation Definition-of-Done (KAN-359)
+
+Docs are part of "done", not a separate ticket. **Before closing any epic — and on every feature PR — confirm:**
+
+- [ ] Live **system map** updated where affected — Confluence **Architecture & Infrastructure** and/or **Data Model & Security** (+ repo `docs/` mirrors such as `ARCHITECTURE.md`): any new/changed service, table, env var, route, scheduled job, or security boundary.
+- [ ] Any **design decision** recorded as an ADR and linked from the epic.
+- [ ] **Jira ↔ wiki** cross-linked — the epic cites the wiki page(s); the page cites the Jira key.
+- [ ] **`docs/TEST_AUDIT_2026Q2.md`** refreshed if test gates, floors, or coverage changed.
+- [ ] PR-template item _"Docs / system map updated — or N/A with reason"_ ticked honestly.
+
+`N/A` is acceptable for pure logic/test/infra-only changes, but must state why. Full runbook version: `docs/RUNBOOK.md` → "Documentation Definition-of-Done". Watched by the `DOC_SYNC_HEALTHCHECK_ROUTINE` and guarded by `tests/unit/doc-dod.test.js`.
 
 ## Parallel Claude sessions — use git worktrees
 
@@ -428,6 +441,8 @@ These have caused real bugs. Read before making related changes:
     **Fix when CLI auth works**: use the Vercel REST API to trigger a redeploy on the latest preview deployment (POST `/v13/deployments` with `deploymentId` + `gitMetadata`). Mid-2026 the Vercel CLI auth token has been unstable (auto-invalidated between sessions), so a chore PR is often faster.
 
     First hit: KAN-209 (2026-05-17) after adding `RESEND_API_KEY` to develop scope — invite dispatcher kept failing with `RESEND_API_KEY not set` until a doc-only chore PR triggered a redeploy. Second hit: KAN-88 (2026-05-17) `OAUTH_JWT_SIGNING_SECRET` — same fix. **Bake the chore-PR-to-redeploy pattern in any time you set a branch-scoped env var as part of getting a feature live on dev.**
+
+22. **Next.js `loading.tsx` can permanently hide streamed content on a hard load**: A route segment's `loading.tsx` creates a Suspense boundary whose streamed content can fail to reveal on a hard page load (direct URL visit or refresh) on some deployed builds (confirmed on Next 16.2.6) — the real page content stays inside React's hidden streaming holder (`<div hidden>`) while the loading skeleton shows, so the page renders blank except the site-wide footer. Client-side navigation into the same route is unaffected (no fresh Suspense boundary), which makes the bug easy to miss in normal manual testing. Discovered 2026-07-03: this blanked the ENTIRE `/dashboard` segment (not just widget-specific code) on hard load/refresh — confirmed in-browser; service worker, CSP, and PPR were ruled out as causes. Tracked under BUGS-63, fixed in PR #424 by removing the segment's `loading.tsx` (trade-off: no instant skeleton during the async render, acceptable vs. a blank dashboard). **If a route with a `loading.tsx` renders blank on a hard load but works fine via client-side navigation, suspect this first.** Deeper root cause (likely a Next 16 streaming / `@sentry/nextjs` interaction) is an open follow-up.
 
 ## Supabase Migration Rules
 

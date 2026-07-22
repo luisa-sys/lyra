@@ -9,9 +9,8 @@
  * cookie session) auth — currently just the queue-drain endpoint, but
  * we'll grow more admin tools later (resend-failed-invites, etc.).
  */
-import { createClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { createHash } from 'crypto';
-import { env } from '@/lib/env';
 
 export interface BearerAuthResult {
   ok: true;
@@ -25,9 +24,7 @@ export interface BearerAuthError {
 }
 
 function admin() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export async function authenticateBearerApiKey(

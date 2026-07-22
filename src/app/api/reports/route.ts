@@ -112,6 +112,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'cannot_report_self' }, { status: 400 });
   }
 
+  // 3b. SEC-82: if the report narrows to a specific item, that item must
+  // actually belong to the target profile. `profileItemId` is only
+  // shape-validated as a UUID above; without this check a reporter could
+  // attach an item id from a *different* profile, producing a mismatched
+  // moderation row (profile_id=A, profile_item_id=B) that corrupts the queue
+  // and confuses moderators. Reject the mismatch rather than silently drop the
+  // item id, so the client learns the report was malformed.
+  if (profileItemId !== null) {
+    const { data: item } = await supabase
+      .from('profile_items')
+      .select('id, profile_id')
+      .eq('id', profileItemId)
+      .maybeSingle();
+    if (!item || item.profile_id !== profile.id) {
+      return NextResponse.json({ error: 'item_not_on_profile' }, { status: 400 });
+    }
+  }
+
   // 4. Rate-limit: one report per (reporter, target profile) per 24h.
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: recentCount } = await supabase

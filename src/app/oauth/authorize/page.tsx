@@ -14,6 +14,7 @@ import { createClient as createSupabaseServer } from '@/lib/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/lib/oauth/authorize';
 import { getAccountStanding } from '@/lib/account-status';
 import { getConsent } from '@/lib/oauth/consents';
+import { clientTrust, redirectHost } from '@/lib/oauth/client-trust';
 import { submitConsent, switchAccountAndContinue } from './actions';
 import type { Metadata } from 'next';
 
@@ -125,12 +126,65 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   currentAuthorizeUrl.searchParams.set('code_challenge_method', req.codeChallengeMethod);
   const authorizePathWithQuery = currentAuthorizeUrl.pathname + currentAuthorizeUrl.search;
 
+  // SEC-76 (web-oauth-7) — DCR anti-phishing. client_name is self-asserted at
+  // registration (RFC 7591), so a phishing client can call itself "Lyra
+  // Official". Surface a verified/unverified badge + the real redirect host so
+  // the user can tell a look-alike apart before granting access.
+  const trust = clientTrust(req.client.is_first_party);
+  const returnHost = redirectHost(req.redirectUri);
+
   // Show the consent screen.
   return (
     <main style={{ maxWidth: 560, margin: '64px auto', padding: '0 24px', fontFamily: 'system-ui' }}>
       <h1 style={{ fontSize: 24, marginBottom: 8 }}>Authorize access</h1>
       <p style={{ color: '#555' }}>
         <strong>{req.client.client_name}</strong> wants access to your Lyra account.
+      </p>
+
+      {/*
+        SEC-76 (web-oauth-7) — DCR anti-phishing badge. client_name above is
+        chosen by the app at registration and does not prove its identity.
+      */}
+      <p style={{ margin: '4px 0 0' }}>
+        <span
+          data-testid="client-trust-badge"
+          style={{
+            display: 'inline-block',
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '2px 10px',
+            borderRadius: 999,
+            background: trust.verified ? '#e7f4ea' : '#fdecea',
+            color: trust.verified ? '#1e5631' : '#a3271b',
+            border: `1px solid ${trust.verified ? '#a6d8b4' : '#e6a6a0'}`,
+          }}
+        >
+          {trust.verified ? `✓ ${trust.label}` : `⚠ ${trust.label}`}
+        </span>
+      </p>
+
+      {!trust.verified && (
+        <div
+          data-testid="unverified-client-warning"
+          style={{
+            background: '#fdecea',
+            border: '1px solid #e6a6a0',
+            padding: 12,
+            borderRadius: 8,
+            margin: '12px 0 0',
+            fontSize: 13,
+            color: '#7a2018',
+          }}
+        >
+          This app registered itself and has not been verified by Lyra. The name
+          above is chosen by the app and does not prove its identity — only
+          continue if you recognise and trust it.
+        </div>
+      )}
+
+      <p style={{ fontSize: 13, color: '#555', margin: '12px 0 0' }}>
+        After you allow, you&apos;ll be returned to{' '}
+        <strong style={{ fontFamily: 'monospace' }}>{returnHost}</strong>.
       </p>
 
       {/*

@@ -32,13 +32,14 @@ export function accessBadge(tier: 'beta' | 'prod'): Badge {
     : { label: 'beta', cls: 'bg-violet-50 text-violet-700' };
 }
 
-/** Publish status (computed): public > age check > private. */
-export function publishBadge(
-  u: { is_published: boolean; age_status: string | null },
-  ageGateOn: boolean,
-): Badge {
-  if (u.is_published) return { label: 'public', cls: 'bg-green-50 text-green-700' };
-  if (ageGateOn && u.age_status !== 'passed')
-    return { label: 'age check', cls: 'bg-amber-50 text-amber-700' };
-  return { label: 'private', cls: 'bg-[#f4efe7] text-[var(--color-muted)]' };
+/**
+ * Publish status (computed): public > private.
+ *
+ * The former "age check" state is gone: age is a self-declaration at sign-up,
+ * not a publish-time gate, so nothing blocks a profile from going public.
+ */
+export function publishBadge(u: { is_published: boolean }): Badge {
+  return u.is_published
+    ? { label: 'public', cls: 'bg-green-50 text-green-700' }
+    : { label: 'private', cls: 'bg-[#f4efe7] text-[var(--color-muted)]' };
 }

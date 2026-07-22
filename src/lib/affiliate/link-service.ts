@@ -32,8 +32,7 @@
  *      links work end-to-end.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import {
   buildSubId,
   type AffiliateClickSource,
@@ -86,7 +85,7 @@ type ProviderOutcome =
 
 /** Service-role Supabase client — server-side only. */
 function getServiceClient() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 /**

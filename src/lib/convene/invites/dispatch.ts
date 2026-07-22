@@ -13,8 +13,8 @@
  * vercel.json) AND can be invoked one-shot from an admin tool later.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { sendInviteEmail, type SendResult } from './email';
 import { sendTwilioMessage, type SendResult as TwilioSendResult } from './twilio';
 import { buildICS } from './ics';
@@ -25,6 +25,7 @@ import {
 } from './templates';
 import { renderSmsBody } from './sms-templates';
 import { isFeatureEnabledByUserId } from '@/lib/features/entitlements-service';
+import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;
@@ -77,9 +78,7 @@ interface JoinedContext {
 }
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /**
@@ -444,6 +443,17 @@ export async function dispatchQueuedInvites(
   // When hostUserId is given, narrow to that user's gatherings only.
   // The MCP admin tool relies on this so one user can't drain another's queue.
   let gatheringIds: string[] | null = null;
+  if (opts.hostUserId) {
+    // SEC-81 / SEC-57 defence-in-depth: refuse to drain a suspended host's
+    // queued invites (this is the per-host path used by the web actions and the
+    // MCP drain tool). Fail CLOSED — a lookup error also refuses. The global
+    // cron drain (no hostUserId) is unaffected; per-host refusal at the two
+    // server actions is the primary gate.
+    if (shouldRefuseIssuance(await getAccountStanding(sb, opts.hostUserId))) {
+      summary.errors.push('host suspended — dispatch refused (SEC-81)');
+      return summary;
+    }
+  }
   if (opts.hostUserId) {
     const { data: gatherings, error: gErr } = await sb
       .from('gatherings')

@@ -17,9 +17,9 @@
     "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.59.0",
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.108.2",
+    "@sentry/nextjs": "^10.66.0",
+    "@supabase/ssr": "^0.12.3",
+    "@supabase/supabase-js": "^2.110.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
@@ -28,12 +28,12 @@
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.3",
+    "@axe-core/playwright": "^4.12.1",
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.61.1",
-    "@swc/core": "^1.15.41",
+    "@swc/core": "^1.15.46",
     "@swc/jest": "^0.2.39",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -41,10 +41,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "^16.2.10",
     "jest": "^30.4.2",
     "next-router-mock": "^1.0.5",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.2",
     "ts-jest": "^29.4.6",
     "typescript": "^5"
   },

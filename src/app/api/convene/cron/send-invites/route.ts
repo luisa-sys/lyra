@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { dispatchQueuedInvites } from '@/lib/convene/invites/dispatch';
+import { timingSafeStrEqual } from '@/lib/convene/cron-auth';
 
 export const maxDuration = 60; // seconds
 
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
 
   const authHeader = req.headers.get('authorization');
   const expected = process.env.CRON_SECRET;
-  if (!expected || authHeader !== `Bearer ${expected}`) {
+  const expectedHeader = `Bearer ${expected}`;
+  if (!expected || !timingSafeStrEqual(authHeader, expectedHeader)) {
     return NextResponse.json({ ok: false, error: 'unauthorised' }, { status: 401 });
   }
 

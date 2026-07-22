@@ -10,8 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { upsertConnection } from '@/lib/convene/oauth-connections';
 import {
@@ -56,9 +55,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'missing_code_or_state' }, { status: 400 });
   }
 
-  const admin = createSupabaseAdmin(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  const admin = createServiceRoleClient();
 
   // ownership-ok: state token is unguessable + single-use (KAN-211)
   const { data: stateRow, error: stateErr } = await admin
@@ -86,7 +83,8 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'token_exchange_failed', { msg });
-    return NextResponse.json({ error: 'token_exchange_failed', detail: msg }, { status: 502 });
+    // SEC-76 (web-oauth-6): log detail server-side (above); return only the code.
+    return NextResponse.json({ error: 'token_exchange_failed' }, { status: 502 });
   }
 
   if (!tokens.refresh_token) {
@@ -105,7 +103,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'userinfo_failed', { msg });
-    return NextResponse.json({ error: 'userinfo_failed', detail: msg }, { status: 502 });
+    return NextResponse.json({ error: 'userinfo_failed' }, { status: 502 });
   }
 
   try {
@@ -120,7 +118,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     logStep(reqId, 'upsert_failed', { msg });
-    return NextResponse.json({ error: 'persist_failed', detail: msg }, { status: 500 });
+    return NextResponse.json({ error: 'persist_failed' }, { status: 500 });
   }
 
   // ownership-ok: audit for verified state user (KAN-211)

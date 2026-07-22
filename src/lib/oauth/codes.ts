@@ -8,15 +8,13 @@
  *   - short-lived (10min default per oauth config)
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { randomBytes } from 'crypto';
 import { oauthConfig } from './config';
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export function generateAuthCode(): string {
