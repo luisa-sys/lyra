@@ -16,8 +16,7 @@
  * gates remain the hard, fail-closed layer. (An admin-driven OFF is a written
  * row, which we DO honour.)
  */
-import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { getDeployEnv, type DeployEnv } from '@/lib/deploy-env';
 import {
   resolveGlobalSwitches,
@@ -25,9 +24,10 @@ import {
 } from './global-features';
 
 function serviceClient() {
-  return createServiceClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  // KAN-352: route through the one hardened service-role factory (bakes in
+  // persistSession:false + autoRefreshToken:false — a superset of the prior
+  // inline options, so behaviour is unchanged).
+  return createServiceRoleClient();
 }
 
 /**
