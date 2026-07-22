@@ -7,7 +7,6 @@ import { moderateAndAudit } from '@/lib/moderation-audit';
 import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
-import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';
@@ -16,6 +15,7 @@ import {
   isControllableSectionKey,
   type SectionVisibility,
 } from './section-visibility';
+import { preflightUpload } from '@/lib/file-magic-bytes';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -73,22 +73,6 @@ export async function updateProfileFields(data: Record<string, string | boolean 
       success: false,
       error: `Field(s) not permitted: ${rejected.join(', ')}`,
     };
-  }
-
-  // KAN-319: `is_published` is an allowlisted field, so this action is a second
-  // web publish path alongside publishProfile(). Apply the same age gate here so
-  // it can't be bypassed: when the env switch is on and the user is publishing
-  // (is_published truthy), require age_status='passed'. (Un-publishing is always
-  // allowed.)
-  if (sanitised.is_published === true && isAgeVerificationRequired()) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
   }
 
   // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
@@ -614,19 +598,9 @@ export async function publishProfile(): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
-  // KAN-319: age-verification publish gate. When AGE_VERIFICATION_REQUIRED is on,
-  // only a profile with age_status='passed' may publish. (Editing stays allowed;
-  // the profile just remains private until verified.)
-  if (isAgeVerificationRequired()) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
-  }
+  // Age is established by the 18+ self-declaration at sign-up (see
+  // src/lib/age/self-declaration.ts), not by a publish-time check — the former
+  // provider age gate (KAN-319/KAN-282) has been removed.
 
   const { error } = await supabase
     .from('profiles')
@@ -658,29 +632,34 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   if (!rl.allowed) return rl.result;
 
   const file = formData.get('avatar') as File | null;
-  if (!file || file.size === 0) return { success: false, error: 'No file provided' };
 
-  // Validate MIME type server-side
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { success: false, error: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF' };
-  }
-
-  // Validate file size
-  if (file.size > MAX_FILE_SIZE) {
-    return { success: false, error: 'File too large. Maximum size is 5MB' };
-  }
+  // SEC-52 — shared preflight: presence, 5MB cap, allowed image MIME AND
+  // magic-byte signature. The declared MIME is browser-controlled and
+  // trivially spoofable, so a spoofed-MIME/polyglot must be rejected here
+  // before it reaches the world-readable profile-photos bucket. This is the
+  // SAME helper uploadProfileFile uses so the two paths can't drift.
+  const preflightError = await preflightUpload(file, {
+    allowedMimes: ALLOWED_IMAGE_TYPES,
+    maxBytes: MAX_FILE_SIZE,
+    emptyMessage: 'No file provided',
+    typeMessage: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF',
+    sizeMessage: 'File too large. Maximum size is 5MB',
+  });
+  if (preflightError) return { success: false, error: preflightError };
+  // preflightUpload guarantees a present, valid File past this point.
+  const avatar = file as File;
 
   // Determine extension from MIME type
   const extMap: Record<string, string> = {
     'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
   };
-  const ext = extMap[file.type] || 'jpg';
+  const ext = extMap[avatar.type] || 'jpg';
   const filePath = `${user!.id}/avatar.${ext}`;
 
   // Upload to Supabase Storage (upsert to overwrite existing)
   const { error: uploadError } = await supabase.storage
     .from('profile-photos')
-    .upload(filePath, file, { upsert: true, contentType: file.type });
+    .upload(filePath, avatar, { upsert: true, contentType: avatar.type });
 
   if (uploadError) return { success: false, error: uploadError.message };
 

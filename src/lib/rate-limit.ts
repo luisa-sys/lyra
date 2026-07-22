@@ -2,9 +2,17 @@
  * Simple in-memory rate limiter for Next.js middleware (Edge Runtime compatible).
  *
  * ⚠️ Limitation: In-memory store resets on cold starts and is per-instance.
- * On Vercel's serverless/edge, each instance has its own store.
- * This provides basic protection against brute-force attacks but is NOT
- * a distributed rate limiter. For production scale, consider Upstash Redis.
+ * On Vercel's serverless/edge, each instance has its own store, so the
+ * effective cap is (per-key cap × live instance count). This provides basic
+ * per-instance protection against brute-force attacks but is NOT a distributed
+ * rate limiter.
+ *
+ * SEC-62: for the OAuth endpoints (/oauth/token, /oauth/revoke, /oauth/register)
+ * the cap must hold across instances, so those routes go through
+ * `sharedRateLimit()` in `rate-limit-shared.ts` (Supabase-backed, atomic). That
+ * helper falls back to THIS in-memory limiter when the shared store is
+ * unreachable, so this module is still the durable-degradation backstop — never
+ * remove it. Middleware (Edge) keeps using `rateLimit()` directly.
  *
  * KAN-61: Rate limiting on auth endpoints
  */
@@ -31,7 +39,7 @@ function cleanup() {
   }
 }
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   /** Max requests allowed in the window */
   limit: number;
   /** Window duration in seconds */
@@ -77,4 +85,12 @@ export const RATE_LIMITS = {
   api: { limit: 60, windowSeconds: 60 },
   /** OAuth Dynamic Client Registration: 5 new clients/hour per IP (SEC-19/F-05) */
   oauthRegister: { limit: 5, windowSeconds: 3600 },
+  /** OAuth token endpoint, per source IP (SEC-62/web-oauth-4) — anti-DoS. */
+  oauthTokenIp: { limit: 60, windowSeconds: 60 },
+  /** OAuth token endpoint, per client_id (SEC-62) — allows legit refresh churn. */
+  oauthTokenClient: { limit: 120, windowSeconds: 60 },
+  /** OAuth revoke endpoint, per source IP (SEC-62/web-oauth-4). */
+  oauthRevokeIp: { limit: 60, windowSeconds: 60 },
+  /** OAuth revoke endpoint, per client_id (SEC-62). */
+  oauthRevokeClient: { limit: 120, windowSeconds: 60 },
 } as const;
