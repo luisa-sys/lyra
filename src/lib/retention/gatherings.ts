@@ -15,7 +15,8 @@
  * and never a still-upcoming gathering.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 
 /** Proposed default window from RETENTION_SCHEDULE.md (purge ~12 months after the event). */
@@ -29,9 +30,7 @@ export interface GatheringsRetentionSummary {
 }
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /** Read + validate the configured retention window (months). Falls back to the

@@ -18,8 +18,7 @@
  * the fallback for callers that want to log it.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { rateLimit, type RateLimitConfig } from '@/lib/rate-limit';
 
 export interface SharedRateLimitResult {
@@ -46,9 +45,7 @@ export async function sharedRateLimit(
   config: RateLimitConfig
 ): Promise<SharedRateLimitResult> {
   try {
-    const supabase = createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-      auth: { persistSession: false },
-    });
+    const supabase = createServiceRoleClient();
     const { data, error } = await supabase.rpc('rate_limit_hit', {
       p_bucket: key,
       p_limit: config.limit,

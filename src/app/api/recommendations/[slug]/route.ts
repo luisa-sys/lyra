@@ -29,8 +29,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { getRecommendations, getProfileInsights } from '@/lib/recommend';
 
 interface ProfileRow {
@@ -49,7 +48,7 @@ interface ItemRow {
 }
 
 function getServiceClient() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 export async function GET(

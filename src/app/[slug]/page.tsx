@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 import { jsonLdSafe } from '@/lib/json-ld';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
@@ -31,7 +31,7 @@ import * as Sentry from '@sentry/nextjs';
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 interface ProfileData {

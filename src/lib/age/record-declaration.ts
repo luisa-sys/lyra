@@ -9,9 +9,8 @@
  * so the read costs one indexed lookup and needs no service-role credentials on
  * the login path. Only the WRITE escalates to the service role.
  */
-import { createClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import type { createClient as createServerClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
 
 type ServerClient = Awaited<ReturnType<typeof createServerClient>>;
 
@@ -36,9 +35,7 @@ export async function hasDeclaredAge(
  */
 export async function recordAgeDeclaration(userId: string): Promise<void> {
   if (!userId) return;
-  const svc = createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  const svc = createServiceRoleClient();
   await svc
     .from('profiles')
     .update({ age_declared_18_at: new Date().toISOString() })
