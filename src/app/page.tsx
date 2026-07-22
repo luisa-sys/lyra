@@ -234,9 +234,10 @@ export default async function Home({
   }
 
   const people = await getPublishedProfiles();
-  // Ghost CTA — "See example profiles" — points at the first published
-  // profile when one exists, otherwise falls back to search.
-  const exampleHref = people.length > 0 ? `/${people[0].slug}` : "/search";
+  // Ghost CTA — "See example profiles" — leads to the full gallery of curated
+  // example profiles (/examples). The band below only previews the first 6;
+  // the gallery lists them all.
+  const exampleHref = "/examples";
 
   const jsonLd = {
     "@context": "https://schema.org",
