@@ -7,7 +7,6 @@ import { moderateAndAudit } from '@/lib/moderation-audit';
 import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
-import { isAgeVerificationRequired, canPublishWithAge, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';
@@ -74,22 +73,6 @@ export async function updateProfileFields(data: Record<string, string | boolean 
       success: false,
       error: `Field(s) not permitted: ${rejected.join(', ')}`,
     };
-  }
-
-  // KAN-319: `is_published` is an allowlisted field, so this action is a second
-  // web publish path alongside publishProfile(). Apply the same age gate here so
-  // it can't be bypassed: when the env switch is on and the user is publishing
-  // (is_published truthy), require age_status='passed'. (Un-publishing is always
-  // allowed.)
-  if (sanitised.is_published === true && isAgeVerificationRequired()) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
   }
 
   // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
@@ -615,19 +598,9 @@ export async function publishProfile(): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
-  // KAN-319: age-verification publish gate. When AGE_VERIFICATION_REQUIRED is on,
-  // only a profile with age_status='passed' may publish. (Editing stays allowed;
-  // the profile just remains private until verified.)
-  if (isAgeVerificationRequired()) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!canPublishWithAge((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
-  }
+  // Age is established by the 18+ self-declaration at sign-up (see
+  // src/lib/age/self-declaration.ts), not by a publish-time check — the former
+  // provider age gate (KAN-319/KAN-282) has been removed.
 
   const { error } = await supabase
     .from('profiles')

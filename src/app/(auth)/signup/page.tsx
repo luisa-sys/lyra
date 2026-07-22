@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { cookies } from 'next/headers';
-import { signUp } from '../actions';
-import { SocialLoginButtons } from '../social-login-buttons';
+import { SignupForm } from './signup-form';
 import { env } from '@/lib/env';
 import { isProdFamily } from '@/lib/beta-access/flow';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
@@ -85,91 +84,12 @@ export default async function SignUpPage({
           </div>
         )}
 
-        <SocialLoginButtons />
-
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-[#ece7df]" />
-          <span className="text-xs text-[var(--color-muted)]">or sign up with email</span>
-          <div className="flex-1 h-px bg-[#ece7df]" />
-        </div>
-
-        <form className="space-y-4">
-          {invited ? (
-            // KAN-337 — invited via /join: the code is auto-applied (carried in a
-            // hidden field; the banner above explains it), no manual entry needed.
-            <input type="hidden" name="invite_code" value={inviteCookie} />
-          ) : hasInviteCode ? (
-            <div>
-              <label htmlFor="invite_code" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-                Invite code <span className="font-normal text-[var(--color-muted)]">(optional)</span>
-              </label>
-              <input
-                id="invite_code"
-                name="invite_code"
-                type="text"
-                autoComplete="off"
-                className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-                placeholder="Skip the waitlist"
-              />
-              <p className="mt-1 text-xs text-[var(--color-muted)]">
-                Have a code? Enter it to skip the waitlist and go straight in.
-              </p>
-            </div>
-          ) : null}
-
-          <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-              Full name
-            </label>
-            <input
-              id="full_name"
-              name="full_name"
-              type="text"
-              required
-              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="Sarah Ashworth"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[var(--color-ink)] mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-ink)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)] focus:border-transparent"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <p className="text-xs text-[var(--color-muted)]">
-            No password needed — we&apos;ll email you a secure link to finish signing up.
-          </p>
-
-          <div className="flex items-start gap-2">
-            <input
-              id="consent"
-              name="consent"
-              type="checkbox"
-              required
-              className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-sage)] focus:ring-[var(--color-sage)]"
-            />
-            <label htmlFor="consent" className="text-xs text-[var(--color-muted)]">
-              I agree to the <Link href="/privacy" className="text-[var(--color-sage)] hover:underline">Privacy Policy</Link> and <Link href="/terms" className="text-[var(--color-sage)] hover:underline">Terms of Service</Link>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            formAction={signUp}
-            className="w-full py-3 rounded-lg bg-[var(--color-sage)] text-white text-base font-medium hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            {showWaitlistFraming ? 'Join the waitlist →' : 'Create account →'}
-          </button>
-        </form>
+        <SignupForm
+          hasInviteCode={hasInviteCode}
+          invited={invited}
+          inviteCookie={inviteCookie}
+          showWaitlistFraming={showWaitlistFraming}
+        />
 
         <p className="mt-6 text-center text-sm text-[var(--color-muted)]">
           Already have an account?{' '}

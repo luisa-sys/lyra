@@ -7,6 +7,13 @@ import { headers, cookies } from 'next/headers';
 import { env } from '@/lib/env';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 import { isEmailResendCooldown } from './auth-errors';
+import {
+  AGE_DECLARATION_COOKIE,
+  AGE_DECLARATION_COOKIE_MAX_AGE,
+  AGE_DECLARATION_FIELD,
+  AGE_DECLARATION_REQUIRED_MESSAGE,
+  isAgeDeclared,
+} from '@/lib/age/self-declaration';
 
 function getSiteUrl() {
   return env.siteUrl();
@@ -20,6 +27,13 @@ export async function signUp(formData: FormData) {
 
   if (!email || !fullName) {
     return redirect('/signup?error=' + encodeURIComponent('Your name and email are required'));
+  }
+
+  // 18+ self-declaration. The form disables submit until the box is ticked;
+  // this is the server-side re-check, so a hand-crafted POST can't skip it.
+  const ageDeclared = isAgeDeclared(formData.get(AGE_DECLARATION_FIELD));
+  if (!ageDeclared) {
+    return redirect('/signup?error=' + encodeURIComponent(AGE_DECLARATION_REQUIRED_MESSAGE));
   }
 
   // KAN-336 — OPTIONAL sign-up code (formerly the KAN-258 hard invite gate). A
@@ -49,6 +63,11 @@ export async function signUp(formData: FormData) {
   // KAN-258/KAN-336 — passwordless sign-up via magic link. shouldCreateUser:true
   // creates the account on first click; handle_new_user reads full_name from the
   // metadata, and resolveBetaAccess reads invite_code to decide waitlist vs beta.
+  // NOTE: no declaration cookie on this path. The magic link is routinely opened
+  // in a DIFFERENT browser from the one that submitted the form (that's BUGS-50,
+  // and why emailed links go through /auth/confirm rather than the PKCE
+  // callback), so a cookie set here would simply be absent when it mattered.
+  // `age_declared_18` in user_metadata below travels with the user instead.
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -56,6 +75,7 @@ export async function signUp(formData: FormData) {
       shouldCreateUser: true,
       data: {
         full_name: fullName,
+        age_declared_18: true,
         ...(codeMatches ? { invite_code: configuredCode } : {}),
       },
     },
@@ -213,10 +233,25 @@ export async function updateRecoveryPassword(formData: FormData) {
   );
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData?: FormData) {
   const supabase = await createClient();
   const requestHeaders = await headers();
   const origin = requestHeaders.get('origin') || getSiteUrl();
+
+  // This action is shared by /signup and /login. Only /signup posts the 18+
+  // field, so we RECORD a declaration when it's there and never REQUIRE one —
+  // requiring it would lock returning users out of "Continue with Google".
+  // Accounts that reach OAuth without a declaration (a brand-new Google account
+  // via /login) are caught at /confirm-age by resolvePostLoginRedirect.
+  if (isAgeDeclared(formData?.get(AGE_DECLARATION_FIELD))) {
+    (await cookies()).set(AGE_DECLARATION_COOKIE, '1', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true,
+      path: '/',
+      maxAge: AGE_DECLARATION_COOKIE_MAX_AGE,
+    });
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

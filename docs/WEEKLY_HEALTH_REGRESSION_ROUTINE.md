@@ -78,7 +78,13 @@ log everything, and rehearse the release pipeline up to (not through) the prod g
      user-facing capability, route, table, MCP tool, or migration) -> you are AUTHORISED to ship:
        a. Bump package.json: npm version patch --no-git-tag-version (per KAN-166), commit on a claude/ PR.
        b. Promote the chain: promote-to-staging.yml -> verify staging green + healthy ->
-          promote-staging-to-beta.yml -> verify beta -> promote-to-production.yml -f confirm=PRODUCTION.
+          promote-staging-to-beta.yml -> verify beta ->
+          promote-to-production.yml -f confirm=PRODUCTION -f promote_mode=auto-fix-only.
+          The `-f promote_mode=auto-fix-only` flag is REQUIRED for the auto path: the workflow then
+          runs scripts/check-fix-only-promote.sh and HARD-FAILS the promote if any commit in
+          origin/main..origin/beta is a feature / breaking / ambiguous change (SEC-77 — the fix-only
+          gate is now machine-enforced, not just your judgement). If it fails, treat as "release holds
+          a feature" -> STOP and require manual sign-off (see the ambiguous branch below).
        c. The prod workflow runs smoke tests + AUTO-ROLLBACK. If it rolls back, treat as FAIL,
           open a Highest-priority BUGS ticket, and STOP.
        d. Verify prod after: curl https://checklyra.com/api/health and https://mcp.checklyra.com/health.

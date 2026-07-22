@@ -52,7 +52,12 @@ import { signUp, signIn, signOut, signInWithGoogle } from '@/app/(auth)/actions'
 
 function makeFormData(data: Record<string, string>): FormData {
   const fd = new FormData();
-  for (const [k, v] of Object.entries(data)) fd.append(k, v);
+  // KAN-407: signUp now requires an explicit 18+ declaration. Default it ON here
+  // so every pre-existing test keeps exercising its own concern (invite codes,
+  // metadata, error paths); the tests that care about the declaration itself
+  // pass age_confirm explicitly and override this.
+  const withAge = { age_confirm: 'on', ...data };
+  for (const [k, v] of Object.entries(withAge)) fd.append(k, v);
   return fd;
 }
 
@@ -60,6 +65,59 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockInviteCode = '';
   mockInviteCookie = undefined;
+});
+
+describe('KAN-407: 18+ self-declaration is enforced server-side', () => {
+  // The sign-up form disables submit until the box is ticked, but that is a UX
+  // affordance running on the client. These tests exercise the action directly,
+  // which is what a hand-crafted POST would hit.
+  const withoutDeclaration = (data: Record<string, string>): FormData => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(data)) fd.append(k, v);
+    return fd; // deliberately bypasses makeFormData's age_confirm default
+  };
+
+  test('refuses a sign-up with no declaration, and creates no account', async () => {
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = withoutDeclaration({ email: 'a@b.com', full_name: 'A' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockRedirect.mock.calls[0][0]).toContain('/signup?error=');
+    expect(mockRedirect.mock.calls[0][0]).toContain('18%20or%20over');
+    // The important half: no magic link, so no account can be created.
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
+
+  test.each([['off'], ['false'], [''], ['yes'], ['1']])(
+    'refuses an age_confirm value of %p — only an explicit tick counts',
+    async (value) => {
+      mockSignInWithOtp.mockResolvedValue({ error: null });
+      const fd = withoutDeclaration({ email: 'a@b.com', full_name: 'A', age_confirm: value });
+      await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+      expect(mockSignInWithOtp).not.toHaveBeenCalled();
+    },
+  );
+
+  test('accepts the declaration and carries it into user_metadata', async () => {
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = withoutDeclaration({ email: 'a@b.com', full_name: 'A', age_confirm: 'on' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockSignInWithOtp).toHaveBeenCalledTimes(1);
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data.age_declared_18).toBe(true);
+  });
+
+  test('the declaration is checked BEFORE the invite code, so the user is told the real reason', async () => {
+    // Both checks would reject this input, so asserting "rejected" proves
+    // nothing about order — assert WHICH error comes back. Reporting "bad
+    // invite code" to someone who simply missed the 18+ tick sends them
+    // hunting for a code they never needed.
+    mockInviteCode = 'GOOD-CODE';
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    const fd = withoutDeclaration({ email: 'a@b.com', full_name: 'A', invite_code: 'WRONG' });
+    await expect(signUp(fd)).rejects.toThrow('REDIRECT');
+    expect(mockRedirect.mock.calls[0][0]).toContain('18%20or%20over');
+    expect(mockRedirect.mock.calls[0][0]).not.toContain('code');
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
 });
 
 describe('KAN-258: signUp action (passwordless)', () => {
@@ -79,7 +137,7 @@ describe('KAN-258: signUp action (passwordless)', () => {
       email: 'test@example.com',
       options: expect.objectContaining({
         shouldCreateUser: true,
-        data: { full_name: 'Test User' },
+        data: { full_name: 'Test User', age_declared_18: true },
       }),
     }));
     expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
@@ -110,7 +168,7 @@ describe('KAN-336: invite code (optional, skip-waitlist)', () => {
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
     expect(mockSignInWithOtp).toHaveBeenCalled();
-    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A', age_declared_18: true });
     expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
   });
 
@@ -149,6 +207,7 @@ describe('KAN-336: invite code (optional, skip-waitlist)', () => {
     expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
       full_name: 'A',
       invite_code: 'LET-ME-IN',
+      age_declared_18: true,
     });
   });
 
@@ -168,7 +227,7 @@ describe('KAN-336: optional skip-waitlist code', () => {
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A' }); // no invite_code
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
     expect(mockSignInWithOtp).toHaveBeenCalled();
-    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A', age_declared_18: true });
     expect(mockRedirect.mock.calls[0][0]).toContain('/signup?message=');
   });
 
@@ -180,6 +239,7 @@ describe('KAN-336: optional skip-waitlist code', () => {
     expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
       full_name: 'A',
       invite_code: 'LET-ME-IN',
+      age_declared_18: true,
     });
   });
 
@@ -199,6 +259,7 @@ describe('KAN-336: optional skip-waitlist code', () => {
     expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({
       full_name: 'A',
       invite_code: 'LET-ME-IN',
+      age_declared_18: true,
     });
   });
 
@@ -207,7 +268,7 @@ describe('KAN-336: optional skip-waitlist code', () => {
     mockSignInWithOtp.mockResolvedValue({ error: null });
     const fd = makeFormData({ email: 'a@b.com', full_name: 'A', invite_code: 'anything' });
     await expect(signUp(fd)).rejects.toThrow('REDIRECT');
-    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A' });
+    expect(mockSignInWithOtp.mock.calls[0][0].options.data).toEqual({ full_name: 'A', age_declared_18: true });
   });
 });
 

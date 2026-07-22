@@ -47,10 +47,29 @@ describe('GDPR Compliance', () => {
   });
 
   test('signup form includes consent checkbox', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/(auth)/signup/page.tsx'), 'utf8');
+    // KAN-407: the form markup moved from page.tsx into the signup-form.tsx
+    // client component so one 18+ tick could gate both the email and Google
+    // paths. Same assertions, new file.
+    const content = fs.readFileSync(
+      path.join(root, 'src/app/(auth)/signup/signup-form.tsx'),
+      'utf8',
+    );
     expect(content).toContain('consent');
     expect(content).toContain('Privacy Policy');
     expect(content).toContain('Terms of Service');
+  });
+
+  test('signup form requires an explicit 18+ declaration on BOTH auth paths', () => {
+    // KAN-407: Lyra is 18+. The tick must gate the Google button too — gating
+    // only the email form would leave OAuth as an undeclared signup route.
+    const content = fs.readFileSync(
+      path.join(root, 'src/app/(auth)/signup/signup-form.tsx'),
+      'utf8',
+    );
+    expect(content).toContain('18 or over');
+    expect(content).toContain('AGE_DECLARATION_FIELD');
+    // Both submit buttons disabled until confirmed.
+    expect(content.match(/disabled=\{!ageConfirmed\}/g) || []).toHaveLength(2);
   });
 
   test('site-wide footer includes privacy and terms links', () => {
