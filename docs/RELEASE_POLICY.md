@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `develop` → `staging` | **Weekly, automatic** | Sunday 23:00 UTC | Forces the staging chain to run every week so `deploy-staging.yml` doesn't go a month without exercise. |
 | `staging` → `beta` | Manual | When ready to expose changes to beta testers | Beta hits real prod data, so the move beyond staging is a deliberate decision. |
-| `beta` → `main` | Manual | When beta has been exercised against real users | Highest blast radius. Always human-supervised. |
+| `beta` → `main` | Manual (narrow fix-only exception) | When beta has been exercised against real users | Highest blast radius. Human-supervised by default; a single owner-authorised exception lets the weekly routine auto-promote **fix-only** releases — see "What stays manual". |
 
 **The chain MUST be exercised at least weekly.** If `auto-promote-to-staging.yml` skips for any reason, the weekly report flags it red — see "Skip behaviour" below.
 
@@ -59,11 +59,21 @@ A skip is **not the same as a failure**. We never want a green-looking workflow 
 ## What stays manual
 
 - **`staging` → `beta`** — `gh workflow run promote-staging-to-beta.yml -f confirm=promote`. No cron. Decision made when beta-testable changes have soaked on staging.
-- **`beta` → `main` (production)** — `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`. No cron, ever. This is the highest-blast-radius decision in the entire project.
+- **`beta` → `main` (production)** — `gh workflow run promote-to-production.yml -f confirm=PRODUCTION`. This is the highest-blast-radius decision in the entire project. **There is no scheduled/auto-promote-to-production workflow** — production is only ever promoted by an explicit `workflow_dispatch` of `promote-to-production.yml` (typing `PRODUCTION` to confirm).
 
 The reasoning is asymmetric:
 - Auto-promote to **staging** is safe — staging is gated by Vercel SSO, no real users see it
-- Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users
+- Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users. This is why there is no cron and no standalone auto-promote-to-production workflow.
+
+### The one owner-authorised exception (fix-only, 2026-06-21)
+
+The default above ("features are manual, always human-supervised") has a single narrow exception, authorised by Luisa on 2026-06-21 and canonical in `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`:
+
+- The **weekly health + regression routine** MAY drive a `beta` → `main` promotion **only when *every* change pending on `develop` ahead of `main` is a bug-FIX** (a BUGS/SEC defect, `fix:`-type — no new feature, user-facing capability, route, table, MCP tool, or migration), with the full suite green through staging + beta.
+- If **any** pending change is a feature, or fix-vs-feature is ambiguous → the routine **STOPS and requires manual sign-off**.
+- Even in the exception, promotion still runs through the same `promote-to-production.yml` `workflow_dispatch` (built-in smoke + auto-rollback). The routine never pushes to `main`/`beta`/`staging` directly and there is still no scheduled auto-promote-to-production workflow.
+
+**Doc/code reconciliation (SEC-77, finding ci-drift-1):** the fix-only gate is **procedural** — it is applied by the routine agent reading the pending commit range, *not* by a machine-checked guard inside the workflow. `promote-to-production.yml` itself does not yet hard-fail on a pending `feat:` commit. Implementing that machine-checked fix-only guard (hard-fail on any non-`fix:` change in `main..beta`) is tracked as a follow-up hardening on SEC-77; until it lands, the exception's safety depends on the routine's own fix-only judgement plus the manual-dispatch confirmation.
 
 ## Reference
 
