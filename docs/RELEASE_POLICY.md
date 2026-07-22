@@ -93,6 +93,18 @@ Either way, the `production` Environment's *required-reviewers* setting must be 
 
 Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
 
+## Machine-checked fix-only auto-promote gate (SEC-77)
+
+There is one owner-authorised exception (2026-06-21) to "no cron, ever" on `beta → main`: the SEC-22 weekly health/regression routine MAY auto-promote to production **only when every change pending on `beta` ahead of `main` is a bug-FIX — never a feature** (see `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`). Until SEC-77 this "every pending change is a fix" condition was **procedural** — enforced only by the routine-agent's judgement, with nothing in the workflow to stop a feature slipping through and auto-shipping to a minors' platform unattended.
+
+It is now **machine-enforced**:
+
+- `promote-to-production.yml` takes a `promote_mode` input (`manual` default, or `auto-fix-only`). Both the manual feature release and the SEC-22 auto path share the one workflow; the input is what tells them apart.
+- In **`manual`** mode the gate is a no-op — a manual feature release is authorised by Luisa's typed `PRODUCTION` confirm, and features are expected.
+- In **`auto-fix-only`** mode the `merge-and-push` job runs `scripts/check-fix-only-promote.sh` **before** the irreversible `git merge beta` + `git push origin main`. The script inspects every non-merge commit in `origin/main..origin/beta` and **hard-fails** (blocking the merge, leaving `main` untouched) if any is a **feature** (`feat`), a **breaking change** (`<type>!:`), or **anything without an unambiguous non-feature conventional-commit type**. Merge commits are skipped; an empty range fails closed.
+- The fallback on a hard fail is exactly the policy's prescribed one: **stop the auto-promote and require manual sign-off** (re-dispatch without `promote_mode=auto-fix-only`). A false positive therefore only forces a human — safe — while a false negative (a feature auto-ships) is the failure mode the gate biases hard against.
+- **Allow-list (the one policy knob):** the non-feature types treated as fix-only live in `ALLOWED_TYPES` at the top of `scripts/check-fix-only-promote.sh` (`fix revert docs chore ci build test style`). It deliberately errs strict — `perf`/`refactor` are treated as feature-class (they can change runtime behaviour) and force manual sign-off. Widen or narrow it only as a reviewed policy decision.
+
 ## Reference
 
 - KAN-173 (this policy): <https://checklyra.atlassian.net/browse/KAN-173>
@@ -103,3 +115,4 @@ Until this is decided, the gap is kept **explicit and non-regressing** by `scrip
 - `.github/workflows/promote-to-staging.yml` — the manual workflow (auto-promote calls the same logic)
 - `.github/workflows/promote-to-production.yml` — direct-merge flow as of 2026-05-15 (BUGS-16 fix)
 - `.github/workflows/auto-promote-to-staging.yml` — the scheduled wrapper
+- `scripts/check-fix-only-promote.sh` — SEC-77 machine-checked fix-only gate for the `auto-fix-only` production promote (unit-tested in `tests/scripts/check-fix-only-promote.test.js`)
