@@ -20,9 +20,11 @@ const calls = { gatheringsQueried: false, messagesQueried: false };
 function makeQuery(result: { data: unknown; error: unknown }) {
   const c: Record<string, unknown> = {};
   c.select = () => c;
+  c.update = () => c;
   c.eq = () => c;
   c.is = () => c;
   c.in = () => c;
+  c.lt = () => c;
   c.order = () => c;
   c.limit = () => c;
   c.maybeSingle = async () => result;
