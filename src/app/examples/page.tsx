@@ -75,7 +75,7 @@ function ProfileCard({ profile }: { profile: ExampleProfile }) {
       <div className="flex items-start gap-4">
         <div className="w-12 h-12 rounded-full bg-[var(--color-sage)] flex items-center justify-center text-lg text-white font-[family-name:var(--font-serif)] shrink-0 overflow-hidden">
           {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element -- avatar lives in Supabase Storage, not the Vercel image pipeline
+            // eslint-disable-next-line @next/next/no-img-element -- KAN-410: avatar lives in Supabase Storage, not the Vercel image pipeline
             <img
               src={profile.avatar_url}
               alt={profile.display_name}
