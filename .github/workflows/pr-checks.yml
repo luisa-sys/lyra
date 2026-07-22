@@ -61,6 +61,14 @@ jobs:
         # cheapest form of doc drift. Presence only; content drift-vs-wiki is
         # a separate founder/ops-gated leg of KAN-363.
         run: bash scripts/check-doc-mirror-manifest.sh
+      - name: Doc mirror-content check (KAN-363)
+        # Companion to the presence check above: fails the PR if a listed .md
+        # mirror EXISTS but is an empty / stub / heading-less file — the
+        # "backup that looks successful but contains placeholder content"
+        # failure mode (KAN-167). Structural checks only (non-empty, has a
+        # heading, has substance); content drift-vs-wiki stays a separate
+        # founder/ops-gated leg of KAN-363.
+        run: bash scripts/check-doc-mirror-content.sh
       - name: CODEOWNERS single-source-of-truth check (SEC-3)
         # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
         # docs/) and silently ignores the rest, so two CODEOWNERS files means

@@ -34,9 +34,14 @@ mirrored between the repo and the wiki**. The presence guard
 `scripts/check-doc-mirror-manifest.sh` (run from `pr-checks.yml`) parses this
 block and **fails the PR if any repo path listed here no longer exists** — so a
 mirror cannot be silently deleted or renamed out of the tree, which is the
-first and cheapest form of drift. (Full *content* drift-vs-Confluence detection
-needs Confluence API access in CI and is tracked as a follow-up leg on KAN-363
-— see "Not yet covered" below.)
+first and cheapest form of drift. A companion guard
+`scripts/check-doc-mirror-content.sh` (also run from `pr-checks.yml`) fails the
+PR if any listed `.md` mirror still exists but has been reduced to an empty /
+heading-less / stub file — the "looks present but carries no real content"
+drift (the KAN-167 placeholder-backup failure mode). Both guards are
+repo-side and structural. (Full *content* drift-vs-Confluence detection needs
+Confluence API access in CI and is tracked as a follow-up leg on KAN-363 — see
+"Not yet covered" below.)
 
 <!-- doc-mirror-manifest:start -->
 | Repo path (must exist) | Canonical surface | Confluence page | What it mirrors |
@@ -54,9 +59,10 @@ needs Confluence API access in CI and is tracked as a follow-up leg on KAN-363
 
 ## Not yet covered (decomposed follow-up legs of KAN-363)
 
-The presence guard above is the dev-safe, CI-runnable slice of the "drift
-check" acceptance criterion. The remaining legs need a supervised / main
-session and are tracked on the KAN-363 ticket:
+The presence guard plus the repo-side content/substance guard
+(`scripts/check-doc-mirror-content.sh`) above are the dev-safe, CI-runnable
+slices of the "drift check" acceptance criterion. The remaining legs need a
+supervised / main session and are tracked on the KAN-363 ticket:
 
 - **Content drift-vs-Confluence check** — compare each mirror's body against its
   canonical Confluence page. Requires a Confluence API token + network in CI
