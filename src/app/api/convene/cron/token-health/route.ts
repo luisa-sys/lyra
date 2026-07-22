@@ -10,8 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { getFreshAccessToken } from '@/lib/convene/oauth-connections';
 import { timingSafeStrEqual } from '@/lib/convene/cron-auth';
@@ -34,9 +33,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'unauthorised' }, { status: 401 });
   }
 
-  const admin = createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  const admin = createServiceRoleClient();
 
   // Pick up active connections, oldest-checked-first.
   const { data: rows, error } = await admin

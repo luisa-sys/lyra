@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 import { jsonLdSafe } from '@/lib/json-ld';
 import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
@@ -23,6 +23,7 @@ import { headers } from 'next/headers';
 import { isIsoAlpha2, normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
 import type { ConceptInput } from '@/lib/recommender/v2/types';
+import * as Sentry from '@sentry/nextjs';
 
 // BUGS-14: profile pages render dynamically per-request (cookie read for the
 // members-only visibility decision; force-dynamic also makes notFound() emit a
@@ -30,7 +31,7 @@ import type { ConceptInput } from '@/lib/recommender/v2/types';
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 interface ProfileData {
@@ -190,39 +191,76 @@ export default async function PublicProfilePage({ params }: Props) {
   const { data: { user: viewer } } = await cookieClient.auth.getUser();
   const isAuthenticated = viewer !== null;
 
-  const { data: items } = await getSupabase()
-    .from('profile_items')
-    .select('*')
-    .eq('profile_id', typedProfile.id)
-    .order('created_at', { ascending: true });
+  // KAN-351 (web-arch-3): the five per-profile section reads each depend only
+  // on typedProfile.id, so run them in parallel instead of the previous
+  // sequential await-waterfall. Errors are no longer silently dropped — every
+  // read result is inspected below and any failure is surfaced.
+  const [itemsRes, schoolsRes, linksRes, manualOfMeRes, starterRowsRes] = await Promise.all([
+    getSupabase()
+      .from('profile_items')
+      .select('*')
+      .eq('profile_id', typedProfile.id)
+      .order('created_at', { ascending: true }),
+    getSupabase()
+      .from('school_affiliations')
+      .select('*')
+      .eq('profile_id', typedProfile.id),
+    getSupabase()
+      .from('external_links')
+      .select('*')
+      .eq('profile_id', typedProfile.id),
+    getSupabase()
+      .from('profile_manual_of_me')
+      .select('communication_style, working_preferences, energises_me, drains_me, good_to_know, boundaries')
+      .eq('profile_id', typedProfile.id)
+      .maybeSingle(),
+    getSupabase()
+      .from('profile_conversation_starters')
+      .select('id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
+      .eq('profile_id', typedProfile.id)
+      .order('created_at', { ascending: true }),
+  ]);
+
+  // KAN-351 (web-arch-3): previously each `const { data } = await …` dropped
+  // its `error`, so a partial DB outage rendered an incomplete profile as a
+  // clean 200. Capture every failure to Sentry for observability, then fail
+  // loudly rather than silently serve an empty/partial profile. These are
+  // plain/`maybeSingle` reads (no `.single()`), so an error means a genuine
+  // read failure — never the "row legitimately absent" case.
+  const sectionReadErrors = (
+    [
+      ['profile_items', itemsRes.error],
+      ['school_affiliations', schoolsRes.error],
+      ['external_links', linksRes.error],
+      ['profile_manual_of_me', manualOfMeRes.error],
+      ['profile_conversation_starters', starterRowsRes.error],
+    ] as const
+  ).filter((entry) => entry[1] != null);
+
+  if (sectionReadErrors.length > 0) {
+    for (const [table, error] of sectionReadErrors) {
+      Sentry.captureException(error, {
+        tags: { area: 'public-profile', table },
+        extra: { slug, profileId: typedProfile.id },
+      });
+    }
+    throw new Error(
+      `Public profile section reads failed for ${sectionReadErrors
+        .map(([table]) => table)
+        .join(', ')}`,
+    );
+  }
+
+  const items = itemsRes.data;
+  const schools = schoolsRes.data;
+  const links = linksRes.data;
+  const manualOfMe = (manualOfMeRes.data as ManualOfMe | null) ?? null;
+  const starterRowsRaw = starterRowsRes.data;
 
   const sectionVisibility = coerceSectionVisibility(typedProfile.section_visibility);
   const visibleItems = ((items || []) as ProfileItem[]).filter((item) =>
     isItemVisibleUnderHybridModel(item, sectionVisibility, isAuthenticated),
   );
-
-  const { data: schools } = await getSupabase()
-    .from('school_affiliations')
-    .select('*')
-    .eq('profile_id', typedProfile.id);
-
-  const { data: links } = await getSupabase()
-    .from('external_links')
-    .select('*')
-    .eq('profile_id', typedProfile.id);
-
-  const { data: manualOfMeRow } = await getSupabase()
-    .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me, good_to_know, boundaries')
-    .eq('profile_id', typedProfile.id)
-    .maybeSingle();
-  const manualOfMe = (manualOfMeRow as ManualOfMe | null) ?? null;
-
-  const { data: starterRowsRaw } = await getSupabase()
-    .from('profile_conversation_starters')
-    .select('id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
-    .eq('profile_id', typedProfile.id)
-    .order('created_at', { ascending: true });
   const typedStarters = (starterRowsRaw ?? []).map((r) => {
     const promptCandidate = r.prompt as unknown;
     const joined = Array.isArray(promptCandidate)

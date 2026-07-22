@@ -11,6 +11,9 @@
 
 let mockInviteCode = '';
 let mockUser: { id: string } | null = { id: 'u1' };
+// SEC-82: standing lookup (getAccountStanding) + grant-error injection.
+let mockSuspended = false;
+let mockGrantError: { message: string } | null = null;
 const updateSpy = jest.fn();
 const eqSpy = jest.fn();
 
@@ -26,6 +29,15 @@ jest.mock('@/lib/supabase-server', () => ({
   createClient: () =>
     Promise.resolve({
       auth: { getUser: () => Promise.resolve({ data: { user: mockUser } }) },
+      // SEC-82: getAccountStanding reads is_suspended off the cookie client.
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () =>
+              Promise.resolve({ data: { is_suspended: mockSuspended }, error: null }),
+          }),
+        }),
+      }),
     }),
 }));
 
@@ -37,7 +49,7 @@ jest.mock('@supabase/supabase-js', () => ({
         return {
           eq: (col: string, val: string) => {
             eqSpy(col, val);
-            return Promise.resolve({ data: null });
+            return Promise.resolve({ data: null, error: mockGrantError });
           },
         };
       },
@@ -68,6 +80,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockInviteCode = 'SECRET-123';
   mockUser = { id: 'u1' };
+  mockSuspended = false;
+  mockGrantError = null;
 });
 
 describe('KAN-336: redeemWaitlistCode', () => {
@@ -108,5 +122,23 @@ describe('KAN-336: redeemWaitlistCode', () => {
     mockUser = null;
     await expect(redeemWaitlistCode(fd('SECRET-123'))).rejects.toThrow('REDIRECT:/login');
     expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  // SEC-82: defence-in-depth standing check + honest grant-error handling.
+  it('refuses a suspended account (correct code) and never grants beta', async () => {
+    mockSuspended = true;
+    await expect(redeemWaitlistCode(fd('SECRET-123'))).rejects.toThrow(
+      'REDIRECT:/waitlist?error=suspended',
+    );
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT report success when the beta grant errors', async () => {
+    mockGrantError = { message: 'db down' };
+    await expect(redeemWaitlistCode(fd('SECRET-123'))).rejects.toThrow(
+      'REDIRECT:/waitlist?error=grant_failed',
+    );
+    // The update was attempted, but the flow must not fall through to /dashboard.
+    expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 });

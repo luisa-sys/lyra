@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isProdDeploy } from "@/lib/beta-access/flow";
 import { jsonLdSafe } from "@/lib/json-ld";
 
@@ -37,7 +36,7 @@ interface HomeProfile {
 }
 
 function getSupabase() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 /**

@@ -39,8 +39,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { getRecommendations } from '@/lib/recommend';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
 import type { ConceptInput } from '@/lib/recommender/v2/types';
@@ -65,7 +64,7 @@ interface ItemRow {
 }
 
 function getServiceClient() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 /**

@@ -9,14 +9,11 @@
  * is not the subject (paid gift links gate on the RECIPIENT; recommendation
  * reads are anonymous) and from admin/server-only code.
  */
-import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { resolveEntitlements, type FeatureKey } from './registry';
 
 function serviceClient() {
-  return createServiceClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /** Any profile's full entitlement map (service-role; bypasses RLS). */

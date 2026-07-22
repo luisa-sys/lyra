@@ -89,8 +89,28 @@ The `lyra-mcp-server` repo has no `.github/workflows/` directory — Railway aut
 - [ ] lyra-mcp-server CI gate — deferred to follow-up (cross-repo)
 - [ ] Workflow loop-closure tests — deferred to a coordinated session
 
+## 2026-07 update — Documentation Definition-of-Done gate (KAN-359)
+
+KAN-359 (Phase-4 documentation hygiene, epic KAN-350) adds a **Documentation
+Definition-of-Done**: every epic must update the live system map (Architecture &
+Infrastructure / Data Model & Security), record ADRs for design decisions, and
+cross-link Jira ↔ wiki before it closes; every PR ticks a _"Docs / system map
+updated — or N/A with reason"_ checklist item. Gates recorded here:
+
+- **`tests/unit/doc-dod.test.js`** — asserts the DoD is present in
+  `docs/RUNBOOK.md`, `CLAUDE.md`, and `.github/PULL_REQUEST_TEMPLATE.md`, so the
+  guardrail cannot be silently deleted.
+- **PR-template checklist item** — _"Docs / system map updated — or N/A with
+  reason"_ (complements the existing ops-routine / Control-Room registry item).
+- **`DOC_SYNC_HEALTHCHECK_ROUTINE`** — weekday watcher for doc-sync drift
+  (`docs/DOC_SYNC_HEALTHCHECK_ROUTINE.md`).
+
+These are process/documentation gates; they add net-new coverage and do **not**
+change any existing test assertion.
+
 ## Refs
 
 - KAN-167 (parent — workflow-side false-positive elimination)
 - KAN-110 (original regression guard)
 - KAN-114 (Playwright E2E expansion — unchanged scope here)
+- KAN-359 (Documentation Definition-of-Done gate — added 2026-07-08)
