@@ -157,7 +157,6 @@ export function EditProfileForm({
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
-  needsAgeCheck = false,
 }: {
   profile: WizardProfile;
   items: WizardItem[];
@@ -167,7 +166,6 @@ export function EditProfileForm({
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
   conveneEnabled?: boolean;
-  needsAgeCheck?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -317,16 +315,6 @@ export function EditProfileForm({
 
         {/* Main column */}
         <div className="space-y-3">
-          {needsAgeCheck && (
-            <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 leading-relaxed flex items-start justify-between gap-3">
-              <span>
-                Verify your age to publish. You can keep editing meanwhile — your profile stays private until you do.
-              </span>
-              <Link href="/verify-age" className="shrink-0 underline font-medium hover:opacity-80">
-                Verify age →
-              </Link>
-            </div>
-          )}
           {/* KAN-266: one calm note — optionality stated once, not per field. */}
           <div className="rounded-[10px] border border-[#e3ece5] bg-[#e9efea] px-4 py-3 text-sm text-[var(--color-sage)] leading-relaxed">
             Everything here is optional — share whatever you&apos;d like people to know, and skip the rest.
@@ -431,34 +419,25 @@ export function EditProfileForm({
               <p className="text-xs text-red-700 mt-0.5">{publishError}</p>
             )}
           </div>
-          {needsAgeCheck ? (
-            <Link
-              href="/verify-age"
-              className="shrink-0 px-5 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Verify your age to publish →
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setPublishError(null);
-                startTransition(async () => {
-                  const res = await publishProfile();
-                  if (res?.success) {
-                    router.refresh();
-                    router.push('/dashboard');
-                  } else {
-                    setPublishError(res?.error ?? 'Could not publish. Please try again.');
-                  }
-                });
-              }}
-              disabled={isPending}
-              className="shrink-0 px-5 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {profile.is_published ? 'Re-publish' : 'Publish'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setPublishError(null);
+              startTransition(async () => {
+                const res = await publishProfile();
+                if (res?.success) {
+                  router.refresh();
+                  router.push('/dashboard');
+                } else {
+                  setPublishError(res?.error ?? 'Could not publish. Please try again.');
+                }
+              });
+            }}
+            disabled={isPending}
+            className="shrink-0 px-5 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {profile.is_published ? 'Re-publish' : 'Publish'}
+          </button>
         </div>
       </div>
     </main>

@@ -35,6 +35,26 @@ describe('KAN-272: Minimal homepage (June-2026 redesign)', () => {
     expect(content).toContain('next/image');
   });
 
+  test('explains what Lyra is in BOTH homepage modes', () => {
+    // The homepage renders one of two components: the waitlist front door
+    // (prod) or the showcase (beta/dev). The description used to live only on
+    // the waitlist side, so beta — where invited people actually land — said
+    // nothing beyond "Be understood.". One shared constant, used twice, so the
+    // two modes cannot drift apart again.
+    expect(content).toContain('const LYRA_DESCRIPTION');
+    // JSX wraps the sentence across lines — compare on collapsed whitespace.
+    const flat = content.replace(/\s+/g, ' ');
+    expect(flat).toContain('the gifts that land, the boundaries that matter');
+    expect((content.match(/\{LYRA_DESCRIPTION\}/g) || []).length).toBe(2);
+  });
+
+  test('only the waitlist mode mentions joining the waitlist', () => {
+    // Everyone seeing the showcase already has access — telling them to join a
+    // waitlist would be wrong.
+    expect(content).toContain('Join the waitlist and we');
+    expect((content.match(/Join the waitlist and we/g) || []).length).toBe(1);
+  });
+
   test('shows the "Be understood." tagline', () => {
     expect(content).toContain('Be understood.');
   });
@@ -193,12 +213,18 @@ describe('KAN-273/287: Production waitlist front door', () => {
     // KAN-326: sign-up framing keys off isProdFamily() (prod OR beta), not
     // isProdDeploy() (prod only), so the copy matches the waitlist gate beta also
     // enforces — beta now shows "join the waitlist" instead of "Create account".
+    // KAN-407: the CTA copy moved into the signup-form.tsx client component;
+    // the isProdFamily decision still lives on the server page.
+    const signupForm = fs.readFileSync(
+      path.join(__dirname, '../../src/app/(auth)/signup/signup-form.tsx'),
+      'utf8',
+    );
     expect(signup).toContain('isProdFamily');
     expect(signup).toContain('Join the Lyra waitlist');
-    expect(signup).toContain('Join the waitlist');
+    expect(signupForm).toContain('Join the waitlist');
     // Default copy preserved for the non-prod-family path (dev/stage without the flag).
     expect(signup).toContain('Create your profile');
-    expect(signup).toContain('Create account');
+    expect(signupForm).toContain('Create account');
   });
 
   test('dev mirrors the prod waitlist front door via LYRA_FORCE_WAITLIST (framing only)', () => {
