@@ -14,8 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { upsertConnection } from '@/lib/convene/oauth-connections';
 import { conveneEnv } from '@/lib/convene/env';
@@ -127,9 +126,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'missing_code_or_state' }, { status: 400 });
   }
 
-  const admin = createSupabaseAdmin(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  const admin = createServiceRoleClient();
 
   logStep(reqId, 'state_lookup_start');
   // ownership-ok: state token is unguessable, single-use, user_id is the trusted source (KAN-206)

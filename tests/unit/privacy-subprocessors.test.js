@@ -93,24 +93,19 @@ describe('KAN-407: privacy policy — 18+ self-declaration (no biometric)', () =
     expect(content).toContain('Article 9');
   });
 
-  test('records that the previous biometric check was removed', () => {
-    // Art. 13-14 transparency: a material change to how age is handled should be
-    // visible to users, not silently swapped out.
-    expect(content).toMatch(/removed that check/i);
-    expect(content).toContain('Didit');
+  test('names no age-verification vendor at all', () => {
+    // Simplicity principle (founder, 2026-07-21): the policy describes what Lyra
+    // does NOW. Users never needed to know about the retired provider, so no
+    // vendor name — including the removed one — belongs in the user-facing copy.
+    expect(content).not.toContain('Didit');
   });
 
-  test('makes no claim that Lyra performs a biometric or provider age check', () => {
+  test('makes no claim that Lyra performs — or ever performed — a biometric or provider age check', () => {
     expect(content).not.toMatch(/Art\. 9\(2\)\(a\)/);
     expect(content).not.toMatch(/we (use|run) (a )?biometric/i);
-    // "age band" is allowed ONLY inside the past-tense note about what was
-    // removed — never as something Lyra currently collects.
-    const mentions = [...content.matchAll(/age band/gi)];
-    expect(mentions.length).toBeGreaterThan(0); // the change note must survive
-    for (const m of mentions) {
-      const preceding = content.slice(Math.max(0, m.index - 240), m.index);
-      expect(preceding).toMatch(/no longer|removed|previously|Until July/i);
-    }
+    // No "age band" anywhere: not as a current collection, and no longer as a
+    // past-tense change note either (that note was removed for simplicity).
+    expect(content).not.toMatch(/age band/i);
   });
 });
 

@@ -9,8 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { buildAuthorizeUrl } from '@/lib/convene/google/oauth';
 
@@ -28,11 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   const state = randomBytes(32).toString('base64url');
-  const admin = createSupabaseAdmin(
-    env.supabaseUrl(),
-    env.supabaseServiceRoleKey(),
-    { auth: { persistSession: false } }
-  );
+  const admin = createServiceRoleClient();
   // ownership-ok: writing the user's own state row (KAN-206)
   const { error } = await admin.from('oauth_connect_state').insert({
     state,

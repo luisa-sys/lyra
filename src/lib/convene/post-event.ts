@@ -20,8 +20,8 @@
  * because the WHERE clause filters out already-completed rows.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 
 export interface PostEventSummary {
   scanned: number;
@@ -43,9 +43,7 @@ const POST_EVENT_BUFFER_HOURS = 2;
 const BATCH_SIZE = 100;
 
 function admin(): SupabaseClient {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 export async function runPostEventSweep(): Promise<PostEventSummary> {

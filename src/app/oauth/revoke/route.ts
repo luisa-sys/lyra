@@ -23,6 +23,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { decodeJwt } from 'jose';
 import { getRefreshToken, revokeFamily } from '@/lib/oauth/refresh';
 import { revokeAccessTokenJti, getAccessTokenJti } from '@/lib/oauth/access-tokens';
+import { RATE_LIMITS } from '@/lib/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
+
+function tooManyRequests(retryAfter?: number) {
+  return NextResponse.json(
+    { error: 'too_many_requests', error_description: 'Too many revoke requests. Please slow down.' },
+    {
+      status: 429,
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+        'Retry-After': String(retryAfter ?? 60),
+      },
+    }
+  );
+}
 
 interface RevokeRequest {
   token?: string;
@@ -60,6 +76,12 @@ function okEmpty() {
 }
 
 export async function POST(req: NextRequest) {
+  // SEC-62 (web-oauth-4): anti-DoS per-IP cap FIRST, before parsing the body or
+  // touching the DB. Backed by the shared store so it holds across instances.
+  const ip = clientIpFromHeaders(req.headers);
+  const ipLimit = await sharedRateLimit(`oauth-revoke-ip:${ip}`, RATE_LIMITS.oauthRevokeIp);
+  if (ipLimit.limited) return tooManyRequests(ipLimit.retryAfter);
+
   const body = await readBody(req);
   // Per RFC 7009, an unparseable request is an error. But we still avoid
   // leaking — return 400 invalid_request only when shape is wrong, not
@@ -69,6 +91,15 @@ export async function POST(req: NextRequest) {
       { error: 'invalid_request', error_description: 'token is required' },
       { status: 400, headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' } }
     );
+  }
+
+  // SEC-62: per-client cap when the caller supplies a client_id.
+  if (typeof body.client_id === 'string' && body.client_id) {
+    const clientLimit = await sharedRateLimit(
+      `oauth-revoke-client:${body.client_id}`,
+      RATE_LIMITS.oauthRevokeClient
+    );
+    if (clientLimit.limited) return tooManyRequests(clientLimit.retryAfter);
   }
 
   const hint = body.token_type_hint;

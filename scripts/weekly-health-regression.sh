@@ -16,7 +16,11 @@
 # Env:
 #   RUN_E2E=1   also run integration + Playwright E2E (need deps + browsers; E2E
 #               needs a reachable target).
-#   PHASES="…"  override the phase list (default: lint type-check unit scripts build).
+#   PHASES="…"  override the phase list (default: lint type-check unit scripts
+#               build audit). The `audit` phase runs `npm audit --audit-level=high`
+#               — the SAME gate as pr-checks.yml + every deploy-*.yml — so a RED
+#               dependency gate that blocks all PRs + the deploy chain is surfaced
+#               by the runner itself, not discovered by hand (SEC-91, 2026-07-22).
 #
 # Exit: 2 if any phase FAILs; 1 if any UNVERIFIED and no FAIL; 0 if all PASS.
 #
@@ -24,7 +28,7 @@
 set -uo pipefail
 
 PASS=0; FAIL=0; UNV=0
-PHASES="${PHASES:-lint type-check unit scripts build}"
+PHASES="${PHASES:-lint type-check unit scripts build audit}"
 [ "${RUN_E2E:-0}" = "1" ] && PHASES="$PHASES integration e2e"
 
 record() { # $1=STATUS $2=label $3=detail
@@ -43,6 +47,7 @@ cmd_for() {
   type-check)  echo "npm run type-check" ;;
   unit)        echo "npm run test:unit" ;;
   scripts)     echo "npm run test:scripts" ;;
+  audit)       echo "npm audit --audit-level=high" ;;
   integration) echo "npm run test:integration" ;;
   e2e)         echo "npm run test:e2e" ;;
   build)       echo "npm run build" ;;
@@ -74,6 +79,11 @@ run_phase() { # $1 label
       record UNVERIFIED "$label" "Playwright browsers unavailable — run 'npx playwright install' (env gap, not a test failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
     elif grep -qE "No tests found" "$log"; then
       record UNVERIFIED "$label" "no tests matched this phase's path (env/layout gap, not a failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
+    elif [ "$label" = "audit" ] && grep -qE "ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|Unable to reach|registry error|EAI_AGAIN" "$log"; then
+      # A registry-unreachable npm audit is an ENVIRONMENT gap, not a real vuln —
+      # UNVERIFIED (loud), never FAIL. A genuine high/critical advisory produces
+      # the audit report (no network error) and still FAILs below.
+      record UNVERIFIED "$label" "npm registry unreachable — audit gate could not run (env gap, not a vuln): $(tail -n 1 "$log" | cut -c1-160)"
     else
       record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
     fi

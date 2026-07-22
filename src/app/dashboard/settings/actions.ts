@@ -6,43 +6,156 @@ import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
 import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
+import * as Sentry from '@sentry/nextjs';
+
+// SEC-75 leg (b): external systems that may still hold a copy of a deleted
+// user's data after the Postgres cascade runs. On deletion we RECORD (not call)
+// an erasure obligation naming these so an ops follow-up — which holds the KV /
+// processor write credentials — can action and close each one. Not exported:
+// a 'use server' file may only export async functions (BUGS-12 / gotcha #18).
+const ERASURE_PROCESSORS = ['cloudflare_kv_waitlist', 'resend', 'didit', 'google'];
 
 function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
 }
 
+// SEC-71 (UK-GDPR Art. 15/20): the subject-access / data-portability export
+// must cover EVERY table keyed to the person, and must stay in lockstep with
+// the deletion cascade in deleteAccount() below — export and erasure have to
+// describe the same data set. We read with the service-role admin client (not
+// the RLS-scoped user client) for two reasons: (1) completeness — some rows
+// live in fail-closed, service-role-only tables (no owner SELECT policy), and
+// an RLS-scoped read would silently return empty and present a partial export
+// as complete; (2) symmetry with the deletion cascade, which is also
+// service-role. Every query below is explicitly scoped to the authenticated
+// user's own rows (owner_user_id / profile_id / their own gathering ids), so
+// there is no over-exposure. Secret material (api-key hashes, OAuth token
+// vault refs, RSVP tokens) is redacted by column selection.
 export async function exportUserData(): Promise<string> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return JSON.stringify({ error: 'Not authenticated' });
 
-  const { data: profile } = await supabase
+  const admin = getAdminServiceClient();
+
+  // Track partial-fetch failures so we never present an incomplete export as
+  // a clean one (Workflow & Backup Integrity Policy: distinguish "0" from
+  // "fetch failed"). Any error surfaces in the export payload.
+  const fetchErrors: string[] = [];
+  const record = (label: string, error: { message: string } | null) => {
+    if (error) fetchErrors.push(`${label}: ${error.message}`);
+  };
+
+  const { data: profile, error: profileErr } = await admin
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
     .single();
 
-  if (!profile) return JSON.stringify({ error: 'Profile not found' });
+  if (profileErr || !profile) return JSON.stringify({ error: 'Profile not found' });
 
-  const { data: items } = await supabase
-    .from('profile_items')
-    .select('*')
-    .eq('profile_id', profile.id);
+  const profileId = profile.id as string;
 
-  const { data: schools } = await supabase
-    .from('school_affiliations')
-    .select('*')
-    .eq('profile_id', profile.id);
+  // --- Profile-keyed personal data ---------------------------------------
+  const { data: items, error: itemsErr } = await admin
+    .from('profile_items').select('*').eq('profile_id', profileId);
+  record('profile_items', itemsErr);
 
-  const { data: links } = await supabase
-    .from('external_links')
-    .select('*')
-    .eq('profile_id', profile.id);
+  const { data: schools, error: schoolsErr } = await admin
+    .from('school_affiliations').select('*').eq('profile_id', profileId);
+  record('school_affiliations', schoolsErr);
 
-  const { data: apiKeys } = await supabase
+  const { data: links, error: linksErr } = await admin
+    .from('external_links').select('*').eq('profile_id', profileId);
+  record('external_links', linksErr);
+
+  const { data: manualOfMe, error: momErr } = await admin
+    .from('profile_manual_of_me').select('*').eq('profile_id', profileId);
+  record('profile_manual_of_me', momErr);
+
+  const { data: conversationStarters, error: csErr } = await admin
+    .from('profile_conversation_starters').select('*').eq('profile_id', profileId);
+  record('profile_conversation_starters', csErr);
+
+  // File metadata only — the binary lives in storage, not in this JSON.
+  const { data: files, error: filesErr } = await admin
+    .from('profile_files').select('*').eq('profile_id', profileId);
+  record('profile_files', filesErr);
+
+  // Automated moderation flags raised against this profile's content.
+  const { data: moderationFlags, error: modErr } = await admin
+    .from('content_moderation_flags').select('*').eq('profile_id', profileId);
+  record('content_moderation_flags', modErr);
+
+  // --- User-keyed personal data ------------------------------------------
+  const { data: apiKeys, error: keysErr } = await admin
     .from('api_keys')
     .select('id, key_prefix, name, created_at, last_used_at, revoked_at')
     .eq('user_id', user.id);
+  record('api_keys', keysErr);
+
+  // OAuth connections — redact the Vault secret references and never emit
+  // token material.
+  const { data: oauthConnections, error: oauthErr } = await admin
+    .from('oauth_connections')
+    .select('id, provider, provider_account_id, display_name, scope_granted, status, access_token_expires_at, last_used_at, created_at, updated_at, deleted_at')
+    .eq('owner_user_id', user.id);
+  record('oauth_connections', oauthErr);
+
+  // Reports this user filed against others.
+  const { data: reportsFiled, error: reportsErr } = await admin
+    .from('reports')
+    .select('id, profile_id, profile_item_id, reason, note, status, created_at, resolved_at')
+    .eq('reporter_user_id', user.id);
+  record('reports_filed', reportsErr);
+
+  // Address book: contacts the user owns, plus their contact methods.
+  const { data: contacts, error: contactsErr } = await admin
+    .from('contacts').select('*').eq('owner_user_id', user.id);
+  record('contacts', contactsErr);
+
+  const contactIds = (contacts || []).map((c) => c.id as string);
+  let contactMethods: unknown[] = [];
+  if (contactIds.length) {
+    const { data, error } = await admin
+      .from('contact_methods').select('*').in('contact_id', contactIds);
+    record('contact_methods', error);
+    contactMethods = data || [];
+  }
+
+  // --- Convene: gatherings the user hosts, plus their child rows ----------
+  const { data: gatherings, error: gathErr } = await admin
+    .from('gatherings').select('*').eq('host_user_id', user.id);
+  record('gatherings', gathErr);
+
+  const gatheringIds = (gatherings || []).map((g) => g.id as string);
+  let gatheringInvitees: unknown[] = [];
+  let proposedSlots: unknown[] = [];
+  let inviteMessages: unknown[] = [];
+  if (gatheringIds.length) {
+    // Redact the RSVP bearer token — it's a live credential, not portability data.
+    const invitees = await admin
+      .from('gathering_invitees')
+      .select('id, gathering_id, contact_id, status, dietary_overrides, plus_ones, notes, invited_at, responded_at, created_at, updated_at')
+      .in('gathering_id', gatheringIds);
+    record('gathering_invitees', invitees.error);
+    gatheringInvitees = invitees.data || [];
+
+    const slots = await admin
+      .from('gathering_proposed_slots').select('*').in('gathering_id', gatheringIds);
+    record('gathering_proposed_slots', slots.error);
+    proposedSlots = slots.data || [];
+
+    const messages = await admin
+      .from('gathering_invite_messages').select('*').in('gathering_id', gatheringIds);
+    record('gathering_invite_messages', messages.error);
+    inviteMessages = messages.data || [];
+  }
+
+  // Convene activity log for the user's own actions.
+  const { data: gatheringEvents, error: eventsErr } = await admin
+    .from('gathering_events_log').select('*').eq('actor_user_id', user.id);
+  record('gathering_events_log', eventsErr);
 
   return JSON.stringify({
     exported_at: new Date().toISOString(),
@@ -51,7 +164,23 @@ export async function exportUserData(): Promise<string> {
     items: items || [],
     schools: schools || [],
     links: links || [],
+    manual_of_me: manualOfMe || [],
+    conversation_starters: conversationStarters || [],
+    files: files || [],
+    moderation_flags: moderationFlags || [],
     api_keys: apiKeys || [],
+    oauth_connections: oauthConnections || [],
+    reports_filed: reportsFiled || [],
+    contacts: contacts || [],
+    contact_methods: contactMethods,
+    gatherings: gatherings || [],
+    gathering_invitees: gatheringInvitees,
+    gathering_proposed_slots: proposedSlots,
+    gathering_invite_messages: inviteMessages,
+    gathering_events_log: gatheringEvents || [],
+    // Present only when one or more sections failed to fetch — the export is
+    // then known-incomplete and must not be treated as a full SAR response.
+    ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
   }, null, 2);
 }
 
@@ -72,16 +201,43 @@ export async function deleteAccount() {
   const admin = getAdminServiceClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
-    // The only expected failure is an account with non-deletable audit
-    // rows (a moderator's moderation_logs are ON DELETE RESTRICT). Don't
-    // half-delete anything — leave the account intact and ask them to
-    // contact us.
+    // The only expected failure is an account that has performed moderation/
+    // admin actions: moderation_logs.actor_user_id is ON DELETE RESTRICT and
+    // the log is append-only + tamper-evident (SEC-64), so the auth-user
+    // delete is blocked by those audit rows. Per SEC-75 (UK-GDPR Art.17(3)(b),
+    // retention for a legal obligation), the moderation audit trail — and the
+    // actor identity it references — is retained as a documented, time-limited
+    // erasure exception (see docs/compliance/RETENTION_SCHEDULE.md +
+    // DSAR_BREACH_COMPLAINTS.md). Don't half-delete anything; route the person
+    // to the privacy inbox, which erases everything lawful and records what
+    // must be retained and why.
     return redirect(
       '/dashboard/settings?error=' +
         encodeURIComponent(
-          "We couldn't delete your account automatically. Please contact us and we'll remove it for you.",
+          'Your account includes moderation/admin audit records we are legally required to keep, so it cannot be deleted automatically. Please email privacy@checklyra.com — we will erase everything we lawfully can and explain what must be retained.',
         ),
     );
+  }
+
+  // SEC-75 leg (b): the auth cascade erased everything in Postgres, but copies
+  // may persist in external processors (Resend/Didit/Google) and Cloudflare KV
+  // (waitlist email). Record a durable erasure obligation for an ops follow-up
+  // to action. Best-effort: a logging failure must NOT block the user's erasure
+  // right — capture it to Sentry so the missed obligation is still surfaced.
+  try {
+    const { error: obligationError } = await admin.rpc('record_erasure_obligation', {
+      p_subject_user_id: userId,
+      p_subject_email: user.email ?? null,
+      p_processors: ERASURE_PROCESSORS,
+      p_notes: 'Account hard-deleted; external processor / KV copies pending erasure (SEC-75 leg b).',
+    });
+    if (obligationError) {
+      Sentry.captureException(new Error(`record_erasure_obligation failed: ${obligationError.message}`), {
+        tags: { area: 'erasure-obligation', ticket: 'SEC-75' },
+      });
+    }
+  } catch (e) {
+    Sentry.captureException(e, { tags: { area: 'erasure-obligation', ticket: 'SEC-75' } });
   }
 
   // Best-effort: remove now-orphaned storage objects (the DB cascade
@@ -192,14 +348,23 @@ export async function updatePassword(currentPassword: string, newPassword: strin
 
   if (newPassword.length < 6) return { error: 'New password must be at least 6 characters' };
 
-  // Verify current password by re-authenticating
-  if (user.email) {
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (signInError) return { error: 'Current password is incorrect' };
+  // SEC-82: current-password proof is mandatory. The re-auth below needs an
+  // email (signInWithPassword is email+password), so previously the whole
+  // check was wrapped in `if (user.email)` — meaning an emailless account
+  // (e.g. OAuth-provisioned) could set a new password with ZERO proof of the
+  // old one from any authenticated session. There is no way to prove knowledge
+  // of the current password without an email, so refuse: the user must add an
+  // email first, which routes them back through the proof-carrying path.
+  if (!user.email) {
+    return { error: 'Add an email address to your account before setting a password.' };
   }
+
+  // Verify current password by re-authenticating
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (signInError) return { error: 'Current password is incorrect' };
 
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
