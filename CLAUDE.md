@@ -259,7 +259,7 @@ The pipeline is: **develop → staging → beta → main** (promotion-based, fou
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **2118 tests** (172 suites) in lyra (unit + scripts; E2E + integration not counted), **91 tests** (5 suites) in lyra-mcp-server
+- Current test floor: **2466 tests** (208 suites) in lyra (unit + scripts; E2E + integration not counted), **638 tests** (41 suites) in lyra-mcp-server
 
 ## Test Integrity Policy
 
