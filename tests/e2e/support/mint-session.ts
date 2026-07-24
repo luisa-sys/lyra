@@ -48,18 +48,58 @@ export async function mintSession(
       extraHTTPHeaders: bypass ? { 'x-vercel-protection-bypass': bypass } : undefined,
     });
     const page = await context.newPage();
+
+    // Capture the main-frame navigation chain so a failure reports the REAL
+    // cause (edge status, Cloudflare challenge, token rejection) instead of
+    // guessing at a redirect allowlist. Each hop is {status, url}.
+    const nav: Array<{ status: number; url: string }> = [];
+    page.on('response', (res) => {
+      if (res.request().isNavigationRequest() && res.frame() === page.mainFrame()) {
+        nav.push({ status: res.status(), url: res.url() });
+      }
+    });
+
     const confirmUrl = `${baseURL.replace(/\/$/, '')}/auth/confirm?token_hash=${encodeURIComponent(
       hashedToken,
     )}&type=magiclink`;
-    await page.goto(confirmUrl, { waitUntil: 'commit' });
+    const gotoResp = await page.goto(confirmUrl, { waitUntil: 'commit' });
     // Post-login routing lands on /dashboard (dev/stage) or /waitlist (prod
     // family). Either proves the session cookie was written. A landing on
     // /login?error=… means the token was rejected — surface that loudly.
     await page.waitForURL(/\/(dashboard|waitlist)/, { timeout: 30_000 }).catch(async () => {
       const url = page.url();
+      // Gather concrete evidence: the app + a residential-IP curl both redirect
+      // /auth/confirm -> /dashboard fine, so a CI failure here is almost always
+      // the EDGE, not the app. Cloudflare bot-management challenges the GitHub
+      // Actions runner IP (see CLAUDE.md gotcha #7): the request never reaches
+      // the origin, so it neither redirects nor logs a Vercel error.
+      const cfRay = gotoResp?.headers()['cf-ray'];
+      const server = gotoResp?.headers()['server'];
+      const title = await page.title().catch(() => '(no title)');
+      const bodySnippet = (await page.evaluate(() => document.body?.innerText ?? '').catch(() => ''))
+        .slice(0, 300)
+        .replace(/\s+/g, ' ')
+        .trim();
+      const chain = nav.map((h) => `${h.status} ${h.url}`).join('  ->  ') || '(no navigation responses captured)';
+      const looksLikeCfChallenge =
+        /cloudflare/i.test(server ?? '') &&
+        (/just a moment|attention required|verify you are human|cf-chl|challenge/i.test(
+          `${title} ${bodySnippet}`,
+        ) ||
+          (gotoResp?.status() ?? 0) === 403);
       throw new Error(
-        `mintSession(${email}): did not reach /dashboard or /waitlist after confirm — landed on ${url}. ` +
-          'Check the target env Supabase Auth redirect allowlist includes this BASE_URL /auth/confirm.',
+        `mintSession(${email}): did not reach /dashboard or /waitlist — landed on ${url}.\n` +
+          `  nav chain: ${chain}\n` +
+          `  goto status: ${gotoResp?.status() ?? 'n/a'}  server: ${server ?? 'n/a'}  cf-ray: ${cfRay ?? 'n/a'}\n` +
+          `  page title: ${title}\n` +
+          `  body[0..300]: ${bodySnippet}\n` +
+          (looksLikeCfChallenge
+            ? '  DIAGNOSIS: Cloudflare bot-management is challenging the CI runner IP (CLAUDE.md gotcha #7). ' +
+              'The authed harness must reach the ORIGIN — add a Cloudflare WAF skip rule keyed to a secret ' +
+              'header the harness sends, or run against a non-CF-proxied origin whose build is not ' +
+              'parent-cookie-scoped to .checklyra.com.'
+            : '  If this is not a Cloudflare challenge, inspect the nav chain above: a /login landing means the ' +
+              'token was rejected; a bounce back off /dashboard means the session cookie was not persisted.'),
       );
     });
     await context.storageState({ path: statePath });
