@@ -26,9 +26,15 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'Deployed dev/staging URL to run against'
+        # e2e-dev.checklyra.com is a DNS-only (grey-cloud) alias of the develop
+        # deployment — it bypasses Cloudflare bot-management (which challenges the
+        # CI runner IP on the proxied dev host, gotcha #7) while staying a
+        # .checklyra.com subdomain so the session cookie is still valid. Do NOT
+        # point this at the proxied dev.checklyra.com or the runner gets the
+        # "Just a moment…" 403. See docs/E2E_AUTHED_CF_BYPASS.md.
+        description: 'DNS-only dev/staging URL to run against (bypasses CF bot-mgmt)'
         required: false
-        default: 'https://dev.checklyra.com'
+        default: 'https://e2e-dev.checklyra.com'
 
 permissions:
   contents: read
@@ -50,7 +56,7 @@ jobs:
     env:
       CI: 'true'
       E2E_AUTHED: '1'
-      BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.checklyra.com' }}
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://e2e-dev.checklyra.com' }}
       # Harness creds — DISTINCT from the app's own SUPABASE_* so they never leak
       # into an app runtime. Scope these GitHub Secrets to DEV/STAGING, NEVER prod.
       E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
