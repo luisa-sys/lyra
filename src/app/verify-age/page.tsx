@@ -1,17 +1,21 @@
 /**
- * KAN-319 / KAN-282: age-verification landing (framework stub).
+ * /verify-age — provider (Didit) age check landing.
  *
- * When AGE_VERIFICATION_REQUIRED is on, an unverified user is sent here to
- * verify before they can publish their profile. The real Didit hosted
- * facial-age-estimation flow (selfie → estimate → webhook → age_status='passed')
- * ships as the immediate follow-up (KAN-282); for now this explains the gate and
- * how to proceed. We never collect a DOB or store a selfie/biometric here.
+ * KAN-407 retired this to a redirect stub when the provider check was replaced
+ * by an 18+ self-declaration. KAN-408 brings it back as an OPT-IN: it is live
+ * only where the `age_verification` global switch is ON for the environment
+ * (isProviderAgeCheckActive). When the switch is OFF (the default), or the user
+ * has already passed, we redirect straight to the dashboard — the
+ * self-declaration at sign-up is all that's required.
+ *
+ * Lyra never collects a DOB or stores a selfie/biometric here — the Didit hosted
+ * flow returns only a yes/no age result (see src/lib/age/didit.ts).
  */
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { isAgeVerificationRequired } from '@/lib/age/gate';
+import { isProviderAgeCheckActive } from '@/lib/age/provider-gate';
 import { isDiditConfigured } from '@/lib/age/didit';
 import { startAgeVerification } from './actions';
 
@@ -25,14 +29,14 @@ export default async function VerifyAgePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/verify-age');
 
-  // If the gate is off, or the user is already verified, send them on.
+  // Provider check off for this environment, or already verified → send them on.
   const { data: profile } = await supabase
     .from('profiles')
     .select('age_status')
     .eq('user_id', user.id)
     .maybeSingle();
   const status = (profile as { age_status?: string } | null)?.age_status;
-  if (!isAgeVerificationRequired() || status === 'passed') {
+  if (!(await isProviderAgeCheckActive()) || status === 'passed') {
     redirect('/dashboard/profile');
   }
 

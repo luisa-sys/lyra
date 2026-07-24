@@ -16,7 +16,7 @@ jobs:
     name: PR Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
       - name: Workflow integrity check (BUGS-4)
         # Static scan of .github/workflows/*.yml for known false-positive
         # patterns (GITHUB_TOKEN+push, --limit 1 deploy verification, 401
@@ -24,12 +24,64 @@ jobs:
         # workflow re-introduces a banned pattern. See script source for
         # rationale and the # integrity-ok: allow-list mechanism.
         run: bash scripts/check-workflow-integrity.sh
+      - name: Action SHA-pinning check (SEC-77 F-22)
+        # Static scan of .github/workflows/*.yml: every remote action must be
+        # pinned to a full 40-hex commit SHA, never a mutable @tag/@branch.
+        # A mutable ref lets upstream change CI code without our review
+        # (supply-chain vector). The one-time pin already happened (SEC-20
+        # #356); this is the durable regression guard. Exempt local (./)
+        # reusables; escape hatch is '# integrity-ok: pin <reason>'.
+        run: bash scripts/check-action-pinning.sh
       - name: Server-action export check (BUGS-12)
         # Static scan of every `'use server'` file in src/ for non-async
         # exports. Next.js 16+ rejects these at action-invocation time
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Service-role client centralisation check (KAN-352)
+        # Static scan forbidding any call to env.supabaseServiceRoleKey()
+        # outside src/lib/supabase-service.ts. The service-role client
+        # bypasses all RLS; centralising its construction in one hardened
+        # factory means a hardening change lands once, not ~30 times.
+        # Allow-list with # service-role-ok: <reason>.
+        run: bash scripts/check-service-role-client.sh
+      - name: Routine ownership guard (KAN-361)
+        # Static scan asserting the "one concern → one owner" markers from the
+        # KAN-361 routine de-dup are still present — e.g. weekly-report.yml
+        # Section 1 reads health-check.yml (liveness owner) instead of
+        # re-curling, and security-audit.yml stays a demoted belt-and-braces
+        # audit deferring to the Daily Security routine. Fails the PR if an
+        # edit silently re-introduces the quadruplicated probing the ticket
+        # removed. Owner map: docs/OPS_ROUTINES_CONTROL_ROOM.md.
+        run: bash scripts/check-routine-ownership.sh
+      - name: Doc mirror-manifest presence check (KAN-363)
+        # Parses the mirror manifest in docs/DOC_SOURCE_OF_TRUTH.md and fails
+        # the PR if any critical runbook/compliance doc listed there as a
+        # repo mirror has been deleted or renamed out of the tree — the
+        # cheapest form of doc drift. Presence only; content drift-vs-wiki is
+        # a separate founder/ops-gated leg of KAN-363.
+        run: bash scripts/check-doc-mirror-manifest.sh
+      - name: Doc mirror-content check (KAN-363)
+        # Companion to the presence check above: fails the PR if a listed .md
+        # mirror EXISTS but is an empty / stub / heading-less file — the
+        # "backup that looks successful but contains placeholder content"
+        # failure mode (KAN-167). Structural checks only (non-empty, has a
+        # heading, has substance); content drift-vs-wiki stays a separate
+        # founder/ops-gated leg of KAN-363.
+        run: bash scripts/check-doc-mirror-content.sh
+      - name: CODEOWNERS single-source-of-truth check (SEC-3)
+        # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
+        # docs/) and silently ignores the rest, so two CODEOWNERS files means
+        # the lower-precedence one's ownership rules are dead. This guard fails
+        # the PR if more than one exists (or none, or the winning file has no
+        # default `* @owner`). See SEC-3 / GOV-01.
+        run: bash scripts/check-codeowners-single.sh
+      - name: macOS Finder-duplicate file check (KAN-357)
+        # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
+        # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
+        # canonical module, are never imported, and confuse audits. Fails the
+        # PR if any tracked path carries the suffix. Allow-list in the script.
+        run: bash scripts/check-macos-duplicate-files.sh
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and

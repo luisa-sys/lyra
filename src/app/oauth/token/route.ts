@@ -34,6 +34,8 @@ import {
   revokeFamily,
 } from '@/lib/oauth/refresh';
 import { oauthConfig } from '@/lib/oauth/config';
+import { RATE_LIMITS } from '@/lib/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
 
 function errorJson(error: string, description?: string, status = 400) {
   return NextResponse.json(
@@ -41,6 +43,20 @@ function errorJson(error: string, description?: string, status = 400) {
     {
       status,
       headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
+    }
+  );
+}
+
+function tooManyRequests(retryAfter?: number) {
+  return NextResponse.json(
+    { error: 'too_many_requests', error_description: 'Too many token requests. Please slow down.' },
+    {
+      status: 429,
+      headers: {
+        'Cache-Control': 'no-store',
+        Pragma: 'no-cache',
+        'Retry-After': String(retryAfter ?? 60),
+      },
     }
   );
 }
@@ -141,11 +157,25 @@ async function authenticateClient(
 }
 
 export async function POST(req: NextRequest) {
+  // SEC-62 (web-oauth-4): anti-DoS per-IP cap FIRST, before parsing the body or
+  // touching the DB. Backed by the shared store so it holds across instances.
+  const ip = clientIpFromHeaders(req.headers);
+  const ipLimit = await sharedRateLimit(`oauth-token-ip:${ip}`, RATE_LIMITS.oauthTokenIp);
+  if (ipLimit.limited) return tooManyRequests(ipLimit.retryAfter);
+
   const body = await readTokenRequest(req);
   if (!body) return errorJson('invalid_request', 'body must be form-encoded or JSON');
 
   const auth = await authenticateClient(req, body);
   if (!auth.ok) return errorJson(auth.error, auth.description, auth.status);
+
+  // SEC-62: per-client cap once the client is authenticated — a single client
+  // (compromised or buggy) can't exhaust the token endpoint for everyone.
+  const clientLimit = await sharedRateLimit(
+    `oauth-token-client:${auth.clientId}`,
+    RATE_LIMITS.oauthTokenClient
+  );
+  if (clientLimit.limited) return tooManyRequests(clientLimit.retryAfter);
 
   const grantType = body.grant_type;
   if (grantType === 'authorization_code') {

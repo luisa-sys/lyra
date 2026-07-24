@@ -10,8 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { upsertConnection } from '@/lib/convene/oauth-connections';
 import {
@@ -56,9 +55,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'missing_code_or_state' }, { status: 400 });
   }
 
-  const admin = createSupabaseAdmin(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  const admin = createServiceRoleClient();
 
   // ownership-ok: state token is unguessable + single-use (KAN-211)
   const { data: stateRow, error: stateErr } = await admin
