@@ -1,92 +1,73 @@
-# Authed E2E — Cloudflare bot-management bypass (KAN-348)
+# Authed E2E — reaching the origin past Cloudflare (KAN-348)
 
-**Status:** the authenticated journey suite (`.github/workflows/e2e-authed.yml`)
-is fully working *except* it cannot reach the deployed dev/stage origin from a
-GitHub Actions runner, because Cloudflare bot-management serves the runner IP a
-`403 "Just a moment…"` challenge (CLAUDE.md **gotcha #7**). Proven on 2026-07-24:
+**Status: SOLVED (2026-07-24).** The authenticated journey suite
+(`.github/workflows/e2e-authed.yml`) could not reach the deployed dev origin from
+a GitHub Actions runner, because Cloudflare bot-management served the runner IP a
+`403 "Just a moment…"` challenge (CLAUDE.md **gotcha #7**). Proven in-run:
 
 ```
-nav chain: 307 /auth/confirm  ->  403 /auth/confirm  ->  403 /auth/confirm
-goto status: 403   server: cloudflare   cf-ray: a2016c9b9980cba2-LAX
+nav chain: 307 /auth/confirm -> 403 /auth/confirm -> 403 /auth/confirm
+goto status: 403   server: cloudflare   cf-ray: …-LAX
 page title: "Just a moment..."
-body: "…Performing security verification… protect against malicious bots…"
 ```
 
-The app + a residential-IP curl both redirect `/auth/confirm -> /dashboard`
-cleanly; only the datacenter runner IP is challenged. Everything else in the
-harness is fixed and green up to this point (secrets valid, seed users clear the
-GoTrue `listUsers` path and the KAN-407 18+ gate, sessions would mint).
+## The solution that works: a DNS-only (grey-cloud) test subdomain
 
-## The fix — a Cloudflare WAF *skip* rule keyed to a secret header
+`e2e-dev.checklyra.com` is a **DNS-only** alias of the develop deployment:
 
-The harness sends a secret header on every request when two GitHub secrets are
-set; a Cloudflare rule matches that header and **skips** bot-management for those
-requests only. Both halves are required — code (already merged) + the two
-founder actions below.
+- **Vercel**: `e2e-dev.checklyra.com` added to the `lyra` project, connected to
+  the **Preview → develop** branch (serves the same build as `dev.checklyra.com`).
+- **Cloudflare DNS**: `CNAME e2e-dev → 3473b79482213ee3.vercel-dns-017.com`, with
+  **Proxy status = DNS only (grey cloud)**. Traffic goes straight to Vercel, so
+  Cloudflare bot-management never sees it — no challenge.
+- **Cookies still work**: it is still a `.checklyra.com` subdomain, so the
+  parent-scoped session cookie (`withParentCookieDomain` → `.checklyra.com`) is
+  valid on it. (Pointing at a `*.vercel.app` URL would drop the cookie because the
+  develop build's `NEXT_PUBLIC_SITE_URL` is a checklyra host.)
+- The suite targets it via the workflow `base_url` default
+  (`https://e2e-dev.checklyra.com`). The prod-guard allows it (dev) and still
+  blocks the prod/beta family.
 
-### 1. Generate a secret and pick a header name
-
+Verify + run:
 ```bash
-openssl rand -hex 32      # the SECRET value (copy it)
-```
-
-Header name convention: `x-lyra-e2e-bypass` (any custom `x-…` name works, but it
-must match the Cloudflare rule exactly).
-
-### 2. Set the two GitHub Actions secrets (luisa-sys/lyra)
-
-GitHub → luisa-sys/lyra → Settings → Secrets and variables → Actions:
-
-| Secret | Value |
-|--------|-------|
-| `E2E_CF_BYPASS_HEADER` | `x-lyra-e2e-bypass` |
-| `E2E_CF_BYPASS_SECRET` | the `openssl rand -hex 32` output |
-
-(These are consumed by `playwright.config.ts` + `tests/e2e/support/mint-session.ts`
-and passed through `e2e-authed.yml`. Until BOTH are set the header is never sent
-— the harness is a no-op, the anon localhost gate is unaffected.)
-
-### 3. Create the Cloudflare WAF skip rule (checklyra.com zone)
-
-Cloudflare dashboard → **checklyra.com** zone → **Security → WAF → Custom rules
-→ Create rule**:
-
-- **Name:** `E2E authed harness bypass (KAN-348)`
-- **Expression** (Edit expression):
-  ```
-  (http.host in {"dev.checklyra.com" "stage.checklyra.com"}
-   and any(http.request.headers["x-lyra-e2e-bypass"][*] eq "<PASTE THE SECRET>"))
-  ```
-- **Action:** **Skip** → tick **Super Bot Fight Mode** (and, if present, **All
-  remaining custom rules** and any managed challenge). This lets the matching
-  requests through to the origin without a challenge.
-- Deploy.
-
-> Scope it to the dev/stage hosts only — never `checklyra.com`/`beta`. The
-> secret header is the actual guard; the host filter is defence in depth. The
-> authed harness is hard-guarded against prod Supabase already
-> (`tests/e2e/support/supabase-admin.ts`).
-
-### 4. Verify, then enable the schedule
-
-```bash
-gh workflow run e2e-authed.yml --repo luisa-sys/lyra -f base_url=https://dev.checklyra.com
+gh workflow run e2e-authed.yml --repo luisa-sys/lyra -f base_url=https://e2e-dev.checklyra.com
 gh run watch --repo luisa-sys/lyra
 ```
 
-Green → the seeded journey states all mint sessions and the dashboard assertions
-run. Then flip the suite from dispatch-only to CI-wired by uncommenting the
-`push:`/`schedule:` block at the top of `.github/workflows/e2e-authed.yml` (a
-1-line change) and PR it through the pipeline.
+## Why NOT a Cloudflare WAF skip rule
 
-## What was already fixed getting here (2026-07-24)
+The first attempt was a WAF **Skip** rule keyed to a secret header the harness
+sends (`E2E_CF_BYPASS_HEADER` / `E2E_CF_BYPASS_SECRET`, still wired in
+`playwright.config.ts` + `mint-session.ts` + the workflow as a harmless no-op).
+**It does not work on this zone**: checklyra.com is a **free** Cloudflare plan,
+and free **Bot Fight Mode** (Security → Bots) cannot be excepted by a WAF Skip
+rule — only paid **Super Bot Fight Mode** can. The "Just a moment…" challenge is
+Bot Fight Mode, so the rule had no effect. **Leftovers that can be removed** (they
+do nothing now): the `E2E authed harness bypass (KAN-348)` WAF custom rule, and
+the `E2E_CF_BYPASS_HEADER` / `E2E_CF_BYPASS_SECRET` GitHub secrets.
 
-- **E2E_SUPABASE_* secrets** — verified valid (were never the blocker).
-- **Dev + prod `auth.users` NULL-token 500** — the pre-existing demo-seed rows
-  had NULL token columns, so GoTrue `listUsers` 500'd before any seed ran.
-  Normalised NULL → `''` on both projects (non-destructive; real users untouched).
-- **Seed harness age gate** — `seed-user.ts` set the pre-KAN-407 age columns but
-  not `age_declared_18_at`, so seeded users were diverted to `/confirm-age`.
-  Now declares 18+ on every seeded state.
-- **mint-session diagnostics** — now capture the real edge status / CF challenge
-  instead of a misleading "check the redirect allowlist" hint.
+## Convene widget (test #4) — enable convene on the target env
+
+`published_grow` asserts the convene widget renders. It is gated
+`CONVENE_ENABLED` (env) **AND** `global_feature_switches.convene` (admin, per-env)
+**AND** the per-user entitlement (the seed sets this). On dev the global switch
+was `false`; it must be `true` for that case to pass. Enabled 2026-07-24.
+
+## Known remaining failure — KAN-271 (pre-existing)
+
+`journey.authed.spec.ts` › *edits a Manual-of-Me box; the change appears on the
+published profile* was `test.fixme` (skipped) before being un-skipped. It fails:
+the edit never lands in `profile_manual_of_me` (verified empty after a run) though
+the editor shows a "Saved" toast. This is a real profile-editor persist/render gap
+(or a test-interaction issue), unrelated to the CF work. **Do not enable the
+`push`/`schedule` triggers until this is green or re-`fixme`'d with a tracking
+ticket** — otherwise the suite is perpetually red. Fixing/adjusting the test needs
+sign-off (Test Integrity Policy).
+
+## What was fixed getting here (2026-07-24)
+
+- **Dev + prod `auth.users` NULL-token 500** — demo-seed rows had NULL GoTrue
+  token columns → `listUsers` 500 before any seed ran. Normalised NULL → `''`.
+- **Seed 18+ declaration** — `seed-user.ts` now sets `age_declared_18_at` so seeded
+  users clear the KAN-407 `/confirm-age` gate.
+- **mint-session diagnostics** — capture real edge evidence (status, cf-ray, title).
