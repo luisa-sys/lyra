@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { env } from '@/lib/env';
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -65,8 +66,17 @@ export async function middleware(request: NextRequest) {
         supabaseResponse = NextResponse.next({
           request,
         });
+        // KAN-274 — see src/lib/supabase-server.ts. When COOKIE_DOMAIN is set
+        // (prod + beta only) we scope the cookie to the parent domain for
+        // cross-subdomain SSO; spreading `options` first keeps Secure +
+        // SameSite=Lax intact. Unset → host-scoped (dev/stage unchanged).
+        const cookieDomain = env.cookieDomain();
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
+          supabaseResponse.cookies.set(
+            name,
+            value,
+            cookieDomain ? { ...options, domain: cookieDomain } : options
+          )
         );
       },
     },
@@ -103,6 +113,43 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/waitlist';
       url.search = '';
       return NextResponse.redirect(url);
+    }
+  }
+
+  // KAN-278: approved-user routing. On PROD (NOT the beta deploy) and only
+  // when BETA_ROUTING_ENABLED is flipped on, an authenticated user who has
+  // been approved for the beta (beta_access_status='approved', or the legacy
+  // is_beta_eligible flag) is sent over to the beta deploy, path preserved.
+  // INERT by default: with BETA_ROUTING_ENABLED unset this whole block is a
+  // no-op, so dev/stage and pre-cutover prod are unchanged. Auth/api/static/
+  // callback paths are exempt to avoid bouncing sign-in mid-flight and to
+  // avoid redirect loops.
+  const exemptFromBetaRouting =
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/favicon.ico';
+
+  if (
+    !isBetaDeploy &&
+    env.betaRoutingEnabled() &&
+    user &&
+    !exemptFromBetaRouting
+  ) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('beta_access_status, is_beta_eligible')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (
+      profile?.beta_access_status === 'approved' ||
+      profile?.is_beta_eligible
+    ) {
+      const target = new URL(env.betaAppUrl());
+      target.pathname = pathname;
+      target.search = request.nextUrl.search;
+      return NextResponse.redirect(target);
     }
   }
 

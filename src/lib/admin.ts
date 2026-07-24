@@ -35,6 +35,7 @@ import { env } from '@/lib/env';
  * - warn                      — soft action (email only, no state change)
  * - resolve_report / dismiss_report — report-state transitions
  * - grant_admin / revoke_admin — change admin flag on another user
+ * - grant_beta_access          — approve a user from the beta queue (KAN-277)
  */
 export type ModerationAction =
   | 'suspend'
@@ -45,7 +46,8 @@ export type ModerationAction =
   | 'resolve_report'
   | 'dismiss_report'
   | 'grant_admin'
-  | 'revoke_admin';
+  | 'revoke_admin'
+  | 'grant_beta_access';
 
 export interface AdminUser {
   userId: string;

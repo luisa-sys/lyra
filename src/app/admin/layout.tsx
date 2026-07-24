@@ -59,6 +59,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Users
               </Link>
               <Link
+                href="/admin/beta-queue"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Beta queue
+              </Link>
+              <Link
                 href="/admin/audit"
                 className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
               >
