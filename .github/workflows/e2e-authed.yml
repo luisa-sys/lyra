@@ -57,6 +57,13 @@ jobs:
       E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       # Vercel/Cloudflare bypass header for protected deploy URLs (optional).
       VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+      # KAN-348: clears Cloudflare bot-management on the dev/stage origin for the
+      # CI runner IP (gotcha #7). Requires a Cloudflare WAF *skip* rule that
+      # matches this header NAME + SECRET; until the founder provisions both the
+      # rule and these two secrets, the header is not sent (harness no-op) and
+      # the authed suite stays dispatch-only. See docs/E2E_AUTHED_CF_BYPASS.md.
+      E2E_CF_BYPASS_HEADER: ${{ secrets.E2E_CF_BYPASS_HEADER }}
+      E2E_CF_BYPASS_SECRET: ${{ secrets.E2E_CF_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 

@@ -41,11 +41,21 @@ export async function mintSession(
   const hashedToken = data.properties.hashed_token;
 
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS;
+  // Same Cloudflare-bypass header the Playwright config sends (KAN-348): this
+  // context is created directly (not from the config `use`), so it must carry
+  // the header itself to clear CF bot-management on the /auth/confirm redirect.
+  // Both vars unset → empty → no-op.
+  const cfName = process.env.E2E_CF_BYPASS_HEADER?.trim();
+  const cfSecret = process.env.E2E_CF_BYPASS_SECRET;
+  const extraHTTPHeaders: Record<string, string> = {
+    ...(bypass ? { 'x-vercel-protection-bypass': bypass } : {}),
+    ...(cfName && cfSecret ? { [cfName]: cfSecret } : {}),
+  };
   const browser = await chromium.launch();
   try {
     const context = await browser.newContext({
       baseURL,
-      extraHTTPHeaders: bypass ? { 'x-vercel-protection-bypass': bypass } : undefined,
+      extraHTTPHeaders: Object.keys(extraHTTPHeaders).length ? extraHTTPHeaders : undefined,
     });
     const page = await context.newPage();
 
