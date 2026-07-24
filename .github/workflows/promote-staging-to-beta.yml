@@ -36,7 +36,7 @@ jobs:
     outputs:
       staging_sha: ${{ steps.check.outputs.staging_sha }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 1
           ref: staging
@@ -112,7 +112,7 @@ jobs:
     steps:
       # Use LYRA_RELEASE_PAT — GITHUB_TOKEN does not trigger downstream
       # workflows on push (deploy-beta.yml would never fire). See gotcha #16.
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}

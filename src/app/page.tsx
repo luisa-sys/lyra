@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "@/lib/env";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isProdDeploy } from "@/lib/beta-access/flow";
 import { jsonLdSafe } from "@/lib/json-ld";
 
@@ -37,7 +36,7 @@ interface HomeProfile {
 }
 
 function getSupabase() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey());
+  return createServiceRoleClient();
 }
 
 /**
@@ -235,9 +234,10 @@ export default async function Home({
   }
 
   const people = await getPublishedProfiles();
-  // Ghost CTA — "See example profiles" — points at the first published
-  // profile when one exists, otherwise falls back to search.
-  const exampleHref = people.length > 0 ? `/${people[0].slug}` : "/search";
+  // Ghost CTA — "See example profiles" — leads to the full gallery of curated
+  // example profiles (/examples). The band below only previews the first 6;
+  // the gallery lists them all.
+  const exampleHref = "/examples";
 
   const jsonLd = {
     "@context": "https://schema.org",

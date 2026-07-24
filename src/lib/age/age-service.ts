@@ -6,14 +6,11 @@
  * through the service client. We store ONLY the status + provider reference +
  * timestamp — never a DOB, selfie, or raw biometric.
  */
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 import type { AgeStatusResult } from './didit';
 
 function serviceClient() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /** Persist a verification outcome onto a profile (idempotent for a given session). */

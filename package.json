@@ -17,13 +17,13 @@
     "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.63.0",
-    "@supabase/ssr": "^0.12.0",
+    "@sentry/nextjs": "^10.66.0",
+    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
-    "next": "16.2.10",
+    "next": "16.2.11",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
@@ -31,9 +31,9 @@
     "@axe-core/playwright": "^4.12.1",
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.61.1",
-    "@swc/core": "^1.15.43",
+    "@swc/core": "^1.15.46",
     "@swc/jest": "^0.2.39",
-    "@tailwindcss/postcss": "^4.3.2",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -50,6 +50,12 @@
   },
   "overrides": {
     "postcss": "^8.5.10",
-    "tmp": "^0.2.7"
+    "tmp": "^0.2.7",
+    "brace-expansion@^1.0.0": "1.1.16",
+    "brace-expansion@^2.0.0": "2.1.2",
+    "js-yaml@^3.0.0": "3.15.0",
+    "js-yaml@^4.0.0": "4.3.0",
+    "fast-uri@^3.0.0": "3.1.4",
+    "sharp": "0.35.3"
   }
 }

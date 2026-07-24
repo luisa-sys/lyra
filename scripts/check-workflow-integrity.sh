@@ -138,6 +138,89 @@ for f in "$WORKFLOW_DIR"/*.yml; do
 done
 rm -f /tmp/rb_hits
 
+# ── Pattern 5: prod-promote merge-to-main gate (SEC-86 Finding A) ──
+# The beta -> main promote merge is the highest-blast-radius, effectively
+# irreversible action in the project. Two invariants must hold for any
+# workflow that runs `git push origin main`:
+#
+#   (5a) A reviewer/approval checkpoint on the merge itself. The merge job
+#        must declare `environment: production` (the GitHub Environment where
+#        required-reviewers attach) OR the residual "the merge lands before
+#        any reviewer" must be an EXPLICIT, documented decision — allow-listed
+#        with `# integrity-ok: sec-86 <reason>`. Without one of these, the
+#        merge can be landed on main by anyone with repo write who types the
+#        confirm string, with no second pair of eyes. The reviewer gate that
+#        DOES exist today (production Environment) is referenced only by the
+#        downstream deploy-production.yml, which runs AFTER the merge, so it
+#        guards the deploy, not the merge. See
+#        docs/RELEASE_POLICY.md -> "Release-flow gate (SEC-86 Finding A)".
+#
+#   (5b) The typed-confirm compensating control must be preserved. The
+#        workflow must still gate on `inputs.confirm == "PRODUCTION"`. That
+#        typed confirmation is the ONE gate that currently guards the merge;
+#        a change that silently removes it (leaving the merge with no gate at
+#        all) must fail CI. This half is decision-neutral — it only pins an
+#        existing control and never blocks a future upgrade to a real
+#        reviewer gate.
+for f in "$WORKFLOW_DIR"/*.yml; do
+  [ -f "$f" ] || continue
+
+  if grep -qE 'git push origin main([^a-zA-Z0-9_-]|$)' "$f"; then
+    # (5a) reviewer checkpoint OR documented residual
+    if ! grep -qE '^[[:space:]]*environment:[[:space:]]*production' "$f" \
+       && ! grep -qiE '# integrity-ok:.*sec-86' "$f"; then
+      echo "::error file=$f::Pattern 5a: pushes to main (prod promote) but the merge job has no 'environment: production' reviewer gate and no documented residual."
+      echo "    Add 'environment: production' to the merge job so required-reviewers fire BEFORE the merge,"
+      echo "    OR document the residual in docs/RELEASE_POLICY.md and allow-list with '# integrity-ok: sec-86 <reason>'."
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+
+    # (5b) typed-confirm compensating control must survive
+    if ! grep -qE 'inputs\.confirm' "$f" || ! grep -qE '"PRODUCTION"' "$f"; then
+      echo "::error file=$f::Pattern 5b: pushes to main but the typed-confirm gate (inputs.confirm == \"PRODUCTION\") is missing or weakened."
+      echo "    The typed confirmation is the sole gate on the irreversible beta->main merge — it must not be removed."
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+  fi
+done
+
+# ── Pattern 6: broad long-lived PAT pushing to main (SEC-66 / separation-of-duties) ──
+# Sibling of Pattern 5 on the SAME merge-and-push job. The beta -> main promote
+# pushes with LYRA_RELEASE_PAT — a long-lived, broad token (Contents +
+# Workflows: write). A push authenticated by that PAT structurally bypasses
+# branch protection on main: whoever (or whatever) holds the token can write
+# review-free to prod `main` and to workflow definitions across branches. That
+# is the separation-of-duties gap SEC-66 tracks.
+#
+# The *real* fix is a credential/repo-settings change that is Luisa's call:
+# migrate to a short-lived, fine-grained GitHub App installation token (or an
+# expiring fine-grained PAT with minimal repo selection) and run the promote
+# from a protected Environment with a required reviewer. That cannot be
+# expressed in a workflow file alone, so — exactly like Pattern 5a — this check
+# is waiver-based and decision-neutral: it does not force a particular fix, it
+# only makes the residual EXPLICIT and NON-EXPANDING.
+#
+# Invariant: any workflow that runs `git push origin main` while referencing
+# `secrets.LYRA_RELEASE_PAT` must carry an explicit `# integrity-ok: sec-66`
+# waiver documenting the SoD residual. This pins the broad-PAT-to-main path to
+# its single audited location (promote-to-production.yml's merge-and-push job)
+# and fails CI if a NEW workflow starts pushing to main with the broad PAT
+# without that being a documented, reviewed decision.
+# See docs/RELEASE_POLICY.md -> "Credential / separation-of-duties residual (SEC-66)".
+for f in "$WORKFLOW_DIR"/*.yml; do
+  [ -f "$f" ] || continue
+
+  if grep -qE 'git push origin main([^a-zA-Z0-9_-]|$)' "$f" \
+     && grep -qE 'secrets\.LYRA_RELEASE_PAT' "$f"; then
+    if ! grep -qiE '# integrity-ok:.*sec-66' "$f"; then
+      echo "::error file=$f::Pattern 6: pushes to main using the broad long-lived LYRA_RELEASE_PAT, bypassing branch protection, with no documented SoD residual."
+      echo "    The push-to-main path must use a short-lived fine-grained token behind a protected Environment (SEC-66),"
+      echo "    OR the residual must be documented in docs/RELEASE_POLICY.md and allow-listed with '# integrity-ok: sec-66 <reason>'."
+      PROBLEMS=$((PROBLEMS + 1))
+    fi
+  fi
+done
+
 echo ""
 if [ "$PROBLEMS" -eq 0 ]; then
   echo "✓ No workflow integrity issues found"

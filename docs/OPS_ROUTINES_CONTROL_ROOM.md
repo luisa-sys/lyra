@@ -71,6 +71,13 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 - **Doc-sync of record** = the Doc-Sync Health-Check routine, watching the
   KAN-249 producer.
 
+These ownership markers are CI-enforced: `scripts/check-routine-ownership.sh`
+(run from `pr-checks.yml`) fails any PR that removes a load-bearing marker —
+e.g. re-adding a multi-endpoint liveness curl to `weekly-report.yml` Section 1,
+or re-growing `security-audit.yml` into a second authoritative security sweep.
+It is a READ-ONLY presence guard; a target file that cannot be read is a FAIL,
+never a silent pass (KAN-361 / KAN-167).
+
 ---
 
 ## Heartbeat / Run-ledger (lives on Confluence)

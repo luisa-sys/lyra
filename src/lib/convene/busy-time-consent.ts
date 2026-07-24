@@ -21,8 +21,7 @@
  * defence-in-depth BEFORE any shared-availability WEB surface ships.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 
 /** Thrown when the viewer is not permitted to read the target's busy-times. */
 export class BusyTimeConsentError extends Error {
@@ -33,9 +32,7 @@ export class BusyTimeConsentError extends Error {
 }
 
 function admin() {
-  return createClient(env.supabaseUrl(), env.supabaseServiceRoleKey(), {
-    auth: { persistSession: false },
-  });
+  return createServiceRoleClient();
 }
 
 /**
