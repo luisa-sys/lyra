@@ -74,10 +74,11 @@ already exists.
   `vercelEnv` = `preview`. A mismatch is a **release-conformance** finding.
 - `/robots.txt`, `/sitemap.xml`, `/.well-known/security.txt` → 200 or 403.
 
-### C2 — Authenticated surface (with the Vercel/CF bypass header)
-- With `x-vercel-protection-bypass` (+ the CF-skip header when provisioned), the
-  key routes return **200** within the latency budget (C4): `/`, `/dashboard`,
-  `/dashboard/profile`, `/login`, `/signup`, `/join`, `/<published-slug>`.
+### C2 — Authenticated surface (via the grey-cloud alias)
+- Against `e2e-stage.checklyra.com` (`STAGE_SITE`/`BASE_URL`), the key routes
+  return **200** within the latency budget (C4): `/`, `/login`, `/signup`,
+  `/status`, `/api/health`. `/join` is a reachability check (it 307-redirects to
+  `/signup`). The C1 **gate** check stays on the real `stage.checklyra.com`.
 - No route in the set returns **5xx** across the repeated soak passes (C4).
 
 ### C3 — Persistent-user journey (read-write, staging DB is disposable)
@@ -146,12 +147,13 @@ service-role key + bypass headers in the routine env (below). The DB/error
 checks run through **connectors** (routed via Anthropic — no container tokens).
 
 ### Graceful degradation (no silent-skip)
-If the **CF bot-management** challenge blocks the routine's egress to
-`stage.checklyra.com` (the known CI-IP 403 — CLAUDE.md gotcha #7,
-`docs/E2E_AUTHED_CF_BYPASS.md`), the affected layer reports **UNVERIFIED**, never
-a green PASS and never a false FAIL, and the reply names the exact unblock (a CF
-WAF *skip* rule keyed to `E2E_CF_BYPASS_*`). The deterministic C1/C5/C6 layers
-still run. UNVERIFIED is a soft-FAIL for the heartbeat, not a pass.
+The content + journey layers target the grey-cloud `e2e-stage` alias, which has
+no Cloudflare in front of it, so they reach the origin directly. If a page is
+nonetheless challenged/redirected (e.g. `STAGE_SITE` misconfigured back to the
+CF-proxied host), the affected probe reports **UNVERIFIED** — never a green PASS
+and never a false FAIL — naming the unblock (point `STAGE_SITE`/`BASE_URL` at
+`e2e-stage.checklyra.com`). The C1-gate, C5 and C6 layers always run. UNVERIFIED
+is a soft-FAIL for the heartbeat, not a pass.
 
 ---
 
@@ -204,22 +206,26 @@ checkout failed — do NOT improvise probes.**
    NOT make it available here; each must be set in the claude.ai routine env,
    and proved with a supervised "Run now" (test-plan A4).
    - `RESEND_API_KEY` — FAIL-alert email (reuses `scripts/security-alert-email.sh`).
-   - `VERCEL_AUTOMATION_BYPASS` — reach protected staging routes (C2/C3).
    - `E2E_SUPABASE_URL` = `https://uobmlkzrjkptwhttzmmi.supabase.co`,
      `E2E_SUPABASE_SERVICE_ROLE_KEY` = the **staging** service-role key (the
      harness hard-guards against prod — `tests/e2e/support/supabase-admin.ts`).
      ⚠️ This is the **staging** key — a *different* value from the repo's
      `E2E_SUPABASE_*` GitHub secrets, which are **dev**-scoped (they back the
-     `e2e-dev` signup-gate run). Do not cross them.
-   - `E2E_CF_BYPASS_HEADER` + `E2E_CF_BYPASS_SECRET` — the CF WAF-skip header
-     pair (see `docs/E2E_AUTHED_CF_BYPASS.md`). **⚠️ C3 targets
-     `stage.checklyra.com`, which IS Cloudflare-proxied, and there is no
-     grey-cloud `e2e-stage` alias — so C3 stays UNVERIFIED every run until you
-     EITHER (a) set this pair + add a Cloudflare WAF *skip* rule on
-     `stage.checklyra.com` keyed to the header, OR (b) create a DNS-only
-     `e2e-stage.checklyra.com` alias of the staging deploy (like `e2e-dev`) and
-     point C3's `BASE_URL` at it.** UNVERIFIED here is the honest state, not a
-     skip — but it means the soak's core journey is un-commissioned until (a)/(b).
+     `e2e-dev` signup-gate run). Do not cross them. **Requires `*.supabase.co`
+     in the allowlist** (the harness hits Supabase directly).
+   - `STAGE_SITE` = `https://e2e-stage.checklyra.com` and
+     `BASE_URL` = `https://e2e-stage.checklyra.com` — point the **content** (C1
+     pages, C2/C4 latency) and the **browser journey** (C3) at the DNS-only
+     grey-cloud alias, which serves the same staging build with **no Cloudflare
+     challenge** (`docs/E2E_AUTHED_CF_BYPASS.md`). The C1 protection **gate** stays
+     on the real `stage.checklyra.com` via `GATE_SITE` (its default) — so we
+     still confirm the user-facing host is gated. Validated 2026-07-25: all of
+     C1/C2/C4 PASS against the alias.
+   - `VERCEL_AUTOMATION_BYPASS` — **optional.** The grey-cloud alias serves 200
+     without it, so it isn't required; harmless if present. **Do NOT set
+     `E2E_CF_BYPASS_*`** — a Cloudflare WAF *skip* rule cannot except free-plan
+     Bot Fight Mode (proven dead, `docs/E2E_AUTHED_CF_BYPASS.md`); the grey-cloud
+     alias is the working substitute.
    - Optional `ALERT_TO` / `ALERT_FROM` (default `luisa@santos-stephens.com` /
      `security@checklyra.com`, a Resend-verified sender).
 6. **Schedule:** **Daily ~04:12 UTC** (de-collided from the existing crons:
@@ -252,8 +258,8 @@ soft-FAIL, never a pass (Workflow & Backup Integrity Policy).
    The spec ensures + resets the soak user to initial account setup, drives
    build→publish→grow→(gather), and resets to initial in afterAll. A reset that
    leaves rows behind FAILS — file that as a soak-reset finding.
-   If Cloudflare blocks the browser (403 "Just a moment"), record C3 as
-   UNVERIFIED with the CF-skip unblock; do NOT mark it PASS or FAIL.
+   If a page is challenged/redirected (BASE_URL not pointed at the e2e-stage
+   alias), record C3 as UNVERIFIED naming that unblock; do NOT mark it PASS/FAIL.
 3. Via the Supabase connector on uobmlkzrjkptwhttzmmi (C5): get_advisors
    security+performance; invite-queue drain; NULL-token auth.users rows; stale
    one_time_tokens; migration parity (list vs supabase/migrations on staging).

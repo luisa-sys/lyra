@@ -18,6 +18,12 @@
 set -uo pipefail
 
 SITE="${STAGE_SITE:-https://stage.checklyra.com}"
+# The C1 protection-gate probe hits the REAL user-facing host (Cloudflare-proxied),
+# which must stay gated (302/401/403). Content + latency (C1-content/C2/C4) instead
+# target STAGE_SITE, which the routine points at the DNS-only grey-cloud alias
+# e2e-stage.checklyra.com (serves the same staging build, 200s directly, no CF
+# challenge — see docs/E2E_AUTHED_CF_BYPASS.md). Defaults keep both on stage.
+GATE_SITE="${GATE_SITE:-https://stage.checklyra.com}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-20}"
 PASSES="${SOAK_PASSES:-5}"            # C4: probe each latency route N times
 PAGE_BUDGET_MS="${PAGE_BUDGET_MS:-2500}"
@@ -105,8 +111,9 @@ latency_probe() {
 echo "# Lyra staging soak — $(date -u '+%Y-%m-%dT%H:%M:%SZ') — target $SITE"
 
 # ── C1 gate: root must be REACHABLE and GATED (never the full app anonymously) ─
-# This probe deliberately sends NO bypass header — it is testing the gate itself.
-root=$(curl -so /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" -A "$UA" "$SITE/" 2>/dev/null || echo "000")
+# Probes the REAL user-facing host (GATE_SITE, Cloudflare-proxied) with NO bypass
+# header — it is testing the protection gate itself, not content.
+root=$(curl -so /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" -A "$UA" "$GATE_SITE/" 2>/dev/null || echo "000")
 case "$root" in
   301|302|303|307|308|401|403) record PASS       "C1-gate" "staging root reachable + gated ($root)" ;;
   200)                          record FAIL       "C1-gate" "staging root served 200 ANONYMOUSLY — Vercel deployment protection appears DOWN (staging is engineering-only and must never serve the app unauthenticated)" ;;
@@ -115,45 +122,46 @@ case "$root" in
   *)                            record UNVERIFIED "C1-gate" "staging root unexpected code $root" ;;
 esac
 
-if [ -z "$BYPASS" ]; then
-  # Honest degradation: every content/latency check needs the bypass to reach
-  # protected staging pages. One UNVERIFIED line, not a wall of false FAILs.
-  record UNVERIFIED "C1-content" "public-page + /api/health conformance need VERCEL_AUTOMATION_BYPASS (staging is protection-gated) — not run"
-  record UNVERIFIED "C2-C4"      "authenticated-surface + latency need VERCEL_AUTOMATION_BYPASS — not run"
+# ── C1 content + C2/C4 latency (SITE = STAGE_SITE) ──────────────────────────
+# Always run these. On the grey-cloud alias (STAGE_SITE=e2e-stage) the pages
+# serve 200 directly; on the CF-proxied host without a bypass they 302/401/403
+# and each probe records UNVERIFIED (never a false FAIL, never a silent skip).
+# So the per-probe logic classifies reachability — no blanket bypass gate.
+expect_code "C1-status"  "$SITE/status"                   "status page"  200
+expect_code "C1-robots"  "$SITE/robots.txt"               "robots.txt"   200 403 401
+expect_code "C1-sitemap" "$SITE/sitemap.xml"              "sitemap.xml"  200 403 401
+expect_code "C1-sectxt"  "$SITE/.well-known/security.txt" "security.txt" 200 403 401
+# /join is the invite deep-link — it redirects to /signup (307/302), so it is a
+# reachability check, not a latency-measurable page.
+expect_code "C1-join"    "$SITE/join"                     "join (invite) reachable" 200 301 302 307 308
+
+# ── C1 release-conformance: /api/health JSON must match THIS env ──────────────
+# (the grey-cloud alias serves the SAME staging build, so siteUrl is still the
+# canonical https://stage.checklyra.com — the conformance check holds.)
+body=$(curl -s --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$SITE/api/health" 2>/dev/null)
+if [ -z "$body" ]; then
+  record UNVERIFIED "C1-health" "/api/health empty/unreachable"
+elif ! printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
+  record UNVERIFIED "C1-health" "/api/health did not return JSON (gated/challenge — point STAGE_SITE at the e2e-stage alias or provide the bypass)"
 else
-  # ── C1 content (with bypass): the pages behind the gate ──────────────────
-  expect_code "C1-status"  "$SITE/status"                   "status page"  200
-  expect_code "C1-robots"  "$SITE/robots.txt"               "robots.txt"   200 403 401
-  expect_code "C1-sitemap" "$SITE/sitemap.xml"              "sitemap.xml"  200 403 401
-  expect_code "C1-sectxt"  "$SITE/.well-known/security.txt" "security.txt" 200 403 401
-
-  # ── C1 release-conformance: /api/health JSON must match THIS env ─────────
-  body=$(curl -s --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$SITE/api/health" 2>/dev/null)
-  if [ -z "$body" ]; then
-    record UNVERIFIED "C1-health" "/api/health empty/unreachable"
-  elif ! printf '%s' "$body" | jq -e . >/dev/null 2>&1; then
-    record UNVERIFIED "C1-health" "/api/health did not return JSON (protection challenge?)"
+  problems=""
+  [ "$(printf '%s' "$body" | jq -r '.ok')" = "true" ]                          || problems+="ok!=true; "
+  [ "$(printf '%s' "$body" | jq -r '.siteUrl // empty')" = "https://stage.checklyra.com" ] || problems+="siteUrl wrong; "
+  [ "$(printf '%s' "$body" | jq -r '.isBetaDeploy')" = "false" ]               || problems+="isBetaDeploy!=false; "
+  [ "$(printf '%s' "$body" | jq -r '.vercelEnv // empty')" = "preview" ]        || problems+="vercelEnv!=preview; "
+  if [ -n "$problems" ]; then
+    record FAIL "C1-health" "release-conformance mismatch: $problems(body: $(printf '%s' "$body" | head -c 160))"
   else
-    problems=""
-    [ "$(printf '%s' "$body" | jq -r '.ok')" = "true" ]                          || problems+="ok!=true; "
-    [ "$(printf '%s' "$body" | jq -r '.siteUrl // empty')" = "https://stage.checklyra.com" ] || problems+="siteUrl wrong; "
-    [ "$(printf '%s' "$body" | jq -r '.isBetaDeploy')" = "false" ]               || problems+="isBetaDeploy!=false; "
-    [ "$(printf '%s' "$body" | jq -r '.vercelEnv // empty')" = "preview" ]        || problems+="vercelEnv!=preview; "
-    if [ -n "$problems" ]; then
-      record FAIL "C1-health" "release-conformance mismatch: $problems(body: $(printf '%s' "$body" | head -c 160))"
-    else
-      record PASS "C1-health" "/api/health conformant (ok, siteUrl, isBetaDeploy=false, vercelEnv=preview)"
-    fi
+    record PASS "C1-health" "/api/health conformant (ok, siteUrl, isBetaDeploy=false, vercelEnv=preview)"
   fi
-
-  # ── C2/C4: sustained latency on the surface behind the gate ──────────────
-  latency_probe "C4-home"   "/"           "$PAGE_BUDGET_MS"   "home page"
-  latency_probe "C4-login"  "/login"      "$PAGE_BUDGET_MS"   "login page"
-  latency_probe "C4-signup" "/signup"     "$PAGE_BUDGET_MS"   "signup page"
-  latency_probe "C4-join"   "/join"       "$PAGE_BUDGET_MS"   "join (invite) page"
-  latency_probe "C4-status" "/status"     "$PAGE_BUDGET_MS"   "status page"
-  latency_probe "C4-health" "/api/health" "$HEALTH_BUDGET_MS" "health endpoint"
 fi
+
+# ── C2/C4: sustained latency on the content surface ──────────────────────────
+latency_probe "C4-home"   "/"           "$PAGE_BUDGET_MS"   "home page"
+latency_probe "C4-login"  "/login"      "$PAGE_BUDGET_MS"   "login page"
+latency_probe "C4-signup" "/signup"     "$PAGE_BUDGET_MS"   "signup page"
+latency_probe "C4-status" "/status"     "$PAGE_BUDGET_MS"   "status page"
+latency_probe "C4-health" "/api/health" "$HEALTH_BUDGET_MS" "health endpoint"
 
 echo ""
 echo "# Results: PASS=$PASS FAIL=$FAIL UNVERIFIED=$UNV"
