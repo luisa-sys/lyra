@@ -1,0 +1,22 @@
+-- ============================================================================
+-- BUGS-69 (B9 residual, post-BUGS-65) — revoke PUBLIC/anon/authenticated EXECUTE
+-- on the prevent_global_feature_switch_user_write SECURITY DEFINER trigger fn
+-- ============================================================================
+-- public.prevent_global_feature_switch_user_write() was created 2026-07-21 by
+-- 20260721120000_global_feature_switches.sql (trigger
+-- global_feature_switches_no_user_write). It is zero-arg, RETURNS trigger,
+-- SECURITY DEFINER, and inherited the default PUBLIC EXECUTE grant (plus explicit
+-- anon/authenticated grants) — exactly the same B9 class the Supabase advisor
+-- flags under anon_/authenticated_security_definer_function_executable, and the
+-- same shape BUGS-48 (5 fns) and BUGS-65 (2 fns) already remediated.
+--
+-- Trigger functions fire on the caller's privilege for the table operation, not
+-- on EXECUTE of the function, and PostgREST cannot supply TriggerData via
+-- /rest/v1/rpc/<fn> — so revoking EXECUTE does not change the guard's behaviour.
+-- Defense-in-depth / advisor-hygiene, consistent with BUGS-48/BUGS-65.
+--
+-- Rollback: GRANT EXECUTE ON FUNCTION
+--           public.prevent_global_feature_switch_user_write() TO public;
+--           (re-opens the advisor finding — not recommended)
+revoke execute on function public.prevent_global_feature_switch_user_write() from public, anon, authenticated;
+grant execute on function public.prevent_global_feature_switch_user_write() to service_role;
