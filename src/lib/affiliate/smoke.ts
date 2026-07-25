@@ -225,6 +225,127 @@ export function assertLocalisedDomain(
   return { ok: false, reason: 'unexpected_host', actualHost: host };
 }
 
+// ── Network probe: HEAD → GET fallback, bot-block aware (BUGS-23) ─────────
+//
+// John Lewis (and any Akamai-fronted merchant) tarpits datacenter/CI-IP HEAD
+// requests (gotcha #7: "GitHub Actions runner IPs are blocked by Cloudflare
+// bot protection"). A single HEAD that aborts at the timeout was being scored
+// as "merchant fully down" → a false page. But we must NOT mask a real outage.
+//
+// probeUrl() therefore distinguishes THREE outcomes:
+//   - reachable (ok:true)         — HEAD or the GET retry returned 2xx.
+//   - inconclusive (botBlocked)   — BOTH HEAD and GET hit a bot-wall signal
+//                                   (timeout / 403 / 429). From a datacenter
+//                                   IP we cannot tell up-from-down, so this is
+//                                   surfaced but does NOT page.
+//   - genuine failure (ok:false)  — a determinate error (5xx, 4xx that isn't a
+//                                   bot-wall, wrong host, connection/DNS error).
+//                                   This still pages.
+// A timeout is never treated as a pass; only a real 2xx flips to ok:true.
+
+/** Injectable fetch so the probe is unit-testable without the network. */
+export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
+
+/** HEAD statuses that trigger a single GET retry (host up but hostile to HEAD). */
+const HEAD_RETRY_STATUSES = new Set([403, 405, 429]);
+/** Statuses that, when they ALSO come back on the GET retry, mean "bot-walled"
+ *  (inconclusive) rather than a confirmed outage. 405 is deliberately excluded
+ *  here — a GET that is Method-Not-Allowed on a storefront homepage is a real
+ *  misconfiguration, not a bot wall. */
+const BOT_WALL_STATUSES = new Set([403, 429]);
+
+export type ProbeResult =
+  | { ok: true; finalUrl: string }
+  | { ok: false; botBlocked: boolean; reason: string; finalUrl: string | null };
+
+async function attemptFetch(
+  fetchImpl: FetchLike,
+  url: string,
+  method: 'HEAD' | 'GET',
+  timeoutMs: number,
+  acceptLanguage: string,
+): Promise<{ status: number; ok: boolean; finalUrl: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, {
+      method,
+      redirect: 'follow',
+      signal: controller.signal,
+      // On GET, ask for only the first byte so we don't drain a full page body.
+      headers:
+        method === 'GET'
+          ? { 'Accept-Language': acceptLanguage, Range: 'bytes=0-0' }
+          : { 'Accept-Language': acceptLanguage },
+    });
+    // We only care about status + final URL; release the body promptly.
+    try {
+      await res.body?.cancel?.();
+    } catch {
+      /* body already consumed / unsupported — ignore */
+    }
+    return { status: res.status, ok: res.ok, finalUrl: res.url || url };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Probe a merchant URL with a bounded HEAD, falling back to a single bounded
+ * GET when HEAD is blocked or times out. See the section comment above for the
+ * three-way classification. `fetchImpl` is injected so this is unit-testable.
+ */
+export async function probeUrl(
+  fetchImpl: FetchLike,
+  url: string,
+  opts: { timeoutMs: number; acceptLanguage: string },
+): Promise<ProbeResult> {
+  // ── Attempt 1: HEAD ──
+  try {
+    const h = await attemptFetch(fetchImpl, url, 'HEAD', opts.timeoutMs, opts.acceptLanguage);
+    if (h.ok) return { ok: true, finalUrl: h.finalUrl };
+    if (!HEAD_RETRY_STATUSES.has(h.status)) {
+      // 5xx, 404, 410, … — a determinate problem, not a bot wall. Do not rescue.
+      return { ok: false, botBlocked: false, reason: `head_http_${h.status}`, finalUrl: h.finalUrl };
+    }
+    // 403/405/429 → fall through to a single GET retry.
+  } catch (e) {
+    if (!(e instanceof Error && e.name === 'AbortError')) {
+      // A non-timeout error (DNS, connection refused, TLS) is a real failure.
+      return {
+        ok: false,
+        botBlocked: false,
+        reason: e instanceof Error ? `error:${e.message.slice(0, 60)}` : 'unknown_error',
+        finalUrl: null,
+      };
+    }
+    // HEAD timed out (tarpit) → fall through to the GET retry.
+  }
+
+  // ── Attempt 2: GET (single bounded retry) ──
+  try {
+    const g = await attemptFetch(fetchImpl, url, 'GET', opts.timeoutMs, opts.acceptLanguage);
+    if (g.ok) return { ok: true, finalUrl: g.finalUrl };
+    if (BOT_WALL_STATUSES.has(g.status)) {
+      // Still bot-walled on GET → inconclusive from a datacenter IP, not down.
+      return { ok: false, botBlocked: true, reason: `bot_blocked_http_${g.status}`, finalUrl: g.finalUrl };
+    }
+    // GET returned a determinate error (5xx / 404 / 405 / …) → genuine failure.
+    return { ok: false, botBlocked: false, reason: `get_http_${g.status}`, finalUrl: g.finalUrl };
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      // Both HEAD and GET timed out → datacenter tarpit; inconclusive, not down.
+      return { ok: false, botBlocked: true, reason: 'bot_blocked_timeout', finalUrl: null };
+    }
+    return {
+      ok: false,
+      botBlocked: false,
+      reason: e instanceof Error ? `error:${e.message.slice(0, 60)}` : 'unknown_error',
+      finalUrl: null,
+    };
+  }
+}
+
 // ── Probe result + summary ──────────────────────────────────────────────
 
 export type ProbeOutcome = {
@@ -235,6 +356,13 @@ export type ProbeOutcome = {
   finalUrl: string | null;
   /** Why it failed, if it failed. */
   failureReason: string | null;
+  /**
+   * BUGS-23: true when the probe was INCONCLUSIVE because the merchant
+   * bot-walled both HEAD and GET (timeout / 403 / 429) — up-vs-down cannot be
+   * determined from a datacenter/CI IP (gotcha #7). Such a probe is surfaced
+   * but does NOT count toward the alert. Absent/false for a genuine failure.
+   */
+  botBlocked?: boolean;
   /** Total wall-clock ms for the probe. */
   durationMs: number;
 };
@@ -242,53 +370,89 @@ export type ProbeOutcome = {
 export type SmokeRunSummary = {
   totalProbes: number;
   passed: number;
+  /** Count of GENUINE failures (excludes inconclusive bot-walled probes). */
   failed: number;
-  failureRate: number; // 0-1
+  /** BUGS-23: count of INCONCLUSIVE (bot-walled) probes — surfaced, not paged. */
+  botBlocked: number;
+  /** Genuine-failure rate over the ASSESSABLE probes (bot-walled excluded from
+   *  both numerator and denominator). 0-1. */
+  failureRate: number;
+  /** Genuine failures only — the outcomes the alert is based on. */
   failures: ProbeOutcome[];
-  /** Whether this run should trigger an alert (failure rate over threshold OR any merchant fully down). */
+  /** BUGS-23: inconclusive (bot-walled) probes, surfaced for visibility. */
+  inconclusive: ProbeOutcome[];
+  /** Whether this run should trigger an alert (genuine failure rate over threshold OR any merchant genuinely fully down). */
   shouldAlert: boolean;
-  /** Per-merchant uptime: was every country probe for this merchant a pass? */
+  /** Per-merchant: zero passes AND at least one GENUINE failure (a real outage). */
   merchantsFullyDown: readonly string[];
+  /** BUGS-23: per-merchant zero passes with ONLY bot-walled probes — unverifiable, not paged. */
+  merchantsInconclusive: readonly string[];
 };
 
 /**
  * Roll up a flat list of probe outcomes into a summary. The alert decision
- * is conservative: if ANY merchant has zero successful probes across all
- * its countries, that's a structural failure (e.g. the merchant program
- * has been pulled) and should page on-call. A 1-in-50 transient blip
- * across the full matrix shouldn't.
+ * is conservative: if ANY merchant has zero successful probes AND at least one
+ * GENUINE (determinate) failure across its countries, that's a structural
+ * failure (e.g. the merchant program has been pulled) and should page on-call.
+ * A 1-in-50 transient blip across the full matrix shouldn't.
+ *
+ * BUGS-23: probes that came back INCONCLUSIVE because the merchant bot-walled
+ * both HEAD and GET (timeout / 403 / 429 from a datacenter IP — gotcha #7) are
+ * NOT counted as failures for the alert decision. They are surfaced separately
+ * (`inconclusive` / `merchantsInconclusive`) so a human can see them, but they
+ * do not page — because we genuinely cannot tell up-from-down from CI. A real
+ * outage (5xx, connection refused, wrong host) is still a genuine failure and
+ * still pages: the monitor is not weakened, only made honest.
  */
 export function summariseResults(outcomes: readonly ProbeOutcome[]): SmokeRunSummary {
   const total = outcomes.length;
-  const failures = outcomes.filter((o) => !o.ok);
-  const passed = total - failures.length;
-  const failureRate = total > 0 ? failures.length / total : 0;
+  const botBlocked = outcomes.filter((o) => !o.ok && o.botBlocked === true);
+  const genuineFailures = outcomes.filter((o) => !o.ok && o.botBlocked !== true);
+  const passed = outcomes.filter((o) => o.ok).length;
 
-  // Per-merchant pass/fail.
-  const perMerchantTotals = new Map<string, { passed: number; total: number }>();
+  // Failure rate is over ASSESSABLE probes only — an inconclusive bot-wall is
+  // neither a pass nor a fail, so it must not inflate (or deflate) the rate.
+  const assessable = total - botBlocked.length;
+  const failureRate = assessable > 0 ? genuineFailures.length / assessable : 0;
+
+  // Per-merchant tally.
+  const perMerchant = new Map<
+    string,
+    { passed: number; genuineFail: number; botBlocked: number; total: number }
+  >();
   for (const o of outcomes) {
-    let bucket = perMerchantTotals.get(o.merchantId);
+    let bucket = perMerchant.get(o.merchantId);
     if (!bucket) {
-      bucket = { passed: 0, total: 0 };
-      perMerchantTotals.set(o.merchantId, bucket);
+      bucket = { passed: 0, genuineFail: 0, botBlocked: 0, total: 0 };
+      perMerchant.set(o.merchantId, bucket);
     }
     bucket.total += 1;
     if (o.ok) bucket.passed += 1;
+    else if (o.botBlocked === true) bucket.botBlocked += 1;
+    else bucket.genuineFail += 1;
   }
-  const merchantsFullyDown = [...perMerchantTotals.entries()]
-    .filter(([, t]) => t.total > 0 && t.passed === 0)
+  // Fully down = zero passes AND at least one genuine failure (a real outage).
+  const merchantsFullyDown = [...perMerchant.entries()]
+    .filter(([, t]) => t.passed === 0 && t.genuineFail > 0)
+    .map(([m]) => m);
+  // Inconclusive = zero passes, no genuine failures, only bot-walls.
+  const merchantsInconclusive = [...perMerchant.entries()]
+    .filter(([, t]) => t.passed === 0 && t.genuineFail === 0 && t.botBlocked > 0)
     .map(([m]) => m);
 
-  // Alert if any merchant is fully down OR failure rate > 10% overall.
+  // Alert if any merchant is genuinely fully down OR genuine failure rate > 10%.
   const shouldAlert = merchantsFullyDown.length > 0 || failureRate > 0.1;
 
   return {
     totalProbes: total,
     passed,
-    failed: failures.length,
+    failed: genuineFailures.length,
+    botBlocked: botBlocked.length,
     failureRate,
-    failures,
+    failures: genuineFailures,
+    inconclusive: botBlocked,
     shouldAlert,
     merchantsFullyDown,
+    merchantsInconclusive,
   };
 }

@@ -11,6 +11,7 @@
  */
 
 import { createClient } from '@/lib/supabase-server';
+import { createServiceRoleClient } from '@/lib/supabase-service';
 
 export interface MetricsSnapshot {
   profile_signups: number;
@@ -69,6 +70,39 @@ export async function getMetricsForWindow(
   });
   if (error) {
     throw new Error(`get_metrics_for_window failed: ${error.message}`);
+  }
+  return data as MetricsSnapshot;
+}
+
+/**
+ * BUGS-71: service-role variant of {@link getAnomalyWindow} for the admin
+ * monitoring dashboard.
+ *
+ * `get_metrics_for_window` is SECURITY DEFINER and — since the BUGS-44 / SEC-07
+ * (F-14) lockdown migration `20260621120000` — EXECUTE is granted to
+ * `service_role` ONLY (revoked from public/anon/authenticated). The
+ * `/admin/monitoring` page reads it through the request-scoped anon SSR client,
+ * so every window came back as "data unavailable" (a swallowed 42501
+ * permission-denied). Route the admin read through the hardened service-role
+ * client instead — exactly like that page's `getCounts()` already does.
+ *
+ * Do NOT "fix" this by re-granting EXECUTE to `authenticated`: that would let
+ * any logged-in user call a SECURITY DEFINER counts function and re-open
+ * F-14 / SEC-07. Keep the grant `service_role`-only.
+ *
+ * Server-only + admin-gated usage (the service-role client bypasses RLS).
+ * Mirrors `getAnomalyWindow`'s shape/contract so callers are interchangeable.
+ */
+export async function getAnomalyWindowAdmin(window: AnomalyWindowKey): Promise<MetricsSnapshot> {
+  const supabase = createServiceRoleClient();
+  const end = new Date();
+  const start = new Date(end.getTime() - WINDOW_MS[window]);
+  const { data, error } = await supabase.rpc('get_metrics_for_window', {
+    p_start_at: start.toISOString(),
+    p_end_at: end.toISOString(),
+  });
+  if (error) {
+    throw new Error(`get_metrics_for_window(${window}) [admin] failed: ${error.message}`);
   }
   return data as MetricsSnapshot;
 }
