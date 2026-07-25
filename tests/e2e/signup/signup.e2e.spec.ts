@@ -90,7 +90,9 @@ test('signup: real /signup form creates an account and mints a first session', a
 
     // ── Complete activation exactly as production does (magic-link confirm) ──
     // Repair NULL token columns (admin-created users) so generateLink works.
-    await admin.rpc('e2e_fix_auth_tokens', { uid: createdUserId! }).catch(() => {});
+    // Best-effort: any failure surfaces concretely at generateLink just below.
+    const { error: fixErr } = await admin.rpc('e2e_fix_auth_tokens', { uid: createdUserId! });
+    if (fixErr) console.warn(`e2e_fix_auth_tokens warning: ${fixErr.message}`);
     const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email,
