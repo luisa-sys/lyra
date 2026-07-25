@@ -178,6 +178,11 @@ jobs:
       - name: Run the un-skippable signup E2E
         if: steps.detect.outputs.touched == 'true'
         id: run
+        # continue-on-error is intentional + advisory here: the next step
+        # ("Enforce gate result") reads steps.run.outcome and FAILS the job in
+        # block mode. Swallowing here only defers the decision one step so the
+        # warn/block policy (vars.SIGNUP_GATE_ENFORCE) can be applied — it is
+        # never a silent pass (Workflow & Backup Integrity Policy / KAN-167).
         continue-on-error: true
         run: |
           if [ -z "${E2E_SUPABASE_URL:-}" ] || [ -z "${E2E_SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
