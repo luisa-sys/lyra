@@ -1,9 +1,15 @@
 # Cloudflare Workers configuration for Lyra maintenance page
-# Deployed automatically via Cloudflare Workers Builds (Git integration)
+# Deployed by .github/workflows/lyra-maintenance-deploy.yml (repo-owned
+# `wrangler deploy`, on push to main, path-filtered to this file + the worker).
+# BUGS-19 replaced the Cloudflare Workers Builds Git integration with this
+# workflow — see CLAUDE.md gotcha #20.
 # See: https://developers.cloudflare.com/workers/wrangler/configuration/
 #
-# Secrets (configured in Cloudflare dashboard, not here):
-#   RESEND_API_KEY — for signup notification emails
+# Secrets:
+#   RESEND_API_KEY — signup notification emails; a *worker* secret set in the
+#     Cloudflare dashboard (`wrangler secret put`), NOT a GitHub/CI secret.
+#   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID — GitHub Actions secrets read
+#     by the deploy workflow so `wrangler deploy` can authenticate.
 
 name = "lyra-maintenance"
 main = "scripts/lyra-maintenance-worker.js"
