@@ -67,6 +67,15 @@ This is BUGS-63. Symptom: only the site footer shows; header/widgets/profile are
    - Compare with the **homepage** (no `loading.tsx`) — if it hydrates and `/dashboard` doesn't, the difference is the **`loading.tsx` Suspense boundary**.
 4. **Root cause & fix (BUGS-63):** the `/dashboard` `loading.tsx` Suspense boundary's streamed content was never revealed on hard loads on the deployed Next 16.2.6 build. Fix = remove `src/app/dashboard/loading.tsx` so `/dashboard` renders like every other working route (full SSR → hydrate). Re-introducing a `loading.tsx` here needs re-verification against §1 #2/#3 on a real deploy.
 
+### 4a. Regression guards for the streaming-reveal bug (BUGS-66)
+
+BUGS-66 is the BUGS-63 follow-up: the exact upstream defect (leading hypothesis: a Next 16 streaming / `@sentry/nextjs` client-instrumentation interaction — see CLAUDE.md gotcha #22) is **not definitively pinned**, and a cross-build repro is out of reach, so the responsible close is to **keep every `/dashboard` segment `loading.tsx` removed** and guard against silent reintroduction on two layers:
+
+- **Always-on (every PR): `tests/unit/bugs66-dashboard-loading-guard.test.js`.** Cred-free unit test — no deploy, no auth, no secrets. Fails if `src/app/dashboard/loading.tsx` reappears, or if **any** `src/app/**/loading.*` is added without the explicit `// loading-tsx-ok: <reason + deployed-build verification ref>` sign-off marker (same allow-list convention as `// server-action-exports-ok:`). This is the reliable backstop.
+- **Deployed-build (founder-gated): `assertDashboardHardLoad()` in `tests/e2e/authed/journey.authed.spec.ts`.** Hard-loads `/dashboard?cb=…` and asserts `main` count `=== 1` (a hidden 2nd `<main>` ⇒ stuck Suspense reveal, i.e. BUGS-63 regressed) plus a single `[data-onboarding-state]`. This is the check that actually observes the bug in a real browser — but it only runs in the `authed-journey` project via `e2e-authed.yml`, which is **workflow_dispatch-only** until the founder provisions the `E2E_SUPABASE_*` secrets + the Cloudflare WAF bypass (gotcha #7 / `docs/E2E_AUTHED_CF_BYPASS.md`). **Limitation:** until that harness is wired to `push`/`schedule`, the deployed-build layer is dormant in CI, and the always-on unit guard + the manual §1 #2/#3 per-deploy smoke are what actually run.
+
+**Decision (BUGS-66):** keep `loading.tsx` removed for `/dashboard`; revisit reinstating a skeleton only after a Next/Sentry upgrade and a §1 #2/#3 pass on a real deploy, gated by the `// loading-tsx-ok:` marker.
+
 ---
 
 ## 5. Test-user management on dev
@@ -98,6 +107,7 @@ You can create / edit / delete dev users freely (dev-lyra = `ilprytcrnqyrsbsrfuj
 | Ref | Finding | Status |
 |---|---|---|
 | **BUGS-63** | Dashboard blank on hard load — `/dashboard/loading.tsx` Suspense never reveals (all `/dashboard/*`). | Fixed (PR #409, loading.tsx removed). |
+| **BUGS-66** | BUGS-63 follow-up: pin root cause + add a regression guard so a stuck Suspense reveal can't silently return. | Root cause documented (open upstream — see §4a / gotcha #22); decision = keep `loading.tsx` removed; guards added (`tests/unit/bugs66-dashboard-loading-guard.test.js` always-on + the founder-gated authed E2E `main`-count assertion). |
 | KAN-349 | `completion_score` never computed → empty→drafted journey stuck for real users + "0%" display. | Fixed (PR #410, derive at read-time). |
 | (transient) | Occasional `503` on a profile auto-save / `/dashboard` revalidation right after a fresh deploy = Vercel cold start. Re-check; not a code bug if it doesn't recur. | Watch |
 | (minor) | A profile published *before* age-gating can show "Verify your age to publish" in the editor (`is_published=true` + `age_status='none'`). Cosmetic; new users are gated correctly. | Note |
