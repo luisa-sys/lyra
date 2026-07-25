@@ -13,7 +13,7 @@
 
 import Link from 'next/link';
 import { getAdminServiceClient } from '@/lib/admin';
-import { getAnomalyWindow, type AnomalyWindowKey, type MetricsSnapshot } from '@/lib/metrics';
+import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,10 @@ const WINDOWS: AnomalyWindowKey[] = ['1h', '24h', '7d'];
 
 async function safeWindow(key: AnomalyWindowKey): Promise<MetricsSnapshot | null> {
   try {
-    return await getAnomalyWindow(key);
+    // BUGS-71: read via the service-role variant — get_metrics_for_window is
+    // EXECUTE-able only by service_role since the BUGS-44/SEC-07 lockdown, so
+    // the anon SSR client would 42501 here and collapse to "data unavailable".
+    return await getAnomalyWindowAdmin(key);
   } catch (e) {
     console.error(`[admin/monitoring] metrics ${key} failed`, e);
     return null;
