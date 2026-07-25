@@ -6,14 +6,16 @@
  *     RPC (src/lib/metrics.ts).
  *   - Operational counts (lifecycle stages, suspended, pending reports, recent
  *     flags, admins) via the service-role client.
- *   - External-tools panel: Sentry / UptimeRobot configured-or-not status + a
- *     link out. Status is derived from env presence and labelled explicitly —
- *     never a silent "looks fine" (Workflow Integrity policy).
+ *   - External-tools panel: Sentry / UptimeRobot configured status + a link out.
+ *     Status comes from getMonitoringIntegrations() (SEC-96): Sentry needs the
+ *     DSN AND IS_SENTRY_ENABLED; UptimeRobot is account-wide, not per-env secret
+ *     presence. Never a silent "looks fine" (Workflow Integrity policy).
  */
 
 import Link from 'next/link';
 import { getAdminServiceClient } from '@/lib/admin';
 import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/lib/metrics';
+import { getMonitoringIntegrations } from './integration-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,19 +68,21 @@ function StatCard({ label, value, href }: { label: string; value: number; href?:
   return href ? <Link href={href} className="block hover:shadow-sm transition-shadow">{body}</Link> : body;
 }
 
-function ExternalRow({ name, configured, href }: { name: string; configured: boolean; href: string }) {
+function ExternalRow({ name, configured, href }: { name: string; configured?: boolean; href: string }) {
   return (
     <div className="p-4 flex items-center justify-between gap-4">
       <span className="text-sm text-[var(--color-ink)]">{name}</span>
       <div className="flex items-center gap-3">
-        <span
-          className={
-            'text-xs px-2 py-0.5 rounded-full ' +
-            (configured ? 'bg-green-50 text-green-700' : 'bg-[#f4efe7] text-[var(--color-muted)]')
-          }
-        >
-          {configured ? 'configured' : 'not configured'}
-        </span>
+        {configured !== undefined && (
+          <span
+            className={
+              'text-xs px-2 py-0.5 rounded-full ' +
+              (configured ? 'bg-green-50 text-green-700' : 'bg-[#f4efe7] text-[var(--color-muted)]')
+            }
+          >
+            {configured ? 'configured' : 'not configured'}
+          </span>
+        )}
         <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)]">
           Open ↗
         </a>
@@ -93,8 +97,7 @@ export default async function MonitoringPage() {
     Promise.all(WINDOWS.map((w) => safeWindow(w))),
   ]);
 
-  const sentryConfigured = Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN);
-  const uptimeConfigured = Boolean(process.env.UPTIMEROBOT_API_KEY);
+  const integrations = getMonitoringIntegrations();
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-10">
@@ -156,9 +159,9 @@ export default async function MonitoringPage() {
       <section aria-labelledby="external-heading">
         <h2 id="external-heading" className="text-base font-medium text-[var(--color-ink)] mb-3">External monitoring</h2>
         <div className="rounded-xl border border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
-          <ExternalRow name="Sentry (errors)" configured={sentryConfigured} href="https://sentry.io" />
-          <ExternalRow name="UptimeRobot (uptime)" configured={uptimeConfigured} href="https://dashboard.uptimerobot.com" />
-          <ExternalRow name="Public status page" configured href="https://checklyra.com/status" />
+          {integrations.map((i) => (
+            <ExternalRow key={i.name} name={i.name} configured={i.configured} href={i.href} />
+          ))}
         </div>
       </section>
     </div>
