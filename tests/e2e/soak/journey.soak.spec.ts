@@ -13,7 +13,7 @@ import {
 } from '../support/soak-user';
 
 /**
- * KAN-412 — the daily Staging Soak read-write journey (layer C3 of
+ * KAN-413 — the daily Staging Soak read-write journey (layer C3 of
  * docs/STAGING_SOAK_ROUTINE.md). Runs ONLY in the `soak-journey` Playwright
  * project, which exists only when SOAK_JOURNEY=1 (see playwright.config.ts), so
  * it never runs in the anon PR gate or the KAN-348 authed suite.

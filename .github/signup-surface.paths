@@ -1,4 +1,4 @@
-# Lyra — user SIGN-UP / account-creation surface (KAN-412).
+# Lyra — user SIGN-UP / account-creation surface (KAN-413).
 #
 # A develop → staging promotion whose diff touches ANY path below MUST run the
 # un-skippable signup E2E and it must pass, or the promotion is blocked. The

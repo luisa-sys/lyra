@@ -1,6 +1,6 @@
 # Un-skippable sign-up gate (develop → staging)
 
-> **Ticket:** KAN-412 (companion to the Staging Soak routine —
+> **Ticket:** KAN-413 (companion to the Staging Soak routine —
 > `docs/STAGING_SOAK_ROUTINE.md`).
 
 ## Why this exists

@@ -104,16 +104,16 @@ check_marker "docs/OPS_ROUTINES_CONTROL_ROOM.md" \
   "Concern → single owner" \
   "OPS_ROUTINES_CONTROL_ROOM.md keeps the concern→owner map (KAN-361)"
 
-# ── Staging-soak owner = the Staging Soak routine + its design doc (KAN-412) ──
+# ── Staging-soak owner = the Staging Soak routine + its design doc (KAN-413) ──
 check_marker "docs/OPS_ROUTINES_CONTROL_ROOM.md" \
   "Staging-soak of record" \
-  "OPS_ROUTINES_CONTROL_ROOM.md names the Staging Soak routine as staging-soak owner (KAN-412)"
+  "OPS_ROUTINES_CONTROL_ROOM.md names the Staging Soak routine as staging-soak owner (KAN-413)"
 check_marker "docs/STAGING_SOAK_ROUTINE.md" \
   "release contract" \
   "STAGING_SOAK_ROUTINE.md keeps its release-updatable contract (C1–C6)"
 check_marker ".github/signup-surface.paths" \
   "src/app/(auth)/signup/**" \
-  "signup-surface manifest still lists the sign-up form path (un-skippable gate, KAN-412)"
+  "signup-surface manifest still lists the sign-up form path (un-skippable gate, KAN-413)"
 
 echo
 if [[ "$FAILURES" -gt 0 ]]; then

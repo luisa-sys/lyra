@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { adminClient } from '../support/supabase-admin';
 
 /**
- * KAN-412 — the UN-SKIPPABLE user sign-up E2E.
+ * KAN-413 — the UN-SKIPPABLE user sign-up E2E.
  *
  * Runs ONLY in the `signup-e2e` project (SIGNUP_E2E=1, see playwright.config.ts).
  * It is NOT part of the daily soak — the promote-to-staging gate runs it, and

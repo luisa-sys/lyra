@@ -1,6 +1,6 @@
 # Staging Soak — Claude Code cloud-routine setup
 
-> **Ticket:** KAN-412 (this routine) · concern **staging-soak** in
+> **Ticket:** KAN-413 (this routine) · concern **staging-soak** in
 > `docs/OPS_ROUTINES_CONTROL_ROOM.md`. Grounded in the official docs:
 > [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web) ·
 > [Routines](https://code.claude.com/docs/en/routines).
@@ -237,7 +237,7 @@ Then verify scripts/staging-soak.sh AND tests/e2e/soak/journey.soak.spec.ts
 exist; if either does not, STOP and reply that the develop checkout failed — do
 NOT improvise probes, read other docs, or proceed.
 
-You are the Lyra Staging Soak (KAN-412). Target is STAGING ONLY
+You are the Lyra Staging Soak (KAN-413). Target is STAGING ONLY
 (stage.checklyra.com / Supabase uobmlkzrjkptwhttzmmi). Staging is disposable:
 you MAY write to the staging DB via the soak harness. NEVER touch prod
 (llzkgprqewuwkiwclowi) or dev. Read docs/STAGING_SOAK_ROUTINE.md — its "release

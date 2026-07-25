@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # staging-soak.sh — deterministic HTTP + latency soak of the PROMOTED staging
-# environment (KAN-412). Covers layers C1 (public/edge), C2 (authenticated
+# environment (KAN-413). Covers layers C1 (public/edge), C2 (authenticated
 # surface, with the Vercel bypass header) and C4 (sustained latency) of the
 # release contract in docs/STAGING_SOAK_ROUTINE.md. The read-write journey (C3),
 # DB drift (C5) and error budget (C6) are driven by the routine agent, not here.

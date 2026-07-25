@@ -1,5 +1,5 @@
 /**
- * KAN-412 — the PERSISTENT soak user for the daily Staging Soak routine.
+ * KAN-413 — the PERSISTENT soak user for the daily Staging Soak routine.
  *
  * Unlike the KAN-348 authed harness (seed-user.ts), which delete+recreates six
  * users every run, the soak deliberately keeps ONE account provisioned "in

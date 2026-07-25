@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# check-signup-surface-gate.sh — KAN-412 un-skippable signup gate (detection half).
+# check-signup-surface-gate.sh — KAN-413 un-skippable signup gate (detection half).
 #
 # Decides whether a develop → staging promotion TOUCHES the user sign-up /
 # account-creation surface, so the promotion workflow can require the signup E2E

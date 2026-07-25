@@ -98,7 +98,7 @@ jobs:
           exit 1
 
   signup-gate:
-    # KAN-412 — the UN-SKIPPABLE sign-up gate. If the develop→staging diff touches
+    # KAN-413 — the UN-SKIPPABLE sign-up gate. If the develop→staging diff touches
     # the sign-up surface (.github/signup-surface.paths), the real signup E2E must
     # run and pass before we promote; if it does not touch that surface, this is a
     # cheap no-op. Fail-closed: an unverifiable diff/manifest blocks the promotion.

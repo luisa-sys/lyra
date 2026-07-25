@@ -60,7 +60,7 @@ const webServer = process.env.E2E_LOCAL_SERVER
 // E2E_AUTHED is set (so the cred-free gate is a NO-OP).
 const AUTHED_MATCH = /journey\.authed\.spec\.ts/;
 
-// KAN-412: the daily Staging Soak journey lives under tests/e2e/soak/ and, like
+// KAN-413: the daily Staging Soak journey lives under tests/e2e/soak/ and, like
 // the authed suite, needs a seeded session — so it must NEVER run in the anon
 // projects. It runs only in the `soak-journey` project, which exists only when
 // SOAK_JOURNEY is set (so the anon PR gate and the authed suite are NO-OPs).
@@ -92,7 +92,7 @@ const soakProjects = process.env.SOAK_JOURNEY
     ]
   : [];
 
-// KAN-412: the un-skippable sign-up E2E (tests/e2e/signup/). Runs ONLY in the
+// KAN-413: the un-skippable sign-up E2E (tests/e2e/signup/). Runs ONLY in the
 // `signup-e2e` project (SIGNUP_E2E=1), which the promote-to-staging gate invokes
 // when the diff touches the sign-up surface. Ignored by the anon projects.
 const SIGNUP_MATCH = /signup\.e2e\.spec\.ts/;

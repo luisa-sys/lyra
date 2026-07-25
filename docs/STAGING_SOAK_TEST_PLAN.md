@@ -1,6 +1,6 @@
 # Staging Soak — Test Plan (proving it works autonomously)
 
-> **Ticket:** KAN-412. Companion to `docs/STAGING_SOAK_ROUTINE.md` (the routine)
+> **Ticket:** KAN-413. Companion to `docs/STAGING_SOAK_ROUTINE.md` (the routine)
 > and `docs/SIGNUP_SURFACE_GATE.md` (the un-skippable signup gate).
 
 ## The problem this plan solves
