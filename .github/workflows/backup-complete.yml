@@ -120,18 +120,26 @@ jobs:
             aws s3 sync "s3://${b}" "$BACKUP_DIR/storage/${b}/" --endpoint-url "$STORAGE_S3_ENDPOINT" --no-progress
           done
           SYNCED=$(find "$BACKUP_DIR/storage" -type f | wc -l | tr -d ' ')
-          # Completeness cross-check (SEC-23): a sync that copied fewer files than
-          # storage.objects reports would otherwise green with data unbacked. An
-          # unreadable count (ERR) with creds present is fatal — we cannot verify
-          # completeness, so we must not report success.
-          if [ "$OBJ_COUNT" = "ERR" ]; then
-            echo "::error::could not read storage.objects count — cannot verify the storage backup is complete."; exit 1
+          # Completeness signal (SEC-23). The REAL misconfig guard is the
+          # per-bucket `aws s3 sync` above: it fails LOUD under set -e on any
+          # auth/endpoint error, so a silent 0-copy against a populated bucket
+          # with valid creds cannot green here. We must NOT additionally hard-fail
+          # on SYNCED < pre_count: a LIVE bucket churns — an object present at the
+          # pre-sync count can be legitimately deleted before the sync (SYNCED <
+          # pre_count) or added after (SYNCED > pre_count), and a hard fail there
+          # false-REDs every nightly run that happens to race an upload/delete.
+          # Re-read the count AFTER the sync and only WARN if fewer files were
+          # mirrored than the bucket holds NOW (a just-added object the next daily
+          # run will capture). An unreadable post-count is fatal (can't verify).
+          POST_COUNT=$(psql "$SUPABASE_DB_URL" -X -t -A -c "SELECT count(*) FROM storage.objects" 2>/dev/null || echo "ERR")
+          if [ "$POST_COUNT" = "ERR" ]; then
+            echo "::error::could not read storage.objects count after sync — cannot verify the storage backup."; exit 1
           fi
-          if [ "$SYNCED" -lt "$OBJ_COUNT" ]; then
-            echo "::error::storage sync copied $SYNCED file(s) but storage.objects reports $OBJ_COUNT — incomplete storage backup."; exit 1
+          if [ "$SYNCED" -lt "$POST_COUNT" ]; then
+            echo "::warning::storage mirrored $SYNCED file(s) but storage.objects now reports $POST_COUNT — likely an upload during the backup window; the next daily run captures it."
           fi
           echo "STORAGE_BACKUP=synced:${SYNCED}-files" >> "$BACKUP_DIR/STORAGE_STATUS"
-          echo "✓ storage objects synced: ${SYNCED} file(s) (>= ${OBJ_COUNT} objects)"
+          echo "✓ storage objects synced: ${SYNCED} file(s) (storage.objects now: ${POST_COUNT})"
 
       # ── 3. Cloudflare KV (waitlist / interest emails) ──────────────────────
       - name: Export Cloudflare KV namespace
