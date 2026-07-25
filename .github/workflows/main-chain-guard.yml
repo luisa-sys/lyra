@@ -1,0 +1,144 @@
+# main-chain-guard.yml — SEC-98: production change-control backstop
+#
+# Production (`main`) may ONLY change via the promotion chain
+# develop → staging → beta → main. This workflow is the TECHNICAL backstop for
+# the behavioural rule in CLAUDE.md ("Production change control — no chain-bypass
+# hotfixes"): it fails loud whenever `main` gains a commit that is NOT present on
+# `beta` — i.e. a change that skipped staging + beta and the supervised
+# promote-to-production run (smoke tests + auto-rollback).
+#
+# Two layers:
+#   1. pull_request → main : the ONLY legitimate way `main` changes is the
+#      promote-to-production.yml workflow, which merges `beta` directly (not a
+#      PR). So ANY PR targeting `main` is a bypass attempt — blocked here.
+#   2. push → main : audit every newly-pushed non-merge commit; if it is not
+#      reachable from `origin/beta`, it bypassed the chain → fail.
+#
+# Escape hatch (deliberately narrow + auditable): a commit whose message
+# contains the literal marker `BYPASS CONTROLS` is treated as a human-authorized,
+# documented exception (warned, not failed). That marker mirrors the exact phrase
+# the user must type in chat to authorize a bypass — see CLAUDE.md. Do NOT add a
+# workflow input or label as an easier escape hatch; the whole point is that a
+# bypass is hard and leaves a trail.
+
+name: Main Chain Guard
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch beta
+        run: git fetch --no-tags origin beta:refs/remotes/origin/beta
+
+      # ── Layer 1: block any PR that targets main ──────────────────────────────
+      - name: Block PRs targeting main
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          echo "::error title=Production change control::main is updated ONLY by promote-to-production.yml (which merges 'beta'). A pull request into main (head='${HEAD_REF}') bypasses the develop→staging→beta→main chain and its smoke/rollback safeguards."
+          cat <<'EOF'
+          ────────────────────────────────────────────────────────────────────────
+          This PR targets `main` directly. That is a production change-control
+          bypass. Do NOT merge it.
+
+          The correct path: open this against `develop`, then promote
+          develop → staging → beta → main via the promote-* workflows.
+
+          If production is actively broken and the chain genuinely cannot deliver
+          the fix in time, a bypass requires the two-step human gate in CLAUDE.md
+          ("Production change control — no chain-bypass hotfixes"): the user types
+          the literal phrase  BYPASS CONTROLS  in chat AND, as a separate step,
+          acknowledges the specific risk. Claude may never self-authorize this.
+          ────────────────────────────────────────────────────────────────────────
+          EOF
+          exit 1
+
+      # ── Layer 2: audit commits a push added to main ──────────────────────────
+      - name: Audit pushed commits are present on beta
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Determine the set of newly-introduced, non-merge commits.
+          # On a normal push (incl. a promote-to-production merge), before is the
+          # previous main tip, so before..after is JUST that push's delta — a
+          # clean promote yields only beta-reachable commits and flags nothing.
+          # On a branch-create / force-push before can be all-zeros — fall back to
+          # "everything on main not reachable from beta". That fallback WILL list
+          # pre-guard historical divergence (main carries ~24 legacy commits not
+          # on beta, including the retired direct-to-main hotfixes this rule now
+          # forbids), which is acceptable: the fallback only fires when main is
+          # force-pushed or recreated, itself an event worth surfacing loudly.
+          ZERO="0000000000000000000000000000000000000000"
+          if [ "$BEFORE" = "$ZERO" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            RANGE="origin/beta..$AFTER"
+          else
+            RANGE="$BEFORE..$AFTER"
+          fi
+
+          NEW_COMMITS="$(git rev-list --no-merges "$RANGE" || true)"
+          if [ -z "$NEW_COMMITS" ]; then
+            echo "✅ chain-guard: no new non-merge commits on main (clean promote merge)."
+            exit 0
+          fi
+
+          BAD=0
+          while IFS= read -r c; do
+            [ -z "$c" ] && continue
+            if git merge-base --is-ancestor "$c" origin/beta; then
+              # Reachable from beta → it came through the promotion chain.
+              echo "✅ $c  (present on beta)"
+            elif git log -1 --format=%B "$c" | grep -q "BYPASS CONTROLS"; then
+              subj="$(git log -1 --format=%s "$c")"
+              echo "::warning title=Authorized production bypass::commit $c carries the BYPASS CONTROLS marker — a documented, human-authorized exception. Subject: $subj"
+            else
+              subj="$(git log -1 --format=%s "$c")"
+              echo "::error title=Chain-bypass on main::commit $c is on main but NOT present on beta — it skipped the develop→staging→beta→main chain. Subject: $subj"
+              BAD=1
+            fi
+          done <<< "$NEW_COMMITS"
+
+          if [ "$BAD" -ne 0 ]; then
+            cat <<'EOF'
+          ────────────────────────────────────────────────────────────────────────
+          A commit reached `main` without going through `beta`. This is a
+          production change-control bypass (see CLAUDE.md → "Production change
+          control — no chain-bypass hotfixes").
+
+          If this was NOT authorized: treat production as carrying an unreviewed
+          change. Revert on main, then re-land the fix via
+          develop → staging → beta → main.
+
+          If it WAS a genuine emergency: the authorizing commit must carry the
+          literal `BYPASS CONTROLS` marker in its message (the same phrase the
+          user types in chat to authorize the bypass), and the action must be
+          logged in Jira. Claude may never self-authorize a bypass.
+          ────────────────────────────────────────────────────────────────────────
+          EOF
+            exit 1
+          fi
+
+          echo "✅ chain-guard: every pushed commit is present on beta."
