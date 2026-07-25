@@ -97,22 +97,32 @@ Driven against the soak user (`soak@seed.checklyra.com`), reset to initial first
    part of the release contract).
 
 ### C4 — Soak signals (sustained, not a single hit)
-- Each C1/C2 route is probed **N=5** times per run; report p50/p95 latency.
-- **Latency budget:** p95 ≤ **2500 ms** for pages, ≤ **800 ms** for
-  `/api/health`. Over budget for ≥2 of the 5 passes → a **degradation** finding.
-- Any **000/5xx** on any pass (that is not the expected 401/403 protection code)
-  → a **reliability** finding.
+- Each C1/C2 route is probed **N=5** times per run; report **p50 (median) + max**
+  latency (`staging-soak.sh` computes p50/max, not a true p95 — the budget is
+  enforced on the pass-count below, not a percentile).
+- **Latency budget:** **2500 ms** for pages, **800 ms** for `/api/health`.
+  **≥2 of the 5 passes over budget → a degradation FAIL.**
+- A pass returning a **non-200** (a Cloudflare "Just a moment" 403, a redirect,
+  or the bypass not honoured) is **UNVERIFIED — latency is NOT measured** on a
+  challenge page (never a fast false-PASS). A **000** is UNVERIFIED (unreachable).
 
 ### C5 — Data / drift on the staging DB (via the Supabase connector)
-- `get_advisors(type=security)` and `get_advisors(type=performance)` on
-  `uobmlkzrjkptwhttzmmi` → no **new** advisor vs. the last run-log row.
-- **Invite queue** is draining (no rows older than 24h stuck un-sent).
-- No **NULL-token** `auth.users` rows (the GoTrue-500 quirk — CLAUDE.md gotcha):
-  every user has non-NULL `confirmation_token` / `recovery_token` etc.
+> **Baseline (2026-07-25, verified):** staging carries **10 security** + **154
+> performance** advisor lints and **8 known NULL-token seed `auth.users` rows**
+> (the GoTrue-500 quirk on the demo-seed accounts). These are the accepted
+> baseline — the first run-log row below records them. C5 flags only a **change
+> vs. this baseline / the last run-log row**, never the standing counts, so run 1
+> does not open a 160+-finding storm.
+- `get_advisors(type=security|performance)` on `uobmlkzrjkptwhttzmmi` → no **new**
+  advisor vs. the last run-log row (baseline 10 sec / 154 perf).
+- **Invite queue** `public.gathering_invite_messages` is draining (no rows older
+  than 24h still un-sent).
+- **NULL-token `auth.users`** — flag only rows **beyond the 8 baseline seed rows**
+  (i.e. a NEW real user left with NULL `confirmation_token`/`recovery_token`, the
+  GoTrue-500 quirk). The 8 `seed.%@seed.checklyra.com` rows are expected.
 - No **stale `auth.one_time_tokens`** piling up beyond their TTL.
-- **Migration parity:** `supabase migration list` head on staging == the latest
-  migration in `supabase/migrations/` on `staging` branch (a migration in the
-  repo not applied to the DB, or vice-versa, is a finding).
+- **Migration parity:** DB head == latest in `supabase/migrations/` on `staging`
+  (baseline DB head 2026-07-25: `20260724231235`). Repo-ahead or DB-ahead = finding.
 
 ### C6 — Error budget (last 24h)
 - Vercel/Sentry runtime errors on staging over the last 24h below threshold
@@ -174,11 +184,14 @@ checkout failed — do NOT improvise probes.**
    checklyra.com
    *.checklyra.com
    stage.checklyra.com
+   *.supabase.co
    api.resend.com
    ```
    Tick "Also include default list of common package managers" (Playwright needs
-   npm). Add `*.supabase.co` **only** if you run the JS harness's admin client
-   directly rather than via the connector.
+   npm). **`*.supabase.co` is MANDATORY for C3** — the journey's service-role
+   admin client (`supabase-admin.ts`) and `mint-session`'s `generateLink` talk
+   **directly** to `https://uobmlkzrjkptwhttzmmi.supabase.co`, not via the
+   Supabase connector; without it the journey errors (worse than UNVERIFIED).
 3. **Connectors:** **Supabase, GitHub, Atlassian** (+ **Sentry/Vercel** if
    available for C6). Remove every other connector — the connector list is a
    scope control.
@@ -186,16 +199,27 @@ checkout failed — do NOT improvise probes.**
    heartbeat/run-log change goes out as a PR from a `claude/` branch; the run
    cannot push to `staging`/`develop`/`main`.
 5. **Env vars / secrets** (visible to anyone who can edit the environment — keep
-   to these):
+   to these). **⚠️ These are the ROUTINE's OWN env store — SEPARATE from the
+   repo's GitHub Actions secrets.** A secret existing in `gh secret list` does
+   NOT make it available here; each must be set in the claude.ai routine env,
+   and proved with a supervised "Run now" (test-plan A4).
    - `RESEND_API_KEY` — FAIL-alert email (reuses `scripts/security-alert-email.sh`).
    - `VERCEL_AUTOMATION_BYPASS` — reach protected staging routes (C2/C3).
    - `E2E_SUPABASE_URL` = `https://uobmlkzrjkptwhttzmmi.supabase.co`,
      `E2E_SUPABASE_SERVICE_ROLE_KEY` = the **staging** service-role key (the
      harness hard-guards against prod — `tests/e2e/support/supabase-admin.ts`).
+     ⚠️ This is the **staging** key — a *different* value from the repo's
+     `E2E_SUPABASE_*` GitHub secrets, which are **dev**-scoped (they back the
+     `e2e-dev` signup-gate run). Do not cross them.
    - `E2E_CF_BYPASS_HEADER` + `E2E_CF_BYPASS_SECRET` — the CF WAF-skip header
-     pair (see `docs/E2E_AUTHED_CF_BYPASS.md`). **If unset, C3 reports
-     UNVERIFIED** (the CF challenge blocks the browser) — that is the honest
-     result, not a skip.
+     pair (see `docs/E2E_AUTHED_CF_BYPASS.md`). **⚠️ C3 targets
+     `stage.checklyra.com`, which IS Cloudflare-proxied, and there is no
+     grey-cloud `e2e-stage` alias — so C3 stays UNVERIFIED every run until you
+     EITHER (a) set this pair + add a Cloudflare WAF *skip* rule on
+     `stage.checklyra.com` keyed to the header, OR (b) create a DNS-only
+     `e2e-stage.checklyra.com` alias of the staging deploy (like `e2e-dev`) and
+     point C3's `BASE_URL` at it.** UNVERIFIED here is the honest state, not a
+     skip — but it means the soak's core journey is un-commissioned until (a)/(b).
    - Optional `ALERT_TO` / `ALERT_FROM` (default `luisa@santos-stephens.com` /
      `security@checklyra.com`, a Resend-verified sender).
 6. **Schedule:** **Daily ~04:12 UTC** (de-collided from the existing crons:
@@ -286,6 +310,6 @@ problems (not just that it runs green) and that its own liveness is watched.
 
 ## Run log (newest first)
 
-| Date (UTC) | Runner | PASS/FAIL/UNVERIFIED | p95 (page/health) | New tickets | Notes |
+| Date (UTC) | Runner | PASS/FAIL/UNVERIFIED | p50/max (page/health) | New tickets | Notes |
 |---|---|---|---|---|---|
-| _(none yet — first run appends here)_ | | | | | |
+| 2026-07-25 | commissioning baseline (human) | BASELINE | n/a | none | **Accepted baseline for C5 dedup**: advisors 10 security / 154 performance; 8 known NULL-token `seed.%@seed.checklyra.com` rows; invite queue `gathering_invite_messages` 0 stuck; DB migration head `20260724231235`. C3 pending CF-bypass/`e2e-stage` alias. First real run compares against this row. |

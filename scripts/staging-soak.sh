@@ -52,10 +52,11 @@ record() { # $1=STATUS $2=id $3..=description
 http_code() { # <url> → status code (000 on transport failure); sends bypass/CF headers
   curl -so /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$1" 2>/dev/null || echo "000"
 }
-time_ms() { # <url> → total time in integer ms, or empty on failure
-  local t
-  t=$(curl -so /dev/null -w '%{time_total}' --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$1" 2>/dev/null) || return 1
-  awk -v s="$t" 'BEGIN{ printf("%d", s*1000) }'
+code_time() { # <url> → "<http_code> <ms>" (000/empty on transport failure)
+  local out
+  out=$(curl -so /dev/null -w '%{http_code} %{time_total}' --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$1" 2>/dev/null) || return 1
+  local code=${out%% *} sec=${out##* }
+  printf '%s %s' "$code" "$(awk -v s="$sec" 'BEGIN{ printf("%d", s*1000) }')"
 }
 median() { printf '%s\n' "$@" | sort -n | awk '{a[NR]=$0} END{ if(NR%2){print a[(NR+1)/2]} else {print int((a[NR/2]+a[NR/2+1])/2)} }'; }
 maxv()   { printf '%s\n' "$@" | sort -n | tail -1; }
@@ -79,18 +80,25 @@ expect_code() {
 latency_probe() {
   local id="$1" path="$2" budget="$3" desc="$4"
   local url="${SITE}${path}"
-  local over=0 i ms; local samples=()
+  local over=0 i out code ms; local samples=()
   for ((i=0; i<PASSES; i++)); do
-    ms=$(time_ms "$url") || ms=""
-    [ -z "$ms" ] && { record UNVERIFIED "$id" "$desc — pass $((i+1))/$PASSES unreachable"; return; }
+    out=$(code_time "$url") || out=""
+    [ -z "$out" ] && { record UNVERIFIED "$id" "$desc — pass $((i+1))/$PASSES unreachable (000)"; return; }
+    code=${out%% *}; ms=${out##* }
+    # A non-200 (Cloudflare 'Just a moment' 403 / a redirect) is NOT a real page:
+    # timing it would false-PASS a challenge as fast. Report UNVERIFIED, never PASS.
+    if [ "$code" != "200" ]; then
+      record UNVERIFIED "$id" "$desc — pass $((i+1))/$PASSES returned HTTP $code (challenge/redirect, not the real page); latency NOT measured — provide the Vercel bypass / CF-skip"
+      return
+    fi
     samples+=("$ms")
     [ "$ms" -gt "$budget" ] && over=$((over+1))
   done
   local med mx; med=$(median "${samples[@]}"); mx=$(maxv "${samples[@]}")
   if [ "$over" -ge 2 ]; then
-    record FAIL "$id" "$desc — DEGRADED: p50=${med}ms max=${mx}ms, $over/$PASSES over ${budget}ms"
+    record FAIL "$id" "$desc — DEGRADED: p50=${med}ms max=${mx}ms, $over/$PASSES over ${budget}ms (all HTTP 200)"
   else
-    record PASS "$id" "$desc — p50=${med}ms max=${mx}ms (budget ${budget}ms, $over/$PASSES over)"
+    record PASS "$id" "$desc — 200 x$PASSES, p50=${med}ms max=${mx}ms (budget ${budget}ms, $over over)"
   fi
 }
 
@@ -101,7 +109,7 @@ echo "# Lyra staging soak — $(date -u '+%Y-%m-%dT%H:%M:%SZ') — target $SITE"
 root=$(curl -so /dev/null -w '%{http_code}' --max-time "$CURL_MAX_TIME" -A "$UA" "$SITE/" 2>/dev/null || echo "000")
 case "$root" in
   301|302|303|307|308|401|403) record PASS       "C1-gate" "staging root reachable + gated ($root)" ;;
-  200)                          record UNVERIFIED "C1-gate" "staging root served 200 ANONYMOUSLY — confirm this is an intended public page, not the app exposed" ;;
+  200)                          record FAIL       "C1-gate" "staging root served 200 ANONYMOUSLY — Vercel deployment protection appears DOWN (staging is engineering-only and must never serve the app unauthenticated)" ;;
   000)                          record UNVERIFIED "C1-gate" "staging root unreachable (000)" ;;
   5??|50?|52?|53?)              record FAIL       "C1-gate" "staging root error ($root)" ;;
   *)                            record UNVERIFIED "C1-gate" "staging root unexpected code $root" ;;

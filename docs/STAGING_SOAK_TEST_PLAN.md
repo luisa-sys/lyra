@@ -63,30 +63,47 @@ Pass: heartbeat written as the final step; no spurious bugs on a healthy env.
 ## B. Detection (fault injection) — the core of the plan
 
 Each test injects a **known** problem, runs the relevant layer, and confirms the
-routine FAILs the right check and logs a bug. **Always clean up after.** Prefer
-running injections against `dev`/`e2e-dev` or the soak user so staging config is
-never left broken.
+routine FAILs the right check and logs a bug. **Always clean up after.**
+
+> **Why these specific variants (do not "simplify" them).** An earlier draft
+> injected faults that the harness's own `resetSoakUserToInitial()` silently
+> undoes *before* the assertion runs — so the test went green while proving
+> nothing (a false-green, the exact failure this plan exists to catch). Every
+> row below is written to survive the reset, or to target a layer the reset
+> doesn't touch. If you change the harness, re-derive these.
 
 | # | Injected fault | Run | Expect | Cleans up |
 |---|---|---|---|---|
-| **B1** | Set the soak user's `age_declared_18_at = NULL` (service-role) | soak-journey | `beforeAll` baseline assert FAILs ("age_declared missing") **or** mint-session cannot reach `/dashboard` → journey FAILs → bug logged | reset restores it |
-| **B2** | Insert a stray `profile_items` row for the soak user, then skip a table in `DERIVED_PROFILE_TABLES` locally | soak-journey | `assertInitialBaseline` returns a violation → afterAll FAILs "…still has rows" → bug logged (proves the reset can't silently rot) | delete the row |
-| **B3** | Run `staging-soak.sh` against **dev** (`STAGE_SITE=https://dev.checklyra.com`) with bypass | script | `C1-health` FAILs release-conformance (`siteUrl`/`vercelEnv` mismatch) → bug logged | none (read-only) |
-| **B4** | `PAGE_BUDGET_MS=1 bash scripts/staging-soak.sh` (with bypass) | script | `C4-*` report **DEGRADED** FAIL | none |
-| **B5** | `STAGE_SITE=https://nope.checklyra.invalid bash scripts/staging-soak.sh` | script | `C1-gate` / content = **UNVERIFIED (000)**, never a false PASS or FAIL | none |
-| **B6** | Seed a NULL-token `auth.users` row on staging (the GoTrue quirk) | routine C5 (Supabase connector) | routine flags the NULL-token user → bug logged | delete the user |
-| **B7** | Unpublish the soak user (`is_published=false`) after C3.3, or corrupt its `slug` | soak-journey | C3.4 public-profile render assertion FAILs → bug logged | reset republishes |
-| **B8** | Leave a real B-series fault in place across **two** consecutive runs | routine ×2 | run 2 finds the open ticket from run 1 and does **not** open a duplicate | close the ticket |
+| **B1** (C3 reset-rot) | In `tests/e2e/support/soak-user.ts`, temporarily **comment out only the `profile_items` line** of the `DELETE` loop in `resetSoakUserToInitial()` — leave `assertInitialBaseline` untouched (the journey's C3.5 inserts a `profile_items` row) | `SOAK_JOURNEY=1 … --project=soak-journey` | `afterAll` `assertInitialBaseline` FAILs **"profile_items still has 1 row(s) after reset"** → journey red → bug logged. Proves the no-silent-rot guard actually fires. | **restore the deleted line**, then rerun once to confirm green |
+| **B2** (C4 latency) | `PAGE_BUDGET_MS=1 HEALTH_BUDGET_MS=1 VERCEL_AUTOMATION_BYPASS=$BYPASS bash scripts/staging-soak.sh` | script | every reachable `C4-*` reports **DEGRADED FAIL** (both budgets, else `/api/health` still passes) | none (read-only) |
+| **B3** (C1 conformance) | `STAGE_SITE=https://dev.checklyra.com VERCEL_AUTOMATION_BYPASS=$BYPASS bash scripts/staging-soak.sh` | script | `C1-health` **FAIL** release-conformance (`siteUrl`/`vercelEnv` mismatch vs staging) | none |
+| **B4** (honesty / unreachable) | `STAGE_SITE=https://nope.checklyra.invalid bash scripts/staging-soak.sh` | script | `C1-gate` **UNVERIFIED (000)** — never a false PASS or FAIL | none |
+| **B5** (C4 challenge-safety) | `VERCEL_AUTOMATION_BYPASS=notarealtoken bash scripts/staging-soak.sh` (a bypass that will NOT clear protection → pages 302) | script | every `C4-*` reports **UNVERIFIED "returned HTTP 302 … latency NOT measured"** — proves a Cloudflare/redirect challenge can't false-PASS as fast (regression guard for the fix). | none |
+| **B6** (C5 DB drift) | Seed **one NEW** NULL-token `auth.users` row on **staging** with a **non-seed** email (e.g. `soaktest.nulltoken@example.invalid`) so it is distinguishable from the 8 baseline `seed.%` rows | routine C5 (Supabase connector) | routine flags the **new** NULL-token user (not the 8 baseline) → bug logged | **delete the row** |
+| **B7** (signup gate) | On a throwaway branch, touch a signup-surface file (`echo "" >> "src/app/(auth)/actions.ts"`) and run `bash scripts/check-signup-surface-gate.sh origin/staging HEAD` | script | exit **10 = TOUCHED** → "signup E2E required". Then revert and rerun → exit **0 = CLEAN**. Proves the gate can't be skipped by omission. | revert the file |
+| **B8** (dedup) | Leave a real fault (e.g. B6's NULL-token row) in place across **two** consecutive live routine runs | routine ×2 | run 2 finds run 1's open ticket and opens **no** duplicate (stable `[SOAK][<sev>] <short>` summary) | close the ticket + delete the row |
 
 Pass criteria for Section B: **every** row produces the expected FAIL/UNVERIFIED
 **and** the expected single bug (B8 proves dedup). A row that goes green is a
 false-green — do not trust the routine until it's fixed.
 
-### Coverage map (every contract check has a detection test)
-`C1 gate/conformance → B3,B5` · `C2/C4 latency → B4,B5` · `C3 journey/reset →
-B1,B2,B7` · `C5 DB drift → B6` · `dedup → B8`. (C6 error-budget: assert Sentry
-shows a known test error signature in the last 24h → routine reports it; low
-priority, add when Sentry connector is wired.)
+### Coverage map
+`C1 conformance → B3` · `C1 gate anon-200 → code path (FAIL); not safely
+injectable on shared staging — reviewed by reading staging-soak.sh` · `C4 latency
+→ B2` · `C4 challenge-safety → B5` · `honesty/unreachable → B4` · `C3 reset-rot →
+B1` · `C3 app-render correctness → covered by A2 (real-deploy run) + the strict,
+un-weakenable assertions (Test Integrity Policy), not a fault-injection (a
+genuinely broken deploy can't be manufactured on demand)` · `C5 DB drift → B6` ·
+`signup gate → B7` · `dedup → B8`. **C6 error-budget is UNCOMMISSIONED** until a
+Sentry/Vercel connector is attached to the routine — mark it out-of-scope in the
+contract or wire the connector + add a C6 injection before claiming it works.
+
+> **Do NOT use these masked variants** (they read green without testing anything,
+> because the reset undoes them first): setting `age_declared_18_at=NULL` on the
+> soak user (reset re-sets it in `beforeAll`); unpublishing the user (C3.4
+> re-publishes); corrupting `slug` (reset never restores `slug`, so it would
+> leave the soak user's public page 404-ing and FAIL C3.4 **every day** —
+> self-inflicted alarm).
 
 ---
 
@@ -131,6 +148,12 @@ degrades to UNVERIFIED, and at most one standing note, never a daily new bug.
 Trust the routine for unattended operation only after **all** of:
 
 - [ ] Sections A, B, C, D pass at least once.
+- [ ] **C3 reads PASS, not a standing UNVERIFIED.** A permanent C3=UNVERIFIED
+      means the CF-bypass / `e2e-stage` alias isn't provisioned and the soak's
+      **core journey layer is dark** — and it will **not** self-alert, because
+      `routine-watchdog.sh` treats a fresh heartbeat whose last outcome is
+      UNVERIFIED as PASS (email fires only on FAIL). Treat a repeated
+      C3=UNVERIFIED as an explicit action item, never an acceptable steady state.
 - [ ] **≥10 consecutive daily runs**, each appending a heartbeat row (Section C1).
 - [ ] At least **one** Section-B fault-injection detection reproduced on the
       live routine (not just locally) — proves the live wiring detects + logs.
