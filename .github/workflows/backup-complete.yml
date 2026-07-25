@@ -50,6 +50,10 @@ permissions:
 
 env:
   BACKUP_DIR: ./backups
+  # Encryption writes into a SEPARATE tree so ONLY files we encrypted can ever be
+  # uploaded — never the plaintext source, and never a source file that merely
+  # happens to be named *.age (SEC-23 leak fix).
+  BACKUP_ENC_DIR: ./backups-enc
 
 jobs:
   complete-backup:
@@ -117,8 +121,13 @@ jobs:
           done
           SYNCED=$(find "$BACKUP_DIR/storage" -type f | wc -l | tr -d ' ')
           # Completeness cross-check (SEC-23): a sync that copied fewer files than
-          # storage.objects reports would otherwise green with data unbacked.
-          if [ "$OBJ_COUNT" != "ERR" ] && [ "$SYNCED" -lt "$OBJ_COUNT" ]; then
+          # storage.objects reports would otherwise green with data unbacked. An
+          # unreadable count (ERR) with creds present is fatal — we cannot verify
+          # completeness, so we must not report success.
+          if [ "$OBJ_COUNT" = "ERR" ]; then
+            echo "::error::could not read storage.objects count — cannot verify the storage backup is complete."; exit 1
+          fi
+          if [ "$SYNCED" -lt "$OBJ_COUNT" ]; then
             echo "::error::storage sync copied $SYNCED file(s) but storage.objects reports $OBJ_COUNT — incomplete storage backup."; exit 1
           fi
           echo "STORAGE_BACKUP=synced:${SYNCED}-files" >> "$BACKUP_DIR/STORAGE_STATUS"
@@ -148,9 +157,13 @@ jobs:
           : > "$WORK/keys.txt"
           CURSOR=""
           while :; do
-            URL="${BASE}/keys?limit=1000"
-            [ -n "$CURSOR" ] && URL="${URL}&cursor=${CURSOR}"
-            RESP="$(curl -fsS "$URL" -H "Authorization: Bearer ${CF_API_TOKEN}")"
+            # -G + --data-urlencode so the cursor (base64-ish; may contain +,/,=)
+            # is safely encoded rather than corrupting the query (SEC-23).
+            if [ -n "$CURSOR" ]; then
+              RESP="$(curl -fsS -G "${BASE}/keys" --data-urlencode "limit=1000" --data-urlencode "cursor=${CURSOR}" -H "Authorization: Bearer ${CF_API_TOKEN}")"
+            else
+              RESP="$(curl -fsS -G "${BASE}/keys" --data-urlencode "limit=1000" -H "Authorization: Bearer ${CF_API_TOKEN}")"
+            fi
             printf '%s' "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(k['name']) for k in d.get('result',[])]" >> "$WORK/keys.txt"
             CURSOR="$(printf '%s' "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result_info',{}).get('cursor','') or '')")"
             [ -n "$CURSOR" ] || break
@@ -159,7 +172,10 @@ jobs:
           while IFS= read -r KEY; do
             [ -n "$KEY" ] || continue
             printf '%s' "$KEY" > "$WORK/values/$N.key"
-            if ! curl -fsS "${BASE}/values/${KEY}" -H "Authorization: Bearer ${CF_API_TOKEN}" -o "$WORK/values/$N.val"; then
+            # URL-encode the key into the path — waitlist emails contain @ and can
+            # contain + (aliases) and other URL-significant chars (SEC-23).
+            KEY_ENC="$(printf '%s' "$KEY" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read(), safe=""))')"
+            if ! curl -fsS "${BASE}/values/${KEY_ENC}" -H "Authorization: Bearer ${CF_API_TOKEN}" -o "$WORK/values/$N.val"; then
               echo "::error::failed to fetch KV value for key $KEY"; exit 1
             fi
             N=$((N+1))
@@ -213,22 +229,32 @@ jobs:
           fi
           # Support one OR MORE whitespace-separated recipients (multiple
           # break-glass holders): build a -r flag per recipient. `age -r "a b"`
-          # would treat the whole string as one malformed recipient and abort
-          # (which, before the step-6 leak fix, left plaintext for the artifact
-          # uploader). SEC-23.
+          # would treat the whole string as one malformed recipient and abort.
           RCPT=()
           for r in $BACKUP_AGE_RECIPIENTS; do RCPT+=( -r "$r" ); done
           if [ "${#RCPT[@]}" -eq 0 ]; then
             echo "::error::BACKUP_AGE_RECIPIENTS contained no valid recipient"; exit 1
           fi
-          shopt -s nullglob
-          for f in "$BACKUP_DIR"/* "$BACKUP_DIR"/storage/*; do
-            [ -f "$f" ] || continue
-            case "$f" in *.age) continue;; esac
-            age "${RCPT[@]}" -o "${f}.age" "$f"
-            rm -f "$f"   # never keep plaintext past this point
-          done
-          echo "✓ all artifacts encrypted (.age) for ${#RCPT[@]} recipient(s); plaintext removed"
+          # Encrypt EVERY file at ANY depth into a SEPARATE tree (SEC-23). We do
+          # NOT trust the source extension: a nested storage blob (backups/storage/
+          # <bucket>/foo.jpg) must be encrypted, and a storage object literally
+          # named foo.age must NOT be passed through in cleartext. Encrypting into
+          # $BACKUP_ENC_DIR (which the upload steps read) guarantees only encrypted
+          # bytes can leave CI regardless of source names/depth.
+          rm -rf "$BACKUP_ENC_DIR"; mkdir -p "$BACKUP_ENC_DIR"
+          COUNT=0
+          while IFS= read -r -d '' f; do
+            REL="${f#"$BACKUP_DIR"/}"
+            mkdir -p "$BACKUP_ENC_DIR/$(dirname "$REL")"
+            age "${RCPT[@]}" -o "$BACKUP_ENC_DIR/${REL}.age" "$f"
+            COUNT=$((COUNT+1))
+          done < <(find "$BACKUP_DIR" -type f -print0)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::no files found to encrypt in $BACKUP_DIR"; exit 1
+          fi
+          # Plaintext never leaves this job: drop the entire plaintext tree.
+          rm -rf "$BACKUP_DIR"
+          echo "✓ encrypted $COUNT file(s) to $BACKUP_ENC_DIR for ${#RCPT[@]} recipient(s); plaintext tree removed"
 
       # ── 6. GitHub artifact (encrypted) — forensics / second copy ───────────
       # SEC-23 leak fix: this step previously ran `if: always()` on `path:
@@ -244,7 +270,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: lyra-complete-backup-${{ github.run_id }}
-          path: backups/**/*.age
+          # Only the encrypted tree — the plaintext $BACKUP_DIR was removed after
+          # encryption, and this path matches nothing else. `error` if empty so a
+          # silent no-op upload can never masquerade as a backup.
+          path: backups-enc/**/*.age
           if-no-files-found: error
           retention-days: 90
 
@@ -268,8 +297,10 @@ jobs:
           DATE=$(date -u +%Y-%m-%dT%H%M%SZ)
           UPLOAD_FAILED=0
           shopt -s globstar nullglob
-          for f in "$BACKUP_DIR"/**/*.age; do
-            REL="${f#"$BACKUP_DIR"/}"
+          UPLOADED=0
+          for f in "$BACKUP_ENC_DIR"/**/*.age; do
+            REL="${f#"$BACKUP_ENC_DIR"/}"
+            UPLOADED=$((UPLOADED+1))
             echo "Uploading complete/${DATE}/${REL} ..."
             if OUT=$(aws s3 cp "$f" "s3://${R2_BUCKET}/complete/${DATE}/${REL}" --endpoint-url "$R2_ENDPOINT" --no-progress 2>&1); then
               echo "  ✓ ${REL}"
@@ -279,8 +310,11 @@ jobs:
               echo "::error::${REL} upload failed: $OUT"; UPLOAD_FAILED=1
             fi
           done
+          if [ "$UPLOADED" -eq 0 ]; then
+            echo "::error::no encrypted (.age) files found to upload to R2 — the encrypt step produced nothing"; exit 1
+          fi
           [ "$UPLOAD_FAILED" -eq 0 ] || { echo "::error::at least one WORM upload failed"; exit 1; }
-          echo "✅ complete backup uploaded to R2 WORM (complete/${DATE}/)"
+          echo "✅ complete backup uploaded to R2 WORM: ${UPLOADED} object(s) under complete/${DATE}/"
 
       - name: Summary
         if: always()
@@ -292,8 +326,11 @@ jobs:
             echo "| Asset | Size |"
             echo "|-------|------|"
             shopt -s globstar nullglob
-            for f in "$BACKUP_DIR"/**/*; do
+            # On success the plaintext $BACKUP_DIR is gone and only the encrypted
+            # tree remains; on an early failure the plaintext tree may still be
+            # present. List whichever exists (this step is if: always()).
+            for f in "$BACKUP_DIR"/**/* "$BACKUP_ENC_DIR"/**/*; do
               [ -f "$f" ] || continue
-              echo "| ${f#"$BACKUP_DIR"/} | $(du -h "$f" | cut -f1) |"
+              echo "| ${f#./} | $(du -h "$f" | cut -f1) |"
             done
           } >> "$GITHUB_STEP_SUMMARY"
