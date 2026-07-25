@@ -29,6 +29,17 @@ on:
   # schedule:
   #   - cron: '0 1 * * *'  # Daily 01:00 UTC — ENABLE AFTER COMMISSIONING (SEC-23)
   workflow_dispatch:
+    inputs:
+      allow_empty_kv:
+        description: 'Pass a 0-key Cloudflare KV (waitlist) export instead of failing — ONLY if the waitlist is genuinely empty.'
+        type: boolean
+        required: false
+        default: false
+      allow_skipped_roles:
+        description: 'Pass even if pg_dumpall --roles-only was skipped (Supabase→Supabase restore only; a clean-room restore would have no roles).'
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -93,10 +104,25 @@ jobs:
           export AWS_ACCESS_KEY_ID="$STORAGE_S3_KEY"
           export AWS_SECRET_ACCESS_KEY="$STORAGE_S3_SECRET"
           mkdir -p "$BACKUP_DIR/storage"
-          # Mirror every bucket. Supabase exposes storage over an S3-compatible API.
-          aws s3 sync "$STORAGE_S3_ENDPOINT" "$BACKUP_DIR/storage/" --endpoint-url "$STORAGE_S3_ENDPOINT" --no-progress
-          echo "STORAGE_BACKUP=synced:$(find "$BACKUP_DIR/storage" -type f | wc -l)-files" >> "$BACKUP_DIR/STORAGE_STATUS"
-          echo "✓ storage objects synced"
+          # Mirror EVERY bucket. `aws s3 sync <https endpoint>` is NOT a valid S3
+          # source (SEC-23 fix) — list the buckets over the S3-compatible API,
+          # then sync each s3://<bucket> individually.
+          BUCKETS="$(aws s3 ls --endpoint-url "$STORAGE_S3_ENDPOINT" | awk '{print $NF}')"
+          if [ -z "$BUCKETS" ]; then
+            echo "::error::storage.objects reports $OBJ_COUNT object(s) but the S3 API listed no buckets — check SUPABASE_STORAGE_S3_ENDPOINT / creds."; exit 1
+          fi
+          for b in $BUCKETS; do
+            echo "syncing bucket ${b} ..."
+            aws s3 sync "s3://${b}" "$BACKUP_DIR/storage/${b}/" --endpoint-url "$STORAGE_S3_ENDPOINT" --no-progress
+          done
+          SYNCED=$(find "$BACKUP_DIR/storage" -type f | wc -l | tr -d ' ')
+          # Completeness cross-check (SEC-23): a sync that copied fewer files than
+          # storage.objects reports would otherwise green with data unbacked.
+          if [ "$OBJ_COUNT" != "ERR" ] && [ "$SYNCED" -lt "$OBJ_COUNT" ]; then
+            echo "::error::storage sync copied $SYNCED file(s) but storage.objects reports $OBJ_COUNT — incomplete storage backup."; exit 1
+          fi
+          echo "STORAGE_BACKUP=synced:${SYNCED}-files" >> "$BACKUP_DIR/STORAGE_STATUS"
+          echo "✓ storage objects synced: ${SYNCED} file(s) (>= ${OBJ_COUNT} objects)"
 
       # ── 3. Cloudflare KV (waitlist / interest emails) ──────────────────────
       - name: Export Cloudflare KV namespace
@@ -104,6 +130,7 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_KV_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
+          ALLOW_EMPTY_KV: ${{ github.event.inputs.allow_empty_kv }}
         run: |
           set -euo pipefail
           OUT="$BACKUP_DIR/cloudflare-kv-${CF_KV_NAMESPACE_ID:-unset}.json"
@@ -115,8 +142,19 @@ jobs:
           # Dump keys + each value to disk (no secrets/values interpolated into
           # any source string), then assemble one JSON document in python.
           WORK="$(mktemp -d)"; mkdir -p "$WORK/values"
-          curl -fsS "${BASE}/keys?limit=1000" -H "Authorization: Bearer ${CF_API_TOKEN}" \
-            | python3 -c "import json,sys; [print(k['name']) for k in json.load(sys.stdin).get('result',[])]" > "$WORK/keys.txt"
+          # SEC-23: paginate. CF KV list returns <=1000 keys per page plus a
+          # result_info.cursor; without following it a waitlist >1000 entries is
+          # silently truncated (green but partial). Loop until the cursor empties.
+          : > "$WORK/keys.txt"
+          CURSOR=""
+          while :; do
+            URL="${BASE}/keys?limit=1000"
+            [ -n "$CURSOR" ] && URL="${URL}&cursor=${CURSOR}"
+            RESP="$(curl -fsS "$URL" -H "Authorization: Bearer ${CF_API_TOKEN}")"
+            printf '%s' "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(k['name']) for k in d.get('result',[])]" >> "$WORK/keys.txt"
+            CURSOR="$(printf '%s' "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result_info',{}).get('cursor','') or '')")"
+            [ -n "$CURSOR" ] || break
+          done
           N=0
           while IFS= read -r KEY; do
             [ -n "$KEY" ] || continue
@@ -126,7 +164,7 @@ jobs:
             fi
             N=$((N+1))
           done < "$WORK/keys.txt"
-          WORK="$WORK" python3 - "$OUT" <<'PYEOF'
+          WORK="$WORK" ALLOW_EMPTY_KV="${ALLOW_EMPTY_KV:-false}" python3 - "$OUT" <<'PYEOF'
           import json, os, sys, glob
           work = os.environ["WORK"]
           doc = {"keys": [], "values": {}}
@@ -134,6 +172,15 @@ jobs:
               with open(keyfile) as f: k = f.read()
               with open(keyfile[:-4] + ".val") as f: v = f.read()
               doc["keys"].append(k); doc["values"][k] = v
+          # SEC-23 false-green gate: a valid token+namespace can return HTTP 200
+          # with zero keys, greening a waitlist backup that contains nothing.
+          # (`curl -fsS` already fails a wrong/forbidden namespace with a 4xx;
+          # this catches the residual "valid but empty / valid-but-wrong-empty
+          # namespace" case.) Hard-fail unless the operator deliberately allows
+          # an empty waitlist via the allow_empty_kv dispatch input.
+          if not doc["keys"] and os.environ.get("ALLOW_EMPTY_KV") != "true":
+              print("::error::Cloudflare KV export returned 0 keys for this namespace. The waitlist is not expected to be empty — suspect the wrong CLOUDFLARE_KV_NAMESPACE_ID or a token missing the KV:read scope (gotcha #13). If the waitlist is genuinely empty, re-dispatch with allow_empty_kv=true.")
+              sys.exit(1)
           json.dump(doc, open(sys.argv[1], "w"))
           print(f"✓ KV exported: {len(doc['keys'])} key(s)")
           PYEOF
@@ -141,6 +188,8 @@ jobs:
 
       # ── 4. Integrity gate (validate PLAINTEXT before encrypting/uploading) ──
       - name: Verify complete-backup integrity
+        env:
+          BACKUP_ALLOW_SKIPPED_ROLES: ${{ github.event.inputs.allow_skipped_roles }}
         run: |
           set -euo pipefail
           echo "## Complete Backup Integrity" >> "$GITHUB_STEP_SUMMARY"
@@ -162,22 +211,41 @@ jobs:
             echo "::error::BACKUP_AGE_RECIPIENTS not set. The complete dump contains auth password hashes and tokens and MUST NOT be uploaded unencrypted. Generate an age key pair, keep the PRIVATE key offline (break-glass), set the PUBLIC recipient as BACKUP_AGE_RECIPIENTS. See SEC-23 / KAN-121."
             exit 1
           fi
+          # Support one OR MORE whitespace-separated recipients (multiple
+          # break-glass holders): build a -r flag per recipient. `age -r "a b"`
+          # would treat the whole string as one malformed recipient and abort
+          # (which, before the step-6 leak fix, left plaintext for the artifact
+          # uploader). SEC-23.
+          RCPT=()
+          for r in $BACKUP_AGE_RECIPIENTS; do RCPT+=( -r "$r" ); done
+          if [ "${#RCPT[@]}" -eq 0 ]; then
+            echo "::error::BACKUP_AGE_RECIPIENTS contained no valid recipient"; exit 1
+          fi
           shopt -s nullglob
           for f in "$BACKUP_DIR"/* "$BACKUP_DIR"/storage/*; do
             [ -f "$f" ] || continue
             case "$f" in *.age) continue;; esac
-            age -r "$BACKUP_AGE_RECIPIENTS" -o "${f}.age" "$f"
+            age "${RCPT[@]}" -o "${f}.age" "$f"
             rm -f "$f"   # never keep plaintext past this point
           done
-          echo "✓ all artifacts encrypted (.age); plaintext removed"
+          echo "✓ all artifacts encrypted (.age) for ${#RCPT[@]} recipient(s); plaintext removed"
 
       # ── 6. GitHub artifact (encrypted) — forensics / second copy ───────────
+      # SEC-23 leak fix: this step previously ran `if: always()` on `path:
+      # backups/`, so a FAILED encrypt step (step 5 aborts under set -e, leaving
+      # PLAINTEXT in backups/ — the auth dump = password hashes + refresh tokens)
+      # would still publish that plaintext as a 90-day artifact. Two independent
+      # guards now make that impossible: (a) `if: success()` so a failed
+      # integrity-gate/encrypt short-circuits the upload entirely, and (b) the
+      # path is restricted to `*.age` so ONLY encrypted files can ever leave CI,
+      # even if the `if:` were changed. Belt-and-braces per KAN-121.
       - name: Upload encrypted artifact
-        if: always()
+        if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: lyra-complete-backup-${{ github.run_id }}
-          path: backups/
+          path: backups/**/*.age
+          if-no-files-found: error
           retention-days: 90
 
       # ── 7. WORM upload via SEPARATE write-only credential ──────────────────

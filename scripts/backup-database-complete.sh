@@ -124,6 +124,24 @@ if [ -z "$ROWCOUNTS_JSON" ]; then
   exit 1
 fi
 
+# ── 3b. Critical-table REAL counts (SEC-23) ─────────────────────────────────
+# row_counts above use pg_stat_user_tables.n_live_tup, which are STATISTICAL
+# ESTIMATES (can read 0 or stale between ANALYZEs). The integrity gate needs a
+# trustworthy "did we actually capture the accounts?" signal — the whole reason
+# the complete backup exists over the public-only one — so take real COUNT(*)
+# for the must-have tables. check-complete-backup.sh fails if auth_users is 0.
+CRITICAL_JSON="$(psql "$SUPABASE_DB_URL" -X -t -A <<'SQL'
+SELECT json_build_object(
+  'auth_users',      (SELECT count(*) FROM auth.users),
+  'public_profiles', (SELECT count(*) FROM public.profiles)
+)::text;
+SQL
+)"
+if [ -z "$CRITICAL_JSON" ]; then
+  echo "::error::could not read critical-table counts (auth.users / public.profiles) for the manifest" >&2
+  exit 1
+fi
+
 DUMP_SHA="$(sha256sum "$DUMP_FILE" | cut -d' ' -f1)"
 SCHEMAS_JSON="$(printf '"%s",' "${SCHEMAS[@]}" | sed 's/,$//')"
 
@@ -137,6 +155,7 @@ cat > "$MANIFEST_FILE" <<JSON
   "dump_file": "$(basename "$DUMP_FILE")",
   "dump_format": "pg_dump custom (-Fc)",
   "dump_sha256": "${DUMP_SHA}",
+  "critical_row_counts": ${CRITICAL_JSON},
   "row_counts": ${ROWCOUNTS_JSON}
 }
 JSON
