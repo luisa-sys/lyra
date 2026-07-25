@@ -9,6 +9,23 @@ const extraHTTPHeaders: Record<string, string> = vercelBypass
   ? { 'x-vercel-protection-bypass': vercelBypass }
   : {};
 
+// KAN-348: the authed suite runs against the deployed dev/stage origin, which
+// sits behind Cloudflare bot-management. From a GitHub Actions runner IP that
+// serves a "Just a moment…" 403 challenge (CLAUDE.md gotcha #7), so every
+// navigation 403s and the suite can never mint a session. The fix is a
+// Cloudflare WAF *skip* rule keyed to a secret header this harness sends. Both
+// vars must be set (header NAME + SECRET value); unset → empty → no-op, so the
+// anon localhost gate and any un-provisioned run are unaffected. See
+// buildCfBypassHeader() consumers + the workflow that wires the secrets.
+export function buildCfBypassHeader(
+  e: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const name = e.E2E_CF_BYPASS_HEADER?.trim();
+  const secret = e.E2E_CF_BYPASS_SECRET;
+  return name && secret ? { [name]: secret } : {};
+}
+Object.assign(extraHTTPHeaders, buildCfBypassHeader());
+
 // KAN-271: webServer resolution across the three ways this suite runs:
 //
 //   1. PR gate (e2e-tests.yml): E2E_LOCAL_SERVER=1 — Playwright builds-then-
