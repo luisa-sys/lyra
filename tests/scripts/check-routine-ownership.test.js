@@ -34,6 +34,16 @@ const GOOD_FILES = {
     '# Ops Routines Control Room',
     '**One concern → one owner.** Every routine cites the owner.',
     '### Concern → single owner (KAN-361)',
+    '- **Staging-soak of record** = the Staging Soak routine (KAN-413).',
+  ].join('\n'),
+  // KAN-413 — Staging Soak routine + un-skippable signup-gate markers.
+  'docs/STAGING_SOAK_ROUTINE.md': [
+    '# Staging Soak',
+    '## The release contract — what good looks like on staging',
+  ].join('\n'),
+  '.github/signup-surface.paths': [
+    '# Lyra sign-up / account-creation surface',
+    'src/app/(auth)/signup/**',
   ].join('\n'),
 };
 
@@ -142,6 +152,21 @@ describe('scripts/check-routine-ownership.sh', () => {
       name: 'OPS_ROUTINES_CONTROL_ROOM drops the concern→owner map heading',
       file: 'docs/OPS_ROUTINES_CONTROL_ROOM.md',
       strip: /Concern → single owner/,
+    },
+    {
+      name: 'OPS_ROUTINES_CONTROL_ROOM drops the staging-soak owner marker (KAN-413)',
+      file: 'docs/OPS_ROUTINES_CONTROL_ROOM.md',
+      strip: /Staging-soak of record/,
+    },
+    {
+      name: 'STAGING_SOAK_ROUTINE loses its release-contract marker (KAN-413)',
+      file: 'docs/STAGING_SOAK_ROUTINE.md',
+      strip: /release contract/,
+    },
+    {
+      name: 'signup-surface manifest drops the sign-up form path (KAN-413)',
+      file: '.github/signup-surface.paths',
+      strip: /src\/app\/\(auth\)\/signup\/\*\*/,
     },
   ];
 

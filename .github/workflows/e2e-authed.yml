@@ -35,6 +35,15 @@ on:
         description: 'DNS-only dev/staging URL to run against (bypasses CF bot-mgmt)'
         required: false
         default: 'https://e2e-dev.checklyra.com'
+      convene_enabled:
+        # KAN-308: Convene is OFF on dev/staging by owner decision. With it off
+        # the journey asserts the widget is ABSENT; set this to 'true' once
+        # Convene is enabled on the target env and the suite goes back to
+        # asserting the widget RENDERS for an entitled identity. Neither mode
+        # skips the check — see tests/e2e/authed/journey.authed.spec.ts.
+        description: 'Assert the Convene widget renders (true once Convene is enabled on the target env)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -57,6 +66,9 @@ jobs:
       CI: 'true'
       E2E_AUTHED: '1'
       BASE_URL: ${{ github.event.inputs.base_url || 'https://e2e-dev.checklyra.com' }}
+      # KAN-308 — Convene enablement on the environment under test. Default
+      # 'false' matches dev/staging today; the journey asserts widget-absent.
+      E2E_CONVENE_ENABLED: ${{ github.event.inputs.convene_enabled || 'false' }}
       # Harness creds — DISTINCT from the app's own SUPABASE_* so they never leak
       # into an app runtime. Scope these GitHub Secrets to DEV/STAGING, NEVER prod.
       E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}

@@ -8,9 +8,9 @@
  * any field. Status indicator at the top of the section.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ManualOfMe } from '../manual-of-me-fields';
-import { MANUAL_OF_ME_MAX_LENGTHS } from '../manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, MANUAL_OF_ME_MAX_LENGTHS } from '../manual-of-me-fields';
 import { updateManualOfMe } from '../manual-of-me-actions';
 import { useAutoSave } from './use-auto-save';
 import { SectionSaveBar } from './section-save-bar';
@@ -34,11 +34,30 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
     drains_me: manualOfMe.drains_me || '',
   });
 
+  // BUGS-74 — belt-and-braces against a partially-loaded row.
+  //
+  // The real fix is in the loader (page.tsx now selects every field in
+  // MANUAL_OF_ME_FIELDS). This guard makes the section safe even if a caller
+  // ever hands it an incomplete row again: a field that arrived `undefined`
+  // was never loaded, so we cannot tell "the member cleared it" from "we never
+  // saw it" — and sending '' would null out saved text. Such a field is left
+  // OUT of the save payload until the member actually types in it, at which
+  // point it carries a real value and is safe to write.
+  const neverLoaded = useRef<Set<string>>(
+    new Set(MANUAL_OF_ME_FIELDS.filter((f) => manualOfMe[f] === undefined)),
+  );
+
   // `updateManualOfMe` takes Record<string, string | null>; ManualOfMeDraft's
   // typed keys narrow it to a literal-keyed object, so we widen explicitly.
-  const { status, flush } = useAutoSave(draft, async (v) =>
-    updateManualOfMe(v as unknown as Record<string, string | null>),
-  );
+  const { status, flush } = useAutoSave(draft, async (v) => {
+    const payload: Record<string, string | null> = {};
+    for (const [key, value] of Object.entries(v as unknown as Record<string, string>)) {
+      // Untouched + never loaded → omit, so the upsert leaves the DB value be.
+      if (neverLoaded.current.has(key) && value === '') continue;
+      payload[key] = value;
+    }
+    return updateManualOfMe(payload);
+  });
 
   const set = <K extends keyof ManualOfMeDraft>(key: K, value: ManualOfMeDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));

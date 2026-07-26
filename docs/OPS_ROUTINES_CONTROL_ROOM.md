@@ -47,6 +47,7 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 | Weekly Health + Regression + Auto-Fix | `trig_01LTemp76huQPMxuJEJAZCp4` | **test / release** (owner) | *(recadenced)* `30 6 * * 1` — Mon 06:30 | `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md` | Ops Routines Control Room + Operations Runbook 19988502 |
 | Doc-Sync Health-Check (KAN-249 watcher) | `trig_01MgzZTEcCEMtusrGCQhDYLA` | **doc-sync** (owner/watcher) | *(recadenced)* `15 8 * * 1-5` — weekday 08:15, after the producer | `docs/DOC_SYNC_HEALTHCHECK_ROUTINE.md` | Doc Sync Log 19922947 + MCP tools 19955714 |
 | Documentation Check (KAN-249 **producer**) | `trig_015kUxixpDXz3zW4qRo1fYpx` | **doc-producer** | `0 8 * * 1-5` — weekday 08:00 | *(Confluence-driven; no repo script)* | System Documentation tree home 196718 → writes Doc Sync Log 19922947 |
+| Staging Soak | `trig_018MWFmc7LSzj15egayKJNrt` | **staging-soak** (owner) — daily behavioural soak of the *promoted* staging build | `12 4 * * *` — daily 04:12 | `docs/STAGING_SOAK_ROUTINE.md` (+ `docs/SIGNUP_SURFACE_GATE.md`, `docs/STAGING_SOAK_TEST_PLAN.md`) | Ops Routines Control Room heartbeat |
 | Backlog Autopilot | `trig_01HniS6vXfGEFR4gvJaLNTM9` | **backlog execution** (out of scope for the ops-heartbeat; has its own Control Room 33554434) | `20 3,9,15,21 * * *` | — | Backlog Autopilot Control Room 33554434 |
 | Scheduled Health Checks | `.github/workflows/health-check.yml` | **liveness** (owner) | `0 */6 * * *` | this repo | — (opens a GitHub issue on failure) |
 | Weekly Status Report | `.github/workflows/weekly-report.yml` | **reporting** (cites the owners above) | `0 7 * * 1` — Mon 07:00 | this repo | — |
@@ -70,6 +71,13 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
   Sections 4/6/7 stay as convenience counts but defer to that routine's run-log.
 - **Doc-sync of record** = the Doc-Sync Health-Check routine, watching the
   KAN-249 producer.
+- **Staging-soak of record** = the **Staging Soak routine** +
+  `docs/STAGING_SOAK_ROUTINE.md`. It is the daily behavioural soak of the
+  *promoted* staging build (release contract C1–C6): reachability + latency,
+  the persistent-reset-user journey, staging-DB drift, and error budget. It
+  **cites** `health-check.yml` (liveness) and the Daily Security routine
+  (security) — it never re-derives them. It deliberately does **not** test user
+  sign-up; that is the un-skippable promote gate (`docs/SIGNUP_SURFACE_GATE.md`).
 
 These ownership markers are CI-enforced: `scripts/check-routine-ownership.sh`
 (run from `pr-checks.yml`) fails any PR that removes a load-bearing marker —

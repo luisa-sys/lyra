@@ -34,9 +34,17 @@ import {
  *
  * Null / empty-string values are written as null in the DB so the public-view
  * "skip if empty" logic works correctly.
+ *
+ * BUGS-74 — "not provided" and "explicitly cleared" are different things:
+ *   - `undefined`      → the field is OMITTED from the upsert, leaving whatever
+ *                        is already in the DB untouched. This is what makes the
+ *                        "accepts a partial" promise above actually true.
+ *   - `null` or `''`   → an explicit clear; written as NULL.
+ * Previously `undefined` was coerced to null and written, so any caller that
+ * sent an incomplete object silently destroyed the fields it omitted.
  */
 export async function updateManualOfMe(
-  data: Record<string, string | null>
+  data: Record<string, string | null | undefined>
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -54,7 +62,12 @@ export async function updateManualOfMe(
       rejected.push(key);
       continue;
     }
-    if (val === null || val === undefined) {
+    // BUGS-74: absent means "leave it alone", not "clear it". Omitting the key
+    // keeps it out of the upsert payload entirely.
+    if (val === undefined) {
+      continue;
+    }
+    if (val === null) {
       sanitised[key] = null;
       continue;
     }
