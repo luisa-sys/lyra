@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `develop` → `staging` | **Weekly, automatic** | Sunday 23:00 UTC | Forces the staging chain to run every week so `deploy-staging.yml` doesn't go a month without exercise. |
 | `staging` → `beta` | Manual | When ready to expose changes to beta testers | Beta hits real prod data, so the move beyond staging is a deliberate decision. |
-| `beta` → `main` | Manual (narrow fix-only exception) | When beta has been exercised against real users | Highest blast radius. Human-supervised by default; a single owner-authorised exception lets the weekly routine auto-promote **fix-only** releases — see "What stays manual". |
+| `beta` → `main` | Manual (fix-only exception WITHDRAWN 2026-07-23) | When beta has been exercised against real users | Highest blast radius. Human-supervised, no exception currently active — Luisa withdrew the fix-only auto-promote exception on 2026-07-23. See "What stays manual". |
 
 **The chain MUST be exercised at least weekly.** If `auto-promote-to-staging.yml` skips for any reason, the weekly report flags it red — see "Skip behaviour" below.
 
@@ -65,9 +65,11 @@ The reasoning is asymmetric:
 - Auto-promote to **staging** is safe — staging is gated by Vercel SSO, no real users see it
 - Auto-promote to **production** has the same false-positive risk class KAN-167 spent days dismantling — a "green" CI run that's actually broken would auto-ship to users. This is why there is no cron and no standalone auto-promote-to-production workflow.
 
-### The one owner-authorised exception (fix-only, 2026-06-21)
+### The one owner-authorised exception (fix-only, 2026-06-21) — WITHDRAWN 2026-07-23
 
-The default above ("features are manual, always human-supervised") has a single narrow exception, authorised by Luisa on 2026-06-21 and canonical in `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`:
+**Status: inactive.** Luisa withdrew this exception on 2026-07-23. Production promote is **manual-only, no exception**, per `CLAUDE.md` → Deployment Pipeline. The routine (SEC-22) prepares + reports release-readiness and may rehearse as far as staging, but must NOT auto-promote to production under any condition, fix-only or otherwise, until Luisa explicitly reinstates this in writing with a new date. The text below describes the now-inactive exception, retained for historical/audit context only:
+
+The default above ("features are manual, always human-supervised") had a single narrow exception, authorised by Luisa on 2026-06-21 and canonical in `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`:
 
 - The **weekly health + regression routine** MAY drive a `beta` → `main` promotion **only when *every* change pending on `develop` ahead of `main` is a bug-FIX** (a BUGS/SEC defect, `fix:`-type — no new feature, user-facing capability, route, table, MCP tool, or migration), with the full suite green through staging + beta.
 - If **any** pending change is a feature, or fix-vs-feature is ambiguous → the routine **STOPS and requires manual sign-off**.
@@ -95,7 +97,7 @@ Until this is decided, the gap is kept **explicit and non-regressing** by `scrip
 
 ## Machine-checked fix-only auto-promote gate (SEC-77)
 
-There is one owner-authorised exception (2026-06-21) to "no cron, ever" on `beta → main`: the SEC-22 weekly health/regression routine MAY auto-promote to production **only when every change pending on `beta` ahead of `main` is a bug-FIX — never a feature** (see `CLAUDE.md` → Deployment Pipeline and `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`). Until SEC-77 this "every pending change is a fix" condition was **procedural** — enforced only by the routine-agent's judgement, with nothing in the workflow to stop a feature slipping through and auto-shipping to a minors' platform unattended.
+There was one owner-authorised exception (2026-06-21) to "no cron, ever" on `beta → main`, **withdrawn by Luisa on 2026-07-23** (see `CLAUDE.md` → Deployment Pipeline): the SEC-22 weekly health/regression routine was permitted to auto-promote to production **only when every change pending on `beta` ahead of `main` is a bug-FIX — never a feature** (see `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`). That authority is currently **inactive** — the routine must not invoke `promote_mode=auto-fix-only` (or otherwise auto-promote to production) unless Luisa reinstates it in writing with a new date. Until SEC-77 this "every pending change is a fix" condition was **procedural** — enforced only by the routine-agent's judgement, with nothing in the workflow to stop a feature slipping through and auto-shipping to a minors' platform unattended.
 
 It is now **machine-enforced**:
 
