@@ -1,0 +1,46 @@
+# Lyra — user SIGN-UP / account-creation surface (KAN-413).
+#
+# A develop → staging promotion whose diff touches ANY path below MUST run the
+# un-skippable signup E2E and it must pass, or the promotion is blocked. The
+# daily Staging Soak deliberately does NOT test signup (it uses a persistent
+# reset-user), so this gate is the ONLY thing that proves account creation still
+# works before it reaches staging. See docs/SIGNUP_SURFACE_GATE.md.
+#
+# Format: one glob per line (fnmatch, '**' = any depth). '#' comments + blank
+# lines ignored. Keep this list broad — "could be impacted in any way" (founder
+# directive) beats "definitely breaks it". When in doubt, add the path.
+#
+# NOTE: supabase/migrations/** is included but CONTENT-FILTERED by the gate
+# script (a migration counts only if it references the account-creation surface:
+# handle_new_user / auth.users / on_auth_user / the profiles table), so ordinary
+# migrations do not trip the gate — only ones that can alter account creation do.
+
+# The sign-up form + its server action (name, email, 18+ declaration, invite code)
+src/app/(auth)/signup/**
+src/app/(auth)/actions.ts
+src/app/(auth)/auth-errors.ts
+src/app/(auth)/social-login-buttons.tsx
+
+# Account activation: magic-link / OAuth confirm + callback → first session
+src/app/auth/confirm/**
+src/app/auth/callback/**
+src/lib/auth/**
+
+# 18+ self-declaration gate (KAN-407) — part of the signup contract
+src/lib/age/**
+
+# Beta-access / invite-code grant applied at signup + confirm
+src/lib/beta-access/**
+
+# Supabase clients used by the signup + confirm paths
+src/lib/supabase-server.ts
+src/lib/supabase-service.ts
+
+# Env accessors used by signUp (siteUrl, inviteCode)
+src/lib/env.ts
+
+# Middleware routing/gating that decides where a new user lands
+src/middleware.ts
+
+# Account-creation DB trigger + profiles defaults (content-filtered, see note)
+supabase/migrations/**

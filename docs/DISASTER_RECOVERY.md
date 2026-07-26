@@ -175,40 +175,93 @@ Set the **public** recipient as a repo secret (value is the `age1…` string):
 gh secret set BACKUP_AGE_RECIPIENTS --repo luisa-sys/lyra --body 'age1…'
 ```
 
-**2. WORM bucket + write-only key (Cloudflare R2 dashboard):**
-- Create a dedicated bucket (e.g. `lyra-backups-worm`) with **Object Lock =
-  COMPLIANCE**, retention ≥ 30 days.
-- Mint an R2 API token scoped **PutObject only** (no Delete/lifecycle) to that bucket.
+> The age **PUBLIC** recipient, the R2/Supabase **endpoint URLs**, and the R2
+> **bucket name** are NOT sensitive (fine to `--body` inline). The R2/Supabase/KV
+> **keys + tokens** ARE secrets — run `gh secret set NAME --repo luisa-sys/lyra`
+> and paste the value at the prompt so it never lands in shell history.
+>
+> **Multiple break-glass holders:** `BACKUP_AGE_RECIPIENTS` may hold several
+> whitespace-separated `age1…` recipients — the workflow encrypts to all of them.
+
+**2. WORM bucket + a dedicated R2 key (Cloudflare R2 dashboard):**
+- **Create the bucket FIRST** (e.g. `lyra-backups-worm`) with **Object Lock
+  enabled at creation** (it can NEVER be added or downgraded later), mode
+  **COMPLIANCE** (Governance can be bypassed by the account holder), default
+  retention **exactly 30 days**.
+  > ⚠️ **Irreversible — check the unit.** COMPLIANCE retention can only ever be
+  > *increased*, never shortened or removed, by anyone (including the Cloudflare
+  > root account). A "**Years**" fat-finger instead of "**Days**" permanently
+  > locks auth password hashes + waitlist PII for that whole span, at growing
+  > cost, with no remediation. Confirm the selector reads **Days** and the value
+  > is **30** before saving.
+- **Verify the lock on the EMPTY bucket BEFORE any write** — confirm the bucket
+  shows Object Lock = *Compliance*, retention *30 days*. If anything is wrong,
+  delete + recreate now (once objects are written they are permanently locked).
+- Mint a **dedicated** R2 API token (Manage R2 API Tokens → Create) with
+  **Object Read & Write**, scoped to this bucket only.
+  > R2 tokens have no per-verb "PutObject-only" scope — Object R/W is the
+  > narrowest write option and it *can* delete + read. **WORM is enforced solely
+  > by Object Lock COMPLIANCE on the bucket, not by the token.** Keep it a
+  > SEPARATE token from the day-to-day `R2_ACCESS_KEY_ID` so its blast radius is
+  > isolated; confidentiality of the readable objects rests on the age encryption.
+- (Optional, via an **admin** R2 credential in the dashboard — NOT this CI token)
+  add a lifecycle **Expire after ~37 days** rule so dailies don't accumulate
+  forever once past their lock window.
 ```bash
-gh secret set R2_BACKUP_WRITEONLY_ACCESS_KEY_ID     --repo luisa-sys/lyra --body '…'
-gh secret set R2_BACKUP_WRITEONLY_SECRET_ACCESS_KEY --repo luisa-sys/lyra --body '…'
-gh secret set R2_BACKUP_ENDPOINT --repo luisa-sys/lyra --body 'https://<acct>.r2.cloudflarestorage.com'
+gh secret set R2_BACKUP_WRITEONLY_ACCESS_KEY_ID     --repo luisa-sys/lyra   # paste at prompt
+gh secret set R2_BACKUP_WRITEONLY_SECRET_ACCESS_KEY --repo luisa-sys/lyra   # paste at prompt
+gh secret set R2_BACKUP_ENDPOINT --repo luisa-sys/lyra --body 'https://<account-id>.r2.cloudflarestorage.com'
 gh secret set R2_BACKUP_BUCKET   --repo luisa-sys/lyra --body 'lyra-backups-worm'
 ```
 
-**3. Supabase Storage S3 keys** (Supabase → Project → Storage → S3 access keys),
-only strictly required once files exist:
+**3. Supabase Storage S3 keys** (Supabase → Project → Storage → S3 access keys).
+**Deferrable** while `storage.objects = 0` (the workflow honestly warn-skips) —
+but the daily backup will **fail loud every night from the first user upload
+onward** until all three are set, so provision them at the storage-go-live
+milestone, **atomically** (a partial set fails the guard):
 ```bash
 gh secret set SUPABASE_STORAGE_S3_ENDPOINT   --repo luisa-sys/lyra --body 'https://<ref>.supabase.co/storage/v1/s3'
-gh secret set SUPABASE_STORAGE_S3_ACCESS_KEY --repo luisa-sys/lyra --body '…'
-gh secret set SUPABASE_STORAGE_S3_SECRET_KEY --repo luisa-sys/lyra --body '…'
+gh secret set SUPABASE_STORAGE_S3_ACCESS_KEY --repo luisa-sys/lyra   # paste at prompt
+gh secret set SUPABASE_STORAGE_S3_SECRET_KEY --repo luisa-sys/lyra   # paste at prompt
 ```
 
-**4. Cloudflare KV (waitlist) export token** — a KV:read-scoped token (gotcha #13:
-KV is a separate scope from DNS):
+**4. Cloudflare KV (waitlist) export token** — a **Workers KV Storage: Read**
+scoped token (gotcha #13: KV is a separate scope; the existing DNS-scoped
+`CLOUDFLARE_API_TOKEN` will silently fail KV reads — do NOT reuse it):
 ```bash
-gh secret set CLOUDFLARE_KV_API_TOKEN   --repo luisa-sys/lyra --body '…'
-gh secret set CLOUDFLARE_ACCOUNT_ID     --repo luisa-sys/lyra --body '…'
-gh secret set CLOUDFLARE_KV_NAMESPACE_ID --repo luisa-sys/lyra --body 'c7bdc8624f0a4bd5b0a8ad36e9f93d96'  # lyra-interest-emails
+gh secret set CLOUDFLARE_KV_API_TOKEN    --repo luisa-sys/lyra   # paste at prompt (KV:read scope)
+# CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_KV_NAMESPACE_ID are already set — verify only:
+gh secret list --repo luisa-sys/lyra | grep -E 'CLOUDFLARE_(ACCOUNT_ID|KV_NAMESPACE_ID)'
+# expected namespace id: c7bdc8624f0a4bd5b0a8ad36e9f93d96 (lyra-interest-emails)
 ```
 
-**5. Confirm `SUPABASE_DB_URL` is a session connection** (port 5432 / "Direct
-connection"), not the 6543 pooler, so `pg_dumpall --roles-only` works.
+**5. `SUPABASE_DB_URL` MUST be a SESSION connection** (port 5432 / "Direct
+connection"), NOT the 6543 pooler — `pg_dumpall --roles-only` cannot run over the
+pooler. ⚠️ `SECURITY_ROTATION.md` documents this same secret as the 6543 pooler
+(correct for the weekly public-only `backup-database.yml`, **wrong here**). The
+integrity gate now **fails loud** if roles were skipped, so a pooler URL will
+turn the smoke-test red (not silently green). If you cannot repoint the shared
+secret without disturbing the weekly backup, give this workflow its own session
+URL secret. You cannot read the value back — the smoke-test (step 6) verifies it.
 
-**6. Smoke-test, then enable the schedule:**
+**6. Smoke-test (dispatch-only — does NOT arm the schedule), then verify:**
 ```bash
-gh workflow run backup-complete.yml --repo luisa-sys/lyra   # manual dispatch — must go GREEN
+gh workflow run backup-complete.yml --repo luisa-sys/lyra
+gh run watch "$(gh run list --workflow=backup-complete.yml --repo luisa-sys/lyra -L1 --json databaseId -q '.[0].databaseId')" --repo luisa-sys/lyra
 ```
-Once green, uncomment the two `schedule:` lines at the top of
-`.github/workflows/backup-complete.yml` (a 1-line change) to turn on the **daily**
-backup, and PR it through the pipeline.
+The run **must be green**, AND open it to confirm the integrity gate output:
+- `manifest: … auth_users=<N>` with **N ≥ 1** and **`roles=captured`** (proves the
+  5432/session URL — a `skipped:…` here means the DB URL is the 6543 pooler);
+- `kv: <M> key(s) exported` with **M ≥ 1** (proves KV:read scope + right namespace);
+- storage step recorded `skipped:no-creds:empty-bucket` (expected while 0 objects);
+- `Encrypt artifacts` produced only `.age` files; the uploaded artifact has **no
+  plaintext**; `Upload to R2 WORM` printed `✓` per object under `complete/<ts>/`.
+
+Deliberate opt-outs (only if genuinely applicable): re-dispatch with
+`allow_empty_kv=true` (waitlist truly empty) or `allow_skipped_roles=true`
+(Supabase→Supabase-only restore accepted).
+
+**7. Arm the daily schedule** — only after a green smoke-test with `roles=captured`
++ KV non-empty. Uncomment the two `schedule:` lines at the top of
+`.github/workflows/backup-complete.yml` and ship that 1-line change **through the
+normal PR pipeline** (not an admin-merge — release-supervision policy).
