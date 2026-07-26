@@ -1,0 +1,114 @@
+# BUGS-19: repo-owned deploy for the `lyra-maintenance` Cloudflare Worker.
+#
+# WHY THIS EXISTS
+# The maintenance page (scripts/lyra-maintenance-worker.js — a single static
+# HTML worker) used to be deployed by the Cloudflare Workers Builds Git
+# integration. That integration triggered a build on every push to every branch
+# and posted a "Workers Builds: lyra-maintenance" check to GitHub, which:
+#   - failed 0-duration on real builds (a Cloudflare-side build-pipeline issue,
+#     NOT a defect in the worker or wrangler.toml — both are valid), and
+#   - emailed Luisa on 20+-commit pushes that bypassed the build watch-paths
+#     (feature/worktree branches mistakenly cut from origin/main carry hundreds
+#     of prod-promote merge commits — see CLAUDE.md gotcha #20).
+#
+# This workflow REPLACES reliance on the Cloudflare Git integration. It deploys
+# the worker with `wrangler deploy` and is:
+#   - path-filtered to the worker + its wrangler config + this workflow, and
+#   - restricted to push-on-main (plus manual dispatch),
+# so it NEVER runs on feature branches, never posts a check on unrelated PRs,
+# and never emails on large merges. A push to `main` that touches a worker file
+# runs one real, auditable deploy in our own CI where we can read the logs.
+#
+# Because the promotion chain (develop → staging → beta → main) is the only way
+# `main` changes, a worker change reaches production only after supervised
+# promotion — the deploy rides the same release it shipped with.
+#
+# REQUIRED SECRETS (repo Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — token scoped to Workers Scripts:Edit + Workers KV
+#                            Storage:Edit for the lyra account (the worker binds
+#                            the INTEREST_EMAILS KV namespace).
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account that owns lyra-maintenance.
+# The RESEND_API_KEY the worker uses for signup notifications is a *worker*
+# secret set in the Cloudflare dashboard (`wrangler secret`), NOT a GitHub
+# secret — `wrangler deploy` does not touch it.
+#
+# The deploy job FAILS LOUD if either GitHub secret is absent (no silent-skip —
+# see Workflow & Backup Integrity Policy). Until the two secrets are added the
+# workflow is effectively inert: it only runs on main/dispatch, and when it does
+# run without them it fails visibly rather than reporting a false green.
+
+name: Deploy lyra-maintenance worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/lyra-maintenance-worker.js'
+      - 'wrangler.toml'
+      - '.github/workflows/lyra-maintenance-deploy.yml'
+  workflow_dispatch: {}
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+# Never let two maintenance-worker deploys race each other onto the same script.
+concurrency:
+  group: lyra-maintenance-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: wrangler deploy (checklyra.com maintenance worker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+
+      - name: Verify required Cloudflare secrets are present
+        # FAIL LOUD, never silent-skip (Workflow & Backup Integrity Policy).
+        # This job only ever runs on main / manual dispatch, so a real deploy is
+        # always intended when it runs — a missing secret is a hard error, not a
+        # reason to skip.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not set — add it in repo Settings → Secrets before this workflow can deploy the lyra-maintenance worker."
+            missing=1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID secret is not set — add it in repo Settings → Secrets before this workflow can deploy the lyra-maintenance worker."
+            missing=1
+          fi
+          if [ "${missing}" -ne 0 ]; then
+            echo "::error::lyra-maintenance deploy cannot proceed without both Cloudflare secrets."
+            exit 1
+          fi
+          echo "Both Cloudflare secrets are present."
+
+      - name: Deploy worker
+        # wrangler reads CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from the
+        # environment and deploys scripts/lyra-maintenance-worker.js per
+        # wrangler.toml (name, main, compatibility_date, INTEREST_EMAILS KV).
+        # Pinned to the wrangler v4 major line for reproducibility; a non-zero
+        # exit under `set -euo pipefail` fails the step (and the workflow).
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config wrangler.toml
+          echo "lyra-maintenance worker deploy completed."

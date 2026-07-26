@@ -2,7 +2,7 @@
 
 This is the one-time setup procedure for Lyra's external uptime monitoring. Once complete, UptimeRobot becomes the **primary signal** for environment availability and SSL-certificate expiry across all four envs (prod, beta, stage, dev) plus both MCP servers. The 6-hourly GitHub Actions health-check stays as a redundant secondary signal.
 
-Total time: ~10 minutes for the human steps; the automated bootstrap below provisions the actual monitors.
+Total time: ~10 minutes for the human steps; the bootstrap script (step 3) provisions the actual monitors.
 
 ## 1. Sign up for UptimeRobot
 
@@ -26,21 +26,42 @@ After signup, store the account credentials in 1Password under the existing "Lyr
 
 The Main API key is what the bootstrap script needs. There's also a Read-Only API key option — don't use that one; the script needs to create monitors and alert contacts.
 
-## 3. Hand the key over to Claude
+## 3. Run the bootstrap (founder, in your own shell)
 
-Paste the key in the chat in this exact form so I can pick it up without ambiguity:
+**Run the bootstrap yourself, locally, with the key set only in your own shell — never paste the key into this chat, a Jira ticket, a commit, or a screenshot.** The Main API key from step 2 has full read/write on every monitor in the account, so treat it exactly like a password: it must never appear in Claude's chat history or anywhere else it could be captured and replayed. Claude does not need the key to help here — it can read the results after you run the script. (Step 4 below lists exactly which monitors and alert contacts the script creates.)
 
+From a checkout of the lyra repo, dry-run first (writes nothing — it just prints the diff between the desired monitors/contacts and what already exists in the account):
+
+```bash
+UPTIMEROBOT_API_KEY=ur-xxxxxxxx \
+ALERT_EMAILS=luisa@santos-stephens.com,ben@santos-stephens.com \
+  node scripts/uptimerobot/bootstrap.js
 ```
-UPTIMEROBOT_API_KEY=ur-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+When the dry-run looks right, re-run with `--apply` to create the missing monitors and alert contacts:
+
+```bash
+UPTIMEROBOT_API_KEY=ur-xxxxxxxx \
+ALERT_EMAILS=luisa@santos-stephens.com,ben@santos-stephens.com \
+  node scripts/uptimerobot/bootstrap.js --apply
 ```
 
-I'll run the bootstrap immediately, verify the monitors are created, and confirm the first scrape completed successfully. After that, the key is no longer needed in chat — UptimeRobot does its job from the dashboard, and you can rotate the key at any time without affecting running monitors.
+The script:
+- Verifies the API key works (calls `getAccountDetails`) before doing anything else
+- Lists existing alert contacts and creates any missing ones (matches by email value, case-insensitive)
+- Lists existing monitors and creates any missing ones (matches by `friendly_name`, exact)
+- Flags URL drift on existing monitors as a manual review item rather than silently overwriting
+- Defaults to dry-run; only writes when you pass `--apply`
 
-If you'd rather not paste the key in chat, the alternative is to set it locally and run the script yourself — see "Run the bootstrap manually" below.
+It is idempotent — running it once or 100 times produces the same end state, so re-running `--apply` against an already-configured account is a no-op.
 
-## 4. Bootstrap the monitors (Claude does this automatically)
+To keep the key out of your shell history, either prefix each command with a leading space (with `HISTCONTROL=ignorespace` set) or read it into an exported variable from a hidden prompt (`read -rs UPTIMEROBOT_API_KEY && export UPTIMEROBOT_API_KEY`) instead of typing it inline.
 
-The bootstrap is idempotent — running it once or 100 times produces the same end state. It creates two things:
+Once it reports green, continue to step 5 to verify the alert path. The key is not needed again after this — UptimeRobot runs from its own dashboard, and you can rotate the key at any time without affecting running monitors (see "Rotation and offboarding").
+
+## 4. What the bootstrap creates
+
+The bootstrap (step 3) creates two things:
 
 **Alert contacts** (one per email, type=email):
 - `luisa@santos-stephens.com`
@@ -69,31 +90,6 @@ This step is required by the KAN-163 acceptance criteria and confirms the email 
 ## 6. Add the dashboard link to lyra-project-reference
 
 Once the bootstrap is done, replace the placeholder in [`docs/lyra-project-reference.jsx`](./lyra-project-reference.jsx) under the `monitoring` block with your real UptimeRobot dashboard URL (visible in the address bar after sign-in — typically `https://dashboard.uptimerobot.com/monitors`).
-
-## Run the bootstrap manually (alternative path)
-
-If you don't want to paste the API key in chat, run the bootstrap yourself from the lyra repo:
-
-```bash
-# Dry-run first — prints the diff but writes nothing.
-UPTIMEROBOT_API_KEY=ur-xxxxxxxx \
-ALERT_EMAILS=luisa@santos-stephens.com,ben@santos-stephens.com \
-  node scripts/uptimerobot/bootstrap.js
-
-# Apply once the dry-run looks right.
-UPTIMEROBOT_API_KEY=ur-xxxxxxxx \
-ALERT_EMAILS=luisa@santos-stephens.com,ben@santos-stephens.com \
-  node scripts/uptimerobot/bootstrap.js --apply
-```
-
-The script:
-- Verifies the API key works (calls `getAccountDetails`)
-- Lists existing alert contacts and creates any missing ones (matches by email value, case-insensitive)
-- Lists existing monitors and creates any missing ones (matches by `friendly_name`, exact)
-- Flags URL drift on existing monitors as a manual review item rather than silently overwriting
-- Defaults to dry-run; pass `--apply` to commit changes
-
-Re-running with `--apply` against a configured account is a no-op.
 
 ## Rotation and offboarding
 

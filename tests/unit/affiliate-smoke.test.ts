@@ -11,7 +11,9 @@ import {
   buildSmokeMatrix,
   assertLocalisedDomain,
   summariseResults,
+  probeUrl,
   type ProbeOutcome,
+  type FetchLike,
 } from '@/lib/affiliate/smoke';
 
 // ── SMOKE_PROBES shape ─────────────────────────────────────────────────
@@ -275,5 +277,203 @@ describe('KAN-194 summariseResults', () => {
     const failed = failing('amazon', 'GB', 'unexpected_host');
     const out = summariseResults([passing('etsy', 'GB'), failed]);
     expect(out.failures).toContain(failed);
+  });
+});
+
+// ── BUGS-23: probeUrl (HEAD → GET fallback, bot-block aware) ─────────────
+
+type FetchBehavior = { status: number; url?: string } | 'timeout' | { error: string };
+
+/**
+ * Build a fake fetch that plays a queued list of behaviours (one per call,
+ * so [HEAD-behaviour, GET-behaviour]). 'timeout' honours the AbortController
+ * signal so attemptFetch's real timer produces a realistic AbortError.
+ */
+function makeFetch(behaviours: FetchBehavior[]): {
+  impl: FetchLike;
+  calls: Array<{ url: string; method: string }>;
+} {
+  const calls: Array<{ url: string; method: string }> = [];
+  let i = 0;
+  const impl: FetchLike = (url, init) => {
+    calls.push({ url, method: (init.method as string) || 'GET' });
+    const b = behaviours[i++] ?? { status: 200 };
+    if (b === 'timeout') {
+      return new Promise<Response>((_resolve, reject) => {
+        const signal = init.signal as AbortSignal | undefined;
+        signal?.addEventListener('abort', () => {
+          const err = new Error('The operation was aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
+    }
+    if ('error' in b) return Promise.reject(new Error(b.error));
+    const status = b.status;
+    return Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      url: b.url ?? url,
+      body: undefined,
+    } as unknown as Response);
+  };
+  return { impl, calls };
+}
+
+const OPTS = { timeoutMs: 20, acceptLanguage: 'en-GB' };
+const URL_UNDER_TEST = 'https://www.johnlewis.com/';
+
+describe('BUGS-23 probeUrl — HEAD→GET fallback, bot-block aware', () => {
+  test('HEAD 200 → ok, single request (no GET)', async () => {
+    const { impl, calls } = makeFetch([{ status: 200 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('HEAD');
+  });
+
+  test('HEAD timeout → GET 200 → ok, exactly two requests (the johnlewis rescue)', async () => {
+    const { impl, calls } = makeFetch(['timeout', { status: 200 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+    expect(calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
+  });
+
+  test('HEAD timeout → GET timeout → inconclusive (botBlocked), never a pass', async () => {
+    const { impl, calls } = makeFetch(['timeout', 'timeout']);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.botBlocked).toBe(true);
+      expect(r.reason).toBe('bot_blocked_timeout');
+    }
+    expect(calls).toHaveLength(2);
+  });
+
+  test('HEAD 403 → GET 200 → ok (bot-hostile HEAD rescued by GET)', async () => {
+    const { impl } = makeFetch([{ status: 403 }, { status: 200 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+  });
+
+  test('HEAD 429 → GET 200 → ok', async () => {
+    const { impl } = makeFetch([{ status: 429 }, { status: 200 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+  });
+
+  test('HEAD 405 (method not allowed) → GET 200 → ok', async () => {
+    const { impl, calls } = makeFetch([{ status: 405 }, { status: 200 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+    expect(calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
+  });
+
+  test('HEAD 500 → genuine failure, NOT rescued, single request (real outage still detected)', async () => {
+    const { impl, calls } = makeFetch([{ status: 500 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.botBlocked).toBe(false);
+      expect(r.reason).toBe('head_http_500');
+    }
+    expect(calls).toHaveLength(1);
+  });
+
+  test('HEAD 403 → GET 403 → inconclusive (bot wall never yields)', async () => {
+    const { impl } = makeFetch([{ status: 403 }, { status: 403 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.botBlocked).toBe(true);
+      expect(r.reason).toBe('bot_blocked_http_403');
+    }
+  });
+
+  test('HEAD 403 → GET 500 → GENUINE failure (a determinate error on GET is not a bot wall)', async () => {
+    const { impl } = makeFetch([{ status: 403 }, { status: 500 }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.botBlocked).toBe(false);
+      expect(r.reason).toBe('get_http_500');
+    }
+  });
+
+  test('HEAD network error (non-abort) → genuine failure, single request', async () => {
+    const { impl, calls } = makeFetch([{ error: 'ECONNREFUSED' }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.botBlocked).toBe(false);
+      expect(r.reason).toMatch(/^error:/);
+    }
+    expect(calls).toHaveLength(1);
+  });
+
+  test('returns the final URL so the caller can assert the localised host', async () => {
+    const { impl } = makeFetch([{ status: 200, url: 'https://www.johnlewis.com/home' }]);
+    const r = await probeUrl(impl, URL_UNDER_TEST, OPTS);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.finalUrl).toBe('https://www.johnlewis.com/home');
+  });
+});
+
+// ── BUGS-23: summariseResults treats bot-walled probes as inconclusive ───
+
+function botBlockedOutcome(merchantId: string, country: string): ProbeOutcome {
+  return {
+    merchantId,
+    buyerCountry: country,
+    ok: false,
+    finalUrl: null,
+    failureReason: 'bot_blocked_timeout',
+    botBlocked: true,
+    durationMs: 5000,
+  };
+}
+
+describe('BUGS-23 summariseResults — inconclusive (bot-walled) handling', () => {
+  test('a merchant that is ONLY bot-walled is inconclusive, NOT fully-down, and does NOT alert', () => {
+    const out = summariseResults([botBlockedOutcome('johnlewis', 'GB')]);
+    expect(out.merchantsFullyDown).toEqual([]);
+    expect(out.merchantsInconclusive).toEqual(['johnlewis']);
+    expect(out.botBlocked).toBe(1);
+    expect(out.failed).toBe(0);
+    expect(out.failureRate).toBe(0);
+    expect(out.shouldAlert).toBe(false);
+  });
+
+  test('a GENUINE johnlewis failure still pages (monitor not weakened)', () => {
+    const out = summariseResults([failing('johnlewis', 'GB', 'head_http_503')]);
+    expect(out.merchantsFullyDown).toEqual(['johnlewis']);
+    expect(out.shouldAlert).toBe(true);
+  });
+
+  test('bot-walled probes are excluded from the failure rate denominator', () => {
+    // 1 pass + 1 bot-walled → assessable = 1, genuine failures = 0 → rate 0.
+    const out = summariseResults([passing('amazon', 'GB'), botBlockedOutcome('johnlewis', 'GB')]);
+    expect(out.failureRate).toBe(0);
+    expect(out.shouldAlert).toBe(false);
+    expect(out.botBlocked).toBe(1);
+  });
+
+  test('a merchant with a pass AND a bot-wall is neither fully-down nor inconclusive', () => {
+    const out = summariseResults([
+      passing('bookshop_org', 'GB'),
+      botBlockedOutcome('bookshop_org', 'US'),
+    ]);
+    expect(out.merchantsFullyDown).toEqual([]);
+    expect(out.merchantsInconclusive).toEqual([]);
+  });
+
+  test('genuine failure + bot-wall on the SAME merchant → fully-down wins (pages)', () => {
+    const out = summariseResults([
+      failing('johnlewis', 'GB', 'head_http_500'),
+      botBlockedOutcome('johnlewis', 'GB'),
+    ]);
+    expect(out.merchantsFullyDown).toEqual(['johnlewis']);
+    expect(out.merchantsInconclusive).toEqual([]);
+    expect(out.shouldAlert).toBe(true);
   });
 });

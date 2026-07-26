@@ -54,7 +54,20 @@ for required in ("public", "auth", "storage"):
 rc = m.get("row_counts")
 if not isinstance(rc, dict):
     print("FAIL:manifest has no row_counts object"); sys.exit(0)
-print(f"OK:schemas={','.join(schemas)} tables={len(rc)} roles={m.get('roles_status')}")
+# SEC-23: a schema-only dump easily passes the size/header checks. Prove real
+# data was captured using the REAL COUNT(*) critical_row_counts (n_live_tup in
+# row_counts is a statistical estimate). auth.users==0 means the accounts — the
+# whole reason the complete backup exists — were not captured.
+crit = m.get("critical_row_counts")
+if not isinstance(crit, dict) or "auth_users" not in crit:
+    print("FAIL:manifest has no critical_row_counts.auth_users (SEC-23 — cannot prove accounts were captured)"); sys.exit(0)
+try:
+    auth_users = int(crit.get("auth_users", 0))
+except (TypeError, ValueError):
+    print(f"FAIL:critical_row_counts.auth_users is not numeric ({crit.get('auth_users')!r})"); sys.exit(0)
+if auth_users < 1:
+    print(f"FAIL:critical_row_counts.auth_users is {auth_users} — a complete backup with zero users is not restorable"); sys.exit(0)
+print(f"OK:schemas={','.join(schemas)} tables={len(rc)} auth_users={auth_users} profiles={crit.get('public_profiles')} roles={m.get('roles_status')}")
 PYEOF
 )"
   if [[ "$MANIFEST_RESULT" == OK:* ]]; then
@@ -86,17 +99,57 @@ else
   fi
 fi
 
-# ── 3. Roles globals present (status is informational) ──────────────────────
+# ── 3. Roles globals captured (SEC-23: SKIPPED is a FAILURE by default) ──────
+# Previously a SKIPPED roles export passed silently. But SKIPPED almost always
+# means SUPABASE_DB_URL is the 6543 transaction pooler (which cannot do
+# pg_dumpall --roles-only), and a clean-room (non-Supabase) restore from such a
+# backup would be missing ALL roles/grants — a green-but-lossy backup, exactly
+# the false-positive class the Backup Integrity Policy forbids. Fail unless the
+# operator DELIBERATELY opts into a Supabase→Supabase-only backup.
 # shellcheck disable=SC2012
 ROLES="$(ls "$BACKUP_DIR"/roles_*.sql 2>/dev/null | head -1 || true)"
 if [ -z "$ROLES" ] || [ ! -f "$ROLES" ]; then
   echo "❌ roles: no roles_*.sql found"
   FAILED=1
-else
-  if grep -q "SKIPPED" "$ROLES"; then
-    echo "✅ roles: present (export was SKIPPED — non-fatal, recorded in manifest)"
+elif grep -q "SKIPPED" "$ROLES"; then
+  if [ "${BACKUP_ALLOW_SKIPPED_ROLES:-}" = "true" ]; then
+    echo "⚠️  roles: export was SKIPPED — BACKUP_ALLOW_SKIPPED_ROLES=true set; a clean-room (non-Supabase) restore would have NO roles/grants"
   else
-    echo "✅ roles: present ($(wc -l < "$ROLES" | tr -d ' ') lines)"
+    echo "❌ roles: export was SKIPPED (pg_dumpall --roles-only failed — usually SUPABASE_DB_URL is the 6543 pooler, not a 5432 session URL). A clean-room restore would be missing ALL roles/grants. Fix the DB URL to a session/5432 connection, or re-dispatch with allow_skipped_roles=true for a Supabase→Supabase-only backup."
+    FAILED=1
+  fi
+else
+  echo "✅ roles: captured ($(wc -l < "$ROLES" | tr -d ' ') lines)"
+fi
+
+# ── 4. Cloudflare KV (waitlist) export present + well-formed (SEC-23) ────────
+# The 0-keys false-green is gated in backup-complete.yml's KV step (allow_empty_kv);
+# here we assert the file exists and parses so the integrity gate — not just the
+# producing step — confirms the waitlist export is real JSON with a keys list.
+# shellcheck disable=SC2012
+KVFILE="$(ls "$BACKUP_DIR"/cloudflare-kv-*.json 2>/dev/null | head -1 || true)"
+if [ -z "$KVFILE" ] || [ ! -f "$KVFILE" ]; then
+  echo "❌ kv: no cloudflare-kv-*.json found (waitlist export missing)"
+  FAILED=1
+else
+  KV_RESULT="$(python3 - "$KVFILE" <<'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except Exception as e:
+    print(f"FAIL:invalid JSON ({e})"); sys.exit(0)
+keys = d.get("keys")
+if not isinstance(keys, list):
+    print("FAIL:kv export has no 'keys' list"); sys.exit(0)
+print(f"OK:{len(keys)} key(s)")
+PYEOF
+)"
+  if [[ "$KV_RESULT" == OK:* ]]; then
+    echo "✅ kv: ${KV_RESULT#OK:} exported"
+  else
+    echo "❌ kv: ${KV_RESULT#FAIL:}"
+    FAILED=1
   fi
 fi
 

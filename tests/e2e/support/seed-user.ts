@@ -107,6 +107,12 @@ export async function seedJourneyUser(state: JourneyState): Promise<SeededUser> 
 
   // (5) Access lifecycle + age. `live`/`beta` so dev/stage middleware lets the
   // user reach /dashboard; age_status='passed' EXCEPT for the age_none sub-case.
+  //
+  // KAN-407 added a SEPARATE 18+ self-declaration gate: resolvePostLoginRedirect
+  // diverts any user without `age_declared_18_at` on record to /confirm-age, so
+  // mintSession would never reach /dashboard. Every seed declares 18+ (it's the
+  // login gate) — this is orthogonal to the provider `age_status` publish gate
+  // (KAN-408, opt-in), which is what the age_none sub-case exercises.
   const passesAge = state !== 'age_none';
   const displayName = fullName;
   // intro fields: everything except 'empty' gets a short intro so read-time
@@ -122,6 +128,9 @@ export async function seedJourneyUser(state: JourneyState): Promise<SeededUser> 
       bio_short: bioShort,
       user_status: 'live',
       access_tier: 'beta',
+      // KAN-407 18+ self-declaration — set for EVERY state so the seeded user
+      // clears the /confirm-age login gate and mintSession can reach /dashboard.
+      age_declared_18_at: new Date().toISOString(),
       age_status: passesAge ? 'passed' : 'none',
       age_checked_at: passesAge ? new Date().toISOString() : null,
       age_provider: passesAge ? 'manual' : null,
