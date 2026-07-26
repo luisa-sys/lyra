@@ -31,6 +31,24 @@ function manifest(): Manifest {
   return _manifest;
 }
 
+/**
+ * KAN-348 / KAN-308 — is Convene enabled on the environment under test?
+ *
+ * Convene is deliberately OFF on the dev/staging targets this suite runs
+ * against (Luisa, 2026-07-26: leave Convene off for now and release the gate).
+ * With the feature off the widget cannot render, so asserting `toBeVisible()`
+ * unconditionally fails for an ENVIRONMENT reason, not a product defect.
+ *
+ * This is NOT a loosened assertion — both branches assert real behaviour:
+ *   Convene OFF → the convene widget must be ABSENT (nothing leaks past the flag)
+ *   Convene ON  → the convene widget must be VISIBLE for an entitled identity
+ *
+ * Flip `E2E_CONVENE_ENABLED=true` (workflow input `convene_enabled`) the moment
+ * Convene is enabled on the target env; the original entitlement assertion then
+ * comes back automatically with no further code change.
+ */
+const CONVENE_ENABLED = process.env.E2E_CONVENE_ENABLED === 'true';
+
 /** Shared BUGS-63 hard-load smoke reused for every authed identity. */
 async function assertDashboardHardLoad(page: import('@playwright/test').Page): Promise<void> {
   // Hard navigation + cache-bust — soft navs can mask a broken Suspense reveal.
@@ -80,11 +98,19 @@ test.describe('KAN-348 journey — published_activate (no convene)', () => {
 test.describe('KAN-348 journey — published_grow (convene-entitled)', () => {
   test.use({ storageState: statePath('published_grow') });
 
-  test('published_grow: share + convene visible', async ({ page }) => {
+  test('published_grow: share visible; convene follows env enablement', async ({ page }) => {
     await assertDashboardHardLoad(page);
     await expect(page.locator('[data-onboarding-state="published_grow"]')).toBeVisible();
     await expect(page.locator('[data-widget="share"]')).toBeVisible();
-    await expect(page.locator('[data-widget="convene"]')).toBeVisible();
+    if (CONVENE_ENABLED) {
+      // Convene on + entitled identity → the widget must render.
+      await expect(page.locator('[data-widget="convene"]')).toBeVisible();
+    } else {
+      // Convene off → the widget must NOT leak past the flag, even for an
+      // entitled identity. This is the assertion that has real value while the
+      // KAN-308 hold stands.
+      await expect(page.locator('[data-widget="convene"]')).toHaveCount(0);
+    }
   });
 });
 

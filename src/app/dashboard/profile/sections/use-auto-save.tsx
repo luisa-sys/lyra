@@ -30,7 +30,7 @@
  * matching what users expect from auto-save.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { runSave } from './auto-save-core';
 
 export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -57,13 +57,21 @@ export function useAutoSave<T>(
 ): UseAutoSaveReturn {
   // Hold `save` and the newest `value` in refs so flush() can force-save the
   // current value with the current save fn, and so re-creating `save` on every
-  // parent render doesn't re-trigger the debounce effect. Both are synced in a
-  // commit effect — react-hooks/refs disallows writing refs during render, and
-  // an effect commits before any user click can call flush(), so the refs are
-  // always current at flush time.
+  // parent render doesn't re-trigger the debounce effect.
+  //
+  // BUGS-70 residual (found by the KAN-413 staging soak, C3.5): these refs MUST
+  // be synced in a *layout* effect, not a passive one. A passive useEffect runs
+  // after paint, so on a fast type-then-blur — Playwright fill()+blur(), or a
+  // real user who blurs immediately after a keystroke — onBlur→flush() fired
+  // BEFORE the passive effect had synced latestValueRef, and flush saved the
+  // STALE value (the pre-edit text), so the edit never landed in
+  // profile_manual_of_me even though the status showed "Saved". useLayoutEffect
+  // commits synchronously after the render, before the browser dispatches the
+  // subsequent blur event, so the ref is current at flush time. (Writing the ref
+  // in render would be simpler but the react-hooks/refs lint disallows it.)
   const saveRef = useRef(save);
   const latestValueRef = useRef(value);
-  useEffect(() => {
+  useLayoutEffect(() => {
     saveRef.current = save;
     latestValueRef.current = value;
   });
