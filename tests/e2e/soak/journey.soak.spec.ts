@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { adminClient } from '../support/supabase-admin';
 import { mintSession } from '../support/mint-session';
 import {
@@ -44,6 +44,11 @@ test.beforeAll(async () => {
   const dirty = await assertInitialBaseline(soak);
   expect(dirty, `soak reset left rows behind at start: ${dirty.join('; ')}`).toEqual([]);
   mkdirSync(AUTH_DIR, { recursive: true });
+  // The file-level test.use({ storageState: SOAK_STATE }) makes Playwright apply
+  // that storageState to EVERY context created in this file — including
+  // mintSession's own browser.newContext — so SOAK_STATE must exist before we
+  // mint. Seed an empty state; mintSession overwrites it with the real session.
+  writeFileSync(SOAK_STATE, JSON.stringify({ cookies: [], origins: [] }));
   await mintSession(baseURL, SOAK_EMAIL, SOAK_STATE);
 });
 

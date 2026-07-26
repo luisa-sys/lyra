@@ -56,8 +56,8 @@ jobs:
       # that back e2e-authed.yml. supabase-admin.ts allows only the dev/staging
       # refs and hard-refuses prod. Provision these as GitHub Secrets pointing at
       # the STAGING project (uobmlkzrjkptwhttzmmi), NEVER prod.
-      E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL_STAGING }}
-      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+      E2E_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
