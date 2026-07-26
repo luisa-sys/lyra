@@ -266,9 +266,17 @@ jobs:
         run: |
           set -euo pipefail
           echo "Waiting for deploy-staging.yml run with headSha=$EXPECTED_SHA..."
-          TIMEOUT=420
+          # BUGS-72: 420s was shorter than a normal staging deploy, so a promote
+          # whose deploy succeeded still reported failure and needed a manual
+          # `gh run rerun --failed`. 900s gives real headroom (prod uses 600s
+          # against a ~330s deploy). Never shorten a deploy step to fit this budget.
+          TIMEOUT=900
           ELAPSED=0
           INTERVAL=20
+          # BUGS-72: remember whether we ever saw a run for our SHA, so the
+          # timeout message can tell "never triggered" apart from "too slow".
+          SEEN_RUN_ID=""
+          LAST_STATUS=""
           while [ $ELAPSED -lt $TIMEOUT ]; do
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
@@ -299,6 +307,9 @@ jobs:
               continue
             fi
 
+            SEEN_RUN_ID="$RUN_ID"
+            LAST_STATUS="$STATUS"
+
             if [ "$STATUS" = "completed" ]; then
               if [ "$CONCLUSION" = "success" ]; then
                 echo "::notice::deploy-staging run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
@@ -312,9 +323,16 @@ jobs:
             echo "  deploy-staging run $RUN_ID is $STATUS for SHA ${EXPECTED_SHA:0:8} ($ELAPSED/${TIMEOUT}s)"
           done
 
-          echo "::error::deploy-staging.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
-          echo "::error::This usually means the merge push did not trigger downstream workflows."
-          echo "::error::Check that LYRA_RELEASE_PAT is set and the merge job uses it (not GITHUB_TOKEN)."
+          # BUGS-72: two very different failures used to share one message that always
+          # pointed at LYRA_RELEASE_PAT. Report the one that actually happened.
+          if [ -n "$SEEN_RUN_ID" ]; then
+            echo "::error::deploy-staging run $SEEN_RUN_ID for SHA ${EXPECTED_SHA:0:8} was still '$LAST_STATUS' after ${TIMEOUT}s — this promote exceeded its wait budget, it is NOT a trigger failure."
+            echo "::error::The deploy itself may still finish successfully. Check run $SEEN_RUN_ID; once it is green, re-run this job: gh run rerun ${{ github.run_id }} --failed"
+          else
+            echo "::error::deploy-staging.yml never produced a run for SHA ${EXPECTED_SHA:0:8} after ${TIMEOUT}s"
+            echo "::error::No matching run ever appeared, which means the merge push did not trigger downstream workflows."
+            echo "::error::Check that LYRA_RELEASE_PAT is set and the merge job uses it (not GITHUB_TOKEN)."
+          fi
           exit 1
 
   post-deploy-health:
