@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from './manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS } from './manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 
 export const metadata = {
@@ -57,7 +58,12 @@ export default async function ProfilePage() {
 
   const { data: manualOfMeRow } = await supabase
     .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me')
+    // BUGS-74: this select MUST cover every field in MANUAL_OF_ME_FIELDS.
+    // It previously listed only the four v1 columns, so the two KAN-263 fields
+    // (good_to_know, boundaries) were never loaded — the editor rendered them
+    // empty and the section's whole-draft autosave then wrote NULL over saved
+    // member text. Derive it from the allowlist so it can never drift again.
+    .select(MANUAL_OF_ME_FIELDS.join(', '))
     .eq('profile_id', profile.id)
     .maybeSingle();
 
