@@ -37,8 +37,18 @@ describe('check-complete-backup.sh', () => {
       expect(result.stdout).toMatch(/✅ complete dump: valid PGDMP archive/);
     });
 
-    test('roles globals present', () => {
-      expect(result.stdout).toMatch(/✅ roles:/);
+    test('roles globals captured', () => {
+      expect(result.stdout).toMatch(/✅ roles: captured/);
+    });
+
+    // SEC-23 new gates
+    test('manifest proves real accounts were captured (auth_users > 0)', () => {
+      expect(result.stdout).toMatch(/✅ manifest:.*auth_users=\d+/);
+      expect(result.stdout).not.toMatch(/auth_users=0\b/);
+    });
+
+    test('waitlist KV export is present + well-formed', () => {
+      expect(result.stdout).toMatch(/✅ kv: \d+ key\(s\) exported/);
     });
   });
 
@@ -58,6 +68,16 @@ describe('check-complete-backup.sh', () => {
 
     test('flags the non-PGDMP dump header', () => {
       expect(result.stdout).toMatch(/❌ complete dump: not a pg_dump custom archive/);
+    });
+
+    // SEC-23 new gates fail loud here too (the placeholder has a SKIPPED roles
+    // marker and no KV export) — proving they cannot silently green.
+    test('fails a SKIPPED roles export (unless deliberately opted-in)', () => {
+      expect(result.stdout).toMatch(/❌ roles: export was SKIPPED/);
+    });
+
+    test('flags a missing waitlist KV export', () => {
+      expect(result.stdout).toMatch(/❌ kv: no cloudflare-kv-\*\.json found/);
     });
   });
 

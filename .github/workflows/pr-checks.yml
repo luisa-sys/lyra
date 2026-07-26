@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0 # KAN-411: full history so the UI/copy-ownership guard can diff against the base branch
       - name: Workflow integrity check (BUGS-4)
         # Static scan of .github/workflows/*.yml for known false-positive
         # patterns (GITHUB_TOKEN+push, --limit 1 deploy verification, 401
@@ -76,6 +78,16 @@ jobs:
         # the PR if more than one exists (or none, or the winning file has no
         # default `* @owner`). See SEC-3 / GOV-01.
         run: bash scripts/check-codeowners-single.sh
+      - name: UI/copy founder-ownership guard (KAN-411)
+        # Machine backstop for "LOOK AND TEXT belong to Luisa". If a PR changes a
+        # founder-owned UI/copy path — src/app/**/*.tsx (except src/app/admin/**),
+        # src/components/**, globals.css/design tokens, public/ brand assets, and the
+        # named copy modules — it must carry a `UI-Change-Approved: <KEY>` (Luisa-
+        # initiated) or `UI-Bugfix-Only: <KEY>` (text/rendering-error fix) commit
+        # trailer, else the PR fails. Mirrors the Backlog Autopilot protected-surface
+        # list so guard and robot agree. Fail-open ONLY when the diff base can't be
+        # resolved (CODEOWNERS still hard-gates these paths). See KAN-411.
+        run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-ui-copy-ownership.sh
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the

@@ -9,6 +9,23 @@ const extraHTTPHeaders: Record<string, string> = vercelBypass
   ? { 'x-vercel-protection-bypass': vercelBypass }
   : {};
 
+// KAN-348: the authed suite runs against the deployed dev/stage origin, which
+// sits behind Cloudflare bot-management. From a GitHub Actions runner IP that
+// serves a "Just a moment…" 403 challenge (CLAUDE.md gotcha #7), so every
+// navigation 403s and the suite can never mint a session. The fix is a
+// Cloudflare WAF *skip* rule keyed to a secret header this harness sends. Both
+// vars must be set (header NAME + SECRET value); unset → empty → no-op, so the
+// anon localhost gate and any un-provisioned run are unaffected. See
+// buildCfBypassHeader() consumers + the workflow that wires the secrets.
+export function buildCfBypassHeader(
+  e: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const name = e.E2E_CF_BYPASS_HEADER?.trim();
+  const secret = e.E2E_CF_BYPASS_SECRET;
+  return name && secret ? { [name]: secret } : {};
+}
+Object.assign(extraHTTPHeaders, buildCfBypassHeader());
+
 // KAN-271: webServer resolution across the three ways this suite runs:
 //
 //   1. PR gate (e2e-tests.yml): E2E_LOCAL_SERVER=1 — Playwright builds-then-
@@ -43,6 +60,12 @@ const webServer = process.env.E2E_LOCAL_SERVER
 // E2E_AUTHED is set (so the cred-free gate is a NO-OP).
 const AUTHED_MATCH = /journey\.authed\.spec\.ts/;
 
+// KAN-413: the daily Staging Soak journey lives under tests/e2e/soak/ and, like
+// the authed suite, needs a seeded session — so it must NEVER run in the anon
+// projects. It runs only in the `soak-journey` project, which exists only when
+// SOAK_JOURNEY is set (so the anon PR gate and the authed suite are NO-OPs).
+const SOAK_MATCH = /journey\.soak\.spec\.ts/;
+
 // The authed project exists ONLY when E2E_AUTHED is set. Each describe in the
 // journey spec picks its own storageState via test.use({ storageState }), so no
 // project-level storageState is set here.
@@ -51,6 +74,33 @@ const authedProjects = process.env.E2E_AUTHED
       {
         name: 'authed-journey',
         testMatch: AUTHED_MATCH,
+        use: { ...devices['Desktop Chrome'] },
+      },
+    ]
+  : [];
+
+// The soak project exists ONLY when SOAK_JOURNEY is set. The spec manages its
+// own session (test.use storageState minted in beforeAll), so no project-level
+// storageState here either.
+const soakProjects = process.env.SOAK_JOURNEY
+  ? [
+      {
+        name: 'soak-journey',
+        testMatch: SOAK_MATCH,
+        use: { ...devices['Desktop Chrome'] },
+      },
+    ]
+  : [];
+
+// KAN-413: the un-skippable sign-up E2E (tests/e2e/signup/). Runs ONLY in the
+// `signup-e2e` project (SIGNUP_E2E=1), which the promote-to-staging gate invokes
+// when the diff touches the sign-up surface. Ignored by the anon projects.
+const SIGNUP_MATCH = /signup\.e2e\.spec\.ts/;
+const signupProjects = process.env.SIGNUP_E2E
+  ? [
+      {
+        name: 'signup-e2e',
+        testMatch: SIGNUP_MATCH,
         use: { ...devices['Desktop Chrome'] },
       },
     ]
@@ -73,11 +123,13 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    // Anon projects: explicitly ignore the authed spec so it never runs without
-    // a seeded session (would 500 / redirect to /login under dummy env).
-    { name: 'chromium', testIgnore: AUTHED_MATCH, use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-safari', testIgnore: AUTHED_MATCH, use: { ...devices['iPhone 14'] } },
+    // Anon projects: explicitly ignore the authed + soak specs so they never run
+    // without a seeded session (would 500 / redirect to /login under dummy env).
+    { name: 'chromium', testIgnore: [AUTHED_MATCH, SOAK_MATCH, SIGNUP_MATCH], use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-safari', testIgnore: [AUTHED_MATCH, SOAK_MATCH, SIGNUP_MATCH], use: { ...devices['iPhone 14'] } },
     ...authedProjects,
+    ...soakProjects,
+    ...signupProjects,
   ],
   webServer,
 });

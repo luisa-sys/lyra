@@ -1,0 +1,105 @@
+name: Soak Journey (staging C3)
+
+# KAN-413 — the read-write persistent-user journey (layer C3 of the Staging Soak
+# release contract, docs/STAGING_SOAK_ROUTINE.md), run as a CHEAP GitHub Actions
+# job instead of inside the cloud routine. Playwright browsers are pre-cached in
+# CI and there are no agent tokens, so this is far cheaper + more robust than the
+# routine doing `npm ci` + a chromium download on every daily run. The cloud
+# routine's C3 step CITES this workflow's latest conclusion (one-concern-one-owner,
+# KAN-361) rather than driving Playwright itself.
+#
+# It drives the persistent soak user (soak@seed.checklyra.com) through
+# build→publish→grow (incl. the BUGS-70 Manual-of-Me round-trip) against the
+# DNS-only grey-cloud alias e2e-stage.checklyra.com (no Cloudflare challenge),
+# then resets it to initial account setup and asserts the reset is complete.
+#
+# TRIGGER: workflow_dispatch ONLY for now. The daily `schedule` (commented below)
+# is enabled once the STAGING E2E secrets are provisioned — otherwise a scheduled
+# run would fail every day on missing secrets and turn the Actions tab red.
+#
+#   on:
+#     schedule:
+#       - cron: '2 4 * * *'   # 04:02 UTC daily, before the 04:12 cloud routine
+#
+# STAGING-ONLY: supabase-admin.ts hard-guards the prod ref, and the shell guard
+# below is defence-in-depth. NEVER point the E2E_SUPABASE_* secrets at prod.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'DNS-only grey-cloud staging alias to run against (bypasses CF bot-mgmt)'
+        required: false
+        default: 'https://e2e-stage.checklyra.com'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  soak-journey:
+    name: Playwright soak journey (staging via e2e-stage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Fixed soak-user email → concurrent runs would race on reset/create. Serialise.
+    concurrency:
+      group: soak-journey
+      cancel-in-progress: false
+    env:
+      CI: 'true'
+      SOAK_JOURNEY: '1'
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://e2e-stage.checklyra.com' }}
+      # STAGING harness creds — DISTINCT from the dev-scoped E2E_SUPABASE_* secrets
+      # that back e2e-authed.yml. supabase-admin.ts allows only the dev/staging
+      # refs and hard-refuses prod. Provision these as GitHub Secrets pointing at
+      # the STAGING project (uobmlkzrjkptwhttzmmi), NEVER prod.
+      E2E_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Require STAGING secrets + prod guard (fail loud, never silent-skip)
+        run: |
+          set -euo pipefail
+          if [ -z "${E2E_SUPABASE_URL:-}" ] || [ -z "${E2E_SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::E2E_SUPABASE_URL_STAGING / E2E_SUPABASE_SERVICE_ROLE_KEY_STAGING are not set — provision the STAGING (uobmlkzrjkptwhttzmmi) service-role secrets, then enable the schedule."
+            exit 1
+          fi
+          case "$E2E_SUPABASE_URL" in
+            *llzkgprqewuwkiwclowi*) echo "::error::refusing to run the soak journey against PROD Supabase"; exit 1 ;;
+            *uobmlkzrjkptwhttzmmi*) echo "staging Supabase confirmed" ;;
+            *) echo "::error::E2E_SUPABASE_URL is neither staging nor a recognised ref — refusing"; exit 1 ;;
+          esac
+          case "$BASE_URL" in
+            *//checklyra.com*|*//beta.checklyra.com*) echo "::error::soak journey must target staging, not the prod family"; exit 1 ;;
+          esac
+          echo "guards passed → $BASE_URL"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the soak journey (C3)
+        run: npx playwright test --project=soak-journey
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-soak
+          # Exclude tests/e2e/.auth (live session token for the soak user).
+          path: |
+            playwright-report/
+            !tests/e2e/.auth/
+          retention-days: 14
