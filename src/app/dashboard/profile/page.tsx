@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
-import type { ManualOfMe } from './manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, type ManualOfMe } from './manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 
 export const metadata = {
@@ -57,7 +57,11 @@ export default async function ProfilePage() {
 
   const { data: manualOfMeRow } = await supabase
     .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me')
+    // BUGS-74 — derive the column list from the shared allowlist. Hard-coding a
+    // subset here silently deleted good_to_know + boundaries: the section
+    // autosaves the WHOLE draft, so any column the loader failed to fetch was
+    // seeded as '' and written back as NULL. Never hand-list these again.
+    .select(MANUAL_OF_ME_FIELDS.join(', '))
     .eq('profile_id', profile.id)
     .maybeSingle();
 

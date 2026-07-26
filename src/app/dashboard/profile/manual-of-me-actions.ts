@@ -34,9 +34,17 @@ import {
  *
  * Null / empty-string values are written as null in the DB so the public-view
  * "skip if empty" logic works correctly.
+ *
+ * BUGS-74 — "explicitly cleared" and "not provided" are NOT the same thing:
+ *   - `null` or `''`  → the member cleared the box → write NULL.
+ *   - `undefined`     → the caller did not supply this field → omit it from
+ *                       the upsert payload entirely, leaving the stored value
+ *                       untouched.
+ * Previously `undefined` was coerced to NULL, so any caller holding a
+ * partially-loaded row destroyed the columns it had never read.
  */
 export async function updateManualOfMe(
-  data: Record<string, string | null>
+  data: Record<string, string | null | undefined>
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -54,7 +62,12 @@ export async function updateManualOfMe(
       rejected.push(key);
       continue;
     }
-    if (val === null || val === undefined) {
+    // BUGS-74 — not-supplied ≠ cleared. Omit undefined so the upsert never
+    // overwrites a column the caller never loaded.
+    if (val === undefined) {
+      continue;
+    }
+    if (val === null) {
       sanitised[key] = null;
       continue;
     }

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { ProfileWizard } from '../wizard';
-import type { ManualOfMe } from '../manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, type ManualOfMe } from '../manual-of-me-fields';
 
 export const metadata = {
   title: 'Edit your profile (legacy) — Lyra',
@@ -58,7 +58,9 @@ export default async function LegacyProfilePage() {
 
   const { data: manualOfMeRow } = await supabase
     .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me')
+    // BUGS-74 — same defect as the single-page editor: derive from the shared
+    // allowlist so a hand-listed subset can never silently NULL the rest.
+    .select(MANUAL_OF_ME_FIELDS.join(', '))
     .eq('profile_id', profile.id)
     .maybeSingle();
 
