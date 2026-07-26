@@ -7,10 +7,17 @@
  *      via /api/affiliate/link (when that endpoint exists — for MVP we call
  *      the Sovrn-stubbed flow inline, i.e. the link service returns the raw
  *      URL with monetised:false)
- *   2. Follow the returned URL with HEAD (or GET on HEAD-unsupported hosts)
- *      with a 5s timeout, country-spoofed Accept-Language
+ *   2. Follow the returned URL with a bounded HEAD, falling back to a single
+ *      bounded GET when HEAD is bot-walled (403/405/429) or times out — see
+ *      probeUrl() in src/lib/affiliate/smoke.ts (BUGS-23). Country-spoofed
+ *      Accept-Language, 5s per attempt.
  *   3. Assert the final hostname matches the expected merchant for that
  *      country (assertLocalisedDomain)
+ *
+ * A merchant that bot-walls both HEAD and GET from the CI runner IP (Akamai
+ * tarpit — gotcha #7) is reported as INCONCLUSIVE and does NOT page; a genuine
+ * outage (5xx / connection error / wrong host) still pages. The monitor is not
+ * weakened — only made honest about what a datacenter probe can determine.
  *
  * Today's behaviour (pre-Sovrn): all links resolve to raw merchant URLs,
  * so the assertion just verifies the merchant's own domain is reachable.
@@ -24,7 +31,13 @@
  * into a notification (Slack / Resend email).
  */
 
-import { buildSmokeMatrix, assertLocalisedDomain, summariseResults, type ProbeOutcome } from '../src/lib/affiliate/smoke';
+import {
+  buildSmokeMatrix,
+  assertLocalisedDomain,
+  summariseResults,
+  probeUrl,
+  type ProbeOutcome,
+} from '../src/lib/affiliate/smoke';
 
 const LYRA_APP_URL = process.env.LYRA_APP_URL || 'https://checklyra.com';
 const PROBE_TIMEOUT_MS = 5000;
@@ -34,67 +47,50 @@ type ProbeInput = ReturnType<typeof buildSmokeMatrix>[number];
 
 async function probeOne(entry: ProbeInput): Promise<ProbeOutcome> {
   const start = Date.now();
-  try {
-    // For MVP we directly probe the representativeUrl. Once the lyra app
-    // exposes /api/affiliate/link as a server-side endpoint, this should
-    // first call that to obtain the monetised URL, then probe THAT —
-    // exercising the link service path end-to-end. Leaving the inline
-    // probe here keeps the smoke check independently useful for upstream-
-    // merchant uptime.
-    const _appUrl = LYRA_APP_URL; // referenced for future expansion
-    void _appUrl;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  // For MVP we directly probe the representativeUrl. Once the lyra app
+  // exposes /api/affiliate/link as a server-side endpoint, this should
+  // first call that to obtain the monetised URL, then probe THAT —
+  // exercising the link service path end-to-end. Leaving the inline
+  // probe here keeps the smoke check independently useful for upstream-
+  // merchant uptime.
+  const _appUrl = LYRA_APP_URL; // referenced for future expansion
+  void _appUrl;
 
-    const headRes = await fetch(entry.representativeUrl, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: { 'Accept-Language': languageHintFor(entry.buyerCountry) },
-    });
-    clearTimeout(timeout);
+  // BUGS-23: bounded HEAD with a single GET retry when HEAD is bot-walled or
+  // times out. The pure logic (and its three-way classification) lives in the
+  // lib so it can be unit-tested with an injected fetch.
+  const result = await probeUrl(fetch, entry.representativeUrl, {
+    timeoutMs: PROBE_TIMEOUT_MS,
+    acceptLanguage: languageHintFor(entry.buyerCountry),
+  });
 
-    if (!headRes.ok && headRes.status !== 405) {
-      // 405 (method not allowed) is normal — fall through to GET. Anything
-      // else is a failure: the merchant is down or geo-blocking us.
-      return {
-        merchantId: entry.merchantId,
-        buyerCountry: entry.buyerCountry,
-        ok: false,
-        finalUrl: headRes.url || null,
-        failureReason: `head_http_${headRes.status}`,
-        durationMs: Date.now() - start,
-      };
-    }
-
-    const finalUrl = headRes.url || entry.representativeUrl;
-    const assertion = assertLocalisedDomain(finalUrl, entry.expectedHosts);
-
-    return {
-      merchantId: entry.merchantId,
-      buyerCountry: entry.buyerCountry,
-      ok: assertion.ok,
-      finalUrl,
-      failureReason: assertion.ok ? null : assertion.reason,
-      durationMs: Date.now() - start,
-    };
-  } catch (err: unknown) {
-    const reason =
-      err instanceof Error && err.name === 'AbortError'
-        ? 'timeout'
-        : err instanceof Error
-          ? `error:${err.message.slice(0, 60)}`
-          : 'unknown_error';
+  if (!result.ok) {
+    // Reachability failed OR was inconclusive (bot-walled). Propagate the
+    // botBlocked flag so summariseResults can exclude inconclusive probes from
+    // the alert without masking a genuine outage.
     return {
       merchantId: entry.merchantId,
       buyerCountry: entry.buyerCountry,
       ok: false,
-      finalUrl: null,
-      failureReason: reason,
+      finalUrl: result.finalUrl,
+      failureReason: result.reason,
+      botBlocked: result.botBlocked,
       durationMs: Date.now() - start,
     };
   }
+
+  // Reachable — now enforce the localised-storefront assertion on the final
+  // host. A wrong host is a GENUINE failure (never bot-blocked).
+  const assertion = assertLocalisedDomain(result.finalUrl, entry.expectedHosts);
+  return {
+    merchantId: entry.merchantId,
+    buyerCountry: entry.buyerCountry,
+    ok: assertion.ok,
+    finalUrl: result.finalUrl,
+    failureReason: assertion.ok ? null : assertion.reason,
+    durationMs: Date.now() - start,
+  };
 }
 
 /** Per-country Accept-Language hint. Some sites localise based on this
@@ -152,6 +148,22 @@ async function main(): Promise<void> {
         (f.finalUrl ? ` (final=${f.finalUrl})` : '') +
         ` [${f.durationMs}ms]`,
     );
+  }
+  // BUGS-23: surface inconclusive (bot-walled) probes as warnings — they do NOT
+  // page (we can't tell up-from-down from a datacenter IP; gotcha #7), but they
+  // must be visible so a genuine long-term merchant loss isn't hidden behind
+  // "bot-blocked" forever.
+  if (summary.botBlocked > 0) {
+    console.warn(
+      `[smoke] INCONCLUSIVE (bot-walled, not alerting): ${summary.merchantsInconclusive.join(', ') || '(mixed)'}`,
+    );
+    for (const b of summary.inconclusive) {
+      console.warn(
+        `[smoke] BOT-BLOCKED ${b.merchantId} ${b.buyerCountry}: ${b.failureReason}` +
+          (b.finalUrl ? ` (final=${b.finalUrl})` : '') +
+          ` [${b.durationMs}ms]`,
+      );
+    }
   }
 
   // Optional: write a summary JSON file the GH workflow uploads as an
