@@ -98,7 +98,13 @@ test.describe('KAN-271 — authenticated profile editor (was test.fixme)', () =>
     page,
   }) => {
     const slug = manifest().published_grow.slug;
-    const marker = `E2E manual note ${Date.now()}`;
+    // BUGS-70: the marker must be unique per run but must NOT contain a 10-15
+    // digit run, or the content-moderation PII filter blocks it as `pii:phone_plain`
+    // (a raw `Date.now()` is a 13-digit number) and the save is rejected before it
+    // can persist — masking the real assertion. Base-36 of the timestamp is a short
+    // alphanumeric token: unique per run, no long digit run. (Locator text change
+    // signed off by founder 2026-07-25 per Test Integrity Policy; assertion unchanged.)
+    const marker = `E2E manual note ref-${Date.now().toString(36)}`;
 
     await page.goto('/dashboard/profile', { waitUntil: 'load' });
     // The "Good to know about me" textarea is located by its placeholder (the

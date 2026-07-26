@@ -59,6 +59,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
         value={draft.good_to_know}
         onChange={(v) => set('good_to_know', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.good_to_know}
       />
@@ -69,6 +70,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="Please don't drop by unannounced — I love seeing you, I just need a heads-up."
         value={draft.boundaries}
         onChange={(v) => set('boundaries', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.boundaries}
       />
@@ -79,6 +81,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="Plain and direct, kindly meant. If something's off, just tell me — I'd rather know."
         value={draft.communication_style}
         onChange={(v) => set('communication_style', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.communication_style}
       />
@@ -89,6 +92,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="Shoes off, the dog is friendly, help yourself to tea — the good biscuits are behind the cereal."
         value={draft.working_preferences}
         onChange={(v) => set('working_preferences', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.working_preferences}
       />
@@ -99,6 +103,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="A morning with no plans, a full pot of coffee, and live music in the evening."
         value={draft.energises_me}
         onChange={(v) => set('energises_me', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.energises_me}
       />
@@ -109,6 +114,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
         placeholder="Open-plan noise and small talk about the weather."
         value={draft.drains_me}
         onChange={(v) => set('drains_me', v)}
+        onBlur={flush}
         rows={3}
         maxLength={MANUAL_OF_ME_MAX_LENGTHS.drains_me}
       />
@@ -117,13 +123,20 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
 }
 
 function MoMField({
-  label, helper, placeholder, value, onChange, rows, maxLength,
+  label, helper, placeholder, value, onChange, onBlur, rows, maxLength,
 }: {
   label: string;
   helper: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  // BUGS-70: flush the pending debounced autosave when the field loses focus.
+  // Without this, a user (or the E2E harness) who edits a box and immediately
+  // navigates away leaves the save on the 800ms debounce timer; the navigation
+  // unmounts the section (cancelling the timer) and aborts the in-flight server
+  // action, so the edit never lands in profile_manual_of_me. Flushing on blur
+  // starts the save at once so the request reaches the server and commits.
+  onBlur?: () => void;
   rows: number;
   maxLength: number;
 }) {
@@ -134,6 +147,7 @@ function MoMField({
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         rows={rows}
         maxLength={maxLength}
         placeholder={placeholder}
