@@ -13,18 +13,18 @@ name: Soak Journey (staging C3)
 # DNS-only grey-cloud alias e2e-stage.checklyra.com (no Cloudflare challenge),
 # then resets it to initial account setup and asserts the reset is complete.
 #
-# TRIGGER: workflow_dispatch ONLY for now. The daily `schedule` (commented below)
-# is enabled once the STAGING E2E secrets are provisioned — otherwise a scheduled
-# run would fail every day on missing secrets and turn the Actions tab red.
-#
-#   on:
-#     schedule:
-#       - cron: '2 4 * * *'   # 04:02 UTC daily, before the 04:12 cloud routine
+# TRIGGER: daily `schedule` (04:02 UTC) + `workflow_dispatch`. The STAGING E2E
+# secrets are provisioned, so the scheduled run is live and C3 stays fresh for
+# the cloud routine to CITE. NOTE: GitHub only fires `schedule` from the DEFAULT
+# branch (main), so the daily run begins once this file reaches main via the
+# release chain; on develop/staging it remains dispatch-only until then.
 #
 # STAGING-ONLY: supabase-admin.ts hard-guards the prod ref, and the shell guard
 # below is defence-in-depth. NEVER point the E2E_SUPABASE_* secrets at prod.
 
 on:
+  schedule:
+    - cron: '2 4 * * *'   # 04:02 UTC daily — 10 min before the 04:12 cloud routine (KAN-413); fires from main only
   workflow_dispatch:
     inputs:
       base_url:
