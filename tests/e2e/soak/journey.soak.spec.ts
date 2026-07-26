@@ -122,7 +122,14 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
 
   // A real user-driven write through the app: edit a Manual-of-Me box and
   // confirm it appears on the published profile (reuses the KAN-271 pattern).
-  const marker = `Soak note ${Date.now()}`;
+  // The marker MUST be a base-36 token, NOT a raw Date.now(): a 13-digit
+  // timestamp matches the content-moderation PII rule `/\b\d{10,15}\b/`
+  // (content-moderation.ts:307 → `phone_plain`), so the save is *correctly*
+  // rejected before it can persist — a false-positive soak failure that masks
+  // the real round-trip assertion. Base-36 is a short alphanumeric token with
+  // no 10–15 digit run. Mirrors the authed KAN-271 fix (journey.authed.spec.ts,
+  // founder-signed-off 2026-07-25). Assertion unchanged.
+  const marker = `Soak note ref-${Date.now().toString(36)}`;
   await page.goto('/dashboard/profile', { waitUntil: 'load' });
   const goodToKnow = page.getByPlaceholder(/I'm a slow texter/);
   await expect(goodToKnow).toBeVisible();
