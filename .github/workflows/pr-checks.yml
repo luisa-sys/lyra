@@ -185,6 +185,20 @@ jobs:
         # prevents the auto-fix workflow from silently breaking when
         # someone edits a pattern.
         run: python3 scripts/auto-fix-known-failures.py --self-test
+      - name: Bash 3.2 portability check (BUGS-76)
+        # macOS ships bash 3.2; CI ships bash 5. A bash-4 builtin in
+        # scripts/ therefore works here and exits 127 on the machine where
+        # releases are prepared. That is how the SEC-77 auto-promote gate
+        # became unrunnable locally — all seven of its tests failed on macOS
+        # while passing on ubuntu-latest, which trains the reader to ignore a
+        # red suite. staging-soak.sh has documented the rule since it was
+        # written and two scripts shipped with mapfile anyway; a convention
+        # without a gate erodes. Workflow YAML is out of scope by design —
+        # inline run: blocks only ever execute on the runner.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-bash-portability.py --self-test
+          python3 scripts/check-bash-portability.py
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:

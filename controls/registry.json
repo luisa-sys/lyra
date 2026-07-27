@@ -560,6 +560,23 @@
       ],
       "self_test": "npx jest tests/scripts/check-dependency-rules.test.js",
       "escape_hatch": "None. A violation is a finding: fix the import or move the shared code to src/lib/. DEPCRUISE_SEVERITY is a roll-out dial, not a per-violation waiver."
+    },
+    {
+      "id": "CTL-031",
+      "name": "Bash 3.2 portability",
+      "defect_class": "dev-ci-environment-parity",
+      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS \u2014 a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
+      "implementation": "scripts/check-bash-portability.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-76"
+      ],
+      "self_test": "python3 scripts/check-bash-portability.py --self-test",
+      "escape_hatch": "# bash-portability-ok:",
+      "added": "2026-07-27"
     }
   ]
 }
