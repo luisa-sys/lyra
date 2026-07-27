@@ -108,7 +108,19 @@ survives, and on 2026-07-27 there were six collisions across thirteen files —
 breaking Supabase branch previews on every migration PR and making the DR
 restore path unprovable. The remediation was correct and complete. Only the
 prevention step was missing, and the defect walked straight back in. It is now
-rule R5 of `check-migration-privileges.py`, with BUGS-75 tracking the cleanup.
+rule R5 of `check-migration-privileges.py`, and BUGS-75 completed the cleanup on
+2026-07-27 — all six collisions renamed, zero R5 entries left in the baseline.
+
+BUGS-75 carries a second lesson worth keeping. Its own write-up asserted that a
+rename had to be paired with a per-environment reconcile of
+`supabase_migrations.schema_migrations`, "or the migration re-applies on the next
+replay" — and that claim, repeated in the baseline's comment, is what made the
+fix look risky enough to defer. It was false. Those tables are keyed on
+apply-time timestamps from the `apply_migration` MCP tool, not on repo file
+versions; none of the six colliding versions existed in dev, staging or prod. The
+remediation needed no database write at all. **A blocker recorded in a ticket is
+a hypothesis, not a finding — check it against the live system before it becomes
+the reason something waits.**
 
 ### (b) No control exists
 
@@ -266,7 +278,7 @@ Recorded here rather than quietly carried. Each needs a decision.
 | `E2E_CF_BYPASS_HEADER` / `E2E_CF_BYPASS_SECRET` do not exist | `.github/absent-secrets.txt` | Cloudflare 403s the CI runner IP, so the authed E2E journey **cannot run from CI at all**. Needs a founder-provisioned CF WAF skip rule (SEC-102) |
 | `db-invariants.yml`'s daily cron will not fire until it reaches `main` | scheduled workflows run from the **default branch** | CLAUDE.md gotcha #1. Manual dispatch works today (`--ref develop`); the schedule starts after the next production promote |
 | 21 pre-existing migrations lack a `REVOKE ... FROM PUBLIC` | `supabase/migration-privileges-baseline.json` | Grandfathered; fix forward, and the list may only shrink |
-| **6 duplicate migration version timestamps (13 files)** | Supabase Preview on PR #594: `duplicate key … schema_migrations_pkey` | Branch previews fail on every migration PR; the lineage cannot replay from scratch, so **the DR restore path is unprovable** (undercuts SEC-23 / SEC-31). **BUGS-49 recurred** — see below. Tracked in BUGS-75 |
+| ~~6 duplicate migration version timestamps~~ | — | **RESOLVED 2026-07-27 (BUGS-75, PR #606).** All six collisions renamed; zero R5 entries remain in the baseline. The rule stays to block the next one. BUGS-49 had recurred because the 2026-06-21 fix de-duplicated the files and built no control |
 | `profile-photos` bucket is world-readable on all three databases | live query, 2026-07-27 | SEC-60, waived until 2026-10-31 |
 
 ---

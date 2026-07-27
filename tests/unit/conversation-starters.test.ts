@@ -22,7 +22,7 @@ const ROOT = resolve(__dirname, '../..');
 describe('KAN-181 conversation starters — surface-area regression guards', () => {
   test('migration file exists and creates both tables', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200000_conversation_starters.sql'),
+      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
       'utf-8',
     );
     expect(src).toMatch(/create table.*conversation_starter_prompts/i);
@@ -31,7 +31,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration seeds at least 8 prompts', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200000_conversation_starters.sql'),
+      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
       'utf-8',
     );
     const matches = src.match(/^\s*\(['"]/gm);
@@ -43,7 +43,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces the 5-answer cap via a BEFORE INSERT trigger', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200000_conversation_starters.sql'),
+      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
       'utf-8',
     );
     expect(src).toMatch(/limit \(5\) reached/i);
@@ -52,7 +52,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces 500-char answer limit via CHECK', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200000_conversation_starters.sql'),
+      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
       'utf-8',
     );
     expect(src).toMatch(/check \(length\(answer\) <= 500/i);
@@ -60,7 +60,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces unique (profile_id, prompt_id)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200000_conversation_starters.sql'),
+      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
       'utf-8',
     );
     expect(src).toMatch(/unique\s*\(\s*profile_id\s*,\s*prompt_id\s*\)/i);
