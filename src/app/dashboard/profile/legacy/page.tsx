@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { ProfileWizard } from '../wizard';
-import type { ManualOfMe } from '../manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, type ManualOfMe } from '../manual-of-me-fields';
 
 export const metadata = {
   title: 'Edit your profile (legacy) — Lyra',
@@ -58,7 +58,10 @@ export default async function LegacyProfilePage() {
 
   const { data: manualOfMeRow } = await supabase
     .from('profile_manual_of_me')
-    .select('communication_style, working_preferences, energises_me, drains_me')
+    // BUGS-74: the byte-identical defect the single-page editor had. This is
+    // still the live rollback path, so a rollback would resume the silent data
+    // loss. Derive from the allowlist so it can never drift again.
+    .select(MANUAL_OF_ME_FIELDS.join(', '))
     .eq('profile_id', profile.id)
     .maybeSingle();
 
