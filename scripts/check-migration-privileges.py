@@ -181,10 +181,50 @@ def check_sql(sql: str, path: str) -> list[str]:
 # --- baseline ratchet ------------------------------------------------------
 
 
+VERSION_RE = re.compile(r"^(\d{14})")
+
+
+def check_duplicate_versions(migrations_dir: Path) -> list[str]:
+    """R5 — two migrations must never share a version timestamp.
+
+    Supabase keys `supabase_migrations.schema_migrations` on `version`, so a
+    collision aborts the whole replay with:
+
+        ERROR: duplicate key value violates unique constraint
+        "schema_migrations_pkey" (SQLSTATE 23505)
+
+    Consequences, all silent until you need them: Supabase branch PREVIEWS fail
+    on every PR that touches migrations; a fresh database cannot be rebuilt from
+    the lineage; and the DR restore path is unprovable, because replaying the
+    migrations is how you would rebuild.
+
+    This is BUGS-49, closed 2026-06-21. It recurred — one of the surviving
+    collisions is dated the very day that ticket closed — because the fix
+    de-duplicated the files that existed and no control was built to stop the
+    next one. Exactly the pattern docs/DEFECT_FEEDBACK_LOOP.md exists to break.
+
+    Only the SECOND and later file of each colliding version is reported, so the
+    historical set is grandfathered by the baseline while a NEW collision fails.
+    """
+    by_version: dict[str, list[str]] = {}
+    for path in sorted(migrations_dir.glob("*.sql")):
+        match = VERSION_RE.match(path.name)
+        if match:
+            by_version.setdefault(match.group(1), []).append(path.name)
+
+    violations: list[str] = []
+    for version, names in sorted(by_version.items()):
+        if len(names) > 1:
+            for name in sorted(names)[1:]:
+                violations.append(f"{name}::R5-duplicate-migration-version::{version}")
+    return violations
+
+
 def collect_all(migrations_dir: Path) -> list[str]:
     found: list[str] = []
     for path in sorted(migrations_dir.glob("*.sql")):
         found.extend(check_sql(path.read_text(encoding="utf-8"), path.name))
+    found.extend(check_duplicate_versions(migrations_dir))
     return found
 
 
@@ -260,8 +300,35 @@ _CASES = [
 ]
 
 
+def _self_test_duplicates() -> list[tuple[str, bool]]:
+    import tempfile
+
+    out: list[tuple[str, bool]] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "20260101000000_a.sql").write_text("select 1;")
+        (root / "20260102000000_b.sql").write_text("select 1;")
+        out.append(("distinct versions are clean", check_duplicate_versions(root) == []))
+
+        (root / "20260101000000_c.sql").write_text("select 1;")
+        found = check_duplicate_versions(root)
+        out.append(("a colliding version is reported once", len(found) == 1))
+        out.append(
+            ("the SECOND file is the one reported, not the first",
+             bool(found) and found[0].startswith("20260101000000_c.sql")),
+        )
+
+        (root / "20260101000000_d.sql").write_text("select 1;")
+        out.append(("a third collision adds one more", len(check_duplicate_versions(root)) == 2))
+    return out
+
+
 def self_test() -> int:
     failures = 0
+    for label, ok in _self_test_duplicates():
+        print(f"  {'PASS' if ok else 'FAIL'}  {label}")
+        if not ok:
+            failures += 1
     for label, sql, expected_rules in _CASES:
         found = check_sql(sql, "fixture.sql")
         found_rules = sorted({v.split("::")[1].split("-")[0] for v in found})

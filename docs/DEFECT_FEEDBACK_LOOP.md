@@ -101,6 +101,15 @@ same file contained `!== undefined` while the actually-dangerous
 *function*-scoped, and the fixture
 `vulnerable: guard is in a DIFFERENT function` now pins that exact miss.
 
+**The canonical case for skipping this step is BUGS-49.** It closed on
+2026-06-21 after de-duplicating the migration version timestamps that existed
+at the time. No control was built. A colliding pair dated *that same day*
+survives, and on 2026-07-27 there were six collisions across thirteen files —
+breaking Supabase branch previews on every migration PR and making the DR
+restore path unprovable. The remediation was correct and complete. Only the
+prevention step was missing, and the defect walked straight back in. It is now
+rule R5 of `check-migration-privileges.py`, with BUGS-75 tracking the cleanup.
+
 ### (b) No control exists
 
 Build one. Then register it in [`controls/registry.json`](../controls/registry.json)
@@ -255,6 +264,7 @@ Recorded here rather than quietly carried. Each needs a decision.
 | `DEV_SUPABASE_URL`, `DEV_SUPABASE_ANON_KEY`, `SUPABASE_MANAGEMENT_TOKEN` are referenced by workflows but **do not exist** | `gh secret list`; environments hold no secrets | They expand to empty strings — silent degradation |
 | `security_invariants_report()` not yet applied to any database | migration `20260727090000` is in the repo only | `check-db-invariants.py` reports UNVERIFIED until it is applied to dev, staging and production |
 | 21 pre-existing migrations lack a `REVOKE ... FROM PUBLIC` | `supabase/migration-privileges-baseline.json` | Grandfathered; fix forward, and the list may only shrink |
+| **6 duplicate migration version timestamps (13 files)** | Supabase Preview on PR #594: `duplicate key … schema_migrations_pkey` | Branch previews fail on every migration PR; the lineage cannot replay from scratch, so **the DR restore path is unprovable** (undercuts SEC-23 / SEC-31). **BUGS-49 recurred** — see below. Tracked in BUGS-75 |
 | `profile-photos` bucket is world-readable on all three databases | live query, 2026-07-27 | SEC-60, waived until 2026-10-31 |
 
 ---
