@@ -1,0 +1,528 @@
+{
+  "_comment": [
+    "THE CONTROL REGISTRY (SEC-101).",
+    "",
+    "Machine-readable index of every preventive control in this repo, and the",
+    "defect it exists to stop. This is the memory of the Defect Feedback Loop:",
+    "when a BUGS or SEC ticket closes, its root cause is traced to a control",
+    "here \u2014 either one that already exists (and failed to fire, which is itself",
+    "a finding) or a new one that gets added.",
+    "",
+    "Enforced by scripts/check-control-registry.py, which fails the build if a",
+    "control's implementation is missing, if it is no longer wired into any",
+    "workflow (the SEC-79 'silently disabled for weeks' failure mode), or if a",
+    "check script exists in the repo but is not registered here.",
+    "",
+    "Process: docs/DEFECT_FEEDBACK_LOOP.md"
+  ],
+  "version": 1,
+  "adopted": "2026-07-27",
+  "ticket": "SEC-101",
+  "controls": [
+    {
+      "id": "CTL-001",
+      "name": "Workflow integrity check",
+      "defect_class": "false-green-ci",
+      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
+      "implementation": "scripts/check-workflow-integrity.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/promote-to-production.yml"
+      ],
+      "prevents": [
+        "BUGS-4",
+        "BUGS-9",
+        "BUGS-13",
+        "BUGS-20"
+      ],
+      "escape_hatch": "# integrity-ok:",
+      "added": "2026-05-04"
+    },
+    {
+      "id": "CTL-002",
+      "name": "Action SHA-pinning check",
+      "defect_class": "supply-chain",
+      "summary": "Every remote GitHub Action must be pinned to a full 40-hex commit SHA. A mutable @tag lets upstream change CI code without review.",
+      "implementation": "scripts/check-action-pinning.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-20",
+        "SEC-77",
+        "BUGS-46"
+      ],
+      "escape_hatch": "# integrity-ok: pin",
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-003",
+      "name": "Server-action export check",
+      "defect_class": "framework-footgun",
+      "summary": "A 'use server' file may only export async functions. Next.js 16+ rejects anything else at action-invocation time; the build does not catch it, so the defect ships green and 500s every form submission.",
+      "implementation": "scripts/check-server-action-exports.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-12"
+      ],
+      "escape_hatch": "// server-action-exports-ok:",
+      "added": "2026-05-04"
+    },
+    {
+      "id": "CTL-004",
+      "name": "Service-role client centralisation",
+      "defect_class": "authz-bypass",
+      "summary": "The service-role client bypasses all RLS. Its construction is confined to one hardened factory so a hardening change lands once rather than at ~30 call sites.",
+      "implementation": "scripts/check-service-role-client.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-44",
+        "KAN-352"
+      ],
+      "escape_hatch": "// service-role-ok:",
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-005",
+      "name": "Routine ownership guard",
+      "defect_class": "ops-drift",
+      "summary": "Asserts the one-concern-one-owner markers survive edits, so probing does not re-quadruplicate across routines and each signal keeps a single authoritative source.",
+      "implementation": "scripts/check-routine-ownership.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-361",
+        "SEC-79"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-006",
+      "name": "Doc mirror manifest presence",
+      "defect_class": "doc-drift",
+      "summary": "Fails the PR if a runbook or compliance doc listed in the mirror manifest has been deleted or renamed out of the tree.",
+      "implementation": "scripts/check-doc-mirror-manifest.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-363"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-007",
+      "name": "Doc mirror content check",
+      "defect_class": "doc-drift",
+      "summary": "Fails the PR if a listed mirror exists but is an empty or stub file \u2014 the 'backup that looks successful but contains placeholder content' failure mode.",
+      "implementation": "scripts/check-doc-mirror-content.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-363",
+        "KAN-167"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-008",
+      "name": "CODEOWNERS single source of truth",
+      "defect_class": "governance",
+      "summary": "GitHub uses only the first CODEOWNERS it finds and silently ignores the rest, so two files means the lower-precedence one's ownership rules are dead.",
+      "implementation": "scripts/check-codeowners-single.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-3"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-009",
+      "name": "UI/copy founder-ownership guard",
+      "defect_class": "governance",
+      "summary": "Any PR touching a founder-owned UI or copy path must carry a UI-Change-Approved or UI-Bugfix-Only commit trailer.",
+      "implementation": "scripts/check-ui-copy-ownership.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-411"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-010",
+      "name": "macOS Finder-duplicate file check",
+      "defect_class": "hygiene",
+      "summary": "Rejects committed ' <n>'-suffixed Finder-copy duplicates, which shadow the canonical module, are never imported, and confuse audits.",
+      "implementation": "scripts/check-macos-duplicate-files.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-357"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-011",
+      "name": "Auto-heal pattern catalogue self-test",
+      "defect_class": "false-green-ci",
+      "summary": "Verifies every auto-fix pattern still matches its fixture and does not false-positive on a sibling \u2014 the regression guard that stops the auto-fix workflow silently breaking.",
+      "implementation": "scripts/auto-fix-known-failures.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-63"
+      ],
+      "escape_hatch": null,
+      "added": "2026-05-27"
+    },
+    {
+      "id": "CTL-012",
+      "name": "Fix-only promote guard",
+      "defect_class": "release-control",
+      "summary": "Blocks a production promote whose pending changes are not all bug fixes, under the (now withdrawn) fix-only auto-promote exception.",
+      "implementation": "scripts/check-fix-only-promote.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/promote-to-production.yml"
+      ],
+      "prevents": [
+        "SEC-95"
+      ],
+      "escape_hatch": null,
+      "added": "2026-06-21"
+    },
+    {
+      "id": "CTL-013",
+      "name": "Signup surface gate",
+      "defect_class": "regression-risk",
+      "summary": "Blocks a staging promote that changes a signup-surface path without the corresponding E2E coverage having run.",
+      "implementation": "scripts/check-signup-surface-gate.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/promote-to-staging.yml"
+      ],
+      "prevents": [
+        "KAN-413"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-25"
+    },
+    {
+      "id": "CTL-014",
+      "name": "Backup integrity check",
+      "defect_class": "false-green-ci",
+      "summary": "Fails if a backup artefact is a placeholder rather than real data \u2014 a dump that does not start with '--', contains no CREATE statements, or is suspiciously short.",
+      "implementation": "scripts/check-backup-integrity.sh",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/weekly-report.yml"
+      ],
+      "prevents": [
+        "KAN-167",
+        "SEC-23"
+      ],
+      "escape_hatch": null,
+      "added": "2026-05-04"
+    },
+    {
+      "id": "CTL-015",
+      "name": "Complete-backup verification",
+      "defect_class": "false-green-ci",
+      "summary": "Asserts the full platform backup contains every expected component rather than a subset that still exits zero.",
+      "implementation": "scripts/check-complete-backup.sh",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/backup-complete.yml"
+      ],
+      "prevents": [
+        "SEC-23",
+        "SEC-31"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-25"
+    },
+    {
+      "id": "CTL-016",
+      "name": "Release drift check",
+      "defect_class": "release-control",
+      "summary": "Reports divergence between the environments in the promotion chain so a stale beta cannot make a production promote a silent no-op.",
+      "implementation": "scripts/check-release-drift.sh",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/weekly-report.yml"
+      ],
+      "prevents": [
+        "SEC-88"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-24"
+    },
+    {
+      "id": "CTL-017",
+      "name": "Secret rotation reminder",
+      "defect_class": "credential-hygiene",
+      "summary": "Flags credentials past their rotation interval.",
+      "implementation": "scripts/check-secret-rotation.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/secret-rotation-reminder.yml"
+      ],
+      "prevents": [
+        "SEC-21",
+        "SEC-67"
+      ],
+      "escape_hatch": null,
+      "added": "2026-06-24"
+    },
+    {
+      "id": "CTL-018",
+      "name": "Main-chain guard",
+      "defect_class": "release-control",
+      "summary": "Fails loud if main gains any commit not present on beta \u2014 i.e. a change that did not arrive through develop \u2192 staging \u2192 beta \u2192 main \u2014 and blocks any PR targeting main.",
+      "implementation": ".github/workflows/main-chain-guard.yml",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/main-chain-guard.yml"
+      ],
+      "prevents": [
+        "SEC-98",
+        "SEC-99"
+      ],
+      "escape_hatch": "BYPASS CONTROLS commit marker",
+      "added": "2026-07-25",
+      "notes": "NOT yet in main's required status checks \u2014 see docs/DEFECT_FEEDBACK_LOOP.md open gaps."
+    },
+    {
+      "id": "CTL-019",
+      "name": "Dashboard loading.tsx guard",
+      "defect_class": "framework-footgun",
+      "summary": "Fails any PR that reintroduces a src/app/**/loading.* without an explicit marker \u2014 the Next 16 Suspense boundary that never reveals on hard load and blanks the dashboard.",
+      "implementation": "tests/unit/bugs66-dashboard-loading-guard.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-63",
+        "BUGS-66"
+      ],
+      "escape_hatch": "// loading-tsx-ok:",
+      "added": "2026-07-25"
+    },
+    {
+      "id": "CTL-020",
+      "name": "Manual-of-Me loader coverage",
+      "defect_class": "data-loss",
+      "summary": "Asserts every known loader of profile_manual_of_me selects the full field allowlist. Superseded in generality by CTL-021 but retained as the incident-specific pin.",
+      "implementation": "tests/unit/bugs74-manual-of-me-field-coverage.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-74"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-26"
+    },
+    {
+      "id": "CTL-021",
+      "name": "Partial-write safety",
+      "defect_class": "data-loss",
+      "summary": "Generalises BUGS-74. Any function that filters a caller-supplied record through an allowlist and writes it must treat `undefined` as 'not provided' (omit) rather than 'clear' (NULL). Function-scoped so a guard in a sibling function cannot launder an unguarded writer. Paired with a runtime contract suite and an auto-discovering loader-coverage test that needs no hardcoded file list.",
+      "implementation": "scripts/check-partial-write-safety.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-70",
+        "BUGS-73",
+        "BUGS-74"
+      ],
+      "self_test": "python3 scripts/check-partial-write-safety.py --self-test",
+      "escape_hatch": "// partial-write-ok:",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-022",
+      "name": "Partial-write runtime contract + loader discovery",
+      "defect_class": "data-loss",
+      "summary": "Runtime assertions that omitted fields never reach the DB payload, that explicit clears still clear, plus a scanner that discovers every reader of a form-backed table (rather than trusting a hand-maintained list) and checks the allowlist against the actual migrated columns.",
+      "implementation": "tests/unit/partial-write-safety.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-70",
+        "BUGS-73",
+        "BUGS-74"
+      ],
+      "escape_hatch": null,
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-023",
+      "name": "Migration privilege lint",
+      "defect_class": "postgres-privilege-drift",
+      "summary": "Postgres grants EXECUTE to PUBLIC on every new function and CREATE OR REPLACE resets the ACL, so a one-off REVOKE protects only what existed when it ran. Every migration must carry its own REVOKE, pin search_path on SECURITY DEFINER functions, never GRANT to anon, and enable RLS on new public tables. Ratcheted against a baseline that may only shrink. Rule R5 also blocks duplicate migration version timestamps, which abort the whole Supabase replay on a schema_migrations primary-key collision \u2014 BUGS-49 closed on that in June and it recurred the same day because the files were de-duplicated but no control was built.",
+      "implementation": "scripts/check-migration-privileges.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-12",
+        "SEC-15",
+        "SEC-27",
+        "SEC-28",
+        "SEC-29",
+        "SEC-42",
+        "SEC-43",
+        "SEC-54",
+        "BUGS-48",
+        "BUGS-65",
+        "BUGS-69",
+        "BUGS-49",
+        "BUGS-75"
+      ],
+      "self_test": "python3 scripts/check-migration-privileges.py --self-test",
+      "escape_hatch": "-- db-privileges-ok:",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-024",
+      "name": "Live database security invariants",
+      "defect_class": "postgres-privilege-drift",
+      "summary": "Asserts seven invariants against each running database, because migrations are applied with the Supabase MCP tool and therefore reach a database without passing through a PR. SEC-42 was exactly that. Missing credentials or an unapplied RPC report UNVERIFIED, never a silent pass.",
+      "implementation": "scripts/check-db-invariants.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/db-invariants.yml",
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-12",
+        "SEC-29",
+        "SEC-42",
+        "SEC-43",
+        "SEC-60",
+        "BUGS-60",
+        "BUGS-71"
+      ],
+      "self_test": "python3 scripts/check-db-invariants.py --self-test",
+      "escape_hatch": "supabase/security-invariants-waivers.json",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-025",
+      "name": "Waiver and escape-hatch hygiene",
+      "defect_class": "governance",
+      "summary": "An escape hatch with no owner and no expiry is not an exception, it is a silent repeal. Every waiver needs ticket, owner, reason and exactly one of expires (fails on lapse) or review_by (notifies). Every in-code bypass marker must cite a Jira key.",
+      "implementation": "scripts/check-waiver-hygiene.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/db-invariants.yml"
+      ],
+      "prevents": [
+        "SEC-88",
+        "SEC-95"
+      ],
+      "self_test": "python3 scripts/check-waiver-hygiene.py --self-test",
+      "escape_hatch": null,
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-026",
+      "name": "Control registry integrity",
+      "defect_class": "control-rot",
+      "summary": "The meta-control. Fails if a registered control's implementation is missing, if it is no longer referenced by any workflow (the SEC-79 'silently disabled for weeks' mode), or if a check script exists in the repo but is not registered \u2014 so the registry cannot drift away from reality.",
+      "implementation": "scripts/check-control-registry.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-79",
+        "SEC-87",
+        "SEC-96"
+      ],
+      "self_test": "python3 scripts/check-control-registry.py --self-test",
+      "escape_hatch": null,
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-027",
+      "name": "Defect feedback loop coverage",
+      "defect_class": "control-rot",
+      "summary": "Closes the loop. Cross-references the BUGS/SEC tickets closed each week against the registry and reports any defect fixed without a control behind it, so a fix is never just a repair. Baseline at adoption: 22.5% of 129 closed defects had a control. Driven by the weekly cloud routine, whose runbook is its wiring.",
+      "implementation": "scripts/defect-control-coverage.py",
+      "kind": "scheduled",
+      "wired_in": [
+        "docs/DEFECT_FEEDBACK_LOOP.md"
+      ],
+      "prevents": [
+        "SEC-79",
+        "BUGS-73",
+        "BUGS-74"
+      ],
+      "self_test": "python3 scripts/defect-control-coverage.py --self-test",
+      "escape_hatch": "labels: third-party-outage / upstream-bug / vendor-config",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-028",
+      "name": "Suspension-guard coverage",
+      "defect_class": "authz-coverage-drift",
+      "summary": "Any query filtering is_published = true is selecting content for public consumption and must also filter is_suspended = false. Stated on the QUERY rather than the file or the client, so it enumerates the surface instead of sampling it \u2014 the property every previous fix in this class lacked. Found three unguarded sites beyond the two identified by review, including the homepage and the sitemap.",
+      "implementation": "scripts/check-suspension-guard-coverage.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-44",
+        "SEC-57",
+        "SEC-80",
+        "SEC-81",
+        "SEC-83",
+        "SEC-85",
+        "BUGS-21"
+      ],
+      "self_test": "python3 scripts/check-suspension-guard-coverage.py --self-test",
+      "escape_hatch": "// suspension-guard-ok:",
+      "added": "2026-07-27"
+    }
+  ]
+}

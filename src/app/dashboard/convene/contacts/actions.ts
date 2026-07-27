@@ -196,6 +196,13 @@ export async function searchDirectoryProfiles(query: string): Promise<SearchResu
     .from('profiles')
     .select('id, display_name, slug, city')
     .eq('is_published', true)
+    // SEC-100: this one reads through the AUTHENTICATED client, so the RLS
+    // policy on `profiles` already excludes suspended rows — except the
+    // caller's own, which the policy admits via `auth.uid() = user_id`. A
+    // suspended member should not surface even to themselves in a directory
+    // search, and stating the predicate here keeps the invariant uniform
+    // across every public-visibility query.
+    .eq('is_suspended', false)
     .ilike('display_name', `%${safe}%`)
     .limit(10);
   if (error) return { ok: false, error: 'Search failed. Please try again.' };

@@ -15,13 +15,14 @@
 import { createServiceRoleClient } from '@/lib/supabase-service';
 import { env } from '@/lib/env';
 import { sendBetaQueueNotice } from './email';
-import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
+import { computeAccessTransition, type AccessTier, type UserStatus } from '@/lib/access-model';
 
 const BETA_HOST = 'https://beta.checklyra.com';
 const PROD_HOST = 'https://checklyra.com';
 
-export type UserStatus = 'not_applied' | 'waitlist' | 'live';
-export type AccessTier = 'beta' | 'prod';
+// KAN-424 (F2): the access-model axes now live in @/lib/access-model; re-exported
+// here so this module's long-standing public surface is unchanged.
+export type { UserStatus, AccessTier };
 
 /**
  * Pure: where to redirect after sign-in (KAN-326 — route by access tier).

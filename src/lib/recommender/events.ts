@@ -2,7 +2,7 @@
  * KAN-202: types + helpers for the recommendation_events feedback log.
  *
  * Keep enums aligned with the SQL check constraints in
- * supabase/migrations/20260516230000_recommendation_events.sql.
+ * supabase/migrations/20260516230050_recommendation_events.sql.
  *
  * Producers (future):
  *   - Web recommendation render — emits 'shown' (KAN-191)

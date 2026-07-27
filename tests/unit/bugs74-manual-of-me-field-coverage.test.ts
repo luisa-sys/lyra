@@ -53,6 +53,11 @@ function assertCoversEveryField(selectArg: string, file: string): void {
 const LOADERS = [
   { label: 'profile editor', path: 'src/app/dashboard/profile/page.tsx' },
   { label: 'public profile', path: 'src/app/[slug]/page.tsx' },
+  // BUGS-74 follow-up: the legacy step-by-step editor carried the identical
+  // four-column select and was missed by the original fix. It is the live
+  // rollback path, so leaving it drifted meant a rollback would resume the
+  // data loss. Every loader belongs in this list, not just the default one.
+  { label: 'legacy profile editor', path: 'src/app/dashboard/profile/legacy/page.tsx' },
 ];
 
 describe('BUGS-74 — profile_manual_of_me loaders cover the full allowlist', () => {
