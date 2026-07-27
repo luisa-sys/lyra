@@ -108,22 +108,43 @@ Driven against the soak user (`soak@seed.checklyra.com`), reset to initial first
   challenge page (never a fast false-PASS). A **000** is UNVERIFIED (unreachable).
 
 ### C5 — Data / drift on the staging DB (via the Supabase connector)
-> **Baseline (2026-07-25, verified):** staging carries **10 security** + **154
-> performance** advisor lints and **8 known NULL-token seed `auth.users` rows**
-> (the GoTrue-500 quirk on the demo-seed accounts). These are the accepted
-> baseline — the first run-log row below records them. C5 flags only a **change
-> vs. this baseline / the last run-log row**, never the standing counts, so run 1
-> does not open a 160+-finding storm.
+> **Baseline (refreshed 2026-07-27, re-verified directly against
+> `uobmlkzrjkptwhttzmmi`):** staging carries **10 security** + **~151
+> performance** advisor lints and **0 NULL-token `auth.users` rows**. C5 flags
+> only a **change vs. this baseline / the last run-log row**, never the standing
+> counts, so a run does not open a 150+-finding storm.
+>
+> Two things changed since the 2026-07-25 commissioning baseline, both
+> **improvements**, both already reported as non-findings by run 4:
+> - **NULL-token rows: 8 → 0.** The 8 `seed.%@seed.checklyra.com` rows still
+>   exist (`seed_rows_total = 8`) but their token/change columns are now
+>   normalised, so the GoTrue-500 `listUsers` quirk is gone. **The new baseline
+>   is 0** — meaning *any* NULL-token row is now a finding, seed or not. This is
+>   strictly stronger than the old "ignore 8 seed rows" rule.
+> - **Performance lints: 154 → ~151.** Do **not** treat the count as a fixed
+>   number. 65 of them are `unused_index`, which is derived from live
+>   `pg_stat_user_indexes` usage, so the total **drifts on its own** (154 on
+>   07-25 → 152 on 07-27 04:16 → 151 later that day) with no code change at all.
+>   **A downward move is never a finding**, and neither is a ±few wobble. C5
+>   compares **lint identity** (name + target object), not totals.
 - `get_advisors(type=security|performance)` on `uobmlkzrjkptwhttzmmi` → no **new**
-  advisor vs. the last run-log row (baseline 10 sec / 154 perf).
+  advisor **name+target** vs. the last run-log row (baseline 10 sec / ~151 perf;
+  the perf total drifts — compare identities, not counts).
 - **Invite queue** `public.gathering_invite_messages` is draining (no rows older
   than 24h still un-sent).
-- **NULL-token `auth.users`** — flag only rows **beyond the 8 baseline seed rows**
-  (i.e. a NEW real user left with NULL `confirmation_token`/`recovery_token`, the
-  GoTrue-500 quirk). The 8 `seed.%@seed.checklyra.com` rows are expected.
+- **NULL-token `auth.users`** — baseline is now **0**, so flag **any** row (seed
+  or real) whose `confirmation_token` / `recovery_token` / `email_change*` /
+  `phone_change*` / `reauthentication_token` is NULL. Such a row re-breaks the
+  GoTrue admin `listUsers` call with a 500 and takes C3 down with it (that is
+  exactly how run 1 failed). The old "8 seed rows are expected" carve-out is
+  **retired** — the seed rows were normalised on 2026-07-25/26.
+  ⚠️ `scripts/seed-demo-profiles.sql` still inserts NULL token columns, so
+  **re-seeding staging will re-introduce this** — normalise after any re-seed.
 - No **stale `auth.one_time_tokens`** piling up beyond their TTL.
 - **Migration parity:** DB head == latest in `supabase/migrations/` on `staging`
-  (baseline DB head 2026-07-25: `20260724231235`). Repo-ahead or DB-ahead = finding.
+  (baseline DB head 2026-07-27: `20260727123657`). Repo-ahead or DB-ahead = a
+  finding. Note the DB head is an **apply timestamp** and will not string-match
+  the repo filename prefix; compare the *migration*, not the digits.
 
 ### C6 — Error budget (last 24h)
 - Vercel/Sentry runtime errors on staging over the last 24h below threshold
@@ -318,6 +339,7 @@ problems (not just that it runs green) and that its own liveness is watched.
 
 | Date (UTC) | Runner | PASS/FAIL/UNVERIFIED | p50/max (page/health) | New tickets | Notes |
 |---|---|---|---|---|---|
+| 2026-07-27 (post-run-4) | C5 baseline refresh (human/Claude, KAN-413) | BASELINE | n/a | none | **Accepted baseline REFRESHED** after run 4 flagged the old one as stale, re-verified directly against `uobmlkzrjkptwhttzmmi`: **10 security** advisors (unchanged); **~151 performance** advisors (was 154 — 65 are `unused_index`, derived from live usage stats, so the total drifts on its own: 154 → 152 → 151 with no code change; **C5 now compares lint name+target, not totals, and a downward move is never a finding**); **NULL-token `auth.users` = 0** (was 8 seed rows; the 8 `seed.%@seed.checklyra.com` rows still exist but are normalised, so the GoTrue-500 `listUsers` quirk that took C3 down in run 1 is gone). **The "8 seed rows are expected" carve-out is RETIRED — any NULL-token row is now a finding**, which is strictly stronger. ⚠️ `scripts/seed-demo-profiles.sql` still inserts NULL token columns, so re-seeding staging re-introduces the quirk; normalise after any re-seed. Migration head baseline moved `20260724231235` → `20260727123657` (apply timestamp, not the repo filename prefix). Also registered `staging-soak|1740|<iso>|<outcome>` in the routine watchdog (`docs/OPS_ROUTINES_CONTROL_ROOM.md`), mutation-verified fresh→PASS / stale→OVERDUE-FAIL(exit 2) / missing→UNVERIFIED(exit 1). |
 | 2026-07-27 04:16 | staging-soak routine (KAN-413), run 4 | PASS=13 / FAIL=0 / UNVERIFIED=0 | pages p50 345–641ms max 1051ms / health p50 307ms max 331ms | none | **All green.** C1/C2/C4: 12 PASS via `e2e-stage` alias (C1 gate on real host: 302, gated; `/api/health` conformant). **C3 PASS** — cited from `soak-journey.yml` (owns the Playwright journey per KAN-413's split): latest run [30219132924](https://github.com/luisa-sys/lyra/actions/runs/30219132924) completed+success at 2026-07-26T20:30:38Z (~7.7h old, within the 26h freshness window). C5 at baseline, no new: advisors 10 security (unchanged) / 152 performance (2 fewer than the 154 baseline — improvement, not a finding); invite queue 0 stuck >24h; 0 stale `one_time_tokens`; migration parity OK — DB head `20260724231235` = origin/staging head file `20260725000500_bugs69_…` (apply-timestamp offset, per baseline). **Note (not a finding):** NULL-token `auth.users` rows are now **0** (0 seed, 0 non-seed), down from the 8 baselined seed rows — the GoTrue-500 seed-row normalisation flagged in run 1 appears to have landed since; no new non-seed rows, so no C5 finding, but the accepted-baseline row above is now stale and worth a human refresh. C6: clean — zero runtime errors project-wide in the last 24h (`get_runtime_errors`); liveness cited from health-check.yml: success 2026-07-27T03:36:48Z. Dedup check: two open tickets already track prior soak findings (BUGS-73 Manual-of-Me autosave-on-blur timing, BUGS-74 profile-editor field-loss) — both pre-existing, still In Progress, no new ticket needed this run. No email (no FAIL). |
 | 2026-07-25 18:14 | staging-soak routine (KAN-413), run 1 | PASS=12 / FAIL=0 / UNVERIFIED=1 (C3) | pages p50 355–653ms max 813ms / health p50 285ms max 354ms | none | C1/C2/C4 all PASS via `e2e-stage` alias (C1 gate on real host: 302, gated; `/api/health` conformant). **C3 UNVERIFIED — harness, not a staging bug**: `ensureSoakUser()` fails before any browser launch — GoTrue `/auth/v1/admin/users` (admin listUsers) returns 500 `Database error finding users`; root cause is the *baselined* GoTrue-500 quirk (the 8 NULL-token `seed.%@seed.checklyra.com` rows break admin listUsers pagination). Fix: normalise the 8 seed rows' NULL `confirmation_token`/`recovery_token` to `''` on staging, or drop the `listUsers` dependency in `tests/e2e/support/soak-user.ts` (e.g. look up by ID); soak user `soak@seed.checklyra.com` not yet created. Logged on KAN-413. C5 fully at baseline: advisors 10 security / 154 performance (no new); NULL-token rows 8 (0 non-seed); invite queue 0 stuck >24h; 0 stale one_time_tokens; migration parity OK — DB head `20260724231235` = `bugs69_revoke_global_feature_switch_trigger_exec`, matching origin/staging head file `20260725000500_bugs69_…` (apply-timestamp offset, per baseline). C6: staging error budget clean — the only 24h runtime-error group (`get_metrics_for_window` permission denied, `/admin/monitoring`) is **prod**-attributed and already tracked as BUGS-71 (Done, awaiting promotion); liveness cited from health-check.yml: success 2026-07-25 13:45 UTC. No email (no hard FAIL). |
 | 2026-07-25 | commissioning baseline (human) | BASELINE | n/a | none | **Accepted baseline for C5 dedup**: advisors 10 security / 154 performance; 8 known NULL-token `seed.%@seed.checklyra.com` rows; invite queue `gathering_invite_messages` 0 stuck; DB migration head `20260724231235`. C3 pending CF-bypass/`e2e-stage` alias. First real run compares against this row. |
