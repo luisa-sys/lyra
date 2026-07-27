@@ -68,6 +68,14 @@ async function getPublishedProfiles(): Promise<HomeProfile[]> {
       .from("profiles")
       .select("display_name, slug, headline, avatar_url")
       .eq("is_published", true)
+      // SEC-100: read through the SERVICE-ROLE client, so RLS (which enforces
+      // is_published AND NOT is_suspended) does not apply. The
+      // is_homepage_example allowlist already excludes real members, so this is
+      // defence in depth — but the invariant "public query filters suspension"
+      // must hold everywhere, or the next reviewer has to re-derive which call
+      // sites are safe. That re-derivation is what SEC-44/80/81/83/85 kept
+      // getting wrong. Guarded by scripts/check-suspension-guard-coverage.py.
+      .eq("is_suspended", false)
       .eq("is_homepage_example", true)
       .order("homepage_example_order", { ascending: true })
       .limit(6);

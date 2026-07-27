@@ -75,6 +75,13 @@ export default async function SearchPage({
       .from('profiles')
       .select('id, display_name, slug, headline, city, country, avatar_url')
       .eq('is_published', true)
+      // SEC-100: this page reads through the SERVICE-ROLE client, which bypasses
+      // RLS — so the `is_published = true AND is_suspended = false` policy on
+      // `profiles` does NOT apply here. Without this filter a suspended (i.e.
+      // moderated / taken-down) member stayed fully discoverable in public
+      // search. Identical mechanism to SEC-44, which fixed only /[slug].
+      // Guarded by scripts/check-suspension-guard-coverage.py.
+      .eq('is_suspended', false)
       .eq('is_homepage_example', false) // KAN-334: curated demo profiles never appear in real member discovery
       .or(`display_name.ilike.${pattern},headline.ilike.${pattern},city.ilike.${pattern},slug.ilike.${pattern}`)
       .order('display_name')

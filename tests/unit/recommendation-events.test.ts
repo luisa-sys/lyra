@@ -16,7 +16,7 @@ import {
 describe('KAN-202 recommendation events — RECOMMENDATION_EVENT_TYPES', () => {
   test('matches the SQL CHECK constraint exactly', () => {
     // If you change the event-types here, also change the constraint in
-    // supabase/migrations/20260516230000_recommendation_events.sql.
+    // supabase/migrations/20260516230050_recommendation_events.sql.
     expect([...RECOMMENDATION_EVENT_TYPES]).toEqual([
       'shown',
       'clicked',
