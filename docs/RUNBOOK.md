@@ -188,6 +188,19 @@ Only these three rules live here. The other six from the modularisation plan
 `modules.json` and land in KAN-415 C2. `tests/scripts/check-dependency-rules.test.js`
 asserts they are absent, so they cannot creep in early.
 
+### Gotcha — `dependency-cruiser` is pinned to 17.x by CI's Node version
+
+The `PR Quality Gate` job runs on **Node 20** (`node-version: '20'` in
+`pr-checks.yml`). `dependency-cruiser` 18 dropped Node 20 (`engines.node:
+^22||^24||>=26`) and refuses to start on it, so the pin is `^17.4.3`
+(`^20.12||^22||>=24`). Local dev on Node 22 runs either happily, which is exactly
+how this got missed until CI — the first run of this gate failed for that reason,
+and correctly failed *closed* rather than skipping.
+
+**Do not bump to 18+ without moving the CI job to Node 22 first**, and treat that
+as its own change: every step in the job (lint, type-check, unit tests, build,
+audit) shares that runtime.
+
 ### Gotcha — segment names contain regex metacharacters
 
 The rule set is **generated**, one rule per `src/app` segment, rather than written
