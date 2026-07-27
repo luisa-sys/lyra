@@ -543,6 +543,23 @@
       "self_test": "python3 scripts/check-workflow-secret-refs.py --self-test",
       "escape_hatch": ".github/absent-secrets.txt (reason + Jira key required)",
       "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-030",
+      "name": "Structural dependency rules (module/segment/cycle)",
+      "defect_class": "regression-risk",
+      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/lib/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
+      "implementation": "scripts/check-dependency-rules.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-424",
+        "KAN-425"
+      ],
+      "self_test": "npx jest tests/scripts/check-dependency-rules.test.js",
+      "escape_hatch": "None. A violation is a finding: fix the import or move the shared code to src/lib/. DEPCRUISE_SEVERITY is a roll-out dial, not a per-violation waiver."
     }
   ]
 }
