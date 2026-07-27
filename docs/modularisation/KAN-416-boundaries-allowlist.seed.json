@@ -1,0 +1,452 @@
+{
+  "$comment": "KAN-416 seed of .boundaries-allowlist.json \u2014 every measured edge the proposed layer policy forbids, at derivation time. Shrink-only once adopted; every entry then needs a Jira key + expiry.",
+  "policy": "edge src->dst allowed iff layer(dst) < layer(src)",
+  "totalViolatingEdges": 34,
+  "pairs": [
+    {
+      "from": "public-profile",
+      "to": "recommendations",
+      "edges": 6,
+      "files": [
+        "src/app/[slug]/page.tsx -> src/lib/recommend/index.ts",
+        "src/app/[slug]/page.tsx -> src/lib/recommender/v2/pipeline.ts",
+        "src/app/[slug]/page.tsx -> src/lib/recommender/v2/types.ts",
+        "src/app/[slug]/recommendations-section.tsx -> src/lib/recommend/index.ts",
+        "src/app/[slug]/v2-recommendations-helpers.ts -> src/lib/recommender/v2/types.ts",
+        "src/app/[slug]/v2-recommendations-section.tsx -> src/lib/recommender/v2/types.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "recommendations",
+      "to": "affiliate",
+      "edges": 4,
+      "files": [
+        "src/app/api/recommendations/v2/[slug]/route.ts -> src/lib/affiliate/country-codes.ts",
+        "src/lib/recommender/v2/eligibility-filter.ts -> src/lib/affiliate/eligibility.ts",
+        "src/lib/recommender/v2/pipeline.ts -> src/lib/affiliate/link-service.ts",
+        "src/lib/recommender/v2/types.ts -> src/lib/affiliate/types.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "convene",
+      "to": "recommendations",
+      "edges": 4,
+      "files": [
+        "src/app/dashboard/convene/organise/actions.ts -> src/lib/recommend/convene/score-venue.ts",
+        "src/app/dashboard/convene/organise/actions.ts -> src/lib/recommend/convene/types.ts",
+        "src/app/dashboard/convene/organise/organise-fields.ts -> src/lib/recommend/convene/types.ts",
+        "src/app/dashboard/convene/organise/organise-wizard.tsx -> src/lib/recommend/convene/types.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "profile",
+      "to": "trust-safety",
+      "edges": 3,
+      "files": [
+        "src/app/dashboard/profile/actions.ts -> src/lib/moderation-audit.ts",
+        "src/app/dashboard/profile/conversation-starters-actions.ts -> src/lib/moderation-audit.ts",
+        "src/app/dashboard/profile/manual-of-me-actions.ts -> src/lib/moderation-audit.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "public-profile",
+      "to": "profile",
+      "edges": 2,
+      "files": [
+        "src/app/[slug]/page.tsx -> src/app/dashboard/profile/manual-of-me-fields.ts",
+        "src/app/[slug]/page.tsx -> src/app/dashboard/profile/section-visibility.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "convene",
+      "to": "trust-safety",
+      "edges": 2,
+      "files": [
+        "src/app/dashboard/convene/organise/actions.ts -> src/lib/moderation-audit.ts",
+        "src/app/r/[token]/actions.ts -> src/lib/moderation-policy.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "profile",
+      "to": "affiliate",
+      "edges": 2,
+      "files": [
+        "src/app/dashboard/profile/delivery-country-actions.ts -> src/lib/affiliate/country-codes.ts",
+        "src/app/dashboard/profile/steps/identity-step.tsx -> src/lib/affiliate/country-codes.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "access",
+      "to": "admin",
+      "edges": 2,
+      "files": [
+        "src/app/waitlist/actions.ts -> src/app/admin/users/users-actions-shared.ts",
+        "src/lib/beta-access/flow.ts -> src/app/admin/users/users-actions-shared.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "public-profile",
+      "to": "affiliate",
+      "edges": 1,
+      "files": [
+        "src/app/[slug]/page.tsx -> src/lib/affiliate/country-codes.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "trust-safety",
+      "to": "admin",
+      "edges": 1,
+      "files": [
+        "src/app/api/reports/route.ts -> src/lib/admin.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "trust-safety",
+      "to": "convene",
+      "edges": 1,
+      "files": [
+        "src/app/api/retention/cron/sweep/route.ts -> src/lib/convene/cron-auth.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "age",
+      "to": "auth",
+      "edges": 1,
+      "files": [
+        "src/app/confirm-age/actions.ts -> src/lib/auth/post-login-redirect.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "dashboard",
+      "to": "auth",
+      "edges": 1,
+      "files": [
+        "src/app/dashboard/page.tsx -> src/app/(auth)/actions.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "dashboard",
+      "to": "convene",
+      "edges": 1,
+      "files": [
+        "src/app/dashboard/page.tsx -> src/lib/convene/flags-user.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "profile",
+      "to": "convene",
+      "edges": 1,
+      "files": [
+        "src/app/dashboard/profile/page.tsx -> src/lib/convene/flags-user.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "account",
+      "to": "admin",
+      "edges": 1,
+      "files": [
+        "src/app/dashboard/settings/actions.ts -> src/lib/admin.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "age",
+      "to": "features",
+      "edges": 1,
+      "files": [
+        "src/lib/age/provider-gate.ts -> src/lib/features/global-switches-service.ts"
+      ],
+      "typeOnly": false
+    }
+  ],
+  "crossModuleTableAccess": [
+    {
+      "kind": "from",
+      "name": "reports",
+      "owner": "trust-safety",
+      "accessor": "admin",
+      "sites": 9
+    },
+    {
+      "kind": "from",
+      "name": "moderation_logs",
+      "owner": "trust-safety",
+      "accessor": "admin",
+      "sites": 3
+    },
+    {
+      "kind": "from",
+      "name": "api_keys",
+      "owner": "account",
+      "accessor": "convene",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "consent_log",
+      "owner": "marketing-legal",
+      "accessor": "convene",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "content_moderation_flags",
+      "owner": "trust-safety",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "global_feature_switches",
+      "owner": "features",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "recommendations",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "affiliate_clicks",
+      "owner": "affiliate",
+      "accessor": "admin",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "affiliate_clicks_purge_expired",
+      "owner": "affiliate",
+      "accessor": "trust-safety",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "contact_methods",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "contacts",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "content_moderation_flags",
+      "owner": "trust-safety",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "external_links",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "external_links",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "feature_entitlements",
+      "owner": "features",
+      "accessor": "admin",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_events_log",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_invite_messages",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_invitees",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_proposed_slots",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gatherings",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "gatherings_purge_expired",
+      "owner": "convene",
+      "accessor": "trust-safety",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "oauth_connections",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_conversation_starters",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_conversation_starters",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_files",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "trust-safety",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "dashboard",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_manual_of_me",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_manual_of_me",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "record_erasure_obligation",
+      "owner": "trust-safety",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "refresh_relationship_signals",
+      "owner": "recommendations",
+      "accessor": "convene",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "reports",
+      "owner": "trust-safety",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "dashboard",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "search_by_contact_hash",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    }
+  ]
+}

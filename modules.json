@@ -1,0 +1,2202 @@
+{
+  "$comment": "KAN-416 v0 DRAFT \u2014 derived from measured imports on develop; enforced=false everywhere. Module set per epic KAN-415. Path assignments marked JUDGEMENT in docs/modularisation/kan416-derive.py must be diffed against LYRA_MODULARISATION_PLAN_2026-07-26.md \u00a73/\u00a75 (not accessible to the deriving session). Regenerate with: python3 docs/modularisation/kan416-derive.py",
+  "version": 0,
+  "modules": {
+    "platform": {
+      "layer": 0,
+      "paths": [
+        "src/lib/supabase-browser.ts",
+        "src/lib/supabase-server.ts",
+        "src/lib/supabase-service.ts",
+        "src/lib/env.ts",
+        "src/lib/deploy-env.ts",
+        "src/lib/cookie-domain.ts"
+      ],
+      "owns": {
+        "files": 6,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "createClient",
+          "file": "src/lib/supabase-server.ts",
+          "importingFiles": 46,
+          "consumingModules": [
+            "access",
+            "account",
+            "admin",
+            "age",
+            "auth",
+            "convene",
+            "dashboard",
+            "features",
+            "oauth-as",
+            "observability",
+            "profile",
+            "public-profile",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "createServiceRoleClient",
+          "file": "src/lib/supabase-service.ts",
+          "importingFiles": 39,
+          "consumingModules": [
+            "access",
+            "admin",
+            "affiliate",
+            "age",
+            "convene",
+            "features",
+            "guards",
+            "marketing-legal",
+            "oauth-as",
+            "observability",
+            "public-profile",
+            "recommendations",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "env",
+          "file": "src/lib/env.ts",
+          "importingFiles": 14,
+          "consumingModules": [
+            "access",
+            "age",
+            "auth",
+            "marketing-legal",
+            "public-profile",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getDeployEnv",
+          "file": "src/lib/deploy-env.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "admin",
+            "features",
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "manageableEnvironments",
+          "file": "src/lib/deploy-env.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:DeployEnv",
+          "file": "src/lib/deploy-env.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin",
+            "features"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isDeployEnv",
+          "file": "src/lib/deploy-env.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "createClient",
+          "file": "src/lib/supabase-browser.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "withParentCookieDomain",
+          "file": "src/lib/cookie-domain.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "contracts",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "guards": {
+      "layer": 1,
+      "paths": [
+        "src/lib/rate-limit.ts",
+        "src/lib/rate-limit-shared.ts",
+        "src/lib/profile-rate-limit.ts",
+        "src/lib/turnstile.ts",
+        "src/lib/sanitise.ts",
+        "src/lib/file-magic-bytes.ts",
+        "src/lib/security-headers.ts",
+        "src/lib/cf-access.ts",
+        "src/lib/json-ld.ts"
+      ],
+      "owns": {
+        "files": 9,
+        "tables": [],
+        "rpcs": [
+          "rate_limit_hit"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "sanitiseText",
+          "file": "src/lib/sanitise.ts",
+          "importingFiles": 6,
+          "consumingModules": [
+            "convene",
+            "marketing-legal",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:ActionResult",
+          "file": "src/lib/sanitise.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "checkProfileWriteRateLimit",
+          "file": "src/lib/profile-rate-limit.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "RATE_LIMITS",
+          "file": "src/lib/rate-limit.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "access",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "rateLimit",
+          "file": "src/lib/rate-limit.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "access",
+            "account",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "clientIpFromHeaders",
+          "file": "src/lib/rate-limit-shared.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sharedRateLimit",
+          "file": "src/lib/rate-limit-shared.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "jsonLdSafe",
+          "file": "src/lib/json-ld.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "marketing-legal",
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "preflightUpload",
+          "file": "src/lib/file-magic-bytes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "verifyTurnstile",
+          "file": "src/lib/turnstile.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "turnstileSiteKey",
+          "file": "src/lib/turnstile.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sanitiseUrl",
+          "file": "src/lib/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "ALLOWED_MIMES",
+          "file": "src/lib/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "extensionForMime",
+          "file": "src/lib/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:AllowedMime",
+          "file": "src/lib/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "ActionResult",
+          "file": "src/lib/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "account"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "sanitiseSearchTerm",
+          "file": "src/lib/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "cfAccessEnabled",
+          "file": "src/lib/cf-access.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "verifyCfAccessToken",
+          "file": "src/lib/cf-access.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "buildCspReportOnly",
+          "file": "src/lib/security-headers.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 3,
+        "testBlocks": 59
+      },
+      "enforced": false
+    },
+    "observability": {
+      "layer": 1,
+      "paths": [
+        "src/lib/metrics.ts",
+        "src/lib/sentry-scrub.ts",
+        "src/app/api/health/",
+        "src/app/status/"
+      ],
+      "owns": {
+        "files": 4,
+        "tables": [],
+        "rpcs": [
+          "get_metrics_for_window"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getAnomalyWindowAdmin",
+          "file": "src/lib/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:AnomalyWindowKey",
+          "file": "src/lib/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:MetricsSnapshot",
+          "file": "src/lib/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 3
+      },
+      "enforced": false
+    },
+    "ui-kit": {
+      "layer": 1,
+      "paths": [
+        "src/components/"
+      ],
+      "owns": {
+        "files": 1,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "default (as AffiliateBadge)",
+          "file": "src/components/AffiliateBadge.tsx",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "low",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 9
+      },
+      "enforced": false
+    },
+    "contracts": {
+      "layer": 0,
+      "paths": [],
+      "owns": {
+        "files": 0,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "mayDependOn": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "platform",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "access": {
+      "layer": 2,
+      "paths": [
+        "src/lib/beta-access/",
+        "src/lib/account-status.ts",
+        "src/app/waitlist/",
+        "src/app/suspended/",
+        "src/app/join/",
+        "src/middleware.ts"
+      ],
+      "owns": {
+        "files": 10,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "user_status",
+          "access_tier",
+          "is_suspended",
+          "is_admin",
+          "suspended_at",
+          "suspension_reason",
+          "beta_requested_at",
+          "beta_approved_at"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "getAccountStanding",
+          "file": "src/lib/account-status.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "account",
+            "convene",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "shouldRefuseIssuance",
+          "file": "src/lib/account-status.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "account",
+            "convene",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "INVITE_COOKIE",
+          "file": "src/lib/beta-access/invite-cookie.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProdFamily",
+          "file": "src/lib/beta-access/flow.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sendBetaApprovedEmail",
+          "file": "src/lib/beta-access/email.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProdDeploy",
+          "file": "src/lib/beta-access/flow.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "betaInviteLink",
+          "file": "src/lib/beta-access/invite-link.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "publicSignupUrl",
+          "file": "src/lib/beta-access/invite-link.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "betaRedirectUrl",
+          "file": "src/lib/beta-access/flow.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "resolveBetaAccess",
+          "file": "src/lib/beta-access/flow.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "features": {
+      "layer": 2,
+      "paths": [
+        "src/lib/features/"
+      ],
+      "owns": {
+        "files": 5,
+        "tables": [
+          "feature_entitlements",
+          "global_feature_switches"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getMyFeatureEntitlements",
+          "file": "src/lib/features/entitlements.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "account",
+            "convene",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isFeatureGloballyEnabled",
+          "file": "src/lib/features/global-switches-service.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "account",
+            "age",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GLOBAL_FEATURE_CONFIG",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GLOBAL_FEATURE_KEYS",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getGlobalSwitches",
+          "file": "src/lib/features/global-switches-service.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin",
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isPaidLinksAllowedForRecipient",
+          "file": "src/lib/features/entitlements-service.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "affiliate",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isGlobalFeatureKey",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "resolveGlobalSwitches",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:GlobalFeatureKey",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "getProfileEntitlements",
+          "file": "src/lib/features/entitlements-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "FEATURE_CONFIG",
+          "file": "src/lib/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GA_FEATURE_KEYS",
+          "file": "src/lib/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "TEST_FEATURE_KEYS",
+          "file": "src/lib/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:FeatureKey",
+          "file": "src/lib/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isFeatureKey",
+          "file": "src/lib/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GlobalFeatureKey",
+          "file": "src/lib/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isFeatureEnabledByUserId",
+          "file": "src/lib/features/entitlements-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "age": {
+      "layer": 2,
+      "paths": [
+        "src/lib/age/",
+        "src/app/verify-age/",
+        "src/app/confirm-age/",
+        "src/app/how-we-check-your-age/",
+        "src/app/api/age/"
+      ],
+      "owns": {
+        "files": 12,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "age_status",
+          "age_checked_at",
+          "age_provider",
+          "age_provider_ref",
+          "age_declared_18_at"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "AGE_DECLARATION_COOKIE",
+          "file": "src/lib/age/self-declaration.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_FIELD",
+          "file": "src/lib/age/self-declaration.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_COOKIE_MAX_AGE",
+          "file": "src/lib/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_REQUIRED_MESSAGE",
+          "file": "src/lib/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isAgeDeclared",
+          "file": "src/lib/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_GATE_BLOCK_MESSAGE",
+          "file": "src/lib/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProviderAgeCheckActive",
+          "file": "src/lib/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "passedProviderAgeCheck",
+          "file": "src/lib/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "hasDeclaredAge",
+          "file": "src/lib/age/record-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "recordAgeDeclaration",
+          "file": "src/lib/age/record-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "auth",
+        "features"
+      ],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "oauth-as": {
+      "layer": 3,
+      "paths": [
+        "src/lib/oauth/",
+        "src/app/oauth/",
+        "src/app/api/well-known/"
+      ],
+      "owns": {
+        "files": 18,
+        "tables": [
+          "oauth_access_tokens",
+          "oauth_authorization_codes",
+          "oauth_clients",
+          "oauth_consents",
+          "oauth_refresh_tokens"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "mayDependOn": [
+        "access",
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 4,
+        "testBlocks": 41
+      },
+      "enforced": false
+    },
+    "auth": {
+      "layer": 3,
+      "paths": [
+        "src/app/(auth)/",
+        "src/app/auth/",
+        "src/lib/auth/"
+      ],
+      "owns": {
+        "files": 11,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "resolvePostLoginRedirect",
+          "file": "src/lib/auth/post-login-redirect.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "age"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "signOut",
+          "file": "src/app/(auth)/actions.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "age",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 5,
+        "testBlocks": 51
+      },
+      "enforced": false
+    },
+    "profile": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/profile/",
+        "src/lib/geo/"
+      ],
+      "owns": {
+        "files": 35,
+        "tables": [
+          "conversation_starter_prompts",
+          "external_links",
+          "profile_conversation_starters",
+          "profile_files",
+          "profile_items",
+          "profile_manual_of_me",
+          "school_affiliations"
+        ],
+        "rpcs": [],
+        "profilesColumns": [
+          "display_name",
+          "slug",
+          "headline",
+          "bio_short",
+          "city",
+          "region",
+          "postcode_prefix",
+          "country",
+          "avatar_url",
+          "is_published",
+          "onboarding_complete",
+          "completion_score",
+          "section_visibility",
+          "age_range"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "coerceSectionVisibility",
+          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isItemVisibleUnderHybridModel",
+          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isManualOfMeEmpty",
+          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:ManualOfMe",
+          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "mayDependOn": [
+        "age",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "affiliate",
+        "convene",
+        "trust-safety"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 21,
+        "testBlocks": 296
+      },
+      "enforced": false
+    },
+    "public-profile": {
+      "layer": 3,
+      "paths": [
+        "src/app/[slug]/",
+        "src/app/search/"
+      ],
+      "owns": {
+        "files": 8,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "mayDependOn": [
+        "guards",
+        "platform",
+        "ui-kit"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "affiliate",
+        "profile",
+        "recommendations"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 8,
+        "testBlocks": 50
+      },
+      "enforced": false
+    },
+    "dashboard": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/page.tsx",
+        "src/app/dashboard/share-beta.tsx",
+        "src/app/dashboard/share-profile.tsx",
+        "src/app/dashboard/widgets/",
+        "src/lib/dashboard/",
+        "src/lib/invite-text.ts"
+      ],
+      "owns": {
+        "files": 9,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "dashboard_widget_state"
+        ]
+      },
+      "publicApi": [],
+      "mayDependOn": [
+        "access",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "auth",
+        "convene"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 4,
+        "testBlocks": 30
+      },
+      "enforced": false
+    },
+    "account": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/settings/"
+      ],
+      "owns": {
+        "files": 6,
+        "tables": [
+          "api_keys"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "mayDependOn": [
+        "access",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin"
+      ],
+      "mustNot": [
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 2,
+        "testBlocks": 24
+      },
+      "enforced": false
+    },
+    "convene": {
+      "layer": 3,
+      "paths": [
+        "src/lib/convene/",
+        "src/app/dashboard/convene/",
+        "src/app/api/convene/",
+        "src/app/r/"
+      ],
+      "owns": {
+        "files": 52,
+        "tables": [
+          "contact_methods",
+          "contacts",
+          "gathering_events_log",
+          "gathering_invite_messages",
+          "gathering_invitees",
+          "gathering_proposed_slots",
+          "gatherings",
+          "oauth_connect_state",
+          "oauth_connections",
+          "venues"
+        ],
+        "rpcs": [
+          "convene_vault_read_secret",
+          "convene_vault_revoke_secret",
+          "convene_vault_store_secret",
+          "gatherings_purge_expired",
+          "search_by_contact_hash"
+        ],
+        "profilesColumns": [
+          "phone_search_hash",
+          "postcode_search_hash",
+          "discoverable_by_phone",
+          "discoverable_by_postcode",
+          "share_availability_with_contacts"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "isConveneEnabledForCurrentUser",
+          "file": "src/lib/convene/flags-user.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "dashboard",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "timingSafeStrEqual",
+          "file": "src/lib/convene/cron-auth.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "trust-safety"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "recommendations",
+        "trust-safety"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 11,
+        "testBlocks": 164
+      },
+      "enforced": false
+    },
+    "recommendations": {
+      "layer": 3,
+      "paths": [
+        "src/lib/recommend/",
+        "src/lib/recommender/",
+        "src/app/api/recommendations/"
+      ],
+      "owns": {
+        "files": 20,
+        "tables": [
+          "recommender_catalogue"
+        ],
+        "rpcs": [
+          "refresh_relationship_signals"
+        ],
+        "profilesColumns": [
+          "recipient_attributes"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "V2Recommendation",
+          "file": "src/lib/recommender/v2/types.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "GatheringType",
+          "file": "src/lib/recommend/convene/types.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "getRecommendations",
+          "file": "src/lib/recommend/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "buildV2Recommendations",
+          "file": "src/lib/recommender/v2/pipeline.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "ConceptInput",
+          "file": "src/lib/recommender/v2/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "RecommendationResult",
+          "file": "src/lib/recommend/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "scoreVenue",
+          "file": "src/lib/recommend/convene/score-venue.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "VenueCandidate",
+          "file": "src/lib/recommend/convene/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "VenueContext",
+          "file": "src/lib/recommend/convene/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "mayDependOn": [
+        "features",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "affiliate"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 2,
+        "testBlocks": 3
+      },
+      "enforced": false
+    },
+    "affiliate": {
+      "layer": 3,
+      "paths": [
+        "src/lib/affiliate/"
+      ],
+      "owns": {
+        "files": 8,
+        "tables": [
+          "affiliate_clicks",
+          "affiliate_merchant_eligibility"
+        ],
+        "rpcs": [
+          "affiliate_clicks_purge_expired"
+        ],
+        "profilesColumns": [
+          "delivery_country_code"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "normaliseDeliveryCountry",
+          "file": "src/lib/affiliate/country-codes.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "profile",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isIsoAlpha2",
+          "file": "src/lib/affiliate/country-codes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "rollupByDailyMerchant",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "splitByProvider",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "splitBySource",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:DailyMerchantRollup",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:ProviderSplit",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:SourceSplit",
+          "file": "src/lib/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "AffiliateClickRow",
+          "file": "src/lib/affiliate/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
+          "file": "src/lib/affiliate/country-codes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "eligibleMerchantsForCountry",
+          "file": "src/lib/affiliate/eligibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getAffiliateLink",
+          "file": "src/lib/affiliate/link-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AffiliateProvider",
+          "file": "src/lib/affiliate/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "mayDependOn": [
+        "features",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "trust-safety": {
+      "layer": 3,
+      "paths": [
+        "src/lib/content-moderation.ts",
+        "src/lib/moderation-audit.ts",
+        "src/lib/moderation-policy.ts",
+        "src/app/api/reports/",
+        "src/lib/retention/",
+        "src/app/api/retention/"
+      ],
+      "owns": {
+        "files": 9,
+        "tables": [
+          "content_moderation_flags",
+          "moderation_logs",
+          "reports"
+        ],
+        "rpcs": [
+          "record_erasure_obligation"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "moderateAndAudit",
+          "file": "src/lib/moderation-audit.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "convene",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "checkModeration",
+          "file": "src/lib/moderation-policy.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin",
+        "convene"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations"
+      ],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 2,
+        "testBlocks": 27
+      },
+      "enforced": false
+    },
+    "marketing-legal": {
+      "layer": 3,
+      "paths": [
+        "src/app/(legal)/",
+        "src/app/_marketing/",
+        "src/app/examples/",
+        "src/lib/compliance/",
+        "src/app/page.tsx",
+        "src/app/layout.tsx",
+        "src/app/error.tsx",
+        "src/app/global-error.tsx",
+        "src/app/not-found.tsx",
+        "src/app/footer.tsx",
+        "src/app/sitemap.ts",
+        "src/app/cookie-consent.tsx",
+        "src/app/consent-state.ts",
+        "src/app/consented-analytics.tsx",
+        "src/app/install-prompt.tsx",
+        "src/app/service-worker-register.tsx"
+      ],
+      "owns": {
+        "files": 28,
+        "tables": [
+          "consent_log"
+        ],
+        "rpcs": [],
+        "profilesColumns": [
+          "is_homepage_example",
+          "homepage_example_order"
+        ]
+      },
+      "publicApi": [],
+      "mayDependOn": [
+        "access",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 14,
+        "testBlocks": 216
+      },
+      "enforced": false
+    },
+    "admin": {
+      "layer": 4,
+      "paths": [
+        "src/app/admin/",
+        "src/lib/admin.ts"
+      ],
+      "owns": {
+        "files": 21,
+        "tables": [],
+        "rpcs": [
+          "admin_filter_profile_ids",
+          "admin_list_users"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getAdminServiceClient",
+          "file": "src/lib/admin.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "account",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "computeAccessTransition",
+          "file": "src/app/admin/users/users-actions-shared.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "affiliate",
+        "features",
+        "observability",
+        "platform"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [],
+      "riskTier": "critical",
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 8
+      },
+      "enforced": false
+    }
+  },
+  "serviceRoleClient": {
+    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time; the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh. Any module NOT listed here must not gain the import without security review.",
+    "measuredImporters": {
+      "convene": [
+        "src/app/api/convene/cron/token-health/route.ts",
+        "src/app/api/convene/oauth/google/callback/route.ts",
+        "src/app/api/convene/oauth/google/initiate/route.ts",
+        "src/app/api/convene/oauth/microsoft/callback/route.ts",
+        "src/app/api/convene/oauth/microsoft/initiate/route.ts",
+        "src/app/dashboard/convene/gatherings/[id]/actions.ts",
+        "src/app/dashboard/convene/organise/actions.ts",
+        "src/lib/convene/auth-bearer.ts",
+        "src/lib/convene/busy-time-consent.ts",
+        "src/lib/convene/invites/dispatch.ts",
+        "src/lib/convene/invites/repository.ts",
+        "src/lib/convene/oauth-connections.ts",
+        "src/lib/convene/post-event.ts",
+        "src/lib/convene/vault.ts"
+      ],
+      "oauth-as": [
+        "src/lib/oauth/access-tokens.ts",
+        "src/lib/oauth/clients.ts",
+        "src/lib/oauth/codes.ts",
+        "src/lib/oauth/consents.ts",
+        "src/lib/oauth/refresh.ts"
+      ],
+      "recommendations": [
+        "src/app/api/recommendations/[slug]/route.ts",
+        "src/app/api/recommendations/v2/[slug]/route.ts",
+        "src/lib/recommender/v2/candidate-sourcing.ts"
+      ],
+      "marketing-legal": [
+        "src/app/examples/page.tsx",
+        "src/app/page.tsx",
+        "src/app/sitemap.ts"
+      ],
+      "public-profile": [
+        "src/app/[slug]/page.tsx",
+        "src/app/search/page.tsx"
+      ],
+      "access": [
+        "src/app/waitlist/actions.ts",
+        "src/lib/beta-access/flow.ts"
+      ],
+      "age": [
+        "src/lib/age/age-service.ts",
+        "src/lib/age/record-declaration.ts"
+      ],
+      "features": [
+        "src/lib/features/entitlements-service.ts",
+        "src/lib/features/global-switches-service.ts"
+      ],
+      "trust-safety": [
+        "src/lib/retention/affiliate-clicks.ts",
+        "src/lib/retention/gatherings.ts"
+      ],
+      "admin": [
+        "src/lib/admin.ts"
+      ],
+      "affiliate": [
+        "src/lib/affiliate/link-service.ts"
+      ],
+      "observability": [
+        "src/lib/metrics.ts"
+      ],
+      "guards": [
+        "src/lib/rate-limit-shared.ts"
+      ]
+    },
+    "totalFiles": 39
+  },
+  "meta": {
+    "db/schema": {
+      "owns": "table-ownership contract; profiles at column granularity",
+      "tables": {
+        "profiles": "db/schema (shared kernel \u2014 column ownership below)",
+        "profile_items": "profile",
+        "profile_files": "profile",
+        "profile_manual_of_me": "profile",
+        "profile_conversation_starters": "profile",
+        "conversation_starter_prompts": "profile",
+        "external_links": "profile",
+        "school_affiliations": "profile",
+        "gatherings": "convene",
+        "gathering_invitees": "convene",
+        "gathering_invite_messages": "convene",
+        "gathering_events_log": "convene",
+        "gathering_proposed_slots": "convene",
+        "contacts": "convene",
+        "contact_methods": "convene",
+        "venues": "convene",
+        "oauth_connections": "convene",
+        "oauth_connect_state": "convene",
+        "oauth_clients": "oauth-as",
+        "oauth_authorization_codes": "oauth-as",
+        "oauth_access_tokens": "oauth-as",
+        "oauth_refresh_tokens": "oauth-as",
+        "oauth_consents": "oauth-as",
+        "reports": "trust-safety",
+        "content_moderation_flags": "trust-safety",
+        "moderation_logs": "trust-safety",
+        "api_keys": "account",
+        "global_feature_switches": "features",
+        "feature_entitlements": "features",
+        "affiliate_clicks": "affiliate",
+        "affiliate_merchant_eligibility": "affiliate",
+        "consent_log": "marketing-legal",
+        "recommender_catalogue": "recommendations"
+      },
+      "rpcs": {
+        "get_metrics_for_window": "observability",
+        "rate_limit_hit": "guards",
+        "search_by_contact_hash": "convene",
+        "convene_vault_store_secret": "convene",
+        "convene_vault_read_secret": "convene",
+        "convene_vault_revoke_secret": "convene",
+        "gatherings_purge_expired": "convene",
+        "affiliate_clicks_purge_expired": "affiliate",
+        "refresh_relationship_signals": "recommendations",
+        "record_erasure_obligation": "trust-safety",
+        "admin_list_users": "admin",
+        "admin_filter_profile_ids": "admin"
+      },
+      "profilesColumns": {
+        "db/schema (identity kernel)": [
+          "id",
+          "user_id",
+          "created_at",
+          "updated_at"
+        ],
+        "access": [
+          "user_status",
+          "access_tier",
+          "is_suspended",
+          "is_admin",
+          "suspended_at",
+          "suspension_reason",
+          "beta_requested_at",
+          "beta_approved_at"
+        ],
+        "age": [
+          "age_status",
+          "age_checked_at",
+          "age_provider",
+          "age_provider_ref",
+          "age_declared_18_at"
+        ],
+        "profile": [
+          "display_name",
+          "slug",
+          "headline",
+          "bio_short",
+          "city",
+          "region",
+          "postcode_prefix",
+          "country",
+          "avatar_url",
+          "is_published",
+          "onboarding_complete",
+          "completion_score",
+          "section_visibility",
+          "age_range"
+        ],
+        "convene": [
+          "phone_search_hash",
+          "postcode_search_hash",
+          "discoverable_by_phone",
+          "discoverable_by_postcode",
+          "share_availability_with_contacts"
+        ],
+        "dashboard": [
+          "dashboard_widget_state"
+        ],
+        "recommendations": [
+          "recipient_attributes"
+        ],
+        "affiliate": [
+          "delivery_country_code"
+        ],
+        "marketing-legal": [
+          "is_homepage_example",
+          "homepage_example_order"
+        ]
+      }
+    },
+    "ci/boundaries": {
+      "owns": "enforcement machinery (dependency-cruiser config, allowlist, gates)",
+      "allowlistSeed": "docs/modularisation/KAN-416-boundaries-allowlist.seed.json"
+    }
+  }
+}
