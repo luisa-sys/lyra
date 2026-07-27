@@ -129,6 +129,90 @@ After every `deploy-dev` that touches the dashboard, profile, or onboarding jour
 
 The full widget-journey state matrix, the fresh-user walkthrough, the "dashboard is blank" diagnostic playbook, and dev test-user management (create/confirm via the DB token, drive states by SQL, reset/clean up) live in `docs/DEV_E2E_REGRESSION.md`.
 
+## Dependency-rule gate (KAN-425)
+
+Three structural import rules run on every PR, from `.dependency-cruiser.cjs` via
+`scripts/check-dependency-rules.sh` (registered as **CTL-030**):
+
+| Rule | Invariant |
+| --- | --- |
+| `no-module-to-app` | Nothing under `src/lib/**` may import `src/app/**`. |
+| `no-cross-segment-app/<segment>` | One top-level `src/app` segment may not import another. |
+| `no-circular` | No import cycles. |
+
+**Why a gate and not a convention.** `src/lib/deploy-env.ts` was created to be the
+single environment resolver — pure, tested, documented — and all six of the
+derivations it was meant to replace are still inline, because nothing stopped new
+ones being written. Creating the canonical thing is the easy 10%; the gate is the
+other 90%. Landing these rules now, before the modularisation programme (KAN-415)
+churns 20 modules, means the structure cannot regress while it runs.
+
+### Running it
+
+```bash
+npm run depcruise                              # warn mode (what CI runs today)
+DEPCRUISE_SEVERITY=error npm run depcruise     # blocking mode — what CI will run
+npx jest tests/scripts/check-dependency-rules.test.js   # prove the gate still bites
+```
+
+### Roll-out state — currently `warn`, not yet blocking
+
+The gate ships **non-blocking**: violations are printed and annotated in the run
+summary, the build stays green. It flips to blocking by changing
+`DEPCRUISE_SEVERITY: warn` to `error` in the "Dependency-rule gate (KAN-425)" step
+of `.github/workflows/pr-checks.yml` — a one-word edit, once `develop` is clean and
+has stayed clean for a week.
+
+`develop` is **not** clean yet. Five real violations exist (`no-module-to-app` is
+already at zero — that was KAN-424 Defect 1):
+
+| Rule | Violation | Owner |
+| --- | --- | --- |
+| `no-cross-segment-app/[slug]` | `[slug]/page.tsx` → `dashboard/profile/section-visibility.ts` | KAN-424 Defect 3 |
+| `no-cross-segment-app/[slug]` | `[slug]/page.tsx` → `dashboard/profile/manual-of-me-fields.ts` | KAN-424 Defect 3 |
+| `no-circular` | `organise-wizard.tsx` ↔ `organise/page.tsx` | KAN-424 Defect 2 |
+| `no-cross-segment-app/dashboard` | `dashboard/page.tsx` → `(auth)/actions.ts` | found by this gate |
+| `no-cross-segment-app/(legal)` | `(legal)/about/page.tsx` → `_marketing/sections.tsx` | found by this gate |
+
+All five sit in Luisa-owned UI paths, so clearing them is hers to initiate.
+
+**A violation is a finding, not noise.** Fix the import or promote the shared code
+to `src/lib/`. `DEPCRUISE_SEVERITY` is a roll-out dial for the whole gate — never a
+per-violation waiver — and there is deliberately no allow-list comment.
+
+### Scope discipline
+
+Only these three rules live here. The other six from the modularisation plan
+(`no-deep-module-import`, `no-undeclared-module-dep`, `app-routes-are-thin`,
+`platform-is-a-leaf`, `edge-safe`, `backoffice-not-in-request-path`) need
+`modules.json` and land in KAN-415 C2. `tests/scripts/check-dependency-rules.test.js`
+asserts they are absent, so they cannot creep in early.
+
+### Gotcha — `dependency-cruiser` is pinned to 17.x by CI's Node version
+
+The `PR Quality Gate` job runs on **Node 20** (`node-version: '20'` in
+`pr-checks.yml`). `dependency-cruiser` 18 dropped Node 20 (`engines.node:
+^22||^24||>=26`) and refuses to start on it, so the pin is `^17.4.3`
+(`^20.12||^22||>=24`). Local dev on Node 22 runs either happily, which is exactly
+how this got missed until CI — the first run of this gate failed for that reason,
+and correctly failed *closed* rather than skipping.
+
+**Do not bump to 18+ without moving the CI job to Node 22 first**, and treat that
+as its own change: every step in the job (lint, type-check, unit tests, build,
+audit) shares that runtime.
+
+### Gotcha — segment names contain regex metacharacters
+
+The rule set is **generated**, one rule per `src/app` segment, rather than written
+as a single rule with a `$1` backreference. dependency-cruiser interpolates a
+capture group into `to.pathNot` as raw regex source without escaping it, and
+Next.js segment directories are named `[slug]`, `(auth)`, `(legal)` — so `$1`
+expands to a character class or a capture group that cannot match its own
+directory, and every same-segment import is reported as a cross-segment violation.
+The first run produced 20 "violations" of which 15 were false. A gate that cries
+wolf gets switched off; `tests/scripts/check-dependency-rules.test.js` keeps a
+fixture for exactly that blind spot.
+
 ## Self-Healing Flows (KAN-233)
 
 The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.

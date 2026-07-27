@@ -138,8 +138,15 @@ bash scripts/routine-watchdog.sh \
   'weekly-health|11520|2026-06-29T06:30:00Z|PASS' \
   'doc-sync|2000|2026-07-04T08:15:00Z|PASS|weekday' \
   'doc-producer|2000|2026-07-04T08:00:00Z|PASS|weekday' \
+  'staging-soak|1740|2026-07-27T04:16:00Z|PASS' \
   'health-check|540|2026-07-04T06:00:00Z|PASS||active'
 ```
+
+**`staging-soak` (KAN-413)** runs daily at 04:12 UTC, so its cadence+grace is
+**1740** minutes (24h + 5h grace — the same shape as `daily-security`). Its
+heartbeat timestamp comes from the Confluence Heartbeat table like every other
+routine; pass `-` when it cannot be read, which the watchdog reports as
+UNVERIFIED (exit 1) rather than a silent PASS.
 
 **Workflow-state (optional 6th field — SEC-79).** For a routine OWNED by a
 GitHub-Actions workflow (`health-check.yml` = liveness; `weekly-report.yml` =
