@@ -19,6 +19,15 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-require-imports": "off",
     },
   },
+  {
+    // KAN-425: tool configs carry the .cjs extension precisely because the
+    // tool loads them as CommonJS — .dependency-cruiser.cjs is read with
+    // require(), so require()/module.exports is the only valid form there.
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
