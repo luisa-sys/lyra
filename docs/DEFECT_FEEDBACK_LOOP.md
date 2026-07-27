@@ -258,11 +258,13 @@ Recorded here rather than quietly carried. Each needs a decision.
 |---|---|---|
 | `staging` has **zero** required status checks | `gh api repos/luisa-sys/lyra/branches/staging/protection` → `required_checks: []` | A branch in the promotion chain with no gate |
 | `develop` does not require CodeQL | same, `develop` → `["PR Quality Gate"]` only | All feature work lands on `develop` |
-| `main-chain-guard` is not a required check | `main` → `["CodeQL Analysis", "PR Quality Gate"]` | SEC-98's technical backstop is advisory, exactly as CLAUDE.md warns |
-| `enforce_admins: false` on all four branches | branch protection API | Every gate is admin-bypassable |
-| Zero required reviewers on all branches | `required_approving_review_count: 0` | No second pair of eyes anywhere |
-| `DEV_SUPABASE_URL`, `DEV_SUPABASE_ANON_KEY`, `SUPABASE_MANAGEMENT_TOKEN` are referenced by workflows but **do not exist** | `gh secret list`; environments hold no secrets | They expand to empty strings — silent degradation |
-| `security_invariants_report()` not yet applied to any database | migration `20260727090000` is in the repo only | `check-db-invariants.py` reports UNVERIFIED until it is applied to dev, staging and production |
+| **Required checks on `main` are decorative for the only path that updates it** | `promote-to-production.yml:240` does `git push origin main` with `LYRA_RELEASE_PAT`; `enforce_admins: false` means an admin PAT is not bound by required checks | The promote is the highest-consequence write in the system and no CI gate binds it. See §8 |
+| `enforce_admins: false` on all four branches | branch protection API | Every gate is admin-bypassable. **Do not simply switch this on** — see §8, it would break the promote |
+| Zero required reviewers on all branches | `required_approving_review_count: 0` | No second pair of eyes. Unfixable by PR review with one engineer (GitHub forbids self-approval); see §8 for the Environments answer |
+| ~~`security_invariants_report()` not applied~~ | — | **RESOLVED 2026-07-27.** Applied to dev, staging and production; `db-invariants.yml` verified green end-to-end: 3 PASS / 0 FAIL / 0 UNVERIFIED |
+| ~~Phantom secret references~~ | — | **RESOLVED 2026-07-27 (SEC-102).** The audit found **7**, not 3. `deploy-dev.yml` was the only real defect; the rest degrade honestly and are now recorded in `.github/absent-secrets.txt`. Guarded by CTL-029 |
+| `E2E_CF_BYPASS_HEADER` / `E2E_CF_BYPASS_SECRET` do not exist | `.github/absent-secrets.txt` | Cloudflare 403s the CI runner IP, so the authed E2E journey **cannot run from CI at all**. Needs a founder-provisioned CF WAF skip rule (SEC-102) |
+| `db-invariants.yml`'s daily cron will not fire until it reaches `main` | scheduled workflows run from the **default branch** | CLAUDE.md gotcha #1. Manual dispatch works today (`--ref develop`); the schedule starts after the next production promote |
 | 21 pre-existing migrations lack a `REVOKE ... FROM PUBLIC` | `supabase/migration-privileges-baseline.json` | Grandfathered; fix forward, and the list may only shrink |
 | **6 duplicate migration version timestamps (13 files)** | Supabase Preview on PR #594: `duplicate key … schema_migrations_pkey` | Branch previews fail on every migration PR; the lineage cannot replay from scratch, so **the DR restore path is unprovable** (undercuts SEC-23 / SEC-31). **BUGS-49 recurred** — see below. Tracked in BUGS-75 |
 | `profile-photos` bucket is world-readable on all three databases | live query, 2026-07-27 | SEC-60, waived until 2026-10-31 |

@@ -395,7 +395,7 @@
       "id": "CTL-023",
       "name": "Migration privilege lint",
       "defect_class": "postgres-privilege-drift",
-      "summary": "Postgres grants EXECUTE to PUBLIC on every new function and CREATE OR REPLACE resets the ACL, so a one-off REVOKE protects only what existed when it ran. Every migration must carry its own REVOKE, pin search_path on SECURITY DEFINER functions, never GRANT to anon, and enable RLS on new public tables. Ratcheted against a baseline that may only shrink. Rule R5 also blocks duplicate migration version timestamps, which abort the whole Supabase replay on a schema_migrations primary-key collision \u2014 BUGS-49 closed on that in June and it recurred the same day because the files were de-duplicated but no control was built.",
+      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES \u2014 the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink.",
       "implementation": "scripts/check-migration-privileges.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -424,7 +424,7 @@
       "id": "CTL-024",
       "name": "Live database security invariants",
       "defect_class": "postgres-privilege-drift",
-      "summary": "Asserts seven invariants against each running database, because migrations are applied with the Supabase MCP tool and therefore reach a database without passing through a PR. SEC-42 was exactly that. Missing credentials or an unapplied RPC report UNVERIFIED, never a silent pass.",
+      "summary": "Asserts seven invariants against each running database, because migrations are applied with the Supabase MCP tool and therefore reach a database without passing through a PR. INV-2 was replaced 2026-07-27: the original NULL-ACL test was structurally unfireable on Supabase (pg_default_acl forces an explicit ACL, so proacl is never NULL) and reported clean forever; it now detects duplicate SECURITY DEFINER overloads, the real signature-change vector. Missing credentials or an unapplied RPC report UNVERIFIED, never a silent pass.",
       "implementation": "scripts/check-db-invariants.py",
       "kind": "scheduled",
       "wired_in": [
@@ -432,13 +432,14 @@
         ".github/workflows/pr-checks.yml"
       ],
       "prevents": [
+        "BUGS-60",
+        "BUGS-71",
         "SEC-12",
+        "SEC-28",
         "SEC-29",
         "SEC-42",
         "SEC-43",
-        "SEC-60",
-        "BUGS-60",
-        "BUGS-71"
+        "SEC-60"
       ],
       "self_test": "python3 scripts/check-db-invariants.py --self-test",
       "escape_hatch": "supabase/security-invariants-waivers.json",
@@ -522,6 +523,25 @@
       ],
       "self_test": "python3 scripts/check-suspension-guard-coverage.py --self-test",
       "escape_hatch": "// suspension-guard-ok:",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-029",
+      "name": "Workflow secret-reference integrity",
+      "defect_class": "false-green-ci",
+      "summary": "GitHub expands an undefined secret to the empty string silently, so a workflow can reference a secret that was never created and still report green. deploy-dev.yml had been verifying builds against a blank Supabase config this way. Every secrets.X reference must be in .github/known-secrets.txt (generated verbatim from gh secret list) or in .github/absent-secrets.txt with a reason and a Jira key. Found 7 phantom secrets across 6 workflows.",
+      "implementation": "scripts/check-workflow-secret-refs.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-79",
+        "SEC-96",
+        "SEC-102"
+      ],
+      "self_test": "python3 scripts/check-workflow-secret-refs.py --self-test",
+      "escape_hatch": ".github/absent-secrets.txt (reason + Jira key required)",
       "added": "2026-07-27"
     }
   ]

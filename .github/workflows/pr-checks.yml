@@ -152,6 +152,19 @@ jobs:
           set -euo pipefail
           python3 scripts/check-db-invariants.py --self-test
           python3 scripts/check-waiver-hygiene.py
+      - name: Workflow secret-reference check (SEC-102)
+        # GitHub expands an UNDEFINED secret to the empty string, silently — no
+        # warning, no annotation, no failed step. deploy-dev.yml had been passing
+        # two non-existent secrets into `npm run build`, so its "Verify build"
+        # step was building against a blank Supabase config and still passing.
+        # Every `secrets.X` must be in .github/known-secrets.txt (generated
+        # verbatim from `gh secret list`) or in .github/absent-secrets.txt with a
+        # reason AND a Jira key — because not every absence is a defect, but an
+        # absence nobody is tracking is not a decision either.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-secret-refs.py --self-test
+          python3 scripts/check-workflow-secret-refs.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
