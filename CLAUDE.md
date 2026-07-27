@@ -535,9 +535,38 @@ These have caused real bugs. Read before making related changes:
 
 25. **Large Confluence pages fail `getConfluencePage` (timeout / "exceeds max tokens")**: Big pages — e.g. the Ops Control Room `33554434` when its tables grow unbounded — time out or overflow on fetch and dump the body to a file. Keep growing tables capped at source (Queue = open rows only; ledgers = ~10 newest rows), read the body via `jq '.content.nodes[0].body'`, and update via a deterministic Python file-write + a subagent push (Confluence version history is the restore net). Codified in House rules 9 & 10.
 
-26. **Postgres grants `EXECUTE` to `PUBLIC` on every new function, and `CREATE OR REPLACE` RESETS the ACL** — this is why revoking EXECUTE has regressed **nine times**: In Supabase, `PUBLIC` includes `anon` and `authenticated`, so *every* function is born world-executable. Worse, `CREATE OR REPLACE FUNCTION` on an existing function discards its ACL and restores that default. A one-off `REVOKE` migration therefore protects only the functions that existed when it ran — the next migration that adds *or merely re-creates* a function silently re-opens the hole.
+26. **`REVOKE ... FROM PUBLIC` does NOT remove `anon`/`authenticated` on Supabase — this is why revoking EXECUTE has regressed nine times**:
 
-    This is the mechanism behind SEC-12 (prod vault RPCs executable by anon, CRITICAL), SEC-15, SEC-27 (`is_admin` self-elevation on prod), SEC-28, SEC-29, **SEC-42 (re-granted by a later migration *after* SEC-29 was closed and verified)**, SEC-43, BUGS-48, BUGS-65 and BUGS-69. Ten tickets, one root cause.
+    > ⚠️ **Corrected 2026-07-27.** An earlier version of this entry said "Postgres grants EXECUTE to PUBLIC on every new function, and `CREATE OR REPLACE` RESETS the ACL." **Both halves were wrong**, and the first version of `check-migration-privileges.py` encoded the same wrong model — so it passed a fixture shipping an anon-callable SECURITY DEFINER function. Kept here because the mistake is instructive: a control built on a plausible-but-unverified mechanism looks exactly like a working control.
+
+    **What actually happens.** Supabase ships `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role`. So `anon` and `authenticated` hold **direct grants**, not PUBLIC inheritance. Verified against production, 2026-07-27 — `pg_default_acl`, schema `public`, objtype `f`:
+
+    ```
+    {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+    ```
+
+    Therefore **`revoke all on function f() from public;` leaves anon and authenticated fully able to call it.** The canonical Postgres idiom is a no-op against the two roles that matter here.
+
+    **The smoking gun:** `supabase/migrations/20260622120000_two_axis_access_model.sql` creates `admin_list_users` and `admin_filter_profile_ids` with a revoke naming only `public`. That single mis-specified revoke is the whole of SEC-28 (which names that migration), SEC-29, SEC-42 and SEC-43 — four tickets, one wrong role list, re-litigated for a month as if it were a mysterious "re-grant".
+
+    **`CREATE OR REPLACE` does not reset anything.** Postgres docs: *"When CREATE OR REPLACE FUNCTION is used to replace an existing function, the ownership and permissions of the function do not change."* The real second vector is a **signature change**: altering a parameter list creates a *new overload* that is born with the anon/authenticated defaults, while the old, correctly-revoked overload survives beside it. `INV-2` in `security_invariants_report()` now detects exactly that.
+
+    **The rule:** every migration revokes from **all three** roles explicitly.
+
+    ```sql
+    create or replace function public.fn(...) returns ...
+      language plpgsql
+      security definer
+      set search_path = public, pg_temp        -- never leave search_path unpinned (SEC-11, SEC-54)
+    as $$ ... $$;
+
+    revoke all on function public.fn(...) from public, anon, authenticated;
+    grant execute on function public.fn(...) to service_role;
+    ```
+
+    Grant `authenticated` EXECUTE **only** when the function performs its own authorization check in the body (as `admin_list_users` and `admin_filter_profile_ids` do — and note that over-revoking broke the admin console in BUGS-60, so the answer is the in-body check, not a blanket revoke). New `public` tables must `enable row level security` in the same migration.
+
+    **Fix the default, don't just detect it.** The durable answer is grant inversion — `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated` — so a forgotten grant yields a 403 instead of a data leak. Note the built-in PUBLIC default is *global*, so the statement revoking it must be written **without** `IN SCHEMA public` or it silently does nothing. **Supabase is making this the platform default for existing projects on 2026-10-30**, so this changes under us either way; better to do it deliberately. Tracked in SEC-103.
 
     **The rule:** every migration carries its own revoke. Required shape:
 
