@@ -20,25 +20,48 @@ nine times across fourteen months::
     BUGS-65 two newer trigger fns, same residual
     BUGS-69 one more, same residual
 
-WHY IT KEEPS COMING BACK — the Postgres semantics
--------------------------------------------------
-``CREATE FUNCTION`` grants ``EXECUTE`` to ``PUBLIC`` by default. In Supabase,
-``PUBLIC`` includes ``anon`` and ``authenticated``. So *every* new function is
-born world-executable, and ``CREATE OR REPLACE`` on an existing function
-**resets** the ACL to that default. A one-off ``REVOKE`` migration therefore
-protects only the functions that existed when it ran; the next migration that
-adds — or merely re-creates — a function silently re-opens the hole.
+WHY IT KEEPS COMING BACK — the actual Supabase semantics
+--------------------------------------------------------
+CORRECTED 2026-07-27. The first version of this file claimed "CREATE FUNCTION
+grants EXECUTE to PUBLIC by default, and CREATE OR REPLACE resets the ACL".
+Both halves are wrong, and rule R2 inherited the error: it required only
+``REVOKE ... FROM PUBLIC`` and therefore PASSED a fixture shipping an
+anon-callable SECURITY DEFINER function.
 
-The fix is not another REVOKE. It is a rule that every migration must carry its
-own revoke, enforced before merge.
+What actually happens: Supabase ships
+``ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO anon, authenticated,
+service_role``. Those are DIRECT grants, not PUBLIC inheritance. Verified on
+production — ``pg_default_acl``, schema ``public``, objtype ``f``::
+
+    {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,
+     service_role=X/postgres}
+
+So ``REVOKE ALL ON FUNCTION f() FROM PUBLIC`` leaves anon and authenticated
+able to call it. ``supabase/migrations/20260622120000_two_axis_access_model.sql``
+does exactly that for ``admin_list_users`` and ``admin_filter_profile_ids`` —
+which is the whole of SEC-28 (that ticket names the migration), SEC-29, SEC-42
+and SEC-43.
+
+``CREATE OR REPLACE`` preserves permissions (Postgres docs: "the ownership and
+permissions of the function do not change"). The real second vector is a
+SIGNATURE CHANGE, which creates a new overload carrying the defaults while the
+old revoked one survives — detected live by INV-2, not statically here.
+
+The fix is a rule that every migration revokes from all three roles explicitly,
+enforced before merge — and, durably, inverting the default grant itself
+(SEC-103).
 
 WHAT THIS ENFORCES (per migration file)
 ---------------------------------------
   R1  a ``SECURITY DEFINER`` function must pin ``SET search_path``
       (an unpinned search_path lets a caller shadow a table it references —
       SEC-11, SEC-54)
-  R2  a ``SECURITY DEFINER`` function must be followed by an explicit
-      ``REVOKE ... ON FUNCTION ... FROM PUBLIC`` in the same file
+  R2  a ``SECURITY DEFINER`` function must be revoked from ALL THREE of
+      ``public``, ``anon`` and ``authenticated`` in the same file — separate
+      REVOKE statements or a blanket schema-wide revoke both count. Revoking
+      from PUBLIC alone is NOT sufficient (see above). Re-granting to
+      ``authenticated`` afterwards is allowed: admin RPCs need it and gate on
+      ``is_admin`` in the body, which INV-4 enforces live.
   R3  no migration may ``GRANT EXECUTE`` on a ``SECURITY DEFINER`` function
       ``TO anon``
   R4  ``CREATE TABLE public.x`` must be followed by
@@ -103,6 +126,35 @@ def strip_sql_comments(sql: str) -> str:
     )
 
 
+def roles_revoked_from(body: str, name: str) -> set[str]:
+    """Union of roles revoked from `name`, across every REVOKE in the migration.
+
+    Counts three shapes:
+      REVOKE ... ON FUNCTION public.f(...) FROM public, anon, authenticated;
+      REVOKE ... ON FUNCTION public.f(...) FROM anon;        (repeated)
+      REVOKE ... ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+    """
+    roles: set[str] = set()
+
+    patterns = [
+        # Targeted at this function.
+        rf"revoke\s+(?:all|execute)[^;]*?\bon\s+function\s+(?:public\.)?{re.escape(name)}\b([^;]*);",
+        # Blanket over the schema — covers this function too.
+        r"revoke\s+(?:all|execute)[^;]*?\bon\s+all\s+functions\s+in\s+schema\s+public\b([^;]*);",
+    ]
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, body, re.IGNORECASE | re.DOTALL):
+            tail = match.group(1)
+            from_clause = re.search(r"\bfrom\b(.*)$", tail, re.IGNORECASE | re.DOTALL)
+            if not from_clause:
+                continue
+            for role in re.findall(r"[A-Za-z_][\w]*", from_clause.group(1)):
+                roles.add(role.lower())
+
+    return roles
+
+
 def function_bodies(sql: str) -> list[tuple[str, str]]:
     """Return (name, body) for each CREATE FUNCTION, body ending at its terminator."""
     out: list[tuple[str, str]] = []
@@ -146,14 +198,30 @@ def check_sql(sql: str, path: str) -> list[str]:
         if not (pinned_inline or pinned_alter):
             violations.append(f"{path}::R1-unpinned-search-path::{name}")
 
-        # R2 — an explicit REVOKE ... FROM PUBLIC must appear in the same file.
-        revoked = re.search(
-            rf"revoke\s+(?:all|execute)[^;]*\bon\s+function\s+(?:public\.)?{re.escape(name)}\b[^;]*\bfrom\b[^;]*\bpublic\b",
-            body,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if not revoked:
-            violations.append(f"{path}::R2-missing-revoke-from-public::{name}")
+        # R2 — the revoke must actually remove the roles that can reach the
+        # function. On Supabase that is NOT the same as revoking from PUBLIC.
+        #
+        # Supabase ships `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO
+        # anon, authenticated, service_role`, so anon and authenticated hold
+        # DIRECT grants, not PUBLIC inheritance. Verified against Lyra's own
+        # production database on 2026-07-27:
+        #
+        #   pg_default_acl, schema public, objtype 'f':
+        #     {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,
+        #      service_role=X/postgres}
+        #
+        # `REVOKE ALL ON FUNCTION f() FROM PUBLIC` therefore leaves anon's and
+        # authenticated's EXECUTE completely intact. The first version of this
+        # rule required only that, and passed a fixture shipping an
+        # anon-callable SECURITY DEFINER function — a false negative on the very
+        # class it was written to stop. See the `revoke from PUBLIC only`
+        # fixture below, which pins that miss.
+        revoked_roles = roles_revoked_from(body, name)
+        missing = [r for r in ("public", "anon", "authenticated") if r not in revoked_roles]
+        if missing:
+            violations.append(
+                f"{path}::R2-revoke-does-not-cover-{'-'.join(missing)}::{name}"
+            )
 
         # R3 — never grant a SECURITY DEFINER function to anon.
         granted_anon = re.search(
@@ -245,13 +313,13 @@ language sql security definer set search_path = public as $$ select 1 $$;
 _BAD_UNPINNED = """
 create or replace function public.unpinned() returns void
 language sql security definer as $$ select 1 $$;
-revoke all on function public.unpinned() from public;
+revoke all on function public.unpinned() from public, anon, authenticated;
 """
 
 _BAD_GRANT_ANON = """
 create or replace function public.open_to_all() returns void
 language sql security definer set search_path = public as $$ select 1 $$;
-revoke all on function public.open_to_all() from public;
+revoke all on function public.open_to_all() from public, anon, authenticated;
 grant execute on function public.open_to_all() to anon;
 """
 
@@ -288,7 +356,55 @@ create or replace function public.trigger_fn() returns trigger
 language plpgsql security definer as $$ begin return new; end $$;
 """
 
+# THE MISS. The first version of R2 required only `... FROM PUBLIC` and passed
+# this. On Supabase, anon and authenticated hold DIRECT grants from
+# ALTER DEFAULT PRIVILEGES, so revoking PUBLIC leaves both intact and the
+# function stays callable unauthenticated at /rest/v1/rpc/leak_probe.
+_BAD_REVOKE_PUBLIC_ONLY = """
+create or replace function public.leak_probe(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.leak_probe(p text) from public;
+"""
+
+_BAD_REVOKE_ANON_ONLY = """
+create or replace function public.half_revoked(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.half_revoked(p text) from public, anon;
+"""
+
+_GOOD_SEPARATE_REVOKES = """
+create or replace function public.tidy(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.tidy(p text) from public;
+revoke all on function public.tidy(p text) from anon;
+revoke all on function public.tidy(p text) from authenticated;
+grant execute on function public.tidy(p text) to service_role;
+"""
+
+_GOOD_BLANKET_REVOKE = """
+create or replace function public.swept(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke execute on all functions in schema public from public, anon, authenticated;
+grant execute on function public.swept(p text) to service_role;
+"""
+
+# Revoking then deliberately re-granting to `authenticated` is legitimate for an
+# admin RPC that gates on is_admin in its body (admin_list_users). Over-revoking
+# broke the admin console in BUGS-60, so the revoke rule must not forbid it —
+# the in-body check is enforced separately by INV-4 in the live checker.
+_GOOD_REVOKE_THEN_REGRANT = """
+create or replace function public.admin_thing(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.admin_thing(p text) from public, anon, authenticated;
+grant execute on function public.admin_thing(p text) to authenticated;
+"""
+
 _CASES = [
+    ("REVOKE FROM PUBLIC ONLY — anon/authenticated keep EXECUTE", _BAD_REVOKE_PUBLIC_ONLY, ["R2"]),
+    ("REVOKE covers public+anon but not authenticated", _BAD_REVOKE_ANON_ONLY, ["R2"]),
+    ("separate REVOKE statements covering all three", _GOOD_SEPARATE_REVOKES, []),
+    ("blanket REVOKE over the schema", _GOOD_BLANKET_REVOKE, []),
+    ("revoke-then-regrant to authenticated is allowed", _GOOD_REVOKE_THEN_REGRANT, []),
     ("secdef without REVOKE FROM PUBLIC", _BAD_NO_REVOKE, ["R2"]),
     ("secdef with unpinned search_path", _BAD_UNPINNED, ["R1"]),
     ("secdef granted to anon", _BAD_GRANT_ANON, ["R3"]),

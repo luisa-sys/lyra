@@ -152,6 +152,19 @@ jobs:
           set -euo pipefail
           python3 scripts/check-db-invariants.py --self-test
           python3 scripts/check-waiver-hygiene.py
+      - name: Workflow secret-reference check (SEC-102)
+        # GitHub expands an UNDEFINED secret to the empty string, silently — no
+        # warning, no annotation, no failed step. deploy-dev.yml had been passing
+        # two non-existent secrets into `npm run build`, so its "Verify build"
+        # step was building against a blank Supabase config and still passing.
+        # Every `secrets.X` must be in .github/known-secrets.txt (generated
+        # verbatim from `gh secret list`) or in .github/absent-secrets.txt with a
+        # reason AND a Jira key — because not every absence is a defect, but an
+        # absence nobody is tracking is not a decision either.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-secret-refs.py --self-test
+          python3 scripts/check-workflow-secret-refs.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
@@ -183,6 +196,27 @@ jobs:
         run: npm run lint
       - name: Run type check
         run: npm run type-check
+      - name: Dependency-rule gate (KAN-425)
+        # Three structural rules from .dependency-cruiser.cjs: nothing under
+        # src/lib/** may import src/app/**; one top-level src/app segment may
+        # not import another; no import cycles. Landing them now stops the
+        # codebase regressing while the modularisation programme (KAN-415)
+        # runs — the precedent is src/lib/deploy-env.ts, built to be the single
+        # environment resolver, which never displaced the six inline
+        # derivations because nothing stopped new ones being written.
+        #
+        # Placed after `npm ci` because dependency-cruiser is a dev-dependency.
+        #
+        # ROLL-OUT: severity `warn` — violations are printed and annotated, the
+        # build stays green. Flip to blocking by changing DEPCRUISE_SEVERITY to
+        # `error` once the outstanding findings are cleared (they are KAN-424
+        # Defects 2 and 3 plus two more found by this gate; see docs/RUNBOOK.md
+        # → "Dependency-rule gate (KAN-425)"). That variable is the ONLY
+        # intended change — never relax a rule's definition to make it pass.
+        #
+        # Fails closed: if dependency-cruiser cannot run (missing/unparseable
+        # config, missing binary), the step fails rather than passing quietly.
+        run: DEPCRUISE_SEVERITY=warn bash scripts/check-dependency-rules.sh
       - name: Run unit tests
         run: npm run test:unit
         env:
