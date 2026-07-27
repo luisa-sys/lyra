@@ -1,0 +1,54 @@
+{
+  "_comment": [
+    "Waivers for scripts/check-db-invariants.py (SEC-101).",
+    "",
+    "Two kinds, deliberately different — conflating them is how a gate becomes",
+    "noise and gets switched off:",
+    "",
+    "  expires    A TEMPORARY acceptance of a real, open risk. The check FAILS",
+    "             once the date passes. Use whenever there is an open SEC ticket.",
+    "  review_by  An accepted-BY-DESIGN exception, usually where an invariant's",
+    "             heuristic is wrong rather than the risk being real. Emits a",
+    "             notice once the date passes; never fails.",
+    "",
+    "Every waiver needs ticket, owner and reason. A waiver that matches no live",
+    "finding is reported as stale and must be removed — waivers must not outlive",
+    "the thing they excuse.",
+    "",
+    "Baselines captured 2026-07-27 by querying dev, staging and production",
+    "directly. Production carries ONLY the profile-photos finding; dev and",
+    "staging additionally carry search_by_contact_hash, which never shipped to",
+    "production (SEC-80)."
+  ],
+  "adopted": "2026-07-27",
+  "ticket": "SEC-101",
+  "waivers": [
+    {
+      "env": "*",
+      "invariant": "INV-6-public-storage-bucket",
+      "object": "profile-photos",
+      "ticket": "SEC-60",
+      "owner": "founder",
+      "reason": "Known open finding: the profile-photos bucket is world-readable, so avatars survive suspension and takedown. SEC-60 ('profile-photos storage bucket is fully world-readable') is still To Do. Tracked, not accepted — this waiver exists so the check can be switched on today without hiding the finding.",
+      "expires": "2026-10-31"
+    },
+    {
+      "env": "dev",
+      "invariant": "INV-4-secdef-authed-execute-no-authz",
+      "object": "search_by_contact_hash",
+      "ticket": "SEC-80",
+      "owner": "founder",
+      "reason": "INV-4's body heuristic looks for is_admin / auth.uid() and finds neither. Verified by reading the live definition on 2026-07-27: this is a contact-hash lookup, not a privileged RPC. It is SECURITY DEFINER only so the hash comparison can bypass RLS, its search_path is pinned, and it returns rows only where is_published = true AND is_suspended = false (the SEC-80 fix). Any authenticated caller is meant to be able to call it. Never shipped to production.",
+      "review_by": "2027-01-31"
+    },
+    {
+      "env": "staging",
+      "invariant": "INV-4-secdef-authed-execute-no-authz",
+      "object": "search_by_contact_hash",
+      "ticket": "SEC-80",
+      "owner": "founder",
+      "reason": "As the dev entry above — same function, same verified definition. Staging mirrors dev for the phone/postcode discovery path that was never promoted to production.",
+      "review_by": "2027-01-31"
+    }
+  ]
+}

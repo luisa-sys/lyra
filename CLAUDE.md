@@ -182,6 +182,49 @@ Large tasks must be broken into subtasks with one concern per ticket. When picki
 
 Full details: `docs/JIRA_TICKET_STANDARD.md`
 
+### Every BUGS/SEC ticket needs a `Prevention:` line before it goes to Done (SEC-101)
+
+**A fix that does not change a control is a repair, not a lesson.** Lyra has
+closed 129 defects, and the same root causes kept returning: nine tickets for
+Postgres `EXECUTE` grants, eight for a suspension guard added to one call site
+but not its siblings, fourteen for release workflows reporting SUCCESS while
+doing nothing. Each was fixed properly. What was missing was the step *after*
+the fix.
+
+Before transitioning any **BUGS** or **SEC** ticket to Done, answer:
+
+> What automated control would have caught this before merge?
+
+and record the answer in the ticket as a literal line — exactly one of:
+
+```
+Prevention: CTL-023
+Prevention: none — <reason> (agreed: <owner>, <date>)
+```
+
+Three outcomes, all covered in `docs/DEFECT_FEEDBACK_LOOP.md` §3:
+
+- **(a) A control existed and missed it.** The most valuable outcome and the
+  easiest to skip. The control is defective — fix it, and add a fixture
+  reproducing the miss to its `--self-test` so the blind spot cannot recur.
+- **(b) No control exists.** Build one, then register it in
+  `controls/registry.json` with the ticket in its `prevents` list. Prefer
+  making the defect *impossible* (types, DB constraints) over *detecting* it
+  (grep/lint) over *documenting* it (a gotcha below).
+- **(c) Genuinely unpreventable.** Needs a named owner. Label the ticket
+  `third-party-outage`, `upstream-bug` or `vendor-config`. "We'll be careful
+  next time" is not an acceptable reason.
+
+`controls/registry.json` is the memory of this loop and is enforced on every PR
+by `scripts/check-control-registry.py`: a registered control whose file is
+missing, or that nothing actually invokes, fails the build — that is the SEC-79
+failure mode, where `health-check.yml` and `weekly-report.yml` sat disabled for
+over a month while still reporting green.
+
+**When you add a control, prove it by mutation:** reintroduce the original
+defect, confirm the control goes red, revert, and say so in the ticket. A
+control that has never been seen to fail is indistinguishable from no control.
+
 ## MCP-main lockstep policy (KAN-222)
 
 **Every user-facing feature must ship MCP-tool coverage in the same epic, or carry an explicit deferral annotation.** The Lyra web app and the MCP server (`luisa-sys/lyra-mcp-server`) are two surfaces of the same product — anything an authenticated user can read or write on `checklyra.com` should be reachable by an agent through `mcp.checklyra.com`. Drift between the two erodes platform value and confuses users who assume parity.
@@ -491,6 +534,35 @@ These have caused real bugs. Read before making related changes:
 24. **zsh reserves `status`, `path`, `PWD`, `UID` as read-only — never use them as shell-script variable names**: The interactive dev shell is zsh. A poll loop that did `status=$(...)` failed with `zsh: read-only variable: status` and silently aborted mid-run. Use non-reserved names (`st`, `cc`, `rid`, `run`). If a one-liner exits non-zero with no useful output, suspect a readonly-var collision before anything else. (Also why `Bash` compound `cd` can prompt — prefer `git -C <dir>` or a standalone `cd`.)
 
 25. **Large Confluence pages fail `getConfluencePage` (timeout / "exceeds max tokens")**: Big pages — e.g. the Ops Control Room `33554434` when its tables grow unbounded — time out or overflow on fetch and dump the body to a file. Keep growing tables capped at source (Queue = open rows only; ledgers = ~10 newest rows), read the body via `jq '.content.nodes[0].body'`, and update via a deterministic Python file-write + a subagent push (Confluence version history is the restore net). Codified in House rules 9 & 10.
+
+26. **Postgres grants `EXECUTE` to `PUBLIC` on every new function, and `CREATE OR REPLACE` RESETS the ACL** — this is why revoking EXECUTE has regressed **nine times**: In Supabase, `PUBLIC` includes `anon` and `authenticated`, so *every* function is born world-executable. Worse, `CREATE OR REPLACE FUNCTION` on an existing function discards its ACL and restores that default. A one-off `REVOKE` migration therefore protects only the functions that existed when it ran — the next migration that adds *or merely re-creates* a function silently re-opens the hole.
+
+    This is the mechanism behind SEC-12 (prod vault RPCs executable by anon, CRITICAL), SEC-15, SEC-27 (`is_admin` self-elevation on prod), SEC-28, SEC-29, **SEC-42 (re-granted by a later migration *after* SEC-29 was closed and verified)**, SEC-43, BUGS-48, BUGS-65 and BUGS-69. Ten tickets, one root cause.
+
+    **The rule:** every migration carries its own revoke. Required shape:
+
+    ```sql
+    create or replace function public.fn(...) returns ...
+      language plpgsql
+      security definer
+      set search_path = public, pg_temp        -- never leave search_path unpinned (SEC-11, SEC-54)
+    as $$ ... $$;
+
+    revoke all on function public.fn(...) from public, anon, authenticated;
+    grant execute on function public.fn(...) to service_role;
+    ```
+
+    Grant `authenticated` EXECUTE **only** when the function performs its own authorization check in the body (as `admin_list_users` and `admin_filter_profile_ids` do — and note that over-revoking broke the admin console in BUGS-60, so the answer is the in-body check, not a blanket revoke). New `public` tables must `enable row level security` in the same migration.
+
+    **Guards (SEC-101):** `scripts/check-migration-privileges.py` (in `pr-checks.yml`) fails any PR whose migration breaks these rules, ratcheted against `supabase/migration-privileges-baseline.json` — 21 pre-existing violations are grandfathered and that list may only shrink. Because migrations are applied with the Supabase MCP `apply_migration` tool and can reach a database **without passing through a PR** (exactly how SEC-42 happened), the live backstop is `scripts/check-db-invariants.py` + `.github/workflows/db-invariants.yml`, which asserts seven invariants against dev, staging and production daily. Allow-list a migration with `-- db-privileges-ok: <reason>` plus a SEC key.
+
+27. **A "partial" write that copies `undefined` into the payload destroys every field the caller omitted**: An action that filters a caller-supplied record through an allowlist and writes the result must distinguish **"not provided"** (`undefined` → omit the key entirely) from **"explicitly cleared"** (`null`/`''` → write NULL). Coercing the two together — `sanitised[key] = val ?? null` — means any editor that loads a SUBSET of the field set and autosaves the whole draft silently wipes the columns it never loaded.
+
+    This is BUGS-74: the profile editor selected 4 of the 6 `profile_manual_of_me` columns, so `good_to_know` and `boundaries` were written as NULL over real members' saved text — on develop, staging, beta **and production**. BUGS-70 and BUGS-73 are the same family.
+
+    **The write path is the load-bearing half.** Fix it and a drifted loader is a display bug, not data loss. `updateProfileFields` was only *accidentally* safe until 2026-07-27 (`undefined` happened to be dropped by JSON serialisation on the way to PostgREST); one `?? null` would have re-created the defect on the primary `profiles` table.
+
+    **Guards (SEC-101):** `scripts/check-partial-write-safety.py` (in `pr-checks.yml`) is **function-scoped**, not file-scoped — an earlier file-scoped cut passed `actions.ts` because an unrelated function contained `!== undefined`. `tests/unit/partial-write-safety.test.ts` pins the runtime contract, **discovers** every reader of a form-backed table by scanning the tree (rather than trusting a hand-maintained list — that list is exactly why the legacy editor stayed broken after the first BUGS-74 fix), and checks each field allowlist against the actual migrated columns. Allow-list with `// partial-write-ok: <reason>` plus a Jira key.
 
 ## Supabase Migration Rules
 
