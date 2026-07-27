@@ -20,7 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('slug, updated_at')
-      .eq('is_published', true);
+      .eq('is_published', true)
+      // SEC-100: the sitemap is built with the SERVICE-ROLE client, which
+      // bypasses RLS — the `is_published = true AND is_suspended = false`
+      // policy on `profiles` does NOT apply here. Without this filter a
+      // suspended (moderated / taken-down) member's slug was still published
+      // to search engines for crawling. Identical mechanism to SEC-44.
+      // Guarded by scripts/check-suspension-guard-coverage.py.
+      .eq('is_suspended', false);
 
     profilePages = (profiles || []).map((profile) => ({
       url: `${baseUrl}/${profile.slug}`,

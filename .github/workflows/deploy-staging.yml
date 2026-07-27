@@ -219,7 +219,7 @@ jobs:
           # SHA verification above is the primary success signal. This URL
           # check is defense-in-depth — it confirms stage.checklyra.com is
           # reachable. Vercel SSO returns 401 for unauthenticated curl,
-          # which is expected and acceptable here. integrity-ok: 401 SHA-verified above
+          # which is expected and acceptable here. integrity-ok: 401 SHA-verified above (BUGS-4)
           STATUS=$(curl -so /dev/null -w "%{http_code}" --max-time 15 "https://stage.checklyra.com")
           echo "Staging site: $STATUS"
           [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ] || (echo "::error::Staging site unreachable" && exit 1)

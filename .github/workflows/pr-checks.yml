@@ -2,7 +2,13 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [develop, staging, main]
+    # SEC-101: `beta` was missing from this list, so a PR targeting beta ran NO
+    # quality gate at all — the promotion chain's last stop before production
+    # was its least-checked branch. Promotions normally reach beta through
+    # promote-staging-to-beta.yml rather than a PR, but "normally" is not a
+    # control. Listing every branch in the chain means there is no ungated
+    # route into production.
+    branches: [develop, staging, beta, main]
 
 defaults:
   run:
@@ -94,6 +100,70 @@ jobs:
         # canonical module, are never imported, and confuse audits. Fails the
         # PR if any tracked path carries the suffix. Allow-list in the script.
         run: bash scripts/check-macos-duplicate-files.sh
+      - name: Partial-write safety check (BUGS-74 generalised)
+        # The "partial read, whole-row write" data-loss class. An action that
+        # filters a caller-supplied record through an allowlist and writes it
+        # must treat `undefined` as "not provided" (omit the key), never as
+        # "clear this" (write NULL). Getting that wrong destroyed members'
+        # Manual-of-Me text on all four environments (BUGS-74); BUGS-70 and
+        # BUGS-73 are the same family. Function-scoped, not file-scoped — a
+        # guard in a sibling function must not launder an unguarded writer.
+        # Runs its own fixture self-test first so the detector cannot rot into
+        # a vacuous pass. Allow-list: `// partial-write-ok: <reason>`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-partial-write-safety.py --self-test
+          python3 scripts/check-partial-write-safety.py
+      - name: Suspension-guard coverage (SEC-100)
+        # Lyra's second-most recurrent security class: a suspension predicate
+        # added to one call site while its siblings stay bare (SEC-44, 47, 57,
+        # 58, 80, 81, 83, 84, 85, BUGS-21). The RLS policy on `profiles` does
+        # enforce is_published AND NOT is_suspended — but the SERVICE-ROLE
+        # client bypasses RLS and ~40 modules use it, which is exactly how
+        # search + sitemap were still exposing suspended members three weeks
+        # after SEC-44 closed. The invariant is stated on the QUERY, not the
+        # file or the client, so it enumerates the surface rather than sampling
+        # it. Allow-list: `// suspension-guard-ok: <reason>`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-suspension-guard-coverage.py --self-test
+          python3 scripts/check-suspension-guard-coverage.py
+      - name: Migration privilege check (SEC-101)
+        # Postgres grants EXECUTE to PUBLIC on every new function, and CREATE OR
+        # REPLACE RESETS the ACL to that default — which is why revoking EXECUTE
+        # has regressed nine times (SEC-12/15/27/28/29/42/43, BUGS-48/65/69).
+        # Every migration must carry its own REVOKE, pin search_path on any
+        # SECURITY DEFINER function, never GRANT to anon, and enable RLS on any
+        # new public table. Ratcheted against
+        # supabase/migration-privileges-baseline.json: the 21 pre-existing
+        # violations are grandfathered and that list may only shrink.
+        # The live counterpart is scripts/check-db-invariants.py.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-migration-privileges.py --self-test
+          python3 scripts/check-migration-privileges.py
+      - name: Database-invariant waiver hygiene (SEC-101)
+        # The waiver file is a control surface in its own right: a waiver with
+        # no expiry, no owner or no ticket is an unbounded exception. This also
+        # self-tests the live checker's waiver logic, so the expiry mechanism
+        # cannot silently stop failing. (The live DB assertion itself needs
+        # service-role credentials and runs in db-invariants.yml, not here.)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-db-invariants.py --self-test
+          python3 scripts/check-waiver-hygiene.py
+      - name: Control registry integrity (SEC-101)
+        # The meta-control. controls/registry.json is the durable memory of the
+        # Defect Feedback Loop — which control stops which defect class, and
+        # which historical tickets it would have caught. This fails if a
+        # registered control's file is missing, if nothing actually invokes it
+        # (the SEC-79 "disabled for weeks while reporting green" mode), or if a
+        # check script exists in the repo but was never registered. See
+        # docs/DEFECT_FEEDBACK_LOOP.md.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-control-registry.py --self-test
+          python3 scripts/check-control-registry.py
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and

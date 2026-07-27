@@ -66,6 +66,17 @@ export async function updateProfileFields(data: Record<string, string | boolean 
       rejected.push(key);
       continue;
     }
+    // BUGS-74 — "not provided" and "explicitly cleared" are different things:
+    //   undefined     → OMIT the key entirely, leaving the stored value alone
+    //   null / string → an explicit write (null clears the column)
+    // Until now this held only by accident: `undefined` was copied into the
+    // payload and happened to be dropped by JSON serialisation on the way to
+    // PostgREST. A single `?? null` would have turned every omitted field into
+    // a silent wipe — the exact mechanism that destroyed members' Manual-of-Me
+    // text. Make it explicit so the contract is asserted, not incidental.
+    // Guarded by scripts/check-partial-write-safety.py + the runtime contract
+    // cases in tests/unit/partial-write-safety.test.ts.
+    if (val === undefined) continue;
     sanitised[key] = typeof val === 'string' ? sanitiseText(val) : val;
   }
 

@@ -37,7 +37,14 @@ SPEC=$(curl -fSL "${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/" \
   -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY")
 # The OpenAPI document lists every exposed table as a top-level path "/<table>".
-mapfile -t TABLES < <(echo "$SPEC" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(p.lstrip('/') for p in d.get('paths',{}) if p.startswith('/') and p != '/' and '/' not in p.lstrip('/') and not p.startswith('/rpc'))))")
+# Portability: `mapfile` is a bash-4 builtin and macOS ships bash 3.2, so this
+# aborted with "mapfile: command not found" (exit 127) if run outside CI — a
+# backup script that dies before it starts, in a way that reads like a broken
+# harness rather than a failed backup. Same convention as staging-soak.sh.
+TABLES=()
+while IFS= read -r _table; do
+  [ -n "$_table" ] && TABLES+=("$_table")
+done < <(echo "$SPEC" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(p.lstrip('/') for p in d.get('paths',{}) if p.startswith('/') and p != '/' and '/' not in p.lstrip('/') and not p.startswith('/rpc'))))")
 
 if [ "${#TABLES[@]}" -eq 0 ]; then
   echo "ERROR: discovered 0 tables from the PostgREST root — refusing to write a near-empty 'backup'." >&2
