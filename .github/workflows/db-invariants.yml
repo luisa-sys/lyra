@@ -12,9 +12,26 @@ name: Database Security Invariants
 #
 # This workflow asks each running database what its posture actually is.
 #
-# Runs daily, on demand, and on any PR that touches the invariant surface
-# (so a change to the RPC, the checker or the waivers is exercised before merge
-# rather than discovered by the next nightly run).
+# Runs daily and on demand — deliberately NOT on pull_request.
+#
+# This job asserts the state of the LIVE databases. A pull request cannot change
+# that state (the migration reaches a database only after it is applied), so
+# running it as a PR check would gate every PR on a condition no PR can satisfy
+# — and the first response to an unsatisfiable required check is to disable it.
+# That is how gates die.
+#
+# The checker's LOGIC is still exercised on every PR: pr-checks.yml runs
+# `check-db-invariants.py --self-test` and `check-waiver-hygiene.py`, so a
+# broken waiver/expiry rule or a rotted detector fails at PR time. What lives
+# here is only the part that needs live credentials.
+#
+# Same "one concern, one owner" split the repo already uses for liveness
+# (health-check.yml) vs everything that merely cites it (KAN-361).
+#
+# NOTE: until migration 20260727090000_security_invariants_report.sql is applied
+# to dev, staging and production, every run reports UNVERIFIED and exits
+# non-zero. That is intentional and is the nag — an unapplied backstop is not a
+# healthy backstop, and it must not look like one.
 
 on:
   schedule:
@@ -22,13 +39,6 @@ on:
     # so a finding lands in the same morning's inbox.
     - cron: '15 6 * * *'
   workflow_dispatch:
-  pull_request:
-    branches: [develop, staging, beta, main]
-    paths:
-      - 'scripts/check-db-invariants.py'
-      - 'supabase/security-invariants-waivers.json'
-      - 'supabase/migrations/*security_invariants*'
-      - '.github/workflows/db-invariants.yml'
 
 defaults:
   run:
