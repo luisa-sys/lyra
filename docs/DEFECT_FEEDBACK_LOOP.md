@@ -108,7 +108,19 @@ survives, and on 2026-07-27 there were six collisions across thirteen files —
 breaking Supabase branch previews on every migration PR and making the DR
 restore path unprovable. The remediation was correct and complete. Only the
 prevention step was missing, and the defect walked straight back in. It is now
-rule R5 of `check-migration-privileges.py`, with BUGS-75 tracking the cleanup.
+rule R5 of `check-migration-privileges.py`, and BUGS-75 completed the cleanup on
+2026-07-27 — all six collisions renamed, zero R5 entries left in the baseline.
+
+BUGS-75 carries a second lesson worth keeping. Its own write-up asserted that a
+rename had to be paired with a per-environment reconcile of
+`supabase_migrations.schema_migrations`, "or the migration re-applies on the next
+replay" — and that claim, repeated in the baseline's comment, is what made the
+fix look risky enough to defer. It was false. Those tables are keyed on
+apply-time timestamps from the `apply_migration` MCP tool, not on repo file
+versions; none of the six colliding versions existed in dev, staging or prod. The
+remediation needed no database write at all. **A blocker recorded in a ticket is
+a hypothesis, not a finding — check it against the live system before it becomes
+the reason something waits.**
 
 ### (b) No control exists
 
