@@ -22,10 +22,10 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase-server';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction, logModerationActionsBatch } from '@/lib/admin';
 import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
+import { computeAccessTransition } from '@/lib/access-model';
 import {
   BULK_MAX,
   EMAIL_CAP,
-  computeAccessTransition,
   isBulkAction,
   type BulkAction,
   type UserFilter,

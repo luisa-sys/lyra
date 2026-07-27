@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { createServiceRoleClient } from '@/lib/supabase-service';
 import { createClient } from '@/lib/supabase-server';
 import { env } from '@/lib/env';
-import { computeAccessTransition } from '@/app/admin/users/users-actions-shared';
+import { computeAccessTransition } from '@/lib/access-model';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 
 /**
