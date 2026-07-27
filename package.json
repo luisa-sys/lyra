@@ -18,15 +18,15 @@
     "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.66.0",
+    "@sentry/nextjs": "^10.68.0",
     "@supabase/ssr": "^0.12.3",
-    "@supabase/supabase-js": "^2.110.0",
+    "@supabase/supabase-js": "^2.110.9",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
-    "next": "16.2.11",
-    "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
