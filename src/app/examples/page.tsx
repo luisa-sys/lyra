@@ -55,6 +55,9 @@ async function getExampleProfiles(): Promise<ExampleProfile[]> {
       .from("profiles")
       .select("id, display_name, slug, headline, city, country, avatar_url")
       .eq("is_published", true)
+      // SEC-100: service-role read, so RLS does not apply. Defence in depth —
+      // see the equivalent note in src/app/page.tsx.
+      .eq("is_suspended", false)
       .eq("is_homepage_example", true)
       .order("homepage_example_order", { ascending: true })
       .limit(60);

@@ -1,0 +1,107 @@
+name: Database Security Invariants
+
+# SEC-101 — the live backstop for Lyra's most recurrent security defect class.
+#
+# `scripts/check-migration-privileges.py` (in pr-checks.yml) holds every
+# migration in a PR to the privilege rules. That is necessary but not
+# sufficient: per CLAUDE.md, schema changes are applied with the Supabase MCP
+# `apply_migration` tool, so DDL routinely reaches a database WITHOUT passing
+# through a pull request. SEC-42 is exactly that — an `authenticated` EXECUTE
+# grant restored by a later migration after SEC-29 had been closed and
+# verified. No repo-side control could have seen it.
+#
+# This workflow asks each running database what its posture actually is.
+#
+# Runs daily, on demand, and on any PR that touches the invariant surface
+# (so a change to the RPC, the checker or the waivers is exercised before merge
+# rather than discovered by the next nightly run).
+
+on:
+  schedule:
+    # 06:15 UTC daily — after the 04:12 staging soak, before the 07:00 reports,
+    # so a finding lands in the same morning's inbox.
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+  pull_request:
+    branches: [develop, staging, beta, main]
+    paths:
+      - 'scripts/check-db-invariants.py'
+      - 'supabase/security-invariants-waivers.json'
+      - 'supabase/migrations/*security_invariants*'
+      - '.github/workflows/db-invariants.yml'
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  invariants:
+    name: Assert database security invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Self-test the checker
+        # If the waiver/expiry logic itself breaks, every environment would
+        # report clean for the wrong reason. Prove the detector works before
+        # trusting anything it says.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-db-invariants.py --self-test
+          python3 scripts/check-waiver-hygiene.py --self-test
+
+      - name: Assert required credentials are present
+        # NO SILENT SKIP. A missing secret must fail loudly, never quietly
+        # reduce coverage — that is the SEC-79 / KAN-167 failure mode, where
+        # health-check.yml and weekly-report.yml sat disabled for weeks while
+        # still reporting green.
+        env:
+          DEV_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          DEV_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          for v in DEV_URL DEV_KEY STAGING_URL STAGING_KEY PROD_URL PROD_KEY; do
+            if [ -z "${!v:-}" ]; then MISSING="$MISSING $v"; fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required secret(s):$MISSING"
+            echo "::error::Refusing to run a partial check that would look like a clean pass."
+            exit 1
+          fi
+          echo "All six environment credentials present."
+
+      - name: Check dev / staging / production
+        env:
+          DEV_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          DEV_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 scripts/check-db-invariants.py
+
+      - name: Raise the finding
+        if: failure()
+        run: |
+          set -euo pipefail
+          echo "::error::Database security invariants FAILED or could not be verified."
+          echo ""
+          echo "This is the SEC-12/15/27/28/29/42/43 + BUGS-48/65/69 family — a"
+          echo "SECURITY DEFINER function or storage bucket reachable by a role that"
+          echo "should not reach it. It has recurred nine times; treat a finding here"
+          echo "as live exposure until proven otherwise."
+          echo ""
+          echo "1. Read the annotations above for the exact object and environment."
+          echo "2. Fix forward with a NEW migration that REVOKEs — never by editing"
+          echo "   an applied migration."
+          echo "3. Raise a SEC ticket and record it in the Risk Register."
+          echo "4. If the finding is accepted, add a waiver with an owner, a Jira key"
+          echo "   and a date to supabase/security-invariants-waivers.json."
