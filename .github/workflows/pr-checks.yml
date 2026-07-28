@@ -2,7 +2,13 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [develop, staging, main]
+    # SEC-101: `beta` was missing from this list, so a PR targeting beta ran NO
+    # quality gate at all — the promotion chain's last stop before production
+    # was its least-checked branch. Promotions normally reach beta through
+    # promote-staging-to-beta.yml rather than a PR, but "normally" is not a
+    # control. Listing every branch in the chain means there is no ungated
+    # route into production.
+    branches: [develop, staging, beta, main]
 
 defaults:
   run:
@@ -94,6 +100,83 @@ jobs:
         # canonical module, are never imported, and confuse audits. Fails the
         # PR if any tracked path carries the suffix. Allow-list in the script.
         run: bash scripts/check-macos-duplicate-files.sh
+      - name: Partial-write safety check (BUGS-74 generalised)
+        # The "partial read, whole-row write" data-loss class. An action that
+        # filters a caller-supplied record through an allowlist and writes it
+        # must treat `undefined` as "not provided" (omit the key), never as
+        # "clear this" (write NULL). Getting that wrong destroyed members'
+        # Manual-of-Me text on all four environments (BUGS-74); BUGS-70 and
+        # BUGS-73 are the same family. Function-scoped, not file-scoped — a
+        # guard in a sibling function must not launder an unguarded writer.
+        # Runs its own fixture self-test first so the detector cannot rot into
+        # a vacuous pass. Allow-list: `// partial-write-ok: <reason>`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-partial-write-safety.py --self-test
+          python3 scripts/check-partial-write-safety.py
+      - name: Suspension-guard coverage (SEC-100)
+        # Lyra's second-most recurrent security class: a suspension predicate
+        # added to one call site while its siblings stay bare (SEC-44, 47, 57,
+        # 58, 80, 81, 83, 84, 85, BUGS-21). The RLS policy on `profiles` does
+        # enforce is_published AND NOT is_suspended — but the SERVICE-ROLE
+        # client bypasses RLS and ~40 modules use it, which is exactly how
+        # search + sitemap were still exposing suspended members three weeks
+        # after SEC-44 closed. The invariant is stated on the QUERY, not the
+        # file or the client, so it enumerates the surface rather than sampling
+        # it. Allow-list: `// suspension-guard-ok: <reason>`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-suspension-guard-coverage.py --self-test
+          python3 scripts/check-suspension-guard-coverage.py
+      - name: Migration privilege check (SEC-101)
+        # Postgres grants EXECUTE to PUBLIC on every new function, and CREATE OR
+        # REPLACE RESETS the ACL to that default — which is why revoking EXECUTE
+        # has regressed nine times (SEC-12/15/27/28/29/42/43, BUGS-48/65/69).
+        # Every migration must carry its own REVOKE, pin search_path on any
+        # SECURITY DEFINER function, never GRANT to anon, and enable RLS on any
+        # new public table. Ratcheted against
+        # supabase/migration-privileges-baseline.json: the 21 pre-existing
+        # violations are grandfathered and that list may only shrink.
+        # The live counterpart is scripts/check-db-invariants.py.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-migration-privileges.py --self-test
+          python3 scripts/check-migration-privileges.py
+      - name: Database-invariant waiver hygiene (SEC-101)
+        # The waiver file is a control surface in its own right: a waiver with
+        # no expiry, no owner or no ticket is an unbounded exception. This also
+        # self-tests the live checker's waiver logic, so the expiry mechanism
+        # cannot silently stop failing. (The live DB assertion itself needs
+        # service-role credentials and runs in db-invariants.yml, not here.)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-db-invariants.py --self-test
+          python3 scripts/check-waiver-hygiene.py
+      - name: Workflow secret-reference check (SEC-102)
+        # GitHub expands an UNDEFINED secret to the empty string, silently — no
+        # warning, no annotation, no failed step. deploy-dev.yml had been passing
+        # two non-existent secrets into `npm run build`, so its "Verify build"
+        # step was building against a blank Supabase config and still passing.
+        # Every `secrets.X` must be in .github/known-secrets.txt (generated
+        # verbatim from `gh secret list`) or in .github/absent-secrets.txt with a
+        # reason AND a Jira key — because not every absence is a defect, but an
+        # absence nobody is tracking is not a decision either.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-secret-refs.py --self-test
+          python3 scripts/check-workflow-secret-refs.py
+      - name: Control registry integrity (SEC-101)
+        # The meta-control. controls/registry.json is the durable memory of the
+        # Defect Feedback Loop — which control stops which defect class, and
+        # which historical tickets it would have caught. This fails if a
+        # registered control's file is missing, if nothing actually invokes it
+        # (the SEC-79 "disabled for weeks while reporting green" mode), or if a
+        # check script exists in the repo but was never registered. See
+        # docs/DEFECT_FEEDBACK_LOOP.md.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-control-registry.py --self-test
+          python3 scripts/check-control-registry.py
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and
@@ -102,6 +185,20 @@ jobs:
         # prevents the auto-fix workflow from silently breaking when
         # someone edits a pattern.
         run: python3 scripts/auto-fix-known-failures.py --self-test
+      - name: Bash 3.2 portability check (BUGS-76)
+        # macOS ships bash 3.2; CI ships bash 5. A bash-4 builtin in
+        # scripts/ therefore works here and exits 127 on the machine where
+        # releases are prepared. That is how the SEC-77 auto-promote gate
+        # became unrunnable locally — all seven of its tests failed on macOS
+        # while passing on ubuntu-latest, which trains the reader to ignore a
+        # red suite. staging-soak.sh has documented the rule since it was
+        # written and two scripts shipped with mapfile anyway; a convention
+        # without a gate erodes. Workflow YAML is out of scope by design —
+        # inline run: blocks only ever execute on the runner.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-bash-portability.py --self-test
+          python3 scripts/check-bash-portability.py
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -113,6 +210,27 @@ jobs:
         run: npm run lint
       - name: Run type check
         run: npm run type-check
+      - name: Dependency-rule gate (KAN-425)
+        # Three structural rules from .dependency-cruiser.cjs: nothing under
+        # src/lib/** may import src/app/**; one top-level src/app segment may
+        # not import another; no import cycles. Landing them now stops the
+        # codebase regressing while the modularisation programme (KAN-415)
+        # runs — the precedent is src/lib/deploy-env.ts, built to be the single
+        # environment resolver, which never displaced the six inline
+        # derivations because nothing stopped new ones being written.
+        #
+        # Placed after `npm ci` because dependency-cruiser is a dev-dependency.
+        #
+        # ROLL-OUT: severity `warn` — violations are printed and annotated, the
+        # build stays green. Flip to blocking by changing DEPCRUISE_SEVERITY to
+        # `error` once the outstanding findings are cleared (they are KAN-424
+        # Defects 2 and 3 plus two more found by this gate; see docs/RUNBOOK.md
+        # → "Dependency-rule gate (KAN-425)"). That variable is the ONLY
+        # intended change — never relax a rule's definition to make it pass.
+        #
+        # Fails closed: if dependency-cruiser cannot run (missing/unparseable
+        # config, missing binary), the step fails rather than passing quietly.
+        run: DEPCRUISE_SEVERITY=warn bash scripts/check-dependency-rules.sh
       - name: Run unit tests
         run: npm run test:unit
         env:

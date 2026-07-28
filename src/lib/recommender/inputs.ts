@@ -9,7 +9,7 @@
  *
  * Keep the enum literals here aligned with:
  *   - The SQL check constraint in
- *     supabase/migrations/20260516220000_recipient_recommender_fields.sql
+ *     supabase/migrations/20260516220100_recipient_recommender_fields.sql
  *   - The JSONB shape in docs/RECOMMENDER_INPUTS.md
  *
  * No `'use server'` — this module exports types + constants + pure

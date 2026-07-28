@@ -23,7 +23,7 @@ const MIGRATION = path.join(
   '..',
   'supabase',
   'migrations',
-  '20260621120000_sec06_oauth_connections_secret_columns_lockdown.sql'
+  '20260621120050_sec06_oauth_connections_secret_columns_lockdown.sql'
 );
 
 describe('SEC-06 / BUGS-28 oauth_connections secret-column guard', () => {

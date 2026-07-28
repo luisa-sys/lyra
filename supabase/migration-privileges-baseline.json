@@ -1,0 +1,32 @@
+{
+  "_comment": "Ratchet baseline for scripts/check-migration-privileges.py. Violations present when each rule was adopted. This list may only SHRINK \u2014 never add to it. Fix forward with a NEW migration; migrations are immutable once applied. R2 was TIGHTENED on 2026-07-27 after an external review disproved the model it was built on. It originally required only 'REVOKE ... FROM PUBLIC', which on Supabase is a no-op against anon/authenticated because ALTER DEFAULT PRIVILEGES grants them directly \u2014 so it PASSED a fixture shipping an anon-callable SECURITY DEFINER function. Four entries below revoke from PUBLIC only (search_by_contact_hash, get_metrics_for_window, admin_filter_profile_ids, admin_list_users) and are the actual root cause of SEC-28/29/42/43. Live posture is currently clean \u2014 later out-of-band revokes closed them \u2014 which is exactly why the LIVE check (scripts/check-db-invariants.py) matters as much as this static one. SEC-103 will invert the default grant so the class becomes impossible rather than detected. R5 (duplicate migration versions) has NO entries: BUGS-75 renamed all six collisions on 2026-07-27. The rule stays to block the next one.",
+  "adopted": "2026-07-27",
+  "ticket": "SEC-101",
+  "violations": [
+    "20260324061701_create_lyra_schema.sql::R1-unpinned-search-path::handle_new_user",
+    "20260324061701_create_lyra_schema.sql::R2-revoke-does-not-cover-public-anon-authenticated::handle_new_user",
+    "20260514100000_phone_postcode_search.sql::R2-revoke-does-not-cover-anon-authenticated::search_by_contact_hash",
+    "20260516200100_convene_spike_oauth.sql::R2-revoke-does-not-cover-public::convene_vault_read_secret",
+    "20260516200100_convene_spike_oauth.sql::R2-revoke-does-not-cover-public::convene_vault_revoke_secret",
+    "20260516200100_convene_spike_oauth.sql::R2-revoke-does-not-cover-public::convene_vault_store_secret",
+    "20260516220000_metrics_window_fn.sql::R2-revoke-does-not-cover-anon-authenticated::get_metrics_for_window",
+    "20260516230400_convene_relationship_signals.sql::R2-revoke-does-not-cover-public::refresh_relationship_signals",
+    "20260516250100_convene_oauth_connect_state.sql::R2-revoke-does-not-cover-public::oauth_connect_state_purge_expired",
+    "20260620120100_beta_access_lockdown.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_beta_self_elevation",
+    "20260622061545_sec27_block_admin_is_suspended_self_set.sql::R2-revoke-does-not-cover-public-anon-authenticated::block_admin_is_suspended_self_set",
+    "20260622120000_two_axis_access_model.sql::R2-revoke-does-not-cover-anon-authenticated::admin_filter_profile_ids",
+    "20260622120000_two_axis_access_model.sql::R2-revoke-does-not-cover-anon-authenticated::admin_list_users",
+    "20260622120000_two_axis_access_model.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_beta_self_elevation",
+    "20260622140000_feature_entitlements.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_feature_entitlement_self_grant",
+    "20260622160000_age_verification_status.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_beta_self_elevation",
+    "20260622170000_block_admin_suspended_self_set.sql::R2-revoke-does-not-cover-public-anon-authenticated::block_admin_is_suspended_self_set",
+    "20260624120000_clean_access_model_user_status_access_tier.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_beta_self_elevation",
+    "20260624130000_admin_list_users_status_fields.sql::R2-revoke-does-not-cover-public-anon-authenticated::admin_list_users",
+    "20260628190000_kan326_phase_c_drop_legacy_access_cols.sql::R2-revoke-does-not-cover-public-anon-authenticated::admin_filter_profile_ids",
+    "20260628190000_kan326_phase_c_drop_legacy_access_cols.sql::R2-revoke-does-not-cover-public-anon-authenticated::admin_list_users",
+    "20260628190000_kan326_phase_c_drop_legacy_access_cols.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_beta_self_elevation",
+    "20260704180000_sec54_sec56_bugs65_secdef_rls_grant_batch.sql::R2-revoke-does-not-cover-public-anon-authenticated::handle_new_user",
+    "20260713093000_sec80_contact_hash_suspended_guard.sql::R2-revoke-does-not-cover-public-anon-authenticated::search_by_contact_hash",
+    "20260721120000_global_feature_switches.sql::R2-revoke-does-not-cover-public-anon-authenticated::prevent_global_feature_switch_user_write"
+  ]
+}

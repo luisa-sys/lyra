@@ -151,6 +151,26 @@ jobs:
           echo "RESTORE_ERR_COUNT=$ERR_COUNT" >> "$GITHUB_ENV"
           echo "Restore finished in $((END - START))s with ${ERR_COUNT} statement error(s)"
 
+          # SEC-23: a PASSING drill previously reported only the COUNT of tolerated
+          # errors — "8 statement error(s)" with the detail buried in restore.err,
+          # which is never uploaded. That is unauditable: nobody could tell benign
+          # role/grant noise (expected in a clean-room container that has no
+          # anon/authenticated/service_role) from something that silently dropped an
+          # object. Always print the distinct error messages, not just the tally.
+          if [ "${ERR_COUNT:-0}" -gt 0 ]; then
+            echo "Tolerated restore errors (distinct, with counts) —"
+            sed 's/^psql:[^:]*:[0-9]*: //' restore.err | grep '^ERROR:' \
+              | sort | uniq -c | sort -rn | head -20 | sed 's/^/    /'
+            {
+              echo "<details><summary>Tolerated restore errors (${ERR_COUNT})</summary>"
+              echo
+              echo '```'
+              sed 's/^psql:[^:]*:[0-9]*: //' restore.err | grep '^ERROR:' | sort | uniq -c | sort -rn | head -40
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Assert the data round-trips
         run: |
           set -euo pipefail

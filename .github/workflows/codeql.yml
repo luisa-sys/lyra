@@ -1,9 +1,14 @@
 name: CodeQL Security Analysis
 on:
+  # SEC-101: `beta` was missing here while beta's branch protection REQUIRES the
+  # "CodeQL Analysis" check. A required check that can never run is an
+  # unsatisfiable gate, and the only way past it is an admin override — so the
+  # override became the normal path onto the branch that shares the PRODUCTION
+  # database. Same omission was fixed in pr-checks.yml (PR #594).
   push:
-    branches: [develop, staging, main]
+    branches: [develop, staging, beta, main]
   pull_request:
-    branches: [develop, staging, main]
+    branches: [develop, staging, beta, main]
   schedule:
     - cron: '0 3 * * 0'  # Weekly Sunday 03:00 UTC
 

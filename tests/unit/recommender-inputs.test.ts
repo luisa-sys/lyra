@@ -27,7 +27,7 @@ import {
 describe('KAN-198 recommender inputs — AGE_RANGE_BUCKETS', () => {
   test('matches the SQL CHECK constraint exactly', () => {
     // If you change the buckets here, also change the constraint in
-    // supabase/migrations/20260516220000_recipient_recommender_fields.sql
+    // supabase/migrations/20260516220100_recipient_recommender_fields.sql
     // and the docs in docs/RECOMMENDER_INPUTS.md.
     expect([...AGE_RANGE_BUCKETS]).toEqual([
       '0_5',

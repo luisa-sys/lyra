@@ -74,7 +74,19 @@ fi
 
 # Non-merge commits in BASE..HEAD, hashes only (subjects fetched per-hash so a
 # subject containing '|' or newlines can't desync the parse).
-mapfile -t COMMITS < <(git rev-list --no-merges "${BASE}..${HEAD}")
+#
+# Written for bash 3.2 as well as 5.x: `mapfile` is a bash-4 builtin, and macOS
+# ships bash 3.2, so it aborted with "mapfile: command not found" on the
+# founder's own machine — the seven tests in
+# tests/scripts/check-fix-only-promote.test.js failed locally while passing on
+# ubuntu-latest. A release gate that cannot run where the release is prepared
+# is a weakened gate, and the failure mode (exit 127 with no finding) reads
+# like a broken harness rather than a broken control. Same portability
+# convention as scripts/check-server-action-exports.sh.
+COMMITS=()
+while IFS= read -r _sha; do
+  [ -n "$_sha" ] && COMMITS+=("$_sha")
+done < <(git rev-list --no-merges "${BASE}..${HEAD}")
 
 if [ "${#COMMITS[@]}" -eq 0 ]; then
   echo "::error::check-fix-only-promote: no non-merge commits in ${BASE}..${HEAD} — nothing to auto-promote. Refusing an empty auto-promote (fail-closed)."
