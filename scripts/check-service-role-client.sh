@@ -23,9 +23,23 @@ FACTORY='src/lib/supabase-service.ts'
 # src/lib/env.ts is `supabaseServiceRoleKey: () => …` (no leading dot), so the
 # `\.` anchor matches only *calls* (`env.supabaseServiceRoleKey()`), never the
 # definition.
-MATCHES=$(
-  grep -rnE '\.supabaseServiceRoleKey\(\)' --include='*.ts' --include='*.tsx' src/ 2>/dev/null || true
-)
+# grep exits 1 for "no match" — the answer we want — but >=2 when the search
+# ITSELF failed. A bare `|| true` here makes those two indistinguishable, and
+# this control's clean result is an EMPTY match list: an unreadable src/ would
+# print "All service-role clients go through the factory" and pass a
+# security gate that never ran. That is the KAN-167 false-green class (and the
+# SEC-79 shape: a control reporting green while disabled). Exit 2 = unverified.
+if MATCHES="$(grep -rnE '\.supabaseServiceRoleKey\(\)' --include='*.ts' --include='*.tsx' src/ 2>&1)"; then
+  GREP_RC=0
+else
+  GREP_RC=$?
+fi
+if [ "$GREP_RC" -gt 1 ]; then
+  echo "::error::check-service-role-client: the search command failed (exit ${GREP_RC}): ${MATCHES}"
+  echo "::error::  Failing closed (exit 2) rather than reporting a clean scan that never ran."
+  exit 2
+fi
+[ "$GREP_RC" -eq 1 ] && MATCHES=""
 
 VIOLATIONS=0
 while IFS=: read -r file linenum content; do
