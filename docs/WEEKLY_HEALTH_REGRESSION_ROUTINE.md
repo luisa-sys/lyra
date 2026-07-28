@@ -20,7 +20,7 @@ This routine checks Lyra is healthy, runs the full regression + E2E + build suit
 | Tests + build | `scripts/weekly-health-regression.sh` | lint, type-check, unit, scripts, integration, E2E, build — honest PASS/FAIL/UNVERIFIED |
 | Live health | agent (curl / connectors) | `*/api/health`, MCP `/health`, deploy SHAs, CI status |
 | Triage + fix | agent | open `claude/*` PR per fix, log Jira (BUGS/SEC), respect the boundaries above |
-| Release | agent (GitHub connector) | full chain develop→staging→beta→prod **for fix-only releases**; STOP + manual sign-off if any feature is pending |
+| Release | agent (GitHub connector) | prepare + report only — may rehearse `develop → staging`, **never** promotes past staging (no auto-promote-to-production path exists, fix-only or otherwise, per the 2026-07-23 withdrawal — see boundary 1) |
 | Self-update | agent | propose improvements to THIS routine's script/prompt/doc via a PR (never silent) |
 
 ## Prerequisite (same as the other routines)
@@ -87,26 +87,20 @@ log everything, and rehearse the release pipeline up to (not through) the prod g
      security findings, with the failing output + your diagnosis + the PR link.
 4. RESIDUAL BUGS: also scan for residual/known issues (open BUGS/SEC tickets, TODO/FIXME,
    flaky tests, Dependabot/CodeQL alerts) and fix the safe ones under the same rules.
-5. RELEASE (auto for FIX-ONLY releases; manual for features — see boundary 1):
+5. RELEASE (PREPARE ONLY — the promote gate is Luisa's; see boundary 1. The
+   2026-06-21 fix-only auto-promote exception referenced by earlier revisions of
+   this step was WITHDRAWN 2026-07-23 and has no live successor — do not run
+   promote_mode=auto-fix-only or any variant regardless of what is pending):
    - Determine what is pending on develop ahead of main (the changes that WOULD ship to prod):
-     git log --oneline origin/main..origin/develop. CLASSIFY every commit.
-   - If ALL pending changes are bug-FIXES (BUGS/SEC defects, fix: commits; NO new feature,
-     user-facing capability, route, table, MCP tool, or migration) -> you are AUTHORISED to ship:
-       a. Bump package.json: npm version patch --no-git-tag-version (per KAN-166), commit on a claude/ PR.
-       b. Promote the chain: promote-to-staging.yml -> verify staging green + healthy ->
-          promote-staging-to-beta.yml -> verify beta ->
-          promote-to-production.yml -f confirm=PRODUCTION -f promote_mode=auto-fix-only.
-          The `-f promote_mode=auto-fix-only` flag is REQUIRED for the auto path: the workflow then
-          runs scripts/check-fix-only-promote.sh and HARD-FAILS the promote if any commit in
-          origin/main..origin/beta is a feature / breaking / ambiguous change (SEC-77 — the fix-only
-          gate is now machine-enforced, not just your judgement). If it fails, treat as "release holds
-          a feature" -> STOP and require manual sign-off (see the ambiguous branch below).
-       c. The prod workflow runs smoke tests + AUTO-ROLLBACK. If it rolls back, treat as FAIL,
-          open a Highest-priority BUGS ticket, and STOP.
-       d. Verify prod after: curl https://checklyra.com/api/health and https://mcp.checklyra.com/health.
-   - If ANY pending change is a feature, OR you are unsure whether something is a fix vs a feature
-     -> DO NOT promote past staging. STOP and report: "release holds a feature / is ambiguous —
-     needs manual sign-off: gh workflow run promote-to-production.yml -f confirm=PRODUCTION".
+     git log --oneline origin/main..origin/develop. CLASSIFY every commit as fix vs feature,
+     and flag any commit touching look/text under rule C (if the live prompt carries one).
+   - You MAY promote as far as STAGING to rehearse the chain: promote-to-staging.yml, then
+     verify staging is green + healthy. Do NOT go further.
+   - NEVER run promote-staging-to-beta.yml or promote-to-production.yml, even when every
+     pending change is a bug-fix. Luisa runs those herself, always.
+   - Report release-readiness and end with the exact commands for Luisa to run herself:
+       gh workflow run promote-staging-to-beta.yml -f confirm=promote
+       gh workflow run promote-to-production.yml -f confirm=PRODUCTION
 6. SELF-UPDATE: if you found a way this routine (script/prompt/doc) should improve, open a
    PR proposing it — do NOT silently change your own behaviour.
 7. REPORT + LOG: append a run-log row to this doc (date, PASS/FAIL counts, bugs fixed +
