@@ -453,7 +453,7 @@ This is policy, not a suggestion. Tracked under KAN-167.
 
 These have caused real bugs. Read before making related changes:
 
- 1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge.
+ 1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge. **This is not license to base a workflow-change PR on `main`** (BUGS-79): it argues for *when* the change takes effect, not *where* its PR is based. Every PR — workflow files included — still enters at `develop` and reaches `main` only via the normal promote chain (SEC-98); it just takes effect on `main` one promote cycle later than a hypothetical direct PR would. `.github/dependabot.yml` sets `target-branch: "develop"` on every ecosystem, including `github-actions`, for exactly this reason.
 
  2. **Vercel branch scoping**: The `develop` branch deploys as a Preview environment. Variables must be scoped via CLI (`vercel env add [VAR] preview develop`) — the dashboard UI cannot scope to a specific branch.
 
