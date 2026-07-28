@@ -593,6 +593,23 @@ These have caused real bugs. Read before making related changes:
 
     **Guards (SEC-101):** `scripts/check-partial-write-safety.py` (in `pr-checks.yml`) is **function-scoped**, not file-scoped — an earlier file-scoped cut passed `actions.ts` because an unrelated function contained `!== undefined`. `tests/unit/partial-write-safety.test.ts` pins the runtime contract, **discovers** every reader of a form-backed table by scanning the tree (rather than trusting a hand-maintained list — that list is exactly why the legacy editor stayed broken after the first BUGS-74 fix), and checks each field allowlist against the actual migrated columns. Allow-list with `// partial-write-ok: <reason>` plus a Jira key.
 
+28. **macOS ships bash 3.2, CI ships bash 5 — a bash-4 builtin in `scripts/` is green in CI and exit 127 on the machine where releases are prepared**: `/bin/bash` on macOS is **3.2.57**, the last GPLv2 release (2007). `mapfile`, `readarray`, `declare -A`, `${v^^}`/`${v,,}`, `&>>`, `coproc` and `shopt -s globstar` are all bash 4+. None of them fail at review; they fail on a developer's laptop with `command not found` and **exit 127** — a failure that reads like a broken harness, not a broken control.
+
+    BUGS-76: `check-fix-only-promote.sh` (the SEC-77 auto-promote gate) and `backup-database-api.sh` both used `mapfile`, so **`npm run test:unit` could not pass on macOS** — all seven cases of `tests/scripts/check-fix-only-promote.test.js` failed locally while passing on ubuntu-latest. A red suite that is "expected to be red" trains you to stop reading it. Fixed in #594.
+
+    **The rule:** anything under `scripts/` runs both in CI *and* by hand, so it must be bash-3.2-clean. The portable substitute for `mapfile -t ARR < <(cmd)` is:
+
+    ```bash
+    ARR=()
+    while IFS= read -r line || [ -n "$line" ]; do ARR+=("$line"); done < <(cmd)
+    ```
+
+    (The `|| [ -n "$line" ]` also captures a final line with no trailing newline — strictly better than `mapfile`.) Use `tr '[:upper:]' '[:lower:]'` instead of `${v,,}`, `>>file 2>&1` instead of `&>>`, and `find`/`git ls-files` instead of globstar.
+
+    **Note the shape of this failure — it is the one worth remembering.** `staging-soak.sh:16` has carried the comment *"Portability: no `mapfile`/`readarray` (absent in macOS bash 3.2)"* since the day it was written, and two other scripts shipped with `mapfile` anyway. **A documented convention with no gate erodes** — the same lesson as `deploy-env.ts`, whose six ad-hoc callers survived the module built to replace them.
+
+    **Guard (CTL-031):** `scripts/check-bash-portability.py` (in `pr-checks.yml`, with `--self-test`). Comments are stripped before matching, so the prose explaining this hazard does not trip it — that case is pinned as a self-test fixture. **Workflow YAML is deliberately out of scope**: an inline `run:` block only ever executes on the runner, so findings there could only be allow-listed, and standing noise is what teaches people to wave a gate through. (`.github/workflows/backup-complete.yml` legitimately uses `shopt -s globstar` at lines 305 and 334.) Allow-list a genuinely CI-only line with `# bash-portability-ok: <reason>` plus a Jira key.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
