@@ -9,8 +9,9 @@ This routine checks Lyra is healthy, runs the full regression + E2E + build suit
 
 1. **Production promote — MANUAL ONLY. The fix-only auto-promote exception was WITHDRAWN 2026-07-23.** The routine prepares release-readiness (classify pending commits, may rehearse `develop → staging`) and **reports** — it must NOT run `promote-to-production.yml` or `promote-staging-to-beta.yml` under any condition, including an all-fixes pending set. This reverts to the project's default "production promote is always manual" rule (`CLAUDE.md` → Deployment Pipeline). Historical context: from 2026-06-21 to 2026-07-23 an owner-authorized exception let the routine auto-promote **only when every change pending on `develop` ahead of `main` was a bug-FIX** (a BUGS/SEC defect, `fix:`-type — never a feature) after the full suite was green through staging + beta, always via `promote-to-production.yml` (built-in smoke + auto-rollback). Luisa withdrew that authority on 2026-07-23; do not act on the historical text unless she reinstates it here in writing with a new date.
 2. **Test Integrity Policy.** A failing test means the *code* is wrong, not the test. The routine must **never** modify, weaken, skip, or delete a test to go green. If a fix would require a test change, it **STOPS and reports** for sign-off.
-3. **Autonomy with a stop-line.** Fix what's unambiguous and low-risk on a `claude/*` branch → PR to `develop`. For anything ambiguous, architectural, security-sensitive, data-model/RLS/migration, or requiring a test change → **STOP and report to the user**. (Mirrors your instruction: "Stop where you are unsure … otherwise act autonomously.")
-4. **No self-merge to protected branches.** Open PRs; the routine may merge its own fix PR to `develop` **only** when CI is green and the change is low-risk — never to `staging/beta/main`.
+3. **Look and text belong to Luisa.** The routine must never change how a Lyra webpage looks or reads. Off-limits: `src/app/**/*.tsx` (pages, layouts, colocated components), `src/components/**`, `src/app/globals.css` and any styling/design token, `postcss.config.mjs`, `public/` brand assets, page titles and metadata, and the user-visible copy modules (invite/SMS/email templates, affiliation/organise field labels). Still in scope: `src/app/api/**`, `route.ts` handlers, the rest of `src/lib/**`, `src/app/admin/**`, `src/middleware.ts`, `scripts/**`, `.github/**`, `docs/**`, `tests/**`, `supabase/**`. An auto-fix that would touch a page, component, stylesheet, brand asset, or user-visible string is NOT a fix-only change — even a one-word fix, an accessibility fix, or a test fix. If a test asserting page copy or design fails, the page is right and the change is wrong — report it, never relax the assertion. `scripts/check-ui-copy-ownership.sh` is the mechanical backstop; a red result is the rule working, not a bug to route around. (Filed as KAN-430 — this rule was present in the live scheduled prompt before this doc caught up.)
+4. **Autonomy with a stop-line.** Fix what's unambiguous and low-risk on a `claude/*` branch → PR to `develop`. For anything ambiguous, architectural, security-sensitive, data-model/RLS/migration, UI/copy (rule 3), or requiring a test change → **STOP and report to the user**. (Mirrors your instruction: "Stop where you are unsure … otherwise act autonomously.")
+5. **No self-merge to protected branches.** Open PRs; the routine may merge its own fix PR to `develop` **only** when CI is green and the change is low-risk — never to `staging/beta/main`.
 
 ## How the run is split
 
@@ -47,11 +48,25 @@ Then verify scripts/weekly-health-regression.sh exists; if not, STOP and say the
 checkout failed — do NOT improvise.
 
 Read the repo for context first: CLAUDE.md, docs/RUNBOOK.md, docs/RELEASE_POLICY.md,
-docs/ARCHITECTURE.md. Obey them. Two rules are absolute:
-  (A) PRODUCTION PROMOTE IS MANUAL — never run promote-to-production.yml, never push
-      to main/beta/staging, never vercel-promote to prod. You prepare + report only.
+docs/ARCHITECTURE.md. Obey them. Three rules are absolute:
+  (A) PRODUCTION PROMOTE IS MANUAL — never run promote-to-production.yml, never run
+      promote-staging-to-beta.yml, never push to main/beta/staging, never vercel-promote
+      to prod. You prepare + report only. Luisa runs the prod gate herself, always.
   (B) TEST INTEGRITY — never modify/skip/weaken/delete a test to make it pass. If a fix
       needs a test change, STOP and report for sign-off.
+  (C) LOOK AND TEXT BELONG TO LUISA — you never change how a Lyra webpage looks or reads.
+      Off-limits: src/app/**/*.tsx (pages, layouts, colocated components), src/components/**,
+      src/app/globals.css and any styling or design token, postcss.config.mjs, public/ brand
+      assets, page titles and metadata, and user-visible copy modules. Explicitly still yours:
+      src/app/api/**, every route.ts handler, the rest of src/lib/**, src/app/admin/** (Luisa-
+      only console behind Cloudflare Access), src/middleware.ts, scripts/**, .github/**,
+      docs/**, tests/**, supabase/**. An auto-fix that would edit a page, component,
+      stylesheet, brand asset or user-visible string is NOT a fix-only change — do not
+      auto-fix it. STOP, name the exact files, and lead your report with ACTION NEEDED. This
+      holds even for a one-word fix, an accessibility fix, or a test fix. If a test asserting
+      page copy or design fails, the page is right and your change is wrong — report it,
+      never relax the assertion. scripts/check-ui-copy-ownership.sh is the mechanical
+      backstop — a red result is the rule working, not a bug to route around.
 
 GOAL: confirm Lyra is healthy, run full regression + E2E, fix what you safely can,
 log everything, and rehearse the release pipeline up to (not through) the prod gate.
@@ -66,7 +81,8 @@ log everything, and rehearse the release pipeline up to (not through) the prod g
    - Open a PR to develop. If CI is green and the fix is low-risk, you may merge it to
      develop. NEVER merge to staging/beta/main.
    - STOP and report (do not fix) anything ambiguous, architectural, security/RLS/auth,
-     migration/data-model, or that would require a test change. List it for the user.
+     migration/data-model, that touches look/text (rule C), or that would require a test
+     change. List it for the user.
    - Log every bug + fix in Jira the usual way: BUGS (6-section) for defects, SEC for
      security findings, with the failing output + your diagnosis + the PR link.
 4. RESIDUAL BUGS: also scan for residual/known issues (open BUGS/SEC tickets, TODO/FIXME,
