@@ -5,6 +5,10 @@
 **Method:** 8 parallel read-only code surveys + 2 competing architecture proposals, synthesised. Every number below is re-derivable from the repos.
 **Relationship to existing work:** this is the successor programme to **KAN-350** Phase 3. It absorbs, re-scopes or depends on KAN-353, KAN-355, KAN-356, KAN-358 (see §7).
 
+> **⚠️ Baseline re-validated 2026-07-28 against `674f0a7`** — see [`PLAN-REVALIDATION-2026-07-28.md`](./PLAN-REVALIDATION-2026-07-28.md) (KAN-432). Unless a figure is explicitly marked *re-validated*, every number below is **as-surveyed 2026-07-26** and should be re-derived before it is relied on.
+>
+> **⚠️ SCOPE RULING — founder decision, 2026-07-28 (KAN-432 §5, option A): the extraction programme D1–D15 is DEFERRED.** The adopted scope is **Phase 0 in full + `@lyra/contracts` + the data boundary (C3) + the `profiles` ADR**. D1–D15 are not cancelled — they are re-decided after Phase 0, on evidence measured against a decoupled test estate and a typed schema, rather than on the 2026-07-26 survey. The reasoning is in §2.2 and §6. **No file moves into `src/modules/` under the current scope.**
+
 ---
 
 ## 1. What the survey actually found (and why it changes the plan)
@@ -13,17 +17,19 @@ The instinct behind this request — "the code is tangled, break it into modules
 
 ### 1.1 The code is already horizontally modular
 
-The static import graph of `src/` is 273 nodes and 525 edges. Of those:
+The static import graph of `src/` is 273 nodes and 525 edges (**re-validated 2026-07-28: 274 nodes / 527 edges**). Of those:
 
-| Measure | Value | Meaning |
-|---|---|---|
-| `lib` → `app` edges (wrong-direction) | **1** | `lib/beta-access/flow.ts` → `app/admin/users/users-actions-shared.ts` |
-| `app` segment → `app` segment edges | **5** | 14 of 19 route segments have **zero** fan-in |
-| Import cycles | **1** | type-only, inside `app/dashboard/convene/organise`, one line to fix |
-| Cross-group edges | 328 | of which **145 (44%) are deep imports** into another area's internals |
-| `index.ts` barrels in 272 files | **4** | mediating just **9 of 328** cross-group edges |
+| Measure | 2026-07-26 | Re-validated 2026-07-28 | Meaning |
+|---|---|---|---|
+| `lib` → `app` edges (wrong-direction) | **1** | **0** ✅ | Was `lib/beta-access/flow.ts` → `app/admin/users/users-actions-shared.ts`. **Fixed by KAN-424 / PR #596.** |
+| `app` segment → `app` segment edges | **5** | **3** ⚠️ | 14 → **16** of 19 route segments have **zero** fan-in. Partially fixed; see §7-P-6 and BUGS-80 |
+| Import cycles | **1** | **1** ❌ | type-only, inside `app/dashboard/convene/organise`, one line to fix — **still open**, see BUGS-80 |
+| Cross-group edges | 328 | **336** | of which **145 (44%)** → **142 (42.3%)** are deep imports into another area's internals |
+| `index.ts` barrels in 272 files | **4** | **5** | mediating just **9 of 328** → **10 of 336** cross-group edges |
 
-524 of 525 edges already point the right way. **There is no monolith to break apart.** A "decompose the tangle" refactor would spend its budget on a problem that does not exist.
+**Definition — "deep import":** an edge into a file *inside* another group's directory that does not go via that group's barrel, where a group is `src/<area>/<segment>`. Stated explicitly because two other plausible readings of the same phrase give 24 (7.1%) and 326 (97%); the figure above is not meaningful without this definition, and a headline whose definition has to be reverse-engineered is not "re-derivable from the repos".
+
+524 of 525 edges already pointed the right way; **re-validated, 527 of 527 do.** **There is no monolith to break apart.** A "decompose the tangle" refactor would spend its budget on a problem that does not exist.
 
 ### 1.2 The coupling that *does* exist is vertical — into an unnamed kernel and into the database
 
@@ -32,8 +38,10 @@ The static import graph of `src/` is 273 nodes and 525 edges. Of those:
 | Unnamed kernel | `lib/supabase-server.ts` fan-in 46 · `lib/supabase-service.ts` 39 · `lib/env.ts` 17 (140 transitive dependants) · `lib/admin.ts` 17 |
 | No repository layer | **280 `.from('table')` call sites over 33 tables**; 199 (71%) sit inside route/page/action files. Exactly one file in the codebase is named as a repository (`lib/convene/invites/repository.ts`) |
 | RLS bypassed everywhere | `createServiceRoleClient()` imported in **40 files** in `src/`; **both MCP servers use the service-role key for 100% of traffic** |
-| `profiles` is a god-table | touched by **15 module groups over 75 call sites**, carrying identity + access model + admin flags + suspension + age + discovery hashes + delivery country + recommender attributes + section-visibility JSON + dashboard widget state |
-| No typed schema | **No generated `Database` type in any of the three repos.** Every row is `any`, every column a string literal |
+| `profiles` is a god-table | touched by **15 module groups over 75 call sites** — **re-validated 2026-07-28: 17 groups over 77 call sites, i.e. WORSENING** — carrying identity + access model + admin flags + suspension + age + discovery hashes + delivery country + recommender attributes + section-visibility JSON + dashboard widget state |
+| No typed schema | **No generated `Database` type in any of the three repos.** Every row is `any`, every column a string literal — **re-validated 2026-07-28: still none** |
+
+**Re-validated 2026-07-28.** The four kernel fan-in figures reproduce **exactly** (`supabase-server` 46, `supabase-service` 39, `env.ts` 17, `admin.ts` 17) under an independent graph rebuild — that exactness is the calibration check for every other number in this section. `.from()` sites 280 → 277 over the same 33 tables, service-role importers 40 → 39, `auth.getUser()` files 37 → **41** (worsening): all unchanged in substance. **The vertical coupling this section identifies is flat or getting worse, while the horizontal structure in §1.1 improved.** That asymmetry is the central input to the 2026-07-28 scope ruling — see §2.2.
 
 ### 1.3 The rules have no home, so they are re-implemented per call site and per repo
 
@@ -55,22 +63,26 @@ The static import graph of `src/` is 273 nodes and 525 edges. Of those:
 
 ### 1.5 The single biggest tax: the test suite pins file paths, not behaviour
 
-| | Web app | lyra-mcp-server | admin-mcp |
-|---|---|---|---|
-| Test files | 213 (`tests/unit` 197 + `tests/scripts` 16) | 44 | 7 |
-| Using `readFileSync` on source text | **98** | **44 (100%)** | **7 (100%)** |
-| Hard-coded `src/**` path literals | **112 distinct** | all | all |
-| Pure source-text scans (never import the code) | **70** | 44 | 7 |
+| | Web app (2026-07-26) | Web app — re-validated 2026-07-28 | lyra-mcp-server | admin-mcp |
+|---|---|---|---|---|
+| Test files | 213 (`tests/unit` 197 + `tests/scripts` 16) | **220** | 44 | 7 |
+| Using `readFileSync` on source text | **98** | **116 (+18%)** ⚠️ | **44 (100%)** | **7 (100%)** |
+| Hard-coded `src/**` path literals | **112 distinct** | **125** ⚠️ | all | all |
+| Pure source-text scans (never import the code) | **70** | **92 (+31%)** ⚠️ | 44 | 7 |
+
+> **This tax is compounding, and fast.** Those increases happened in **two days** (2026-07-26 → 2026-07-28), with no modularisation work in flight. **F4's cost is a function of when it starts** — every week of delay makes the largest, least glamorous item on the critical path measurably more expensive. This is the single strongest argument in the re-validation for doing Phase 0 now, and it holds whether or not any module is ever extracted.
 
 **Moving any file breaks tests with `ENOENT` — a failure that carries no information — while providing zero behavioural safety net.** Under the standing Test Integrity Policy every one of those breaks forces a stop-and-get-sign-off judgement call. This is the hard prerequisite that determines whether this programme succeeds or stalls.
 
-Compounding it: the enforced test floors in `tests/unit/test-regression-guard.test.js` are **29 files / 320 tests** against an actual **213 files / ~2,401 test blocks**, and every `jest.config.js` coverage threshold is **0**. Test-loss protection is nominal.
+Compounding it: the enforced test floors in `tests/unit/test-regression-guard.test.js` are **29 files / 320 tests** against an actual **213 files / ~2,401 test blocks**, and every `jest.config.js` coverage threshold is **0**. Test-loss protection is nominal. **Re-validated 2026-07-28: the floors are still 29 / 320 and every coverage threshold is still 0, against an actual 220 files / 2,439 blocks — the gap is widening.** P-7 stands unchanged.
 
 ### 1.6 Five CI policy gates classify by hard-coded path and fail *silently* when a file moves
 
 `scripts/check-ui-copy-ownership.sh` (the founder UI/copy gate) · `.github/signup-surface.paths` (the un-skippable signup E2E gate) · `.github/CODEOWNERS` · `scripts/check-service-role-client.sh` · `stryker.config.mjs`.
 
 A glob that matches nothing simply protects nothing. **Without a drift detector landing first, this programme's own first PR is also the PR that quietly disarms the founder UI gate and the signup gate.**
+
+> **Re-validated 2026-07-28 — the control estate has grown, but not in the way the plan assumes.** This plan was written against **11 blocking static gates**; `controls/registry.json` today holds **32** (CTL-001…CTL-032), several added since (CTL-029 secret-refs, CTL-030 dependency rules, CTL-031 bash portability). **However — and this matters more than the count — the registry schema has no field expressing blocking-vs-advisory at all.** Its keys are `added, defect_class, escape_hatch, id, implementation, kind, name, notes, prevents, self_test, summary, wired_in`; `kind` classifies *what a control is* (`ci-gate` 22 / `scheduled` 6 / `test` 4), not *whether failing it stops a merge*. The registry therefore **cannot represent** the property, so nothing can assert it — **SEC-106 confirmed, and structurally worse than its title states.** 22 of the 32 controls also have no `self_test`. Every claim in this document about a gate being "blocking" should be read as *unverified* until SEC-106 lands.
 
 ---
 
@@ -94,8 +106,31 @@ Two architectures were designed and evaluated.
 State this plainly, now, so nobody is surprised in six months:
 
 - **No independent deployability.** One Next build, one Vercel deploy, one `develop → staging → beta → main` chain verified by whole-branch SHA. A module's change still traverses four whole-repo pipelines. **What changes is blast radius and reviewability, not release cadence.**
-- **CI gets slower before it gets faster.** Every PR already runs 11 blocking static guards + lint + tsc + ~2,401 tests + `npm audit` + a full build with no path filters. This adds three more gates. Path-filtered per-module CI only becomes *safe* after the test-decoupling phase — because today a source-text test for module A can live in a file named after module B.
+- **CI gets slower before it gets faster.** Every PR already runs 11 blocking static guards + lint + tsc + ~2,401 tests + `npm audit` + a full build with no path filters (**re-validated 2026-07-28: 32 registered controls — though none provably blocking, see §1.6 — and 2,439 test blocks**). This adds three more gates. Path-filtered per-module CI only becomes *safe* after the test-decoupling phase — because today a source-text test for module A can live in a file named after module B.
 - **`profiles` stays a shared table.** Column-level ownership recorded in a manifest and enforced by a grep gate is a real improvement over nothing, but it is a convention enforced by a script, not by the database. Splitting `profiles` into satellite tables is a larger, riskier migration programme across three Supabase projects that already have documented parity drift — **deliberately deferred, and named as deferred.**
+
+### 2.2 Scope ruling, 2026-07-28 — the extraction programme is deferred (KAN-432, option A)
+
+**Founder decision, 2026-07-28.** The re-validation (KAN-432) asked the question this plan's cost rests on — *does the Enforced Modular Monolith still earn its cost?* — and the answer changed the scope, not the diagnosis.
+
+**What the evidence showed.** Split it in two:
+
+- **Horizontal structure improved without a single extraction.** `lib`→`app` 1 → **0**; cross-segment edges 5 → **3**; segments with zero fan-in 14 → **16**. All of it from one targeted PR (KAN-424) and one cheap gate (CTL-030). Not one file moved into `src/modules/`.
+- **Vertical coupling — the thing this plan correctly named as the real problem — is flat or worsening.** `profiles` 75 → **77** sites over 15 → **17** groups; `auth.getUser()` 37 → **41** files; test path-coupling **+18% / +31% in two days**; no `Database` type; floors and coverage unmoved.
+
+**The inference.** The plan was right about *where* the problem is, and the last 48 hours demonstrated that the cheap half of its own prescription works. What has **not** been demonstrated is that fifteen module extractions are what closes the remaining gap. **Every worsening metric above is closed by Phase 0 (F4–F8) plus the data boundary (C3) and `@lyra/contracts`. None of them requires moving a file into `src/modules/`.**
+
+**Adopted scope:**
+
+1. **Phase 0 in full** (Workstream B, F1–F9). This is where every worsening number lives, and F4 gets more expensive weekly (§1.5). Urgent on its own merits, independent of modularisation.
+2. **`@lyra/contracts`** (R3/D3/E3). The cross-repo duplication is the one problem a monolith genuinely cannot solve; X-1 (`admin_approve_beta`) remains the live worked example.
+3. **The data boundary (C3) and the `profiles` ADR** (R6/KAN-421) — this plan's own "load-bearing decision".
+
+**Deferred:** D1–D15, and the machinery that exists only to serve them (C1, C2, C4–C6, G1). **Deferred is not cancelled.**
+
+**Re-decision trigger — this is binding, so that "deferred" cannot decay into "abandoned".** When Phase 0 closes, re-derive §1.1 and §1.2 against a decoupled test estate and a generated `Database` type, and re-take this decision on that evidence. Extraction should be re-opened if the vertical coupling has *not* materially improved under Phase 0 alone — that is the measurement Phase 0 exists to make possible, and it is the measurement this plan could not make in July 2026.
+
+**This is not the plan failing.** It is the plan's own §1.4 thesis — cheap enforced gates do the heavy lifting, and creating a canonical module is ~10% of the work — applied to the plan's own scope.
 
 ---
 
@@ -193,6 +228,8 @@ Boundaries a human must remember are boundaries that erode (§1.4). Every rule b
 
 A deep import therefore **fails `npm run type-check`**, which already runs in `pr-checks.yml` and all four deploy workflows. Privileged sub-entries are declared individually so each is separately greppable: `@mod/platform/service`, `@mod/profile/read`, `@mod/features/service`, `@mod/convene/jobs`. `jest.moduleNameMapper` mirrors the same aliases so tests cannot deep-import either.
 
+> **⚠️ Amended 2026-07-28 (KAN-432) — this claim was overstated, and the correction matters.** A path alias only governs imports **written in alias form**. `import x from '../../modules/convene/internal/thing'` is an ordinary relative specifier: it resolves, it type-checks, and no absence of a wildcard alias stops it. So "a deep import fails `type-check`" is true only for imports someone chose to write as `@mod/convene/...` — i.e. it catches the honest mistake and misses the shortcut. **Compile-time entry points are a useful first line, not the enforcement mechanism.** Real enforcement is the graph rule (§4.2, `no-deep-module-import`) plus the ESLint layer (C6), both of which see relative specifiers. Read §4.1 as *ergonomics and early feedback*, and §4.2 as *the gate*. Under the 2026-07-28 scope ruling (§2.2) this is deferred work in any case, but the claim must not be carried forward uncorrected.
+
 ### 4.2 Graph rules — `dependency-cruiser`, blocking, in the existing `PR Quality Gate` job
 
 Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphans, runs independently of the Next eslint config, and the same class of tool (`madge`) is already proven to run via `npx` here.
@@ -210,6 +247,10 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 | `backoffice-not-in-request-path` | — |
 
 **Three of these are already green or nearly green.** Land them first, warn-then-block, before any code moves — ~7 small fixes total — and the good structure that already exists is permanently locked in.
+
+**Re-validated 2026-07-28:** `no-module-to-app` **1 → 0** ✅, `no-cross-segment-app` **5 → 3**, `no-circular` **1 → 1** (still open, BUGS-80), `no-deep-module-import` **145 → 142**. F3/KAN-425 landed the first three as **CTL-030** — but as **warn-only**, which is precisely why the surviving cycle failed nothing.
+
+> **⚠️ HARD DEPENDENCY: C2 must not start before [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) resolves.** This section and story **C2** specify all 9 rules blocking at severity `error`. SEC-105 (open) says that gate has **already caused six pipeline outages over dev-only code that never ships**, while the production tree it was protecting was never dirty. Both cannot be right, and enacting C2 as written would scale a control a live SEC ticket says is mis-scoped. This matters beyond the gate itself: §1.4's *"only a CI gate does the 90%"* is the justification for this programme's cost, so if the gate's **scoping** is wrong, the argument needs re-stating rather than the gate merely re-tuning. Resolve SEC-105 first, then re-derive what C2 should block on.
 
 ### 4.3 The data boundary — where the real coupling is
 
@@ -249,6 +290,8 @@ All modules share the non-negotiable spine: **`develop → staging → beta → 
 
 What differs per module is which **additional** gates fire:
 
+> **⚠️ Read this table with the SEC-106 caveat (§1.6).** The "extra requirements" below are written as though each named gate blocks a merge. `controls/registry.json` (32 controls) **has no field expressing blocking-vs-advisory**, so that property cannot currently be asserted by any check — and 22 of the 32 have no `self_test`. Until SEC-106 lands, **every gate claim in this table is unverified**, and a module's declared change process reads stronger than it demonstrably is. KAN-416's `changeProcess.extraGates` join to the registry inherits the same limitation.
+
 | Module | UI-approval gated? | MCP lockstep? | 3-env migration? | Blast radius | Extra requirements |
 |---|---|---|---|---|---|
 | `platform` | No | No | No | **Critical** — 140 transitive dependants | Every change needs a full-suite run; no path filters ever |
@@ -262,7 +305,7 @@ What differs per module is which **additional** gates fire:
 | `oauth-as` | No | **Yes — external consumers** | Rarely | **Critical — frozen contract** | claude.ai, Claude Desktop and MCP Inspector consume its metadata, RS256/JWKS keys and exact 401 shape. **URLs, `iss` derivation and scope set must not change.** Contract test required before any move |
 | `auth` | **Yes** (copy) | No | Rarely | High | Signup-surface gate fires |
 | `profile` | **Yes** (editor UI) | **Yes** | Yes | High | Domain-model changes ripple to `public-profile` + MCP |
-| `public-profile` | **Yes** | **Yes** | Rarely | **High — privacy** | The `.eq('is_published',true).eq('is_suspended',false)` pair must stay one tested unit (SEC-44); SEC-82 cache headers preserved |
+| `public-profile` | **Yes** | **Yes** | Rarely | **High — privacy** | ⚠️ **Gated on [SEC-104](https://checklyra.atlassian.net/browse/SEC-104) — see note below.** Today: the `.eq('is_published',true).eq('is_suspended',false)` pair must stay one tested unit (SEC-44). After SEC-104: **reads go through the `public_profiles` view**, and that requirement is retired. SEC-82 cache headers preserved either way |
 | `dashboard` | **Yes** | No | Rarely | Medium | **Never reintroduce `loading.tsx`/Suspense at `/dashboard`** (BUGS-63, guarded) |
 | `account` | **Yes** | **Yes** | Yes | High (GDPR) | SAR/erasure completeness test must pass; `moderation_logs.actor_user_id ON DELETE RESTRICT` dependency must not be silently dropped |
 | `convene` | **Yes** | **Yes — 23 tools** | Yes | **High — and it is NOT safe** | See §7-D5: the web flag is off, **but the MCP write tools are live in production against the production database** |
@@ -273,6 +316,19 @@ What differs per module is which **additional** gates fire:
 | `admin` | Internal only — **not** gated | No | Yes | High (privilege) | Every mutation routed through the shared transition matrix; CF Access + `is_admin` both verified |
 
 **Reading the table:** modules with three or more gates lit (`convene`, `account`, `profile`, `access`) are where change is genuinely expensive — and that is the honest signal of where the architecture is still carrying risk, not a flaw in the plan.
+
+#### SEC-104 and the `public-profile` boundary (added 2026-07-28)
+
+[SEC-104](https://checklyra.atlassian.net/browse/SEC-104) proposes replacing the suspension-guard *detector* with a **`public_profiles` view**, on the grounds that a checker cannot see a query that has no guard at all, and every new visibility predicate needs a new guard. **This makes the SEC-44 "one tested unit" requirement obsolete in the good way.**
+
+A predicate in a **view body** binds even **service-role** reads — unlike RLS, which service-role bypasses. That distinction is not academic: it is exactly how **SEC-100** happened (suspended members exposed in public search and the sitemap via five service-role query sites, shipped to production).
+
+**The two are complementary, and the ordering is what matters:**
+
+- **SEC-104 first** → the `public-profile` module boundary gets materially *simpler*. The module owns *"read from `public_profiles`"* instead of *"remember to apply two predicates at every call site"*. The invariant moves from a code convention to a database object.
+- **D9 first** → the module freezes a call-site convention into a public API, and SEC-104 then has to unpick it.
+
+**⚠️ D9 must not start before SEC-104 is decided.** (Under the §2.2 scope ruling D9 is deferred regardless; this constraint governs whenever it is re-opened.)
 
 ---
 
@@ -310,14 +366,20 @@ Remaining stories (F1, F4–F9, and all of C/D/E/F) are created as each spike la
 
 **Programme goal.** Carve the Lyra platform into 20 named modules with machine-enforced boundaries and explicit public APIs, so that any one module can be changed, reviewed and released without reading or risking the rest — and so that the rules the three deployables share live in exactly one place.
 
-**Success criteria.**
-1. `modules.json` declares 20 modules, all `"enforced": true`, with a dependency matrix, table ownership (`profiles` at column granularity) and per-module test floors.
-2. `dependency-cruiser` runs blocking on every PR with all 9 rules at severity `error`; `.boundaries-allowlist.json` is empty or every entry is dated, ticketed and unexpired.
-3. Zero `.from()` / `.rpc()` / `createServiceRoleClient` outside `src/modules/*/data/**`.
-4. Zero unit test files containing a literal `src/...` path.
-5. `@lyra/contracts` is consumed by all three repos; the 6 duplicated rule-sets exist once; a CI drift test fails if any repo forks a copy.
-6. A generated `Database` type is threaded through all client factories in all three repos, with a CI regeneration diff.
-7. `admin_approve_beta` works.
+> **⏸️ Re-scoped 2026-07-28 (§2.2).** The goal above remains the *direction*; it is no longer the *current commitment*. The committed scope is **Phase 0 + `@lyra/contracts` + the data boundary + the `profiles` ADR** — everything that closes the worsening vertical-coupling metrics **without moving a file**. Whether the 20-module carve-up is the right way to close whatever remains is re-decided when Phase 0 closes, per the binding trigger in §2.2.
+>
+> **Spike status, 2026-07-28:** R1/KAN-416 ✅ (manifest re-derived — 21 modules, `profiles` baseline at column granularity, 77 call sites), R2/KAN-417 ✅, R4/KAN-419 ✅, R5/KAN-420 ✅, R6/KAN-421 ✅, R7/KAN-422 ✅, R10/KAN-432 ✅ (this re-validation). **R3/KAN-418, R8/KAN-423 and R9/KAN-427 remain founder-gated** — private registry + tokens, CI Supabase credentials, and a local-only design-system folder respectively. F2/KAN-424 ⚠️ partially delivered (BUGS-80); F3/KAN-425 ✅ landed as CTL-030, **warn-only**.
+
+**Success criteria.** *(Re-scoped 2026-07-28 per §2.2 — ✅ = in scope now, ⏸️ = deferred with D1–D15.)*
+
+1. ⏸️ **Deferred.** `modules.json` declares 20 modules, all `"enforced": true`, with a dependency matrix, table ownership (`profiles` at column granularity) and per-module test floors. *(KAN-416 has already delivered the manifest itself — 21 modules, including the founder-approved `audit` — with `enforced: false` throughout and read by nothing. That artefact stands; only the enforcement flip is deferred.)*
+2. ⏸️ **Deferred**, and blocked on **SEC-105** whenever re-opened. `dependency-cruiser` runs blocking on every PR with all 9 rules at severity `error`; `.boundaries-allowlist.json` is empty or every entry is dated, ticketed and unexpired.
+3. ✅ **In scope, re-expressed.** Zero `.from()` / `.rpc()` / `createServiceRoleClient` outside each module's **declared data paths** (per KAN-416's `modules.json`) — ~~`src/modules/*/data/**`~~, since no files are moving. This is C3, the data boundary.
+4. ✅ **In scope.** Zero unit test files containing a literal `src/...` path. **This is F4 and it is the critical path** (§1.5 — the tax is compounding at 18–31% per two days).
+5. ✅ **In scope.** `@lyra/contracts` is consumed by all three repos; the 6 duplicated rule-sets exist once; a CI drift test fails if any repo forks a copy. *(Blocked on R3/KAN-418, which is founder-gated.)*
+6. ✅ **In scope.** A generated `Database` type is threaded through all client factories in all three repos, with a CI regeneration diff.
+7. ✅ **In scope.** `admin_approve_beta` works. *(X-1 was **not** re-verified on 2026-07-28 — confirm it is still broken before scoping the fix.)*
+8. ✅ **In scope, added 2026-07-28.** The `profiles` ADR (R6/KAN-421) is adopted, **and** the re-decision trigger in §2.2 has been executed — §1.1 and §1.2 re-derived against the decoupled test estate and the typed schema, with an explicit ruling on whether D1–D15 re-open.
 
 **Out of scope for this programme** (named, so it is a decision and not an oversight):
 - Splitting `profiles` into satellite tables (see §8-R6 — the spike decides *when*, not *whether*).
@@ -350,7 +412,7 @@ These are the "research for the refactor" the request asked for. Each answers on
 | ID | Story | Why it is a prerequisite | Depends on |
 |---|---|---|---|
 | **F1** | Land `check-guard-path-drift.sh` in `pr-checks.yml`, fail-closed | Without it, the programme's own first PR silently disarms the founder UI gate and the signup gate | R4 |
-| **F2** | Fix the 3 known structural defects: move `computeAccessTransition` out of the admin route tree; move `WizardContact` into `organise-fields.ts`; relocate the 5 app→app shared symbols | ~7 small changes that eliminate the only wrong-direction edge and the only cycle, locking in existing good structure permanently | R1 |
+| **F2** | ⚠️ **RE-SCOPED 2026-07-28 — partially delivered, do not strike through.** ✅ `computeAccessTransition` moved out of the admin route tree (KAN-424 / PR #596; `lib`→`app` edges now **0**). ❌ **STILL OPEN:** move `WizardContact` into `organise-fields.ts` — the type-only cycle survives (`app/dashboard/convene/organise/page.tsx:6` ↔ `organise-wizard.tsx:25`), still the one-line fix, tracked as **[BUGS-80](https://checklyra.atlassian.net/browse/BUGS-80)**. ⚠️ app→app edges went **5 → 3**, not 0; **the two `[slug] → dashboard/profile` edges are moved into D8's acceptance criteria** where they belong (they are the D-4 privacy finding, not F2 debt), and the `(legal)/about → _marketing` edge is also implicated in KAN-422's DELETE list. **F2's residual scope is the cycle alone.** | Eliminates the only wrong-direction edge and the only cycle, locking in existing good structure permanently. **Note the failure mode:** KAN-424 was marked Done with two thirds of its scope unlanded, and CTL-030's `no-circular` rule is warn-only, so nothing went red. | R1 |
 | **F3** | Land the 3 near-green depcruise rules as **warn**, then flip to **block** | `no-module-to-app`, `no-cross-segment-app`, `no-circular` — cheap, permanent | F2 |
 | **F4** | **Test decoupling** — convert the highest-value source-text guards to import-based tests; route the remainder through a generated path manifest | **The largest single line item and the one most likely to be skipped. Skipping it is the most likely way this programme fails.** Without it every move produces information-free `ENOENT` failures and constant pressure to weaken tests, which policy forbids | R2 + founder sign-off |
 | **F5** | Re-anchor the dead test floors (29/320 → real 213/~2,401), split per module, turn on a non-zero global coverage threshold | "A module owns its tests" is currently unmeasurable; tests silently lost during a move must fail CI | F4 |
@@ -363,11 +425,13 @@ These are the "research for the refactor" the request asked for. Each answers on
 
 ### Workstream C — Boundary machinery
 
+> **Scope ruling 2026-07-28 (§2.2): only C3 is in scope.** C1, C2 and C4–C6 exist to serve the D1–D15 extractions and are **deferred with them**. **C3 is retained and re-expressed** — see its row.
+
 | ID | Story | Depends on |
 |---|---|---|
-| **C1** | Create `src/modules/` skeleton, `modules.json`, per-module tsconfig aliases (index-only, no wildcards), mirrored `jest.moduleNameMapper` | R1, F3 |
-| **C2** | Add `dependency-cruiser` with all 9 rules as a blocking `Module boundary gate` step in `PR Quality Gate`; unenforced modules skipped | C1 |
-| **C3** | Add `scripts/check-module-table-ownership.sh` (280 call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh` to `src/modules/*/data/**` | C1, F6, R6 |
+| **C1** | ⏸️ **DEFERRED (§2.2).** Create `src/modules/` skeleton, `modules.json`, per-module tsconfig aliases (index-only, no wildcards), mirrored `jest.moduleNameMapper` | R1, F3 |
+| **C2** | ⏸️ **DEFERRED (§2.2)** — and ⚠️ **hard-blocked on [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) whenever it is re-opened** (see §4.2). Add `dependency-cruiser` with all 9 rules as a blocking `Module boundary gate` step in `PR Quality Gate`; unenforced modules skipped | C1, **SEC-105** |
+| **C3** | ✅ **IN SCOPE.** Add `scripts/check-module-table-ownership.sh` (280 → **277** call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh`. ⚠️ **Re-expressed 2026-07-28:** since `src/modules/` is not being created, the gate maps each file to its owning module via the **path assignments already in KAN-416's `modules.json`**, and restricts `createServiceRoleClient` to each module's declared data paths rather than to `src/modules/*/data/**`. The data boundary does not require the file moves — that is why it survives the scope ruling | ~~C1~~, F6, R6 |
 | **C4** | Add `scripts/check-boundary-ratchet.sh` + `.boundaries-allowlist.json` + the `BOUNDARY-EXEMPTION-APPROVED` trailer | C2 |
 | **C5** | Add `scripts/check-module-manifest.sh` (index.ts + manifest entry + CODEOWNERS line + test dir); rewrite the 11 per-file CODEOWNERS lines to module paths | C1 |
 | **C6** | ESLint `no-restricted-imports` layer (redundant with C2 by design — fails in the editor, before CI) | C1 |
@@ -376,19 +440,23 @@ These are the "research for the refactor" the request asked for. Each answers on
 
 ### Workstream D — Module extractions, in dependency order
 
+> **⏸️ ALL OF WORKSTREAM D IS DEFERRED — scope ruling 2026-07-28 (§2.2).** D1–D15 are **not cancelled**; they are re-decided after Phase 0 closes, against a decoupled test estate and a generated `Database` type, per the binding re-decision trigger in §2.2. **No file moves into `src/modules/` under the current scope.**
+>
+> The sequencing below is retained because it is the most expensive artefact in this plan to reconstruct, and because two of its steps carry constraints that survive the deferral: **D9 is gated on SEC-104** and **D8 absorbs two app→app edges from F2**. Two items are also promoted out of D entirely because they are in scope on their own merits: **D3 (`@lyra/contracts`)** and the domain-model half of **D8**'s privacy finding, now tracked as **SEC-109** rather than waiting for D13.
+
 The order is not arbitrary. Each step unblocks the next.
 
 | ID | Story | Why here | Depends on |
 |---|---|---|---|
 | **D1** | Extract **`platform`** + **`guards`** + **`observability`** | Naming the kernel is what makes every later rule expressible. Begin ratcheting the 40 service-role importers into `data/` dirs | C1–C5, F6, F8 |
 | **D2** | Extract **`oauth-as`** — the pilot | Highest cohesion, lowest coupling, 5 exclusive tables, 12 dedicated test files. **Pin the external HTTP contract with a test first** — claude.ai, Claude Desktop and both Railway services are outside CI. Invert `getAccountStanding` into an injected `StandingPort`. This becomes the reference shape every other module copies | D1 |
-| **D3** | Stand up **`@lyra/contracts`** with `content-moderation.ts` alone | Bootstraps the packaging with a provably no-op diff. Add the drift test that `convene-recommend-scoring.ts`'s header promised as an unnumbered "KAN-XXX follow-up" | R3, D2 |
+| **D3** | ✅ **IN SCOPE (§2.2) — promoted out of the deferral.** Stand up **`@lyra/contracts`** with `content-moderation.ts` alone | Bootstraps the packaging with a provably no-op diff. Add the drift test that `convene-recommend-scoring.ts`'s header promised as an unnumbered "KAN-XXX follow-up". **Retained because cross-repo duplication is the one problem a monolith cannot solve** — it does not depend on any extraction. ⚠️ Its blocker is R3/**KAN-418**, which is founder-gated (private registry + tokens on Vercel, 3× Railway, 3× CI) | R3, ~~D2~~ |
 | **D4** | Extract **`access`**; decompose `middleware.ts` (282 lines, 6 unrelated jobs, 2 sequential `profiles` reads, 2 overlapping inline exemption arrays) into a named, individually-tested gate pipeline with one declarative exemption table | Ships alone: **the order of the gates and the fail-open/fail-closed asymmetry are behavioural contracts with no current unit test.** Consolidate the 4 environment resolvers onto `getDeployEnv` — **except `lib/oauth/config.ts siteUrl()`**, which determines the `iss` claim both MCP servers pin to | D1, D2, F2 |
 | **D5** | Extract **`features`**; move the pure registry into `@lyra/contracts`; make both MCP servers read `global_feature_switches`; retire the `ACCESS_MODEL_V2` dual path | **Must precede convene, age, affiliate, recommendations, account and admin**, or five extractions each re-open the same five files. Closes a live hole: today an admin turning the `mcp` or `convene` master switch off stops the web surface and **leaves `mcp.checklyra.com` serving** | D3, D4 |
 | **D6** | Extract **`age`** + **`auth`**, with the signup gate armed first and `.github/signup-surface.paths` rewritten in the same commit | Their combined footprint is deliberately the signup gate's footprint. Add the missing Didit webhook/callback contract tests. Close the empty publish age-gate block in `lyra_publish_profile` | D5, F9 |
 | **D7** | Extract **`trust-safety`**; lift the **10 audit-sensitive server actions** currently living as unexported closures inside JSX files (suspend, unsuspend, unpublish, republish, delete-item, dismiss-report, resolve-report, suspend-from-report + 2 OAuth consent closures) | The most audit-sensitive writes in the product, **zero unit coverage**, self-moderation guard re-implemented per closure, and literally untestable until exported. **Hard prerequisite for `admin`** | D5, F7 |
-| **D8** | Extract the **`profile` domain core** (no UI): `types.tsx`, `visibility.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`, field allowlists, `country-codes` | Lifts the de-facto data model (fan-in 14) out of a legacy wizard directory, gives `public-profile` a legitimate dependency, cuts 2 of the 5 app→app edges. **Remove `is_published` from `ALLOWED_PROFILE_FIELDS`** so publish has exactly one entry point calling `canPublish()` | D4 |
-| **D9** | Extract **`public-profile`** | Keep the `.eq('is_published',true).eq('is_suspended',false)` pair as one tested unit (SEC-44); preserve SEC-82 cache headers; URLs unchanged | D8, D5 |
+| **D8** | Extract the **`profile` domain core** (no UI): `types.tsx`, `visibility.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`, field allowlists, `country-codes` | Lifts the de-facto data model (fan-in 14) out of a legacy wizard directory, gives `public-profile` a legitimate dependency, cuts 2 of the 5 app→app edges. **Remove `is_published` from `ALLOWED_PROFILE_FIELDS`** so publish has exactly one entry point calling `canPublish()`. ⚠️ **Added to acceptance criteria 2026-07-28:** the two residual `app/[slug] → app/dashboard/profile` edges (`manual-of-me-fields.ts`, `section-visibility.ts`) move here from F2 — they are the **D-4 privacy finding** (the public profile depending on the *editor's* domain model), not generic structural debt | D4 |
+| **D9** | Extract **`public-profile`** | ⚠️ **GATED ON [SEC-104](https://checklyra.atlassian.net/browse/SEC-104) — must not start until SEC-104 is decided** (see §5). If SEC-104 lands first this module simply reads the `public_profiles` view and the SEC-44 pair requirement retires; if D9 lands first it freezes a call-site convention SEC-104 then unpicks. Preserve SEC-82 cache headers; URLs unchanged | D8, D5, **SEC-104** |
 | **D10** | Extract **`recommendations`** (rename to `concepts`/`products`) + split **`affiliate`** three ways, with an injected `MonetisationPort` | Dispose of the dead exports decided in R7 | D9, R7 |
 | **D11** | Build **`ui-kit`** — one batched, founder-approved phase | **Extend the UI/copy guard's protected globs to `src/modules/ui-kit/**` BEFORE the first component move.** Extract tokens + the 3 de-facto primitives; de-duplicate `StatCard`; retire the 181 raw hex literals. Every diff render-identical; **one Jira key and one trailer per PR, not per file** | F1, D1, Founder |
 | **D12** | Split **`app/dashboard`** three ways → `dashboard` / `profile` (UI) / `account` | The three sub-products have **zero import edges between them** — this is directory moves and a layout split, not untangling. 9,855 LOC and 30% of `src` relieved in one phase. In the same phase, invert the SAR/erasure contract: each module registers `exportForUser`/`eraseForUser` and `settings/actions.ts` becomes an aggregator | D8, D11 |
@@ -432,7 +500,8 @@ Everything below was discovered during the survey. Each is either prerequisite w
 | P-3 | **No generated `Database` type exists in any repo.** 275 web + ~90 MCP untyped call sites | Any data work | F6 |
 | P-4 | **2 live production tables + 1 view have no migration file** (`content_moderation_flags`, `mcp_tool_call_log`, `mcp_per_ip_recent_count`) — created out-of-band. `supabase/migrations/` is not the schema | `trust-safety`, table ownership | F7, R5 |
 | P-5 | **Migration state is provably divergent**: git ↔ dev (73 applied) ↔ staging (61) ↔ prod (unverified), per `docs/MIGRATION_PARITY.md` | Any table move | F7, R5 |
-| P-6 | **The only `lib`→`app` edge and only cycle**: `lib/beta-access/flow.ts` and `app/waitlist/actions.ts` import `computeAccessTransition` from **inside the admin UI route tree** | `access`, `admin`, `auth` | F2 |
+| P-6a | ✅ **CLOSED 2026-07-28.** ~~The only `lib`→`app` edge~~: `lib/beta-access/flow.ts` and `app/waitlist/actions.ts` imported `computeAccessTransition` from **inside the admin UI route tree**. Moved to `src/lib/access-model/` by **KAN-424 / PR #596**; `lib`→`app` edges re-derived as **0** | — | F2 ✅ |
+| P-6b | ⚠️ **STILL OPEN.** The only **cycle** — type-only, `app/dashboard/convene/organise/page.tsx:6` ↔ `organise-wizard.tsx:25` (`WizardContact`). Still the one-line fix described in July. Survived because F2 was marked Done without it and CTL-030's `no-circular` is **warn-only** | `convene` | **[BUGS-80](https://checklyra.atlassian.net/browse/BUGS-80)** |
 | P-7 | **Test floors are dead**: 29 files / 320 tests enforced vs 213 / ~2,401 actual; coverage thresholds all 0 | Detecting test loss during moves | F5 |
 | P-8 | **58 env vars, only 5 through `env.ts`; 85 raw `process.env` reads in 42 files.** Independent module configuration is currently impossible | `platform`, all modules | F8, R1 |
 | P-9 | **E2E is largely un-armed**: `E2E_SUPABASE_*` unprovisioned, `SIGNUP_GATE_ENFORCE` in warn mode | Safe large-scale movement | F9 (founder-gated) |
@@ -448,21 +517,28 @@ Everything below was discovered during the survey. Each is either prerequisite w
 | D-5 | **Convene is "off" only on the web.** The MCP write tools are **live in production against the production database** | Do not schedule Convene work as "safe because it's off". Full production process applies | D13, §5 |
 | D-6 | **`is_published` is a generically writable profile field** — which is exactly why the publish gate exists twice (`actions.ts:109` and `:620`) | Remove it from `ALLOWED_PROFILE_FIELDS` so there is one publish entry point calling `canPublish()` | D8 |
 | D-7 | **10 audit-sensitive mutations are unexported closures inside page components** — suspend, unpublish, delete-item, resolve-report… zero coverage, literally untestable | Hard prerequisite for `admin` | D7 |
-| D-8 | **One client component writes `oauth_connections` straight from the browser** (`dashboard/convene/connections/connections-client.tsx`) with no server action | The server/client boundary is not currently a security boundary, so it cannot be a module boundary either | D13 |
+| ~~D-8~~ | **Reclassified 2026-07-28 — moved to the new "Security" class below.** | | **SEC-109** |
 | D-9 | **`lib/admin.ts` is simultaneously the admin gate and the app's generic service-role factory** — imported by the **public** `app/api/reports/route.ts` | The dependency graph currently lies about privilege. Split it | D15 |
 | D-10 | **`lib/affiliate` is three modules with different lifetimes in one folder**, and `country-codes` isn't about affiliates at all | Split into `links` / `eligibility` / `backoffice`; move `country-codes` to `profile` | D10 |
-| D-11 | **~650 LOC of exported code has zero production consumers but is fully tested** | Decide disposition *before* extraction, or the refactor freezes dead exports into new public APIs | R7 |
+| D-11 | ✅ **SUPERSEDED 2026-07-28 by KAN-422 (Done, PR #620) — the original "~650 LOC" estimate was wrong in both directions.** Measured: **219 zero-importer exports**, of which **160 are live code carrying an over-wide `export`** (1,463 LOC — the fix is narrowing visibility, not deleting) and only **59 are genuinely dead** (1,130 LOC; 36 tested / 588 LOC). ⚠️ **The two files this row originally named for deletion — `recommender/inputs.ts` and `events.ts` — MUST BE KEPT** (KAN-198 and KAN-202 are both In Progress and consume them). Use KAN-422's disposition list, never this row's estimate | Decide disposition *before* extraction, or the refactor freezes dead exports into new public APIs | R7 ✅ |
 | D-12 | **`middleware.ts` is 282 lines doing 6 unrelated jobs with 2 sequential `profiles` reads and 2 overlapping inline exemption arrays** — and the gate *order* and fail-open/fail-closed asymmetry are untested behavioural contracts | Decompose into a named, individually-tested pipeline. Ships alone | D4 |
 | D-13 | **Environment identity is derived 4 different ways**, and one of them (`lib/oauth/config.ts siteUrl()`) sets the OAuth `iss` claim both MCP servers pin their verification to | Consolidate onto `getDeployEnv` — **except that one**. Changing it breaks both MCP servers | D4 |
 | D-14 | **`profiles` carries ≥6 modules' state, written from all 3 repos**, 15 module groups / 75 call sites | The load-bearing decision of the whole programme. Column-level ownership + grep gate now; satellite tables costed and deferred | R6 |
 | D-15 | **No UI module exists to extract from** — `src/components` holds exactly one file; 181 raw hex literals; design tokens live in `app/globals.css` pinned by a string-grep test | `ui-kit` must be **built**, not extracted — and every file it touches is founder-gated | D11 |
 | D-16 | **`oauth-as` is the most separable module and its contract is frozen by external consumers** (claude.ai, Claude Desktop, MCP Inspector) | Perfect pilot — but pin the HTTP contract with a test *first* | D2 |
 
+### Security *(added 2026-07-28 — reclassified out of "Structural")*
+
+| # | Discovery | Implication | Story |
+|---|---|---|---|
+| **D-8** | ⚠️ **UPGRADED STRUCTURAL → SECURITY, 2026-07-28.** One client component writes `oauth_connections` straight from the browser (`dashboard/convene/connections/connections-client.tsx`) with no server action. **Confirmed worse than structural:** the same client-side write means **`vaultRevokeRefreshToken` never runs**, so a user's OAuth **refresh token survives their disconnect** — the user believes they have revoked access and they have not | The server/client boundary is not currently a security boundary, so it cannot be a module boundary either — **but the token-revocation defect must be fixed on its own merits and MUST NOT wait for D13**, which was the last-but-two extraction and is now deferred entirely (§2.2) | **[SEC-109](https://checklyra.atlassian.net/browse/SEC-109)** (High) — ~~D13~~ |
+| **N-5** | **`search_by_contact_hash` has no product consumer.** A `profiles`-reading RPC with no caller | A column-ownership question for R6/KAN-421 as much as a security one — an unused RPC that reads a god-table is exactly the surface a column-ownership manifest is supposed to make visible | **[SEC-110](https://checklyra.atlassian.net/browse/SEC-110)** |
+
 ### Cross-repo
 
 | # | Discovery | Implication | Story |
 |---|---|---|---|
-| X-1 | **`admin_approve_beta` is already broken** — writes 2 columns a `lyra`-repo migration dropped | The canonical worked example of the business case. Must be fixed, and made CI-checkable | E2 |
+| X-1 | ⚠️ **NOT re-verified 2026-07-28** (needs the admin-MCP repo + a live schema read; out of scope for a read-only web-repo spike — flagged unverified rather than assumed). **`admin_approve_beta` is already broken** — writes 2 columns a `lyra`-repo migration dropped | The canonical worked example of the business case. Must be fixed, and made CI-checkable | E2 |
 | X-2 | **`content-moderation.ts` is byte-identical across repos** (md5 `b07eac8ed85ae3cc5669522f0afad395`) | The zero-risk first extraction — proves the packaging with a provably no-op diff | D3 |
 | X-3 | **Convene scoring is a verbatim copy under a self-declared "DRIFT RISK" header**, in sync by luck | Cheap interim mitigation available *now*: a checksum parity test in the MCP repo's CI, before any packaging work | D3, E3 |
 | X-4 | **`lyra_publish_profile` contains an empty `if` block** where the age gate should be — and an inverted test pins the divergence in place | `canPublish()` becomes one pure function both surfaces call. ⚠️ Re-inverting that test **needs founder sign-off** under the Test Integrity Policy | D6, E3 |
@@ -483,6 +559,16 @@ The first draft sequenced docs and verification rework as a **closing phase**. T
 | E-3 | **The Claude Design System is a third source of truth for design tokens, with no drift detection.** Tokens live in `src/app/globals.css`, in `~/lyra-design-system/build.py`, and in Claude Design project `e4682889-…`. `build.py` reads `globals.css` | Structurally identical to the MCP duplication (X-3). Building `ui-kit` without deciding which is canonical creates a **fourth** copy. D11 was the vaguest module in the plan; this is why | **KAN-427** |
 | E-4 | **Two couplings are invisible to CI** — `~/lyra-design-system/build.py` and the **claude.ai routine prompts themselves** (Staging Soak, Backlog Autopilot, Modularisation Scoping all name repo paths verbatim, and live in routine config, not git) | No grep can find them. They need a **human attestation** in the extraction DoD, and the DoD must say plainly that this is weaker than a machine check rather than implying CI covers it | **KAN-428** |
 | E-5 | **No module can answer "what proves this still works?"** — 213 unit files in a flat heap, 47 E2E blocks organised by Playwright *project* not by module, soak contract C1–C6 unmapped to modules | Per-module ownership for unit + E2E + soak. Keep the Playwright projects as-is (they encode real execution requirements — auth state, seeded users, CF bypass — not taxonomy); add module tagging instead | **KAN-429** |
+
+### New discoveries *(added 2026-07-28 by the KAN-432 re-validation)*
+
+| # | Discovery | Implication |
+|---|---|---|
+| **N-1** | **The control registry cannot express blocking-vs-advisory** (§1.6). `controls/registry.json` has no such field, so no check can assert the property; 22 of 32 controls have no `self_test` | §5's per-module gate table **overstates enforcement** until **SEC-106** lands. Every "blocking" claim in this document is unverified |
+| **N-2** | **The plan's blocking dependency gate collides with SEC-105** (§4.2). SEC-105 says that gate already caused six pipeline outages over dev-only code that never ships | **C2 must not start before SEC-105.** And because §1.4's *"only a CI gate does the 90%"* is this programme's cost justification, a mis-scoped gate weakens the argument, not just the tooling |
+| **N-3** | **Test path-coupling is growing ~18–31% per two days** (§1.5) | **F4's cost is a function of when it starts.** The strongest single argument for doing Phase 0 now, and the load-bearing input to the §2.2 scope ruling |
+| **N-4** | **Production had never been backed up** — `SUPABASE_DB_URL` pointed at dev from 2026-03-27 to 2026-07-27 while every run reported green. Fixed, restore-drilled and guarded (#613) | This plan's risk model **silently assumed a working restore path** during extraction. It should say so explicitly. Note the shape: a control reporting green for four months while doing nothing is the same failure class as N-1 |
+| **N-5** | `search_by_contact_hash` has no product consumer | Recorded in the **Security** table above — **SEC-110** |
 
 ### Existing Jira tickets this programme changes
 
@@ -528,7 +614,13 @@ The first draft sequenced docs and verification rework as a **closing phase**. T
   F. Close the ratchet                                  G1 ▶ G2
 ```
 
-**Critical path:** R2 → F4 (test decoupling) → C1 → D1 → D2 → D4 → D5 → everything else. **F4 is the choke point.** It is the largest, least glamorous item, delivers no visible modularity, and shortening it is the single most likely way this programme fails.
+**Critical path (as planned 2026-07-26):** R2 → F4 (test decoupling) → C1 → D1 → D2 → D4 → D5 → everything else. **F4 is the choke point.** It is the largest, least glamorous item, delivers no visible modularity, and shortening it is the single most likely way this programme fails.
+
+> **⏸️ Re-scoped 2026-07-28 (§2.2).** Everything below the `C1 ▶ C2 ▶ …` line in the diagram above — Workstreams C (except C3), D and G — is **deferred**. The **current critical path is `R2 → F4 → F5`**, with `F6 → F7` and `C3` in parallel, plus `@lyra/contracts` (R3/D3, founder-gated on KAN-418) and the `profiles` ADR.
+>
+> **F4 remains the choke point, and the re-validation strengthened that claim rather than weakening it:** the path-coupling tax grew 18–31% in the two days between the survey and the re-validation, with no modularisation work in flight. F4 is now urgent on its own merits — it is the prerequisite for per-module CI, for honest test floors, and for the measurement that the §2.2 re-decision trigger depends on.
+>
+> **Also still live regardless of the deferral:** BUGS-80 (the residual cycle), SEC-109 (OAuth refresh-token revocation — must not wait for D13), SEC-104 (gates D9), SEC-105 (gates C2), SEC-106 (makes every "blocking gate" claim unverifiable), SEC-110.
 
 ---
 
