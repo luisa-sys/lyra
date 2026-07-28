@@ -37,6 +37,23 @@ set -euo pipefail
 WORKFLOW_DIR=".github/workflows"
 PROBLEMS=0
 
+# Count matches in a file, setting MATCH_COUNT. `grep -c` exits 1 on zero
+# matches (printing "0") but >=2 when the search itself fails (printing
+# nothing) — so a bare `|| true` collapses "this file is clean" and "we could
+# not read this file" into the same empty string. Exit 2 = could not verify.
+MATCH_COUNT=0
+count_matches() {
+  local f="$1"; shift
+  local out rc
+  if out="$(grep -c "$@" -- "$f" 2>&1)"; then rc=0; else rc=$?; fi
+  if [ "$rc" -gt 1 ]; then
+    echo "::error::check-workflow-integrity: could not scan ${f} (grep exit ${rc}): ${out}"
+    echo "::error::  Failing closed (exit 2) rather than clearing a workflow that was never read."
+    exit 2
+  fi
+  MATCH_COUNT="${out:-0}"
+}
+
 if [ ! -d "$WORKFLOW_DIR" ]; then
   echo "::error::No $WORKFLOW_DIR directory found"
   exit 1
@@ -52,9 +69,18 @@ for f in "$WORKFLOW_DIR"/*.yml; do
   [ -f "$f" ] || continue
   basename=$(basename "$f")
 
-  # Workflow must (a) use GITHUB_TOKEN AND (b) push to a deploy branch
-  uses_github_token=$(grep -c "secrets.GITHUB_TOKEN" "$f" || true)
-  pushes_to_deploy=$(grep -cE 'git push origin (staging|main|production|develop)' "$f" || true)
+  # Workflow must (a) use GITHUB_TOKEN AND (b) push to a deploy branch.
+  # `grep -c` exits 1 on zero matches (printing "0") but >=2 when the search
+  # itself fails, printing nothing — and a bare `|| true` collapses that into an
+  # empty string, i.e. "no GITHUB_TOKEN here", silently clearing the workflow.
+  # This gate exists because that exact false-green cost ~32 days of dead
+  # promotes (BUGS-4). Count it properly; an unreadable workflow file is exit 2.
+  # NB: called as plain commands, not inside $( ) — a subshell's exit 2 would
+  # only leave the subshell and the scan would carry on regardless.
+  count_matches "$f" -F "secrets.GITHUB_TOKEN"
+  uses_github_token=$MATCH_COUNT
+  count_matches "$f" -E 'git push origin (staging|main|production|develop)'
+  pushes_to_deploy=$MATCH_COUNT
 
   if [ "$uses_github_token" -gt 0 ] && [ "$pushes_to_deploy" -gt 0 ]; then
     # Verify it isn't allow-listed
