@@ -232,7 +232,7 @@ sweep() {
   local hits=0 old
   for old in "${MOVED[@]}"; do
     local out
-    out="$(search "${check} sweep for '${old}'" grep -rnF --exclude-dir=node_modules -- "$old" "${present[@]}")"
+    out="$(search "${check} sweep for '${old}'" grep -rnHF --exclude-dir=node_modules -- "$old" "${present[@]}")"
     if [ -n "$out" ]; then
       hits=1
       echo "::error::check-extraction-dod: [${check}] stale reference to moved path '${old}':"
@@ -261,7 +261,7 @@ if is_suppressed stale-refs; then
 else
   hits=0
   for old in "${MOVED[@]}"; do
-    out="$(search "stale-refs sweep for '${old}'" grep -rnF --exclude-dir=node_modules -- "$old" "${SWEEP_PRESENT[@]}")"
+    out="$(search "stale-refs sweep for '${old}'" grep -rnHF --exclude-dir=node_modules -- "$old" "${SWEEP_PRESENT[@]}")"
     out="$(search "stale-refs manifest split" grep -vF "${MANIFEST_DOC}:" - <<<"$out")"
     [ -z "${out//[[:space:]]/}" ] && out=""
     if [ -n "$out" ]; then
