@@ -1,25 +1,31 @@
-# KAN-416 — Module manifest & dependency matrix (R1)
+# KAN-416 — Module manifest & dependency matrix (R1b — re-derivation)
 
 **Spike · research artefact · read-only · epic KAN-414**
-**Produced:** 2026-07-27 · **Base:** `develop@a42ad84` · **Files in `src/`:** 272
+**Produced:** 2026-07-28 · **Base:** `develop@1d6cb5f` · **Files in `src/`:** 274
 
-> **What this is.** The first machine-readable declaration of the 20-module
-> architecture adopted in epic KAN-415: what each module owns (files, tables,
-> `profiles` columns), its **measured** public API, its measured and allowed
-> dependencies, and the seed of the shrink-only `.boundaries-allowlist.json`.
+> **R1b supersedes R1** (2026-07-27, `develop@a42ad84`). R1 was derived with no
+> access to `LYRA_MODULARISATION_PLAN_2026-07-26.md`, which existed only on the
+> founder's machine; PR #593 has since committed it to `docs/modularisation/`.
+> R1 also carried a **verified defect** that made the `profiles` table-ownership
+> baseline read zero. Both are fixed here. §1 is the honest before/after.
+>
+> **What this is.** The machine-readable declaration of the module
+> architecture: what each module owns (files, tables, `profiles` columns), its
+> **measured** public API, its allowed and violating dependencies, its
+> **change process** (plan §5), and the seed of the shrink-only
+> `.boundaries-allowlist.json`.
 >
 > **Deliverables:**
-> - `modules.json` (repo root) — the v0 manifest, input to KAN-415 C1–C5.
+> - `modules.json` (repo root) — the v1 manifest. `enforced: false` everywhere;
+>   read by nothing (`.dependency-cruiser.cjs` mentions it only in a comment —
+>   its six modules.json-dependent rules are deferred to KAN-415 C2).
 > - `docs/modularisation/KAN-416-boundaries-allowlist.seed.json` — every
->   currently-violating edge, with counts. This is the number the ratchet
->   drives to zero.
-> - `docs/modularisation/kan416-derive.py` — the derivation script. Every
->   number in this artefact is reproduced by re-running it.
+>   currently-violating edge **and** the `profiles` column baseline.
+> - `docs/modularisation/kan416-derive.py` — the derivation script.
 >
 > **Reproduce everything with:**
 > ```bash
-> python3 docs/modularisation/kan416-derive.py       # regenerates modules.json + seed + report
-> npx madge --json --extensions ts,tsx --ts-config tsconfig.json src   # canonical graph
+> python3 docs/modularisation/kan416-derive.py   # regenerates modules.json + seed + report
 > ```
 
 ---
@@ -27,235 +33,417 @@
 ## 0. Headline
 
 | Measure | Value |
-|---|---:|
-| `src/` files claimed by exactly one module | **272 / 272** (0 unclaimed, 0 double-claimed) |
-| Internal TS import edges (parser) | **524** — reconciles exactly with madge's 525 (the extra madge edge is `layout.tsx → globals.css`, a CSS node) |
-| madge graph at this base | **273 nodes / 525 edges** (identical to the 2026-07-26 survey) |
-| Cross-module edges | **213** (311 intra-module) |
-| Measured public-API entries (symbols consumed across a module boundary) | **104** |
-| **Policy-violating edges → allowlist seed** | **34 edges across 17 module pairs** (8 type-only) |
-| `.from()` sites / `.rpc()` sites / distinct tables | **277 / 14 / 33** — every table and rpc has exactly one declared owner |
-| Cross-module table-access sites (data-boundary seed) | **55 sites over 39 (module, table) pairs** |
-| `createServiceRoleClient` importer files (RLS bypass register) | **39**, enumerated per module in `modules.json → serviceRoleClient` |
-| `profiles` columns assigned an owner (dev schema) | **41 / 41**, no duplicates |
-| Unit suite on this branch | **216 suites / 2552 tests green** (floor 172 / 2118) via `npm run test:unit` |
-
-Only **34 of 213** cross-module edges violate the proposed layer policy — the
-matrix is near-green, confirming the survey's "already horizontally modular"
-finding at manifest granularity.
-
----
-
-## 1. ⚠️ Provenance caveat — the plan document was not accessible
-
-`LYRA_MODULARISATION_PLAN_2026-07-26.md` (§3 module definitions, §5
-change-process table) exists only in the founder's working folder. It is in
-none of the three repos, not on Confluence, and not attached to any KAN-414
-ticket (verified by repo find, GitHub org-wide code search, Confluence CQL and
-Jira attachment check, 2026-07-27).
-
-Consequences, handled as follows:
-
-1. **Module set and layering** were taken from the epic KAN-415 description
-   ("The module set (20 + 2 meta)"), which is authoritative Jira text.
-2. **Path→module assignments** are this spike's proposal. Every assignment not
-   directly dictated by the epic text is marked `JUDGEMENT` in
-   `kan416-derive.py` and listed in §6 below.
-3. **Ticket step 5 (sanity-check against the plan's §5 change-process table)
-   could not be performed.** This is the one implementation step not done.
-4. **Founder action requested:** commit the plan into `docs/modularisation/`
-   (it is the source of truth for two epics and currently has no backup,
-   no CI visibility, and no agent access), then diff `modules.json` against
-   §3/§5 before KAN-415 C1 consumes it.
-
----
-
-## 2. The 20 modules — measured summary
-
-Full detail (per-symbol public API with consumer counts, table lists, column
-lists): `modules.json`. Provisional test floors are path-vote based and will be
-superseded by KAN-417.
-
-| Module | Layer | Files | Public-API symbols | May depend on (measured, policy-clean) | Violating deps (→ §4) | Risk tier | Tests (prov.) |
-|---|---:|---:|---:|---|---|---|---|
-| platform | 0 | 6 | 9 | — | — | critical | 0f/0t |
-| contracts | 0 | 0 | 0 | — (bootstraps from `content-moderation.ts`) | — | high | 0f/0t |
-| guards | 1 | 9 | 20 | platform | — | high | 3f/59t |
-| observability | 1 | 4 | 3 | platform | — | medium | 1f/3t |
-| ui-kit | 1 | 1 | 1 | — | — | low | 1f/9t |
-| access | 2 | 10 | 10 | guards, platform | **admin** | critical | 0f/0t |
-| features | 2 | 5 | 17 | platform | — | high | 0f/0t |
-| age | 2 | 12 | 10 | platform | auth, features | critical | 0f/0t |
-| oauth-as | 3 | 18 | 0 | access, guards, platform | — | critical | 4f/41t |
-| auth | 3 | 11 | 2 | access, age, platform | — | high | 5f/51t |
-| profile | 3 | 35 | 4 | age, features, guards, platform | affiliate, convene, trust-safety | high | 21f/296t |
-| public-profile | 3 | 8 | 0 | guards, platform, ui-kit | affiliate, profile, recommendations | medium | 8f/50t |
-| dashboard | 3 | 9 | 0 | access, platform | auth, convene | medium | 4f/30t |
-| account | 3 | 6 | 0 | access, features, guards, platform | admin | high | 2f/24t |
-| convene | 3 | 52 | 2 | access, features, guards, platform | recommendations, trust-safety | high | 11f/164t |
-| recommendations | 3 | 20 | 9 | features, platform | affiliate | medium | 2f/3t |
-| affiliate | 3 | 8 | 13 | features, platform | — | medium | 0f/0t |
-| trust-safety | 3 | 9 | 2 | platform | admin, convene | critical | 2f/27t |
-| marketing-legal | 3 | 28 | 0 | access, features, guards, platform | — | medium | 14f/216t |
-| admin | 4 | 21 | 2 | access, affiliate, features, observability, platform | — | critical | 1f/8t |
-
-Observations that matter for extraction sequencing:
-
-- **Five modules have a measured public API of zero** — `oauth-as`,
-  `public-profile`, `dashboard`, `account`, `marketing-legal`. Nothing outside
-  them imports their code. They are pure leaf segments and their extraction
-  carries no barrel-design risk at all. (This strengthens the KAN-415 choice of
-  `oauth-as` as the pilot.)
-- **`guards` (20) and `features` (17) have the largest consumed surfaces** —
-  their `index.ts` design is where the "export exactly what is measured"
-  discipline matters most.
-- **`convene` is the largest module (52 files)**; `profile` second (35).
-- `admin`'s public API of 2 is exactly the defect: nothing should import from
-  admin (see §4).
-
----
-
-## 3. The measured public API
-
-`modules.json → modules.<name>.publicApi` lists, for every module, each
-symbol another module imports today: the symbol, its defining file, the
-number of importing files, the consuming modules, and whether every consuming
-import is type-only. 104 entries total. Per the ticket's constraint, this list
-was **derived, not designed** — an `index.ts` that exports exactly these
-symbols changes zero semantics.
-
-Notable: 8 of the 34 violating edges are **type-only** (e.g. most of the
-`convene → recommendations` venue-scoring types) — those can be cleared by
-moving type declarations, with no runtime change.
-
----
-
-## 4. Dependency matrix, policy, and the allowlist seed
-
-Policy encoded: numeric layers (platform/contracts 0 · guards/observability/
-ui-kit 1 · access/features/age 2 · domains 3 · admin 4); an edge is allowed iff
-its target sits on a **strictly lower** layer. Same-layer and upward edges are
-violations. The full matrix (59 measured module pairs) is in the derivation
-report; the 17 violating pairs with per-file edge lists are in
-`KAN-416-boundaries-allowlist.seed.json`.
-
-**The seed = 34 edges.** The known survey defects fall out of the data
-mechanically, which validates the pipeline:
-
-| Seed entry | Corresponds to |
 |---|---|
-| `access → admin` (2 edges: `lib/beta-access/flow.ts`, `app/waitlist/actions.ts` → `app/admin/users/users-actions-shared.ts`) | **The** wrong-direction lib→app edge + one cross-segment edge (KAN-424 / F2) |
-| `age → auth` (1) against `auth → age` (4) | The single group-level type-only cycle (KAN-424 / F2) |
-| `public-profile → profile` (2), `dashboard → auth` (1) | The remaining cross-segment app→app edges (KAN-424 / F2) |
+| Modules | **21** — the plan's 20, plus founder-approved **`audit`** |
+| `src/` files claimed by exactly one module | **274 / 274** (0 unclaimed, 0 double-claimed) |
+| Internal TS import edges (parser) | **527** (315 intra-module, 212 cross-module) |
+| Measured public-API entries | **105** across 21 modules, each justified by a real import edge |
+| Declared (target, not yet measurable) API entries | **3** — all in `audit` (§3.2) |
+| **Import-edge violations → allowlist seed** | **14 edges across 12 module pairs** (1 type-only), of which **4 are upward edges, forbidden absolutely** |
+| **`profiles` cross-module COLUMN accesses** | **103**, over **47 (module, column) pairs** — *this was `0` in R1* |
+| **`profiles` sites with an unbounded column set** | **19** of 77 (`select('*')`, bare `select()`, variable write payload, object spread) |
+| Whole-table cross-module access | **55 sites over 39 (module, table) pairs** |
+| `.from()` / `.rpc()` sites / distinct tables | **77 on `profiles`** + the rest; 33 tables, 14 rpcs, every one owned |
+| `createServiceRoleClient` importer files (RLS-bypass register) | **39** across 13 modules |
+| `profiles` columns assigned an owner | **41 / 41**, no duplicates, **0** columns touched that are outside the map |
+| Measured blast radius of `platform` | **140** transitive dependant files — **exactly** the plan §5 figure |
 
-Beyond the known defects, the seed surfaces **four design decisions** the
-plan/founder must make (each currently generates violations that may instead be
-legitimised as `mayDependOn`):
+**The honest ratchet starting number is not 34.** It is three numbers that must
+each shrink independently:
 
-1. **`lib/admin.ts` may be mis-homed.** It is claimed by `admin` (name-based),
-   but `trust-safety` (`api/reports`) and `account` (settings actions) import
-   it — producing 2 upward edges. If `lib/admin.ts` is really an
-   *admin-privilege check* (not admin UI), it belongs in `access`, which clears
-   both violations and matches its survey fan-in of 17.
-2. **Moderation write-path coupling is structural, not accidental.**
-   `profile → trust-safety` (3) and `convene → trust-safety` (2) are content
-   modules calling `moderation-audit`/`moderation-policy` on write. Options:
-   demote trust-safety's *pure rule* part into `@lyra/contracts` (it already
-   seeds it via `content-moderation.ts`), or place trust-safety on the access
-   core layer. Leaving it as an allowlist entry forever would be wrong.
-3. **The recommendations/affiliate chain.**
-   `public-profile → recommendations` (6), `recommendations → affiliate` (4),
-   `profile/public-profile → affiliate` (3) form a coherent one-way chain
-   (render profile → recommend → monetise links). A plausible fix is declaring
-   `affiliate` a dependency of `recommendations` (sub-layer), and exposing
-   recommendations to `public-profile` via its index — i.e. legitimise the
-   chain rather than allowlist it.
-4. **`lib/convene/flags-user.ts` is consumed by dashboard and profile** (the
-   "is Convene enabled for this user" check). That belongs in `features`
-   (per-user entitlement), not convene internals.
-
-**Recommendation:** treat the 34-edge seed as the ratchet starting number, but
-resolve decisions 1–4 *before* freezing `mayDependOn` — each converts several
-allowlist entries into intended architecture.
+```
+ 14  import-edge violations          (was 34 — see §1.3 for the full reconciliation)
+ 55  whole-table cross-module reads/writes
+103  cross-module COLUMN accesses on profiles   ← was silently 0
+---
+172  total boundary violations, plus 19 unbounded-column sites to resolve
+```
 
 ---
 
-## 5. The data boundary
+## 1. What changed since R1, and why
 
-- **277 `.from()` + 14 `.rpc()` sites; 33 distinct tables; every table and rpc
-  has exactly one declared owner** (`modules.json → meta."db/schema"`).
-  Naming trap made explicit: `oauth_connections` / `oauth_connect_state`
-  belong to **convene** (calendar-provider OAuth), *not* `oauth-as`.
-- **`profiles` at column granularity: all 41 dev-schema columns assigned**,
-  with the security-load-bearing set placed per the ticket: access-model
-  columns (`user_status`, `access_tier`, `is_suspended`, `is_admin`,
-  `suspended_at`, `suspension_reason`, `beta_*`) → `access`; verification
-  columns (`age_status`, `age_checked_at`, `age_provider`, `age_provider_ref`,
-  `age_declared_18_at`) → `age`. Note `age_range` is assigned to **profile**
-  deliberately — it is a display attribute, not a verification datum.
-- **55 cross-module table-access sites over 39 pairs** (the data-boundary
-  analogue of the allowlist seed; enumerated in the seed JSON). Two dominant
-  patterns:
-  - `admin` reading trust-safety/features/profile tables (17 sites) — expected
-    for a backoffice; the KAN-415 data gate will need an explicit admin read
-    posture rather than 17 exemptions.
-  - **`account` touches 15 tables across five modules** — this is the GDPR
-    export/erasure path in settings. A module-per-table gate cannot ship
-    without deciding how data-subject-rights code enumerates other modules'
-    data (candidate: each module exposes an `exportForUser`/`eraseForUser`
-    contract; `account` orchestrates). Flagged for the KAN-415 design and for
-    KAN-421 (profiles ADR).
-- **Service-role register (ticket §4):** 39 files across 13 modules import
-  `createServiceRoleClient` today; the full per-module file list is embedded in
-  `modules.json → serviceRoleClient.measuredImporters` so later gates diff
-  against a recorded baseline instead of re-deriving privilege. (Survey said
-  40 at `ee647e6`; 39 is the measured value at this base.)
+### 1.1 The defect: `profiles` was exempt from its own baseline
 
----
+`kan416-derive.py:430` read:
 
-## 6. JUDGEMENT assignments needing a plan-§3 diff
+```python
+if mod not in owner and not owner.startswith("db/schema"):
+```
 
-Marked in `kan416-derive.py`; the significant ones:
+with `TABLE_OWNER["profiles"] = "db/schema (shared kernel — column ownership below)"`.
+The second clause was **always true** for `profiles`, so the condition was
+always false and **no** cross-module access to the god-table was ever recorded:
+77 `.from('profiles')` sites → **0** seed entries.
 
-| Assignment | Rationale | Alternative |
+That is worse than a miscount. The ratchet is shrink-only and is meant to start
+from an honest number; starting with the one table that most needs a baseline
+invisible would have made it dishonest from commit one — and would have pushed
+**KAN-421** (the `profiles` ADR) toward "column ownership looks fine" on
+evidence never gathered.
+
+**Fixed** by enumerating shared-kernel tables at **column** granularity instead
+of skipping them (§4). `SHARED_KERNEL = {"profiles"}` is now an explicit set;
+the whole-table loop `continue`s past it and a dedicated pass attributes every
+site to the module owning each column it touches.
+
+**Second defect, same line:** `mod not in owner` was a **substring** test
+against a string, not set membership. It did not misfire on today's names, but
+it is the wrong operator — and `src/lib/access-model/` landing on develop this
+week is exactly the kind of near-collision that would eventually bite it. Now
+`if mod != owner`.
+
+### 1.2 The `audit` module — founder-approved, 21st module
+
+`audit` · **layer 1** · **riskTier critical**.
+
+| | |
+|---|---|
+| Owns | `src/lib/moderation-audit.ts`; tables `moderation_logs`, `content_moderation_flags` |
+| Public API (declared) | `recordModerationFlag()`, `logModerationAction()`, `auditedMutation()` |
+| Implemented today by | `moderateAndAudit()` — the single export of `moderation-audit.ts` |
+
+This resolves the moderation write-path deadlock: `trust-safety` cannot drop to
+layer 1 (it also owns `api/reports` and, formerly, the retention routes), and
+the writer cannot go in `guards` (guards must stay edge-safe — nothing
+reachable from `middleware.ts` may import `@supabase/supabase-js`).
+
+**Consequence that needs founder confirmation (§7-A).** A layer-1 module may
+not import a layer-3 one. `moderation-audit.ts` imports `content-moderation.ts`
+and `moderation-policy.ts`, so those two must sit at layer 0 or the new module
+is illegal by construction. Both are already **import-free and I/O-free**, plan
+§3 P5 lists content moderation among the six `@lyra/contracts` rule-sets, and
+KAN-416's 2026-07-27 comment settled this as option (a). They are therefore
+assigned to **`contracts`**, which stops being an empty module and gains its
+in-repo seed (2 files, 4 measured public symbols, 19 transitive dependants).
+
+**What it buys:** 4 measured import edges (`profile → audit` ×3,
+`convene → audit` ×1) and 2 more via `contracts` become *legal architecture*
+instead of permanent allowlist entries.
+
+### 1.3 Reconciling 34 → 14 import-edge violations
+
+Every removed edge is accounted for. None was suppressed.
+
+| Pair (R1) | Edges | Why it is no longer a violation |
 |---|---|---|
-| `json-ld.ts` → guards | output-encoding defence (SEC-08) | public-profile |
-| `app/status/` → observability | live-probe status page (SEC-4) | marketing-legal |
-| `middleware.ts` → access | KAN-415 pairs "access + middleware decomposition" | composition root outside any module |
-| `lib/geo/` → profile | postcode→city for profile location (KAN-341) | platform |
-| `lib/invite-text.ts` → dashboard | consumed by dashboard page + share button | access (beta invites) |
-| `app/search/` → public-profile | public profile search | own module |
-| `lib/retention/` + `api/retention/` → trust-safety | GDPR retention enforcement (SEC-74) | account |
-| `lib/compliance/` → marketing-legal | drives legal-page disclosures (KAN-408) | trust-safety |
-| `app/examples/` → marketing-legal | homepage showcase | public-profile |
-| `lib/recommend/convene/` → recommendations | keeps scoring in one module (MCP drift-parity, KAN-426) | convene |
-| `consent_log` table → marketing-legal | cookie/analytics consent audit | trust-safety |
+| `public-profile → recommendations` | 6 | **Declared same-layer** — consequence of the founder ruling splitting `api/recommendations/` out of public-profile (§1.4 #6) |
+| `recommendations → affiliate` | 4 | **Declared same-layer** — plan §3 D8 `may_depend_on: affiliate (through MonetisationPort only)` |
+| `convene → recommendations` | 4 | `lib/recommend/convene/` → **convene** (founder ruling #1); now intra-module |
+| `profile → trust-safety` | 3 | Target is `moderation-audit.ts` → now **`audit`** at layer 1 |
+| `convene → trust-safety` | 2 | 1 → `audit` (layer 1), 1 → `contracts` (layer 0) |
+| `access → admin` | 2 → 1 | One edge disappeared **on develop**, not here: `lib/access-model/` landed, moving `computeAccessTransition` out of the admin route tree (plan §3 A1). The surviving edge is type-only. |
+| `trust-safety → convene` | 1 | `lib/retention/` → **account** (founder ruling #3); reappears as `account → convene` |
+| — | **20** | 34 − 20 = **14** ✓ |
 
----
+The 14 that remain:
 
-## 7. Estate impact (KAN-428 / KAN-429 cross-reference)
+| From → To | Edges | Direction | Disposition |
+|---|---|---|---|
+| `public-profile → profile` | 2 | same-layer, undeclared | KAN-424 / F2 cross-segment |
+| `profile → affiliate` | 2 | same-layer, undeclared | KAN-424 / F2 |
+| `public-profile → affiliate` | 1 | same-layer, undeclared | KAN-424 / F2 |
+| **`trust-safety → admin`** | 1 | **UPWARD** | the `api/reports` public route reaching into `admin` — this is the edge that makes the graph lie about privilege (plan D-9) |
+| `account → convene` | 1 | same-layer, undeclared | GDPR erasure reaching Convene tables — needs the `retentionSweep()` delegation (§7-C) |
+| **`age → auth`** | 1 | **UPWARD** | the type-only half of the `age ↔ auth` cycle (KAN-424 / F2) |
+| `dashboard → auth` | 1 | same-layer, undeclared | KAN-424 / F2 |
+| `dashboard → convene` | 1 | same-layer, undeclared | KAN-424 / F2 |
+| `profile → convene` | 1 | same-layer, undeclared | KAN-424 / F2 |
+| **`account → admin`** | 1 | **UPWARD** | KAN-424 / F2 |
+| **`access → admin`** | 1 (type-only) | **UPWARD** | the one group-level cycle the plan says must never come back |
+| `age → features` | 1 | same-layer, undeclared | KAN-424 / F2 |
 
-- `modules.json` is **itself a new path-coupled artefact**: its `paths` globs
-  break silently when files move. The KAN-419 drift detector (F1) must add
-  `modules.json` to its scan targets the moment the manifest is adopted —
-  extend `docs/modularisation/kan419-scan.py`'s artefact list accordingly.
-- No CI gate, workflow, test, or doc was modified by this spike. The only
-  repo-root addition is `modules.json` (inert data, `enforced: false`
-  everywhere, read by nothing). Unit suite verified green after its addition.
-- Test-floor provisionality: 149 test files (1500 blocks) carry no `src/` path
-  votes and are unmapped — most are workflow/doc/policy guards. **KAN-417 owns
-  the real test↔module mapping**; the floors here are deliberately labelled
-  `provisional: true`.
+### 1.4 The 10 founder-ruled path conflicts, applied
 
----
+Decided; not re-litigated here.
 
-## 8. Acceptance criteria — status
+| # | Path | Ruled to | Source | Note recorded in `modules.json` |
+|---|---|---|---|---|
+| 1 | `lib/recommend/convene/` | **convene** | PLAN (D7) | recommendations `must_not` host Convene scoring — KAN-353 turns on this |
+| 2 | `app/examples/` | **marketing-legal** | MANIFEST | `frozenContracts`: must consume public-profile's **read API**, never its own service-role read |
+| 3 | `lib/retention/` + `api/retention/` | **account** | PLAN (D6) | with per-module `retentionSweep()` delegation |
+| 4 | `lib/compliance/` | **marketing-legal** | MANIFEST | |
+| 5 | `app/status/` | **observability** | MANIFEST | |
+| 6 | `api/recommendations/` | **recommendations** | MANIFEST | creates the declared `public-profile → recommendations` seam |
+| 7 | `app/waitlist/` + `app/join/` | **access** | MANIFEST | |
+| 8 | `app/suspended/` | **access** | MANIFEST | |
+| 9 | `how-we-check-your-age/` | **marketing-legal** | PLAN (D11) | |
+| 10 | `lib/cookie-domain.ts` | **platform** | MANIFEST | |
+| — | `src/middleware.ts` | **access**, `compositionRoot: true` | | stays at its Next-required path as a thin composition root |
 
-| Criterion | Status |
+### 1.5 The amended layer policy
+
+```
+edge src→dst ALLOWED iff  layer(dst) < layer(src)
+                      OR  dst ∈ declaredSameLayer[src]     ← needs a `reason`
+UPWARD edges (layer(dst) > layer(src)) are FORBIDDEN ABSOLUTELY.
+No declaration legalises one; they only ever go in the shrink-only allowlist.
+```
+
+Two same-layer edges are declared today, both with a reason traceable to the
+plan or a founder ruling (`modules.json → layerPolicy.declaredSameLayer`):
+
+| From → To | Reason |
 |---|---|
-| `modules.json` v0 exists, all 20 modules, every field populated | ✅ (testFloor populated but explicitly provisional) |
-| Every `publicApi` entry justified by a measured import edge; script committed | ✅ `kan416-derive.py`; 104 entries, all edge-derived |
-| 100% of `src/` claimed exactly once; unclaimed files listed | ✅ 272/272, none unclaimed |
-| Every table owned or explicitly shared-kernel with column ownership | ✅ 33/33 tables + 14 rpcs; `profiles` at 41/41 columns |
-| Seeded allowlist enumerates every currently-violating edge with a count | ✅ 34 edges / 17 pairs, per-file lists |
-| *(step 5)* sanity-check vs plan §5 change-process table | ❌ **not performable** — plan file inaccessible (§1); founder diff requested |
+| `recommendations → affiliate` | plan §3 D8, *through the MonetisationPort only*; `affiliate/backoffice/` stays unreachable from the request path |
+| `public-profile → recommendations` | the founder ruling split `api/recommendations/` out of public-profile — the edge **is** the seam, not drift |
+
+An entry in `declaredSameLayer` is architecture. An entry in the allowlist is
+debt. The distinction only holds if the first list stays short and reviewed.
+
+### 1.6 Risk tiers raised to match plan §5 blast radius
+
+`guards` high → **critical** · `contracts` high → **critical** ·
+`public-profile` medium → **high** · `ui-kit` low → **high** ·
+`audit` (new) → **critical**.
+
+Where `modules.json` was already *higher* than the plan (`age`, `trust-safety`,
+`admin`, `observability`), the conservative call is kept.
+
+---
+
+## 2. The 21 modules — measured summary
+
+`Dep.` = MEASURED transitive dependant files. `SR` = files importing
+`supabase-service.ts`. `Same-L` = declared same-layer deps.
+
+| Module | L | Files | API | May depend on | Same-L | Violating | Risk | Blast (plan §5) | Dep. | SR | Tests (prov.) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `platform` | 0 | 6 | 9 | — | — | — | critical | Critical | **140** | 0 | 0f/0t |
+| `contracts` | 0 | 2 | 4 | — | — | — | critical | Critical | 19 | 0 | 0f/0t |
+| `guards` | 1 | 9 | 20 | platform | — | — | critical | Critical | 35 | 1 | 3f/59t |
+| `observability` | 1 | 4 | 3 | platform | — | — | medium | Low | 1 | 1 | 1f/3t |
+| `ui-kit` | 1 | 1 | 1 | — | — | — | high | High (visual) | 2 | 0 | 1f/9t |
+| **`audit`** | 1 | 1 | 1 (+3 declared) | contracts | — | — | critical | High (audit) | 15 | 0 | **0f/0t** |
+| `access` | 2 | 12 | 12 | guards, platform | — | **admin** | critical | Critical | 33 | 2 | **0f/0t** |
+| `features` | 2 | 5 | 17 | platform | — | — | high | High | 44 | 2 | **0f/0t** |
+| `age` | 2 | 11 | 10 | platform | — | auth, features | critical | High (compliance) | 20 | 2 | **0f/0t** |
+| `oauth-as` | 3 | 18 | 0 | access, guards, platform | — | — | critical | Critical (frozen) | 0 | 5 | 4f/41t |
+| `auth` | 3 | 11 | 2 | access, age, platform | — | — | high | High | 3 | 0 | 5f/51t |
+| `profile` | 3 | 35 | 4 | age, audit, features, guards, platform | — | affiliate, convene | high | High | 1 | 0 | 22f/309t |
+| `public-profile` | 3 | 8 | 0 | guards, platform, recommendations, ui-kit | recommendations | affiliate, profile | high | High (privacy) | 0 | 2 | 9f/60t |
+| `dashboard` | 3 | 9 | 0 | access, platform | — | auth, convene | medium | Medium | 0 | 0 | 4f/30t |
+| `account` | 3 | 11 | 0 | access, features, guards, platform | — | admin, convene | high | High (GDPR) | 0 | 2 | 4f/51t |
+| `convene` | 3 | 55 | 2 | access, audit, contracts, features, guards, platform | — | — | high | High — *and not safe* | 3 | **14** | 11f/164t |
+| `recommendations` | 3 | 17 | 5 | affiliate, features, platform | affiliate | — | medium | Medium | 4 | 3 | 2f/3t |
+| `affiliate` | 3 | 8 | 13 | features, platform | — | — | medium | Medium | 19 | 1 | **0f/0t** |
+| `trust-safety` | 3 | **1** | 0 | platform | — | admin | critical | High (audit) | 0 | 0 | **0f/0t** |
+| `marketing-legal` | 3 | 29 | 0 | access, features, guards, platform | — | — | medium | Low / High (legal) | 0 | 3 | 14f/216t |
+| `admin` | 4 | 21 | 2 | access, affiliate, features, observability, platform | — | — | critical | High (privilege) | 19 | 1 | 1f/8t |
+
+**`platform` measures 140 transitive dependant files — the plan §5 figure
+exactly.** Two independent derivations (the survey's and this parser's)
+agreeing to the unit is the strongest available evidence that the graph is
+being read correctly.
+
+Test-floor figures are the R1 path-vote heuristic and remain **provisional**
+(superseded by KAN-417); 149 test files / 1,500 blocks vote for no module at
+all. `0f/0t` therefore means "not attributable by path", not "untested" — but
+`access`, `age`, `features` and the new `audit` are four **critical/high** tier
+modules with no attributable tests, and that gap is real work for KAN-417 and
+KAN-429 whichever way the heuristic is refined.
+
+---
+
+## 3. The public API
+
+### 3.1 Measured (105 entries)
+
+Every `publicApi` entry in `modules.json` is a symbol **actually imported
+across a module boundary today**, with its evidence attached: `file`,
+`importingFiles`, `consumingModules`, `typeOnly`. Nothing is designed by taste
+— that is the whole point of deriving the barrel from the graph rather than
+from a tidy-looking list.
+
+Five modules still have a measured public API of **zero** — `oauth-as`,
+`public-profile`, `dashboard`, `account`, `marketing-legal`. Nothing outside
+them imports them at all, so extraction carries no barrel-design risk. This
+continues to strengthen the `oauth-as` pilot choice (plan §3 D1).
+
+### 3.2 Declared (3 entries, all in `audit`)
+
+`recordModerationFlag()`, `logModerationAction()`, `auditedMutation()` do not
+exist under those names; `moderation-audit.ts` exports a single
+`moderateAndAudit()`. They are carried in a separate `declaredApi` field, never
+mixed into `publicApi`, each recording `todayImplementedBy`. **A declared
+symbol is a design commitment, not a measurement** — keeping the two fields
+apart is what stops the manifest quietly becoming aspirational.
+
+---
+
+## 4. The data boundary
+
+### 4.1 `profiles` at column granularity — the baseline R1 skipped
+
+77 `.from('profiles')` sites. 103 accesses to a column owned by another module,
+over 47 (module, column) pairs:
+
+| Accessor | Accesses | Columns owned elsewhere |
+|---|---|---|
+| `admin` | 41 | `access_tier`, `age_declared_18_at`, `beta_approved_at`, `bio_short`, `display_name`, `headline`, `is_admin`, `is_published`, `is_suspended`, `slug`, `suspended_at`, `suspension_reason`, `user_status` |
+| `public-profile` | 18 | `avatar_url`, `bio_short`, `city`, `country`, `display_name`, `headline`, `is_homepage_example`, `is_published`, `is_suspended`, `slug` |
+| `marketing-legal` | 17 | `avatar_url`, `city`, `country`, `display_name`, `headline`, `is_published`, `is_suspended`, `slug` |
+| `recommendations` | 13 | `bio_short`, `delivery_country_code`, `display_name`, `headline`, `is_published`, `is_suspended`, `slug` |
+| `convene` | 8 | `city`, `display_name`, `is_published`, `is_suspended`, `slug` |
+| `profile` | 2 | `age_status` |
+| `account` | 2 | `discoverable_by_phone` |
+| `access` | 1 | `display_name` |
+| `trust-safety` | 1 | `slug` |
+
+Plus **19 sites whose column set cannot be bounded from source** — `select('*')`,
+a bare `select()`, a variable write payload, or an object spread. Each must be
+read as a potential access to **all 41 columns**. They are listed file-and-line
+in the seed (`sharedKernelColumnAccess.unboundedSites`); the heaviest are
+`profile` (7), `admin` (3), `dashboard`/`account`/`access` (2 each).
+
+**Extraction method, stated plainly.** The script reads the chained PostgREST
+expression starting at each `.from('profiles')` — `.select()` argument,
+`.eq/.neq/.gt/.in/.order/...` first arguments, and `.update/.insert/.upsert`
+object keys — bounded by the next `.from(`, a blank line, or 1,400 characters.
+It is a documented heuristic, **not** a TypeScript parser. Its failure mode is
+deliberately loud: anything it cannot bound is reported as an unbounded site
+rather than dropped. Two sites were verified by hand against source
+(`src/app/[slug]/page.tsx:185` — `select('*')` + the SEC-44 filter pair;
+`src/app/admin/users/actions.ts:114` — `.update(transition.update).in('id', …)`)
+and both matched.
+
+Zero columns were touched that are outside the 41-column ownership map, which
+is a useful independent check that the map is complete for the code as it is.
+
+### 4.2 What this hands KAN-421
+
+KAN-421 must choose between column-ownership-plus-gate and satellite tables.
+It now has evidence, and the evidence points at three specific things:
+
+1. **`is_published` (owner `profile`) and `is_suspended` (owner `access`) are
+   read together by five different modules.** Plan §5 requires the
+   `.eq('is_published',true).eq('is_suspended',false)` pair to stay **one
+   tested unit** (SEC-44). Under column ownership that pair straddles a module
+   boundary at every call site — the strongest argument in the data for a
+   shared read *contract* rather than raw column access.
+2. **`admin` reads or writes 13 columns owned by four other modules.** A
+   backoffice legitimately sees everything; the question is whether it goes
+   through owners' APIs or keeps a declared whole-row exemption.
+3. **19 unbounded sites must be bounded before any column-level gate can be
+   enforced at all.** A gate cannot rule on `select('*')`.
+
+### 4.3 Whole-table access, and the rest of the schema
+
+**55 sites over 39 (module, table) pairs**, unchanged in total from R1 but
+re-attributed by the founder rulings — `account` now carries the GDPR
+export/erasure reach that `trust-safety` carried before (12 of the 39 pairs),
+which is precisely why plan §5 pairs `account` with a `retentionSweep()`
+delegation instead of direct reach.
+
+33 tables and 14 rpcs, every one with exactly one declared owner, 0 unowned.
+`moderation_logs` and `content_moderation_flags` now belong to `audit`.
+
+### 4.4 Service-role register (RLS bypass)
+
+**39 files across 13 modules**, enumerated per module in
+`modules.json → serviceRoleClient` and mirrored into each module's
+`changeProcess.serviceRole`. `convene` holds 14 of them — over a third of the
+entire RLS-bypass surface in the module whose MCP write tools are, per plan
+§7-D5, **live in production against the production database** while its web
+flag is off.
+
+---
+
+## 5. `changeProcess` — plan §5, encoded
+
+Every module now carries a `changeProcess` block, so KAN-428's extraction
+Definition-of-Done can reference per-module answers instead of re-deriving
+them:
+
+| Field | Source |
+|---|---|
+| `uiApprovalGated` (`never`/`sometimes`/`always`), `uiApprovalPaths` | plan §5 col. 1 |
+| `mcpLockstep` (`none`/`contract`/`tools`) | plan §5 col. 2 |
+| `migrationEnvs`, `migrationFrequency` | plan §5 col. 3 |
+| `blastRadius` | plan §5 col. 4, verbatim |
+| `frozenContracts`, `notes` | plan §5 col. 5 |
+| `signupSurface` | plan §5 `auth` row |
+| `edgeSafe` | plan §3 P2 hard rule |
+| `extraGates` | **joined to `controls/registry.json` by CTL id** |
+| `transitiveDependants`, `edgeReachableFiles`, `serviceRole` | **MEASURED at derivation time** |
+
+Ten modules join to a registered control: CTL-004 (`platform`), CTL-030
+(`guards`), CTL-009 (`ui-kit`, `marketing-legal`), CTL-028 + CTL-013
+(`access`), CTL-013 (`auth`), CTL-021/022/020 (`profile`), CTL-028
+(`public-profile`, `admin`), CTL-019 (`dashboard`). Eleven join to none —
+including `contracts`, `audit`, `age`, `account`, `convene` and
+`oauth-as`, four of which are critical-tier. **That gap is the honest reading
+of `extraGates`: the modules with the most frozen contracts have the fewest
+automated controls holding them.** It is material to KAN-428/429 and to the
+SEC-101 feedback loop.
+
+---
+
+## 6. Findings
+
+**F1 — `trust-safety` is now a one-file module.** After the founder rulings
+(`retention` → `account`) and the `audit`/`contracts` split, `trust-safety`
+owns exactly one file: `src/app/api/reports/`. It has 0 measured public API, 0
+transitive dependants, 0 attributable tests, and its only outbound violation is
+the upward `trust-safety → admin` edge. `app/admin/moderation` — which plan §3
+D10 assigns to it — is claimed by `admin` under the longest-prefix rule.
+**Recommendation: KAN-415 should decide whether `trust-safety` survives as a
+module or dissolves into `audit` (rules + write path) and `admin` (moderation
+console), leaving `api/reports` as a route.** This is a genuine consequence of
+decisions already taken, not a derivation artefact — but it changes the module
+count, so it is the founder's call, not this spike's.
+
+**F2 — Four critical/high modules have no attributable tests.** `access`,
+`age`, `features`, `audit`. See §2.
+
+**F3 — `account`'s GDPR reach is now explicit and larger.** It touches 12
+(module, table) pairs it does not own plus a same-layer `account → convene`
+edge. The table-ownership gate cannot ship without the data-subject-rights
+contract; the `retentionSweep()` delegation named in ruling #3 is the shape of
+that contract. Carried forward to KAN-421 and KAN-415 design.
+
+**F4 — `access → admin` is down to one type-only edge, without anyone doing
+KAN-424 work.** `lib/access-model/` landing on develop removed the runtime half.
+Worth noting in KAN-424: the remaining edge is a type import, which is cheaper
+to break than the ticket assumes.
+
+**No SEC ticket raised.** This run found no inert gate, no schema/RLS
+discrepancy, and no privacy defect. The `profiles` baseline defect is a
+research-artefact accuracy problem in an unenforced manifest (`enforced:
+false`, read by nothing), corrected here before anything consumed it — it did
+not weaken a live control. §4.4 and §5's control-coverage gap are inputs to
+KAN-428/429, not findings of a live vulnerability.
+
+---
+
+## 7. Open items for the founder
+
+**A. Confirm `content-moderation.ts` + `moderation-policy.ts` → `contracts`
+(layer 0).** Derived, not ruled. It is *required* for `audit` at layer 1 to be
+legal, both files are already import-free and I/O-free, plan §3 P5 lists content
+moderation among the contracts rule-sets, and KAN-416's 2026-07-27 comment
+settled the write-path question as option (a). But it moves two files into a
+module you have not explicitly assigned them to, and it is the reason
+`contracts` stops being empty. If you disagree, `audit` needs a different layer.
+
+**B. Rule on F1 — does `trust-safety` survive as a module?**
+
+**C. `retentionSweep()` delegation** (ruling #3) is recorded as a `note` on
+`account`, not implemented. The `account → convene` edge stays a violation
+until it exists.
+
+---
+
+## 8. Reproducibility
+
+| Number | Command |
+|---|---|
+| Everything in §0, §2, §4, §5 | `python3 docs/modularisation/kan416-derive.py` |
+| Canonical graph cross-check | `npx madge --json --extensions ts,tsx --ts-config tsconfig.json src` |
+| Base commit | `develop@1d6cb5f` (merged into this branch) |
+
+The script is deterministic: same tree in, same `modules.json` and same seed
+out. Module assignment, layer policy, declared same-layer edges, table and
+column ownership, and the change-process table are all data at the top of the
+file, so a disagreement with any of them is a one-line diff and a re-run — not
+an argument about what the code "really" does.

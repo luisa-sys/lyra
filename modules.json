@@ -1,6 +1,22 @@
 {
-  "$comment": "KAN-416 v0 DRAFT \u2014 derived from measured imports on develop; enforced=false everywhere. Module set per epic KAN-415. Path assignments marked JUDGEMENT in docs/modularisation/kan416-derive.py must be diffed against LYRA_MODULARISATION_PLAN_2026-07-26.md \u00a73/\u00a75 (not accessible to the deriving session). Regenerate with: python3 docs/modularisation/kan416-derive.py",
-  "version": 0,
+  "$comment": "KAN-416 v1 DRAFT (R1b re-derivation) \u2014 derived from measured imports on develop; enforced=false everywhere, read by nothing. 21 modules: the plan's 20 plus founder-approved `audit`. Path assignments are reconciled against docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md \u00a73 and the 10 founder rulings recorded on KAN-416; changeProcess encodes plan \u00a75. Regenerate with: python3 docs/modularisation/kan416-derive.py",
+  "version": 1,
+  "layerPolicy": {
+    "rule": "edge src->dst allowed iff layer(dst) < layer(src) OR dst in declaredSameLayer[src]",
+    "upwardEdges": "FORBIDDEN ABSOLUTELY \u2014 no declaration can legalise one",
+    "declaredSameLayer": [
+      {
+        "from": "public-profile",
+        "to": "recommendations",
+        "reason": "Consequence of the founder ruling that splits `api/recommendations/` out of public-profile (plan \u00a73 D4 listed it inside public-profile). The read path that was one module is now two; the edge is the seam, not drift."
+      },
+      {
+        "from": "recommendations",
+        "to": "affiliate",
+        "reason": "plan \u00a73 D8 `may_depend_on: affiliate (through MonetisationPort only)` \u2014 a declared sub-layer, not an allowlist entry. Constraint: only through the MonetisationPort interface; affiliate/backoffice stays unreachable from the request path (plan \u00a75 affiliate row)."
+      }
+    ]
+  },
   "modules": {
     "platform": {
       "layer": 0,
@@ -46,6 +62,7 @@
           "importingFiles": 39,
           "consumingModules": [
             "access",
+            "account",
             "admin",
             "affiliate",
             "age",
@@ -56,8 +73,7 @@
             "oauth-as",
             "observability",
             "public-profile",
-            "recommendations",
-            "trust-safety"
+            "recommendations"
           ],
           "typeOnly": false
         },
@@ -67,11 +83,11 @@
           "importingFiles": 14,
           "consumingModules": [
             "access",
+            "account",
             "age",
             "auth",
             "marketing-legal",
-            "public-profile",
-            "trust-safety"
+            "public-profile"
           ],
           "typeOnly": false
         },
@@ -133,7 +149,9 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -141,6 +159,7 @@
         "admin",
         "affiliate",
         "age",
+        "audit",
         "auth",
         "contracts",
         "convene",
@@ -157,6 +176,151 @@
         "ui-kit"
       ],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [],
+        "extraGates": [
+          "CTL-004"
+        ],
+        "notes": "Every change needs a full-suite run; no path filters ever.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 140
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 1
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "contracts": {
+      "layer": 0,
+      "paths": [
+        "src/lib/content-moderation.ts",
+        "src/lib/moderation-policy.ts"
+      ],
+      "owns": {
+        "files": 2,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "checkModeration",
+          "file": "src/lib/moderation-policy.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "audit",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "moderateContent",
+          "file": "src/lib/content-moderation.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:FieldType",
+          "file": "src/lib/content-moderation.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:CheckResult",
+          "file": "src/lib/moderation-policy.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "declaredApi": [],
+      "mayDependOn": [],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "platform",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "contract",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "semver",
+          "zero dependencies",
+          "zero I/O",
+          "runs unchanged on Vercel Edge, Vercel Node, Railway Node"
+        ],
+        "extraGates": [],
+        "notes": "MCP lockstep by construction \u2014 3 deployables. CI drift test in all 3 repos; npm audit HIGH gate runs against it in 5 workflows.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -374,9 +538,11 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -384,6 +550,7 @@
         "admin",
         "affiliate",
         "age",
+        "audit",
         "auth",
         "convene",
         "dashboard",
@@ -397,7 +564,37 @@
         "trust-safety",
         "ui-kit"
       ],
-      "riskTier": "high",
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "nothing reachable from src/middleware.ts may import node:crypto, next/headers or @supabase/supabase-js"
+        ],
+        "extraGates": [
+          "CTL-030"
+        ],
+        "notes": "edge-safe rule must pass; middleware smoke on preview. The edge bundle breaks at DEPLOY time, not type-check.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 35
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 3
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -451,9 +648,11 @@
           "typeOnly": true
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -461,6 +660,7 @@
         "admin",
         "affiliate",
         "age",
+        "audit",
         "auth",
         "convene",
         "dashboard",
@@ -475,6 +675,32 @@
         "ui-kit"
       ],
       "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "low",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 1
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -505,7 +731,9 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -513,6 +741,7 @@
         "admin",
         "affiliate",
         "age",
+        "audit",
         "auth",
         "convene",
         "dashboard",
@@ -526,7 +755,39 @@
         "recommendations",
         "trust-safety"
       ],
-      "riskTier": "low",
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/components/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "high (visual)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "every diff must render-identical"
+        ],
+        "extraGates": [
+          "CTL-009"
+        ],
+        "notes": "Founder Jira key + UI-Change-Approved trailer; batch per phase, not per file.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 2
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -535,17 +796,53 @@
       },
       "enforced": false
     },
-    "contracts": {
-      "layer": 0,
-      "paths": [],
+    "audit": {
+      "layer": 1,
+      "paths": [
+        "src/lib/moderation-audit.ts"
+      ],
       "owns": {
-        "files": 0,
-        "tables": [],
+        "files": 1,
+        "tables": [
+          "content_moderation_flags",
+          "moderation_logs"
+        ],
         "rpcs": [],
         "profilesColumns": []
       },
-      "publicApi": [],
-      "mayDependOn": [],
+      "publicApi": [
+        {
+          "symbol": "moderateAndAudit",
+          "file": "src/lib/moderation-audit.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "convene",
+            "profile"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "symbol": "recordModerationFlag",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+        },
+        {
+          "symbol": "logModerationAction",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+        },
+        {
+          "symbol": "auditedMutation",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+        }
+      ],
+      "mayDependOn": [
+        "contracts"
+      ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -561,14 +858,47 @@
         "marketing-legal",
         "oauth-as",
         "observability",
-        "platform",
         "profile",
         "public-profile",
         "recommendations",
         "trust-safety",
         "ui-kit"
       ],
-      "riskTier": "high",
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "contract",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (audit)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "audit chain is append-only",
+          "a mutation may not proceed if the audit write failed",
+          "moderation_logs.actor_user_id ON DELETE RESTRICT"
+        ],
+        "extraGates": [],
+        "notes": "NEW module (KAN-416 R1b, founder-approved). Inherits plan \u00a75's trust-safety audit obligations because it now owns the write path.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 15
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -582,13 +912,14 @@
       "paths": [
         "src/lib/beta-access/",
         "src/lib/account-status.ts",
+        "src/lib/access-model/",
         "src/app/waitlist/",
         "src/app/suspended/",
         "src/app/join/",
         "src/middleware.ts"
       ],
       "owns": {
-        "files": 10,
+        "files": 12,
         "tables": [],
         "rpcs": [],
         "profilesColumns": [
@@ -662,6 +993,24 @@
           "typeOnly": false
         },
         {
+          "symbol": "computeAccessTransition",
+          "file": "src/lib/access-model/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AccessAction",
+          "file": "src/lib/access-model/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
           "symbol": "betaInviteLink",
           "file": "src/lib/beta-access/invite-link.ts",
           "importingFiles": 1,
@@ -698,10 +1047,12 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "guards",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
         "admin"
       ],
@@ -722,6 +1073,44 @@
         "trust-safety"
       ],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "sometimes",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "gate ORDER is a behavioural contract",
+          "fail-open/fail-closed asymmetry must be preserved deliberately"
+        ],
+        "extraGates": [
+          "CTL-028",
+          "CTL-013"
+        ],
+        "notes": "Needs its own gate-ordering test. must-not: import from admin (the only group-level cycle in the graph).",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 33
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 1
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [
+        "src/middleware.ts"
+      ],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -905,9 +1294,11 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "access",
@@ -926,6 +1317,38 @@
         "trust-safety"
       ],
       "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "16-symbol index.ts"
+        ],
+        "extraGates": [],
+        "notes": "Registry change must land in @lyra/contracts first, then all 3 consumers.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 44
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -940,11 +1363,10 @@
         "src/lib/age/",
         "src/app/verify-age/",
         "src/app/confirm-age/",
-        "src/app/how-we-check-your-age/",
         "src/app/api/age/"
       ],
       "owns": {
-        "files": 12,
+        "files": 11,
         "tables": [],
         "rpcs": [],
         "profilesColumns": [
@@ -1047,9 +1469,11 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
         "auth",
         "features"
@@ -1071,6 +1495,41 @@
         "trust-safety"
       ],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [
+          "copy on the 18+ path"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "high (compliance)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "age_declared_18_at is an attestation, NOT a fail-closed gate",
+          "the dormant Didit provider path is retained deliberately"
+        ],
+        "extraGates": [],
+        "notes": "Any change to the 18+ path is a compliance event \u2014 DPIA/ROPA check.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 20
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1099,11 +1558,13 @@
         "profilesColumns": []
       },
       "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "guards",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
@@ -1119,6 +1580,42 @@
         "trust-safety"
       ],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "critical (frozen contract)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "URLs",
+          "iss derivation",
+          "scope set",
+          "RS256/JWKS keys",
+          "exact 401 shape"
+        ],
+        "extraGates": [],
+        "notes": "claude.ai, Claude Desktop and MCP Inspector are external consumers. Contract test required BEFORE any move.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 5
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1160,11 +1657,13 @@
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "age",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
@@ -1180,6 +1679,40 @@
         "trust-safety"
       ],
       "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "copy"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": true,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [
+          "CTL-013"
+        ],
+        "notes": "Signup-surface gate fires.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 3
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1261,16 +1794,18 @@
           "typeOnly": true
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "age",
+        "audit",
         "features",
         "guards",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
         "affiliate",
-        "convene",
-        "trust-safety"
+        "convene"
       ],
       "mustNot": [
         "account",
@@ -1286,11 +1821,49 @@
         "trust-safety"
       ],
       "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/profile/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "partial-write contract: undefined omits, null clears (BUGS-74)"
+        ],
+        "extraGates": [
+          "CTL-021",
+          "CTL-022",
+          "CTL-020"
+        ],
+        "notes": "Domain-model changes ripple to public-profile + MCP.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 1
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
-        "testFiles": 21,
-        "testBlocks": 296
+        "testFiles": 22,
+        "testBlocks": 309
       },
       "enforced": false
     },
@@ -1307,15 +1880,19 @@
         "profilesColumns": []
       },
       "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "guards",
         "platform",
+        "recommendations",
         "ui-kit"
+      ],
+      "declaredSameLayer": [
+        "recommendations"
       ],
       "mayDependOnCandidatesPendingDecision": [
         "affiliate",
-        "profile",
-        "recommendations"
+        "profile"
       ],
       "mustNot": [
         "account",
@@ -1327,15 +1904,52 @@
         "marketing-legal",
         "oauth-as",
         "profile",
-        "recommendations",
         "trust-safety"
       ],
-      "riskTier": "medium",
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/[slug]/**",
+          "src/app/search/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "high (privacy)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          ".eq('is_published',true).eq('is_suspended',false) must stay ONE tested unit (SEC-44)",
+          "SEC-82 cache headers preserved"
+        ],
+        "extraGates": [
+          "CTL-028"
+        ],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
-        "testFiles": 8,
-        "testBlocks": 50
+        "testFiles": 9,
+        "testBlocks": 60
       },
       "enforced": false
     },
@@ -1358,10 +1972,12 @@
         ]
       },
       "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
         "auth",
         "convene"
@@ -1380,6 +1996,42 @@
         "trust-safety"
       ],
       "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "never reintroduce loading.tsx / Suspense at /dashboard (BUGS-63)"
+        ],
+        "extraGates": [
+          "CTL-019"
+        ],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1391,10 +2043,12 @@
     "account": {
       "layer": 3,
       "paths": [
-        "src/app/dashboard/settings/"
+        "src/app/dashboard/settings/",
+        "src/lib/retention/",
+        "src/app/api/retention/"
       ],
       "owns": {
-        "files": 6,
+        "files": 11,
         "tables": [
           "api_keys"
         ],
@@ -1402,14 +2056,17 @@
         "profilesColumns": []
       },
       "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "features",
         "guards",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
-        "admin"
+        "admin",
+        "convene"
       ],
       "mustNot": [
         "admin",
@@ -1425,24 +2082,60 @@
         "trust-safety"
       ],
       "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/settings/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (GDPR)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "SAR/erasure completeness test must pass",
+          "moderation_logs.actor_user_id ON DELETE RESTRICT must not be silently dropped"
+        ],
+        "extraGates": [],
+        "notes": "Owns lib/retention + api/retention (founder-ruled); per-module retentionSweep() delegation, so account never reaches into another module's tables directly.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
-        "testFiles": 2,
-        "testBlocks": 24
+        "testFiles": 4,
+        "testBlocks": 51
       },
       "enforced": false
     },
     "convene": {
       "layer": 3,
       "paths": [
+        "src/lib/recommend/convene/",
         "src/lib/convene/",
         "src/app/dashboard/convene/",
         "src/app/api/convene/",
         "src/app/r/"
       ],
       "owns": {
-        "files": 52,
+        "files": 55,
         "tables": [
           "contact_methods",
           "contacts",
@@ -1486,21 +2179,22 @@
           "file": "src/lib/convene/cron-auth.ts",
           "importingFiles": 1,
           "consumingModules": [
-            "trust-safety"
+            "account"
           ],
           "typeOnly": false
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
+        "audit",
+        "contracts",
         "features",
         "guards",
         "platform"
       ],
-      "mayDependOnCandidatesPendingDecision": [
-        "recommendations",
-        "trust-safety"
-      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
         "admin",
@@ -1515,6 +2209,41 @@
         "trust-safety"
       ],
       "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/convene/**",
+          "src/app/r/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high \u2014 and it is NOT safe",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "23 live MCP tools"
+        ],
+        "extraGates": [],
+        "notes": "Plan \u00a77-D5: the web flag is off, but the MCP write tools are LIVE in production against the production database.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 3
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 14
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1531,7 +2260,7 @@
         "src/app/api/recommendations/"
       ],
       "owns": {
-        "files": 20,
+        "files": 17,
         "tables": [
           "recommender_catalogue"
         ],
@@ -1549,15 +2278,6 @@
           "importingFiles": 2,
           "consumingModules": [
             "public-profile"
-          ],
-          "typeOnly": true
-        },
-        {
-          "symbol": "GatheringType",
-          "file": "src/lib/recommend/convene/types.ts",
-          "importingFiles": 2,
-          "consumingModules": [
-            "convene"
           ],
           "typeOnly": true
         },
@@ -1596,46 +2316,21 @@
             "public-profile"
           ],
           "typeOnly": true
-        },
-        {
-          "symbol": "scoreVenue",
-          "file": "src/lib/recommend/convene/score-venue.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "convene"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "VenueCandidate",
-          "file": "src/lib/recommend/convene/types.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "convene"
-          ],
-          "typeOnly": true
-        },
-        {
-          "symbol": "VenueContext",
-          "file": "src/lib/recommend/convene/types.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "convene"
-          ],
-          "typeOnly": true
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
+        "affiliate",
         "features",
         "platform"
       ],
-      "mayDependOnCandidatesPendingDecision": [
+      "declaredSameLayer": [
         "affiliate"
       ],
+      "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
         "admin",
-        "affiliate",
         "auth",
         "convene",
         "dashboard",
@@ -1646,6 +2341,36 @@
         "trust-safety"
       ],
       "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [],
+        "notes": "must-not host Convene scoring (plan D8; KAN-353 turns on this).",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 4
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 3
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1794,10 +2519,12 @@
           "typeOnly": true
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "features",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
@@ -1813,6 +2540,40 @@
         "trust-safety"
       ],
       "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [
+          "AffiliateBadge"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "backoffice/ must never be reachable from the request path"
+        ],
+        "extraGates": [],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1824,18 +2585,11 @@
     "trust-safety": {
       "layer": 3,
       "paths": [
-        "src/lib/content-moderation.ts",
-        "src/lib/moderation-audit.ts",
-        "src/lib/moderation-policy.ts",
-        "src/app/api/reports/",
-        "src/lib/retention/",
-        "src/app/api/retention/"
+        "src/app/api/reports/"
       ],
       "owns": {
-        "files": 9,
+        "files": 1,
         "tables": [
-          "content_moderation_flags",
-          "moderation_logs",
           "reports"
         ],
         "rpcs": [
@@ -1843,33 +2597,14 @@
         ],
         "profilesColumns": []
       },
-      "publicApi": [
-        {
-          "symbol": "moderateAndAudit",
-          "file": "src/lib/moderation-audit.ts",
-          "importingFiles": 4,
-          "consumingModules": [
-            "convene",
-            "profile"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "checkModeration",
-          "file": "src/lib/moderation-policy.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "convene"
-          ],
-          "typeOnly": false
-        }
-      ],
+      "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
-        "admin",
-        "convene"
+        "admin"
       ],
       "mustNot": [
         "account",
@@ -1885,11 +2620,43 @@
         "recommendations"
       ],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (audit)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "a mutation may not proceed if the audit write failed"
+        ],
+        "extraGates": [],
+        "notes": "Write path + audit tables moved to `audit` (layer 1). trust-safety keeps api/reports and app/admin/moderation.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
-        "testFiles": 2,
-        "testBlocks": 27
+        "testFiles": 0,
+        "testBlocks": 0
       },
       "enforced": false
     },
@@ -1899,6 +2666,7 @@
         "src/app/(legal)/",
         "src/app/_marketing/",
         "src/app/examples/",
+        "src/app/how-we-check-your-age/",
         "src/lib/compliance/",
         "src/app/page.tsx",
         "src/app/layout.tsx",
@@ -1914,7 +2682,7 @@
         "src/app/service-worker-register.tsx"
       ],
       "owns": {
-        "files": 28,
+        "files": 29,
         "tables": [
           "consent_log"
         ],
@@ -1925,12 +2693,14 @@
         ]
       },
       "publicApi": [],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "features",
         "guards",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [
         "account",
@@ -1946,6 +2716,42 @@
         "trust-safety"
       ],
       "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/(legal)/**",
+          "src/app/_marketing/**",
+          "src/app/page.tsx",
+          "src/app/examples/**",
+          "src/app/how-we-check-your-age/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "low (functional) / high (legal)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "app/examples must consume public-profile's READ API \u2014 never its own service-role read"
+        ],
+        "extraGates": [
+          "CTL-009"
+        ],
+        "notes": "Legal copy changes need compliance review, not just founder UI sign-off.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 3
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -1981,15 +2787,16 @@
           "typeOnly": false
         },
         {
-          "symbol": "computeAccessTransition",
-          "file": "src/app/admin/users/users-actions-shared.ts",
-          "importingFiles": 2,
+          "symbol": "ModerationAction",
+          "file": "src/lib/admin.ts",
+          "importingFiles": 1,
           "consumingModules": [
             "access"
           ],
-          "typeOnly": false
+          "typeOnly": true
         }
       ],
+      "declaredApi": [],
       "mayDependOn": [
         "access",
         "affiliate",
@@ -1997,9 +2804,44 @@
         "observability",
         "platform"
       ],
+      "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
       "mustNot": [],
       "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (privilege)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "must not be imported by ANY other module"
+        ],
+        "extraGates": [
+          "CTL-028"
+        ],
+        "notes": "Internal only \u2014 not UI-gated. Every mutation routed through the shared transition matrix; CF Access + is_admin both verified.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
       "testFloor": {
         "provisional": true,
         "note": "path-vote mapping; superseded by KAN-417",
@@ -2061,7 +2903,7 @@
         "src/lib/features/entitlements-service.ts",
         "src/lib/features/global-switches-service.ts"
       ],
-      "trust-safety": [
+      "account": [
         "src/lib/retention/affiliate-clicks.ts",
         "src/lib/retention/gatherings.ts"
       ],
@@ -2084,7 +2926,7 @@
     "db/schema": {
       "owns": "table-ownership contract; profiles at column granularity",
       "tables": {
-        "profiles": "db/schema (shared kernel \u2014 column ownership below)",
+        "profiles": "db/schema:shared-kernel",
         "profile_items": "profile",
         "profile_files": "profile",
         "profile_manual_of_me": "profile",
@@ -2108,8 +2950,8 @@
         "oauth_refresh_tokens": "oauth-as",
         "oauth_consents": "oauth-as",
         "reports": "trust-safety",
-        "content_moderation_flags": "trust-safety",
-        "moderation_logs": "trust-safety",
+        "content_moderation_flags": "audit",
+        "moderation_logs": "audit",
         "api_keys": "account",
         "global_feature_switches": "features",
         "feature_entitlements": "features",

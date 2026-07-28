@@ -52,6 +52,14 @@ MODULE_RULES = [
     ("src/lib/env.ts", "platform"),
     ("src/lib/deploy-env.ts", "platform"),
     ("src/lib/cookie-domain.ts", "platform"),
+    # --- Layer 0: contracts (pure rule-sets; zero deps, zero I/O; plan §3 P5) ---
+    # DERIVED, flagged for founder confirmation: the `audit` module (layer 1)
+    # cannot legally import a layer-3 module, so the pure moderation rules it
+    # depends on must sit at layer 0. Both files are import-free / I/O-free and
+    # plan §3 P5 lists "content moderation" among the six contracts rule-sets;
+    # KAN-416 comment 2026-07-27 settled this as option (a).
+    ("src/lib/content-moderation.ts", "contracts"),
+    ("src/lib/moderation-policy.ts", "contracts"),
     # --- Layer 0: guards (request/output guarding utilities) JUDGEMENT ---
     ("src/lib/rate-limit.ts", "guards"),
     ("src/lib/rate-limit-shared.ts", "guards"),
@@ -69,18 +77,23 @@ MODULE_RULES = [
     ("src/app/status/", "observability"),  # JUDGEMENT: live-probe status page (SEC-4)
     # --- Layer 0: ui-kit (to be BUILT; today exactly one file) ---
     ("src/components/", "ui-kit"),
-    # --- Layer 1: access core ---
+    # --- Layer 1: audit (moderation write path) — FOUNDER-APPROVED, KAN-416 R1b ---
+    # Resolves the moderation write-path deadlock: trust-safety cannot drop to
+    # layer 1 (it also owns api/reports + retention routes) and the writer
+    # cannot go in guards (guards must stay edge-safe).
+    ("src/lib/moderation-audit.ts", "audit"),
+    # --- Layer 2: access core ---
     ("src/lib/beta-access/", "access"),
     ("src/lib/account-status.ts", "access"),
-    ("src/app/waitlist/", "access"),
-    ("src/app/suspended/", "access"),
-    ("src/app/join/", "access"),
-    ("src/middleware.ts", "access"),  # JUDGEMENT: composition root; KAN-415 pairs "access + middleware decomposition"
+    ("src/lib/access-model/", "access"),  # computeAccessTransition, moved out of the admin tree (plan §3 A1)
+    ("src/app/waitlist/", "access"),      # FOUNDER-RULED (manifest over plan D2)
+    ("src/app/suspended/", "access"),     # FOUNDER-RULED (manifest over plan D11)
+    ("src/app/join/", "access"),          # FOUNDER-RULED (manifest over plan D2)
+    ("src/middleware.ts", "access"),      # compositionRoot: stays at its Next-required path
     ("src/lib/features/", "features"),
     ("src/lib/age/", "age"),
     ("src/app/verify-age/", "age"),
     ("src/app/confirm-age/", "age"),
-    ("src/app/how-we-check-your-age/", "age"),
     ("src/app/api/age/", "age"),
     # --- Layer 2: domains ---
     ("src/lib/oauth/", "oauth-as"),
@@ -100,24 +113,23 @@ MODULE_RULES = [
     ("src/lib/dashboard/", "dashboard"),
     ("src/lib/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
     ("src/app/dashboard/settings/", "account"),
+    ("src/lib/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
+    ("src/app/api/retention/", "account"),  # FOUNDER-RULED (plan D6 over manifest)
+    ("src/lib/recommend/convene/", "convene"),  # FOUNDER-RULED (plan D7 over manifest); KAN-353 turns on this
     ("src/lib/convene/", "convene"),
     ("src/app/dashboard/convene/", "convene"),
     ("src/app/api/convene/", "convene"),
     ("src/app/r/", "convene"),  # public RSVP page (KAN-209 P5)
-    ("src/lib/recommend/", "recommendations"),  # includes recommend/convene — JUDGEEMENT flagged in artefact
+    ("src/lib/recommend/", "recommendations"),
     ("src/lib/recommender/", "recommendations"),
-    ("src/app/api/recommendations/", "recommendations"),
+    ("src/app/api/recommendations/", "recommendations"),  # FOUNDER-RULED (manifest over plan D4)
     ("src/lib/affiliate/", "affiliate"),
-    ("src/lib/content-moderation.ts", "trust-safety"),  # seeds @lyra/contracts (KAN-415)
-    ("src/lib/moderation-audit.ts", "trust-safety"),
-    ("src/lib/moderation-policy.ts", "trust-safety"),
     ("src/app/api/reports/", "trust-safety"),
-    ("src/lib/retention/", "trust-safety"),  # JUDGEMENT: GDPR retention enforcement (SEC-74)
-    ("src/app/api/retention/", "trust-safety"),
     ("src/app/(legal)/", "marketing-legal"),
     ("src/app/_marketing/", "marketing-legal"),
-    ("src/app/examples/", "marketing-legal"),  # JUDGEMENT: homepage example-profiles showcase
-    ("src/lib/compliance/", "marketing-legal"),  # JUDGEMENT: feature-gated legal disclosures (KAN-408)
+    ("src/app/examples/", "marketing-legal"),  # FOUNDER-RULED (manifest over plan D4); MUST consume public-profile's read API
+    ("src/app/how-we-check-your-age/", "marketing-legal"),  # FOUNDER-RULED (plan D11 over manifest)
+    ("src/lib/compliance/", "marketing-legal"),  # FOUNDER-RULED (manifest over plan D6)
     ("src/app/page.tsx", "marketing-legal"),
     ("src/app/layout.tsx", "marketing-legal"),
     ("src/app/error.tsx", "marketing-legal"),
@@ -135,21 +147,26 @@ MODULE_RULES = [
     ("src/lib/admin.ts", "admin"),
 ]
 
-# contracts has no src/ presence yet: it is bootstrapped later from a
-# byte-identical copy of src/lib/content-moderation.ts (KAN-415).
+# 21 modules: the plan's 20 + `audit` (founder-approved, KAN-416 R1b).
+# `contracts` seeds from src/lib/content-moderation.ts + moderation-policy.ts
+# (both already import-free and I/O-free) before being published (KAN-415/418).
 ALL_MODULES = [
-    "platform", "guards", "observability", "ui-kit", "contracts",
+    "platform", "contracts",
+    "guards", "observability", "ui-kit", "audit",
     "access", "features", "age",
     "oauth-as", "auth", "profile", "public-profile", "dashboard", "account",
     "convene", "recommendations", "affiliate", "trust-safety", "marketing-legal",
     "admin",
 ]
 
-# Numeric layers: an edge src->dst is ALLOWED iff layer(dst) < layer(src).
-# Same-layer and upward edges are policy violations -> allowlist seed.
+# Numeric layers. AMENDED POLICY (KAN-416 R1b):
+#   edge src->dst is ALLOWED iff  layer(dst) < layer(src)
+#                             OR  dst in DECLARED_SAME_LAYER[src]  (needs a reason)
+# UPWARD edges (layer(dst) > layer(src)) are forbidden ABSOLUTELY — no
+# declaration can legalise one; they only ever go in the shrink-only allowlist.
 LAYERS = {
     "platform": 0, "contracts": 0,
-    "guards": 1, "observability": 1, "ui-kit": 1,
+    "guards": 1, "observability": 1, "ui-kit": 1, "audit": 1,
     "access": 2, "features": 2, "age": 2,
     "oauth-as": 3, "auth": 3, "profile": 3, "public-profile": 3,
     "dashboard": 3, "account": 3, "convene": 3, "recommendations": 3,
@@ -157,23 +174,51 @@ LAYERS = {
     "admin": 4,
 }
 
+# Declared same-layer edges. Each is a deliberate sub-layer inside a layer and
+# MUST carry a reason traceable to the plan or a founder ruling. This list is
+# additive-with-review, not a convenience: an entry here is architecture, an
+# entry in the allowlist is debt.
+DECLARED_SAME_LAYER = {
+    ("recommendations", "affiliate"):
+        "plan §3 D8 `may_depend_on: affiliate (through MonetisationPort only)` — "
+        "a declared sub-layer, not an allowlist entry. Constraint: only through "
+        "the MonetisationPort interface; affiliate/backoffice stays unreachable "
+        "from the request path (plan §5 affiliate row).",
+    ("public-profile", "recommendations"):
+        "Consequence of the founder ruling that splits `api/recommendations/` out "
+        "of public-profile (plan §3 D4 listed it inside public-profile). The read "
+        "path that was one module is now two; the edge is the seam, not drift.",
+}
+
 RISK_TIER = {
-    # critical: RLS bypass surface, minors' PII gates, credential issuance, backoffice
+    # critical: RLS bypass surface, minors' PII gates, credential issuance,
+    # backoffice, edge bundle, cross-deployable contracts, audit chain.
+    # Raised to match plan §5 blast radius (KAN-416 R1b): guards, contracts.
     "platform": "critical", "access": "critical", "age": "critical",
     "oauth-as": "critical", "trust-safety": "critical", "admin": "critical",
-    "guards": "high", "contracts": "high", "auth": "high", "profile": "high",
+    "guards": "critical", "contracts": "critical", "audit": "critical",
+    # Raised to match plan §5 blast radius: public-profile (SEC-44/45 leak
+    # surface), ui-kit (every PR founder-gated).
+    "public-profile": "high", "ui-kit": "high",
+    "auth": "high", "profile": "high",
     "convene": "high", "features": "high", "account": "high",
-    "public-profile": "medium", "dashboard": "medium", "recommendations": "medium",
+    "dashboard": "medium", "recommendations": "medium",
     "affiliate": "medium", "observability": "medium", "marketing-legal": "medium",
-    "ui-kit": "low",
 }
 
 # ---------------------------------------------------------------------------
 # 2. Declared table ownership. Tables not listed here are reported as
 #    UNOWNED findings. profiles is shared-kernel with column ownership.
 # ---------------------------------------------------------------------------
+# SHARED_KERNEL tables are NOT exempt from the ownership baseline — they are
+# enumerated at COLUMN granularity instead (see column_access pass below).
+# The KAN-416 defect fixed here (kan416-derive.py:430, 2026-07-27) was that
+# `owner.startswith("db/schema")` short-circuited the whole check, so all 77
+# `.from('profiles')` sites recorded ZERO violations.
+SHARED_KERNEL = {"profiles"}
+
 TABLE_OWNER = {
-    "profiles": "db/schema (shared kernel — column ownership below)",
+    "profiles": "db/schema:shared-kernel",
     "profile_items": "profile", "profile_files": "profile",
     "profile_manual_of_me": "profile", "profile_conversation_starters": "profile",
     "conversation_starter_prompts": "profile", "external_links": "profile",
@@ -187,8 +232,9 @@ TABLE_OWNER = {
     "oauth_clients": "oauth-as", "oauth_authorization_codes": "oauth-as",
     "oauth_access_tokens": "oauth-as", "oauth_refresh_tokens": "oauth-as",
     "oauth_consents": "oauth-as",
-    "reports": "trust-safety", "content_moderation_flags": "trust-safety",
-    "moderation_logs": "trust-safety",
+    "reports": "trust-safety",
+    # FOUNDER-RULED (KAN-416 R1b): the moderation write path owns its own tables.
+    "content_moderation_flags": "audit", "moderation_logs": "audit",
     "api_keys": "account",
     "global_feature_switches": "features", "feature_entitlements": "features",
     "affiliate_clicks": "affiliate", "affiliate_merchant_eligibility": "affiliate",
@@ -232,6 +278,211 @@ PROFILES_COLUMNS = {
 }
 
 # ---------------------------------------------------------------------------
+# 2b. Change process, per module — encodes LYRA_MODULARISATION_PLAN_2026-07-26
+#     §5 verbatim (one dict entry per table row), plus the measured fields that
+#     are filled in at derivation time (transitiveDependants, serviceRole,
+#     edgeReachableFiles). `extraGates` joins to controls/registry.json by id.
+#
+#     uiApprovalGated : never | sometimes | always
+#     mcpLockstep     : none | contract | tools
+#     migrationEnvs   : envs a schema change must traverse ([] when §5 says No)
+#     blastRadius     : plan §5 column, verbatim
+# ---------------------------------------------------------------------------
+THREE_ENV = ["dev", "staging", "production"]
+CHANGE_PROCESS = {
+    "platform": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="none",
+        migrationEnvs=[], migrationFrequency="no", signupSurface=False,
+        blastRadius="critical", edgeSafe=True, frozenContracts=[],
+        extraGates=["CTL-004"],
+        notes="Every change needs a full-suite run; no path filters ever."),
+    "guards": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="none",
+        migrationEnvs=[], migrationFrequency="no", signupSurface=False,
+        blastRadius="critical", edgeSafe=True,
+        frozenContracts=["nothing reachable from src/middleware.ts may import "
+                         "node:crypto, next/headers or @supabase/supabase-js"],
+        extraGates=["CTL-030"],
+        notes="edge-safe rule must pass; middleware smoke on preview. The edge "
+              "bundle breaks at DEPLOY time, not type-check."),
+    "observability": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="none",
+        migrationEnvs=[], migrationFrequency="no", signupSurface=False,
+        blastRadius="low", edgeSafe=False, frozenContracts=[],
+        extraGates=[], notes=""),
+    "ui-kit": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/components/**"],
+        mcpLockstep="none", migrationEnvs=[], migrationFrequency="no",
+        signupSurface=False, blastRadius="high (visual)", edgeSafe=False,
+        frozenContracts=["every diff must render-identical"],
+        extraGates=["CTL-009"],
+        notes="Founder Jira key + UI-Change-Approved trailer; batch per phase, "
+              "not per file."),
+    "contracts": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="contract",
+        migrationEnvs=[], migrationFrequency="no", signupSurface=False,
+        blastRadius="critical", edgeSafe=True,
+        frozenContracts=["semver", "zero dependencies", "zero I/O",
+                         "runs unchanged on Vercel Edge, Vercel Node, Railway Node"],
+        extraGates=[],
+        notes="MCP lockstep by construction — 3 deployables. CI drift test in "
+              "all 3 repos; npm audit HIGH gate runs against it in 5 workflows."),
+    "audit": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="contract",
+        migrationEnvs=THREE_ENV, migrationFrequency="yes", signupSurface=False,
+        blastRadius="high (audit)", edgeSafe=False,
+        frozenContracts=["audit chain is append-only",
+                         "a mutation may not proceed if the audit write failed",
+                         "moderation_logs.actor_user_id ON DELETE RESTRICT"],
+        extraGates=[],
+        notes="NEW module (KAN-416 R1b, founder-approved). Inherits plan §5's "
+              "trust-safety audit obligations because it now owns the write path."),
+    "access": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="tools",
+        migrationEnvs=THREE_ENV, migrationFrequency="sometimes",
+        signupSurface=False, blastRadius="critical", edgeSafe=True,
+        frozenContracts=["gate ORDER is a behavioural contract",
+                         "fail-open/fail-closed asymmetry must be preserved deliberately"],
+        extraGates=["CTL-028", "CTL-013"],
+        notes="Needs its own gate-ordering test. must-not: import from admin "
+              "(the only group-level cycle in the graph)."),
+    "features": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="tools",
+        migrationEnvs=THREE_ENV, migrationFrequency="yes", signupSurface=False,
+        blastRadius="high", edgeSafe=False, frozenContracts=["16-symbol index.ts"],
+        extraGates=[],
+        notes="Registry change must land in @lyra/contracts first, then all 3 consumers."),
+    "age": dict(
+        uiApprovalGated="sometimes", uiApprovalPaths=["copy on the 18+ path"],
+        mcpLockstep="tools", migrationEnvs=THREE_ENV, migrationFrequency="rarely",
+        signupSurface=False, blastRadius="high (compliance)", edgeSafe=False,
+        frozenContracts=["age_declared_18_at is an attestation, NOT a fail-closed gate",
+                         "the dormant Didit provider path is retained deliberately"],
+        extraGates=[],
+        notes="Any change to the 18+ path is a compliance event — DPIA/ROPA check."),
+    "oauth-as": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="tools",
+        migrationEnvs=THREE_ENV, migrationFrequency="rarely", signupSurface=False,
+        blastRadius="critical (frozen contract)", edgeSafe=False,
+        frozenContracts=["URLs", "iss derivation", "scope set", "RS256/JWKS keys",
+                         "exact 401 shape"],
+        extraGates=[],
+        notes="claude.ai, Claude Desktop and MCP Inspector are external consumers. "
+              "Contract test required BEFORE any move."),
+    "auth": dict(
+        uiApprovalGated="always", uiApprovalPaths=["copy"], mcpLockstep="none",
+        migrationEnvs=THREE_ENV, migrationFrequency="rarely", signupSurface=True,
+        blastRadius="high", edgeSafe=False, frozenContracts=[],
+        extraGates=["CTL-013"], notes="Signup-surface gate fires."),
+    "profile": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/dashboard/profile/**"],
+        mcpLockstep="tools", migrationEnvs=THREE_ENV, migrationFrequency="yes",
+        signupSurface=False, blastRadius="high", edgeSafe=False,
+        frozenContracts=["partial-write contract: undefined omits, null clears (BUGS-74)"],
+        extraGates=["CTL-021", "CTL-022", "CTL-020"],
+        notes="Domain-model changes ripple to public-profile + MCP."),
+    "public-profile": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/[slug]/**", "src/app/search/**"],
+        mcpLockstep="tools", migrationEnvs=THREE_ENV, migrationFrequency="rarely",
+        signupSurface=False, blastRadius="high (privacy)", edgeSafe=False,
+        frozenContracts=[".eq('is_published',true).eq('is_suspended',false) must stay "
+                         "ONE tested unit (SEC-44)",
+                         "SEC-82 cache headers preserved"],
+        extraGates=["CTL-028"], notes=""),
+    "dashboard": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/dashboard/**"],
+        mcpLockstep="none", migrationEnvs=THREE_ENV, migrationFrequency="rarely",
+        signupSurface=False, blastRadius="medium", edgeSafe=False,
+        frozenContracts=["never reintroduce loading.tsx / Suspense at /dashboard (BUGS-63)"],
+        extraGates=["CTL-019"], notes=""),
+    "account": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/dashboard/settings/**"],
+        mcpLockstep="tools", migrationEnvs=THREE_ENV, migrationFrequency="yes",
+        signupSurface=False, blastRadius="high (GDPR)", edgeSafe=False,
+        frozenContracts=["SAR/erasure completeness test must pass",
+                         "moderation_logs.actor_user_id ON DELETE RESTRICT must not be "
+                         "silently dropped"],
+        extraGates=[],
+        notes="Owns lib/retention + api/retention (founder-ruled); per-module "
+              "retentionSweep() delegation, so account never reaches into another "
+              "module's tables directly."),
+    "convene": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/dashboard/convene/**", "src/app/r/**"],
+        mcpLockstep="tools", migrationEnvs=THREE_ENV, migrationFrequency="yes",
+        signupSurface=False, blastRadius="high — and it is NOT safe", edgeSafe=False,
+        frozenContracts=["23 live MCP tools"],
+        extraGates=[],
+        notes="Plan §7-D5: the web flag is off, but the MCP write tools are LIVE in "
+              "production against the production database."),
+    "recommendations": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="tools",
+        migrationEnvs=THREE_ENV, migrationFrequency="rarely", signupSurface=False,
+        blastRadius="medium", edgeSafe=False, frozenContracts=[],
+        extraGates=[],
+        notes="must-not host Convene scoring (plan D8; KAN-353 turns on this)."),
+    "affiliate": dict(
+        uiApprovalGated="sometimes", uiApprovalPaths=["AffiliateBadge"],
+        mcpLockstep="none", migrationEnvs=THREE_ENV, migrationFrequency="rarely",
+        signupSurface=False, blastRadius="medium", edgeSafe=False,
+        frozenContracts=["backoffice/ must never be reachable from the request path"],
+        extraGates=[], notes=""),
+    "trust-safety": dict(
+        uiApprovalGated="sometimes", uiApprovalPaths=[], mcpLockstep="tools",
+        migrationEnvs=THREE_ENV, migrationFrequency="yes", signupSurface=False,
+        blastRadius="high (audit)", edgeSafe=False,
+        frozenContracts=["a mutation may not proceed if the audit write failed"],
+        extraGates=[],
+        notes="Write path + audit tables moved to `audit` (layer 1). trust-safety "
+              "keeps api/reports and app/admin/moderation."),
+    "marketing-legal": dict(
+        uiApprovalGated="always", uiApprovalPaths=["src/app/(legal)/**", "src/app/_marketing/**",
+                                                   "src/app/page.tsx", "src/app/examples/**",
+                                                   "src/app/how-we-check-your-age/**"],
+        mcpLockstep="none", migrationEnvs=[], migrationFrequency="no",
+        signupSurface=False, blastRadius="low (functional) / high (legal)",
+        edgeSafe=False,
+        frozenContracts=["app/examples must consume public-profile's READ API — never "
+                         "its own service-role read"],
+        extraGates=["CTL-009"],
+        notes="Legal copy changes need compliance review, not just founder UI sign-off."),
+    "admin": dict(
+        uiApprovalGated="never", uiApprovalPaths=[], mcpLockstep="none",
+        migrationEnvs=THREE_ENV, migrationFrequency="yes", signupSurface=False,
+        blastRadius="high (privilege)", edgeSafe=False,
+        frozenContracts=["must not be imported by ANY other module"],
+        extraGates=["CTL-028"],
+        notes="Internal only — not UI-gated. Every mutation routed through the shared "
+              "transition matrix; CF Access + is_admin both verified."),
+}
+
+# Public API declared (not measured) for modules whose target surface does not
+# exist under that name yet. Everything else is measured from the import graph.
+DECLARED_API = {
+    "audit": [
+        {"symbol": "recordModerationFlag", "status": "declared",
+         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+        {"symbol": "logModerationAction", "status": "declared",
+         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+        {"symbol": "auditedMutation", "status": "declared",
+         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+    ],
+}
+
+
+def edge_allowed(a, b):
+    """Amended layer policy (KAN-416 R1b).
+
+    ALLOWED iff layer(dst) < layer(src) OR dst is a DECLARED same-layer edge.
+    Upward edges are forbidden absolutely — no declaration legalises one.
+    """
+    if LAYERS[b] < LAYERS[a]:
+        return True
+    if LAYERS[b] == LAYERS[a] and (a, b) in DECLARED_SAME_LAYER:
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # 3. File walk + module assignment
 # ---------------------------------------------------------------------------
 
@@ -272,6 +523,112 @@ IMPORT_RE = re.compile(
 BARE_IMPORT_RE = re.compile(r"""(?m)^\s*import\s*['"](?P<spec>[^'"]+)['"]""")
 DYNAMIC_RE = re.compile(r"""import\(\s*['"](?P<spec>[^'"]+)['"]\s*\)""")
 FROM_RPC_RE = re.compile(r"""\.(from|rpc)\(\s*['"]([A-Za-z0-9_]+)['"]""")
+
+# --- shared-kernel column extraction (KAN-416 R1b) --------------------------
+# For a shared-kernel table (profiles) we must know WHICH COLUMNS each call
+# site touches, because ownership is declared per column. We take the chained
+# PostgREST expression starting at `.from('profiles')` and read the columns out
+# of it. The window ends at the first statement boundary: another `.from(`, a
+# blank line, or CHAIN_WINDOW characters — whichever comes first. This is a
+# documented heuristic, not a TS parser; every site that yields no columns is
+# reported as `unresolved` rather than silently dropped.
+CHAIN_WINDOW = 1400
+SELECT_RE = re.compile(r"""\.select\(\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)""", re.S)
+FILTER_RE = re.compile(
+    r"""\.(?:eq|neq|gt|gte|lt|lte|like|ilike|is|in|contains|containedBy|overlaps|"""
+    r"""order|not|filter|match|textSearch)\(\s*['"]([A-Za-z0-9_]+)['"]"""
+)
+WRITE_RE = re.compile(r"""\.(?:update|insert|upsert)\(\s*(\{)""")
+IDENT_KEY_RE = re.compile(r"""(?m)^\s*(?:'([A-Za-z0-9_]+)'|"([A-Za-z0-9_]+)"|([A-Za-z0-9_]+))\s*:""")
+
+
+def _balanced_object(text, open_idx):
+    """Return the source of the {...} starting at open_idx, or '' if unbalanced."""
+    depth = 0
+    for i in range(open_idx, min(len(text), open_idx + CHAIN_WINDOW)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_idx: i + 1]
+    return ""
+
+
+def chain_columns(text, start):
+    """Columns touched by the PostgREST chain beginning at `start`.
+
+    Returns (columns:set, kinds:set, star:bool). `star` means select('*') or a
+    non-literal argument — the site touches an unbounded column set.
+    """
+    end = min(len(text), start + CHAIN_WINDOW)
+    nxt = text.find(".from(", start + 6)
+    if 0 < nxt < end:
+        end = nxt
+    blank = text.find("\n\n", start)
+    if 0 < blank < end:
+        end = blank
+    window = text[start:end]
+
+    cols, kinds, star = set(), set(), False
+
+    for m in SELECT_RE.finditer(window):
+        kinds.add("read")
+        raw = m.group(1) or m.group(2) or m.group(3) or ""
+        if "${" in raw:            # template interpolation — unbounded
+            star = True
+            continue
+        depth = 0
+        cur = ""
+        for ch in raw:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            if ch == "," and depth == 0:
+                cols.add(cur.strip()) if cur.strip() else None
+                cur = ""
+            else:
+                cur += ch
+        if cur.strip():
+            cols.add(cur.strip())
+    # a bare .select() with no argument also means "everything"
+    if re.search(r"\.select\(\s*\)", window):
+        kinds.add("read")
+        star = True
+
+    for m in FILTER_RE.finditer(window):
+        kinds.add("filter")
+        cols.add(m.group(1))
+
+    for m in WRITE_RE.finditer(window):
+        kinds.add("write")
+        obj = _balanced_object(window, m.start(1))
+        if not obj:
+            star = True
+            continue
+        found = False
+        for km in IDENT_KEY_RE.finditer(obj):
+            cols.add(km.group(1) or km.group(2) or km.group(3))
+            found = True
+        if not found:
+            star = True            # spread-only / variable payload
+        if "..." in obj:
+            star = True            # object spread — unbounded key set
+    if re.search(r"\.(?:update|insert|upsert)\(\s*[A-Za-z_$]", window):
+        kinds.add("write")
+        star = True                # payload is a variable
+
+    clean = set()
+    for c in cols:
+        c = c.strip()
+        if c == "*" or not c:
+            star = star or c == "*"
+            continue
+        c = re.split(r"[(:!]", c)[0].strip()   # foo(bar) / alias:foo / foo!inner
+        if re.fullmatch(r"[A-Za-z0-9_]+", c):
+            clean.add(c)
+    return clean, kinds, star
 
 
 def parse_symbols(clause):
@@ -367,8 +724,15 @@ def main():
                               "dstMod": file_mod.get(dst), "symbols": ["* (dynamic)"],
                               "typeOnly": False})
         for m in FROM_RPC_RE.finditer(text):
-            db_sites.append({"file": f, "mod": file_mod.get(f),
-                             "kind": m.group(1), "name": m.group(2)})
+            site = {"file": f, "mod": file_mod.get(f),
+                    "kind": m.group(1), "name": m.group(2)}
+            if m.group(1) == "from" and m.group(2) in SHARED_KERNEL:
+                cols, kinds, star = chain_columns(text, m.start())
+                site["columns"] = sorted(cols)
+                site["ops"] = sorted(kinds)
+                site["unbounded"] = star
+                site["line"] = text.count("\n", 0, m.start()) + 1
+            db_sites.append(site)
 
     # de-duplicate identical (src,dst) rows produced by multiple import stmts
     merged = {}
@@ -401,10 +765,7 @@ def main():
     matrix = defaultdict(int)
     for e in cross:
         matrix[(e["srcMod"], e["dstMod"])] += 1
-    violations = []
-    for e in cross:
-        if LAYERS[e["dstMod"]] >= LAYERS[e["srcMod"]]:
-            violations.append(e)
+    violations = [e for e in cross if not edge_allowed(e["srcMod"], e["dstMod"])]
     vio_pairs = defaultdict(list)
     for e in violations:
         vio_pairs[(e["srcMod"], e["dstMod"])].append(e)
@@ -413,7 +774,42 @@ def main():
     may_depend = defaultdict(set)
     candidates = defaultdict(set)
     for (a, b), _n in matrix.items():
-        (may_depend if LAYERS[b] < LAYERS[a] else candidates)[a].add(b)
+        (may_depend if edge_allowed(a, b) else candidates)[a].add(b)
+
+    # ------------------------------------------------------------------
+    # transitive dependants (plan §5 "blast radius", MEASURED) and
+    # edge-bundle reachability (plan §3 P2 guards hard rule), both by BFS
+    # over the resolved file graph.
+    # ------------------------------------------------------------------
+    fwd = defaultdict(set)
+    rev = defaultdict(set)
+    for e in edges:
+        fwd[e["src"]].add(e["dst"])
+        rev[e["dst"]].add(e["src"])
+
+    def reach(seeds, graph):
+        seen, stack = set(seeds), list(seeds)
+        while stack:
+            for nxt in graph.get(stack.pop(), ()):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        return seen
+
+    mod_files = defaultdict(list)
+    for f, m in file_mod.items():
+        mod_files[m].append(f)
+    transitive_dependants = {}
+    for mod in ALL_MODULES:
+        own = set(mod_files.get(mod, []))
+        transitive_dependants[mod] = len(reach(own, rev) - own) if own else 0
+
+    edge_reachable = reach({"src/middleware.ts"}, fwd) if os.path.isfile(
+        os.path.join(ROOT, "src/middleware.ts")) else set()
+    edge_reach_by_mod = defaultdict(int)
+    for f in edge_reachable:
+        if f in file_mod:
+            edge_reach_by_mod[file_mod[f]] += 1
 
     # DB ownership check
     tables_seen = defaultdict(lambda: defaultdict(int))  # name -> mod -> count
@@ -426,10 +822,52 @@ def main():
         if owner is None:
             unowned.append((kind, name, dict(mods)))
             continue
+        if kind == "from" and name in SHARED_KERNEL:
+            continue          # enumerated at column granularity below
         for mod, n in mods.items():
-            if mod not in owner and not owner.startswith("db/schema"):
+            # SET MEMBERSHIP, not substring containment (the second KAN-416
+            # defect: `mod not in owner` compared a module name against an
+            # owner STRING, so `access` would have matched `access-model`).
+            if mod != owner:
                 cross_table.append({"kind": kind, "name": name, "owner": owner,
                                     "accessor": mod, "sites": n})
+
+    # ------------------------------------------------------------------
+    # shared-kernel (profiles) COLUMN-granularity baseline — KAN-416 R1b.
+    # Every .from('profiles') site is attributed to the modules that own the
+    # columns it touches. A site touching a column owned by another module is
+    # a cross-module data access, exactly as a whole-table violation would be.
+    # ------------------------------------------------------------------
+    col_owner = {c: owner for owner, cols in PROFILES_COLUMNS.items() for c in cols}
+    kernel_col_access = defaultdict(lambda: {"sites": 0, "files": set(), "ops": set()})
+    kernel_unbounded = []       # sites whose column set could not be bounded
+    kernel_unknown_cols = defaultdict(set)   # column -> modules touching it
+    kernel_site_count = 0
+    for s in db_sites:
+        if s["kind"] != "from" or s["name"] not in SHARED_KERNEL:
+            continue
+        kernel_site_count += 1
+        mod = s["mod"]
+        if s["unbounded"]:
+            kernel_unbounded.append({"file": s["file"], "line": s["line"],
+                                     "module": mod, "ops": s["ops"],
+                                     "columnsSeen": s["columns"]})
+        for c in s["columns"]:
+            owner = col_owner.get(c)
+            if owner is None:
+                kernel_unknown_cols[c].add(mod)
+                continue
+            if owner == mod or owner.startswith("db/schema"):
+                continue
+            rec = kernel_col_access[(mod, s["name"], c, owner)]
+            rec["sites"] += 1
+            rec["files"].add(s["file"])
+            rec["ops"] |= set(s["ops"])
+    kernel_rows = sorted(
+        ({"accessor": k[0], "table": k[1], "column": k[2], "owner": k[3],
+          "sites": v["sites"], "ops": sorted(v["ops"]), "files": sorted(v["files"])}
+         for k, v in kernel_col_access.items()),
+        key=lambda r: (-r["sites"], r["column"], r["accessor"]))
 
     # service-role privilege register
     service_files = sorted({e["src"] for e in edges if e["dst"] == "src/lib/supabase-service.ts"})
@@ -473,14 +911,24 @@ def main():
     # ------------------------------------------------------------------
     modules_json = {
         "$comment": (
-            "KAN-416 v0 DRAFT — derived from measured imports on develop; "
-            "enforced=false everywhere. Module set per epic KAN-415. Path "
-            "assignments marked JUDGEMENT in docs/modularisation/kan416-derive.py "
-            "must be diffed against LYRA_MODULARISATION_PLAN_2026-07-26.md §3/§5 "
-            "(not accessible to the deriving session). Regenerate with: "
+            "KAN-416 v1 DRAFT (R1b re-derivation) — derived from measured imports "
+            "on develop; enforced=false everywhere, read by nothing. 21 modules: "
+            "the plan's 20 plus founder-approved `audit`. Path assignments are "
+            "reconciled against docs/modularisation/"
+            "LYRA_MODULARISATION_PLAN_2026-07-26.md §3 and the 10 founder rulings "
+            "recorded on KAN-416; changeProcess encodes plan §5. Regenerate with: "
             "python3 docs/modularisation/kan416-derive.py"
         ),
-        "version": 0,
+        "version": 1,
+        "layerPolicy": {
+            "rule": "edge src->dst allowed iff layer(dst) < layer(src) "
+                    "OR dst in declaredSameLayer[src]",
+            "upwardEdges": "FORBIDDEN ABSOLUTELY — no declaration can legalise one",
+            "declaredSameLayer": [
+                {"from": a, "to": b, "reason": r}
+                for (a, b), r in sorted(DECLARED_SAME_LAYER.items())
+            ],
+        },
         "modules": {},
         "serviceRoleClient": {
             "$comment": (
@@ -528,12 +976,33 @@ def main():
                  "typeOnly": r["typeOnlyEverywhere"]}
                 for r in api
             ],
+            "declaredApi": DECLARED_API.get(mod, []),
             "mayDependOn": sorted(may_depend.get(mod, set())),
+            "declaredSameLayer": sorted(b for (a, b) in DECLARED_SAME_LAYER if a == mod),
             "mayDependOnCandidatesPendingDecision": sorted(candidates.get(mod, set())),
             "mustNot": sorted(m for m in ALL_MODULES
-                              if m != mod and LAYERS[m] >= LAYERS[mod]
+                              if m != mod and not edge_allowed(mod, m)
                               and m not in may_depend.get(mod, set())),
             "riskTier": RISK_TIER[mod],
+            "changeProcess": dict(
+                CHANGE_PROCESS[mod],
+                transitiveDependants={
+                    "$comment": "MEASURED: distinct src/ files outside this module "
+                                "that transitively import it (plan §5 blast radius)",
+                    "files": transitive_dependants[mod],
+                },
+                edgeReachableFiles={
+                    "$comment": "MEASURED: files of this module reachable from "
+                                "src/middleware.ts (the edge bundle)",
+                    "files": edge_reach_by_mod.get(mod, 0),
+                },
+                serviceRole={
+                    "$comment": "MEASURED: files importing supabase-service.ts "
+                                "(createServiceRoleClient bypasses RLS)",
+                    "files": len(service_mods.get(mod, [])),
+                },
+            ),
+            "compositionRoots": [p for p in paths if p == "src/middleware.ts"],
             "testFloor": {
                 "provisional": True,
                 "note": "path-vote mapping; superseded by KAN-417",
@@ -549,15 +1018,43 @@ def main():
             "the proposed layer policy forbids, at derivation time. Shrink-only "
             "once adopted; every entry then needs a Jira key + expiry."
         ),
-        "policy": "edge src->dst allowed iff layer(dst) < layer(src)",
+        "policy": ("edge src->dst allowed iff layer(dst) < layer(src) "
+                   "OR dst in declaredSameLayer[src]; upward edges never allowed"),
         "totalViolatingEdges": len(violations),
         "pairs": [
             {"from": a, "to": b, "edges": len(es),
+             "direction": ("upward — FORBIDDEN ABSOLUTELY"
+                           if LAYERS[b] > LAYERS[a] else "same-layer, undeclared"),
              "files": sorted({(e["src"] + " -> " + e["dst"]) for e in es}),
              "typeOnly": all(e["typeOnly"] for e in es)}
             for (a, b), es in sorted(vio_pairs.items(), key=lambda kv: -len(kv[1]))
         ],
         "crossModuleTableAccess": sorted(cross_table, key=lambda c: (-c["sites"], c["name"])),
+        "sharedKernelColumnAccess": {
+            "$comment": (
+                "KAN-416 R1b — the baseline that the first derivation silently "
+                "skipped. Every .from('profiles') site attributed to the module "
+                "owning each column it touches. A row is a cross-module data "
+                "access on the god-table and is exactly what KAN-421 must rule on."
+            ),
+            "table": "profiles",
+            "totalSites": kernel_site_count,
+            "totalCrossModuleColumnAccesses": sum(r["sites"] for r in kernel_rows),
+            "distinctColumnAccessorPairs": len(kernel_rows),
+            "rows": kernel_rows,
+            "unboundedSites": {
+                "$comment": ("sites whose column set could not be bounded from source "
+                             "— select('*'), a bare select(), a variable write payload, "
+                             "or an object spread. Each touches an UNKNOWN subset of "
+                             "all 41 columns and must be read as a potential access to "
+                             "every one of them."),
+                "count": len(kernel_unbounded),
+                "sites": sorted(kernel_unbounded, key=lambda s: (s["file"], s["line"])),
+            },
+            "columnsNotInOwnershipMap": {
+                c: sorted(m for m in mods if m) for c, mods in sorted(kernel_unknown_cols.items())
+            },
+        },
     }
 
     with open(os.path.join(ROOT, "modules.json"), "w", encoding="utf-8") as fh:
@@ -591,7 +1088,11 @@ def main():
     print()
     print("dependency matrix (measured cross-module edge counts):")
     for (a, b), n in sorted(matrix.items(), key=lambda kv: -kv[1]):
-        flag = "" if LAYERS[b] < LAYERS[a] else "  << VIOLATES policy"
+        if edge_allowed(a, b):
+            flag = "  (declared same-layer)" if LAYERS[b] == LAYERS[a] else ""
+        else:
+            flag = ("  << VIOLATES policy (UPWARD)" if LAYERS[b] > LAYERS[a]
+                    else "  << VIOLATES policy (undeclared same-layer)")
         print(f"  {a:16} -> {b:16} {n:3}{flag}")
     print()
     db_from = sum(1 for s in db_sites if s["kind"] == "from")
@@ -606,6 +1107,27 @@ def main():
           f"{sum(c['sites'] for c in cross_table)} over {len(cross_table)} (module,table) pairs")
     for c in allowlist_seed["crossModuleTableAccess"]:
         print(f"  {c['accessor']:16} touches {c['name']} (owner: {c['owner']}) at {c['sites']} sites")
+    print()
+    sk = allowlist_seed["sharedKernelColumnAccess"]
+    print(f"SHARED KERNEL profiles: {sk['totalSites']} .from('profiles') sites; "
+          f"{sk['totalCrossModuleColumnAccesses']} cross-module column accesses over "
+          f"{sk['distinctColumnAccessorPairs']} (module,column) pairs; "
+          f"{sk['unboundedSites']['count']} unbounded sites")
+    by_acc = defaultdict(int)
+    for r in kernel_rows:
+        by_acc[r["accessor"]] += r["sites"]
+    for acc, n in sorted(by_acc.items(), key=lambda kv: -kv[1]):
+        cols = sorted({r["column"] for r in kernel_rows if r["accessor"] == acc})
+        print(f"  {acc:16} {n:3} accesses to columns owned elsewhere: {', '.join(cols)}")
+    if kernel_unknown_cols:
+        print(f"  columns touched but NOT in the ownership map ({len(kernel_unknown_cols)}): "
+              f"{', '.join(sorted(kernel_unknown_cols))}")
+    print()
+    print("blast radius (MEASURED transitive dependant files) | edge-bundle files:")
+    for mod in sorted(ALL_MODULES, key=lambda m: -transitive_dependants[m]):
+        print(f"  {mod:16} {transitive_dependants[mod]:3} dependants | "
+              f"{edge_reach_by_mod.get(mod, 0):2} edge | plan blast: "
+              f"{CHANGE_PROCESS[mod]['blastRadius']}")
     print()
     print("service-role client (createServiceRoleClient) importers by module:")
     for mod, fs in sorted(service_mods.items(), key=lambda kv: -len(kv[1])):
