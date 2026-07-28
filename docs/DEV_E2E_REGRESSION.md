@@ -47,7 +47,7 @@ Walks the whole journey. Use a deliverable test address (see §5).
 1. **Sign up** at `/signup` (dev = waitlist framing: full name + email + consent; no skip-code field unless `LYRA_INVITE_CODE` is set). Expect "Check your email…".
 2. **Confirm** via the magic link (`/auth/confirm?token_hash=…&type=signup`). Lands on `/dashboard` (dev's waitlist is framing-only; access_tier defaults to `beta`). → **empty** state, W1 *Complete your profile*.
 3. **Fill the profile** (`/dashboard/profile`, auto-saves): add a short intro → completion crosses 40 → **drafted**, W2 *Publish* (or *Verify your age to publish* if `age_status` ≠ passed).
-4. **Age + publish**: real age check is Didit (KAN-282); for a journey test set `age_status='passed'` and publish. → **published_activate**, W3/W4/W5.
+4. **Age + publish (HISTORICAL — flagged stale 2026-07-27, KAN-407):** this step still describes the retired Didit selfie flow and `age_status='passed'` gate. As of KAN-407 (merged 2026-07-20/21) publishing is no longer separately age-gated — the 18+ self-declaration (`profiles.age_declared_18_at`) is captured once at account creation instead. The exact new-flow journey step here has not been rewritten pending owner/QA verification. → **published_activate**, W3/W4/W5.
 5. **Add a gift + an affiliation** → **published_grow**, W5 (+ W6 if convene-entitled).
 6. **Dismiss** a secondary widget → it disappears + persists; reload confirms.
 7. **Public profile** (`/<slug>`) renders with gifts visible (KAN-342), city shown, no postcode (KAN-339).

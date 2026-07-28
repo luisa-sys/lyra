@@ -4,13 +4,26 @@
 > sign-up → waitlist/beta → age-verification → publish → public-profile flow,
 > across **dev / beta / prod**. Run it **before and after any release that
 > touches**: auth/sign-up, the access model (`user_status`/`access_tier`,
-> KAN-326), the waitlist gate, age verification (Didit, KAN-282), publish, the
-> invite code (KAN-336), or the homepage framing/examples (KAN-273/334).
+> KAN-326), the waitlist gate, the 18+ self-declaration (KAN-407 — superseded
+> Didit/KAN-282, retired 2026-07-20/21), publish, the invite code (KAN-336), or
+> the homepage framing/examples (KAN-273/334).
 >
 > Keep it green. A failing case here means a real regression in the gate that
 > protects who gets into the product and who can publish.
+>
+> **⚠️ STALE SECTION FLAGGED 2026-07-27 (KAN-407 doc sync):** §4 below
+> ("Age-verification cases") still documents the retired Didit selfie flow and
+> the `age_status='passed'`-gated publish path. As of KAN-407 (merged to `main`
+> 2026-07-20 MCP / 2026-07-21 web), Lyra no longer runs Didit or gates publish
+> on a separate age check — a one-time 18+ self-declaration is captured at
+> account creation instead (`profiles.age_declared_18_at`). §4's specific test
+> cases (C1–C3) have **not** been rewritten for the new flow — the exact new
+> route/UI details need owner/QA verification before this section is
+> authoritative again. Treat §4 as historical reference only until rewritten.
+> Tracked as a follow-up under the KAN-407 doc-sync ticket (see Doc Sync Log,
+> Confluence "Lyra — System Documentation").
 
-**Owner:** Luisa / Ben · **Last updated:** 2026-06-29 · **Tracks:** KAN-326, KAN-336, KAN-337, KAN-334, KAN-282, KAN-273, SEC-37.
+**Owner:** Luisa / Ben · **Last updated:** 2026-06-29 (§4 flagged stale 2026-07-27) · **Tracks:** KAN-326, KAN-336, KAN-337, KAN-334, KAN-407 (superseded KAN-282), KAN-273, SEC-37.
 
 ---
 
@@ -126,7 +139,7 @@ tested once until its account is removed. See **§6 Reset** to clear test accoun
 
 ---
 
-## 4. Age-verification cases (KAN-282 / Didit)
+## 4. Age-verification cases (HISTORICAL — describes the retired KAN-282/Didit flow; see the stale-section warning above. Superseded by KAN-407's 18+ self-declaration, not yet rewritten here)
 
 > `AGE_VERIFICATION_REQUIRED=true` on beta/prod. Age status lives in
 > `profiles.age_status` (`none`/`pending`/`passed`/`failed`/`manual_review`).
