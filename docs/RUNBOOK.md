@@ -213,6 +213,50 @@ The first run produced 20 "violations" of which 15 were false. A gate that cries
 wolf gets switched off; `tests/scripts/check-dependency-rules.test.js` keeps a
 fixture for exactly that blind spot.
 
+## Extraction Definition-of-Done gate (KAN-428)
+
+`scripts/check-extraction-dod.sh` — guard #13, blocking in `pr-checks.yml`,
+registered as `CTL-033`. Full checklist: `docs/MODULARISATION_EXTRACTION_DOD.md`.
+
+**It is inert unless a PR deletes or renames a file under `src/`.** Ordinary PRs
+see one line of output and pass. When it does fire, it enforces the rule that an
+**extraction carries its own estate rework in the same PR**: every artefact that
+classifies a file by its PATH must have moved with it.
+
+Machine-checked (`stale-refs`, `doc-manifest`, `module-manifest`, `test-estate`):
+no literal reference to a moved-from path may remain in `.github/`, `scripts/`,
+`docs/`, `docs/DOC_SOURCE_OF_TRUTH.md`, `modules.json` or `tests/`.
+
+Attested in the PR body, because CI can never check them (`out-of-repo`,
+`coverage`, `routine-prompts`): `~/lyra-design-system/build.py` and the claude.ai
+routine prompts live outside every repository this CI can read, and the covering
+Playwright project + soak clause must be named or `no coverage` recorded as a
+finding. The PR template supplies the three `EXTRACTION-DOD-*` lines, shipped
+with a `FILL-IN` placeholder that fails the gate until it is replaced.
+
+**Why the estate needs a gate at all:** KAN-419 measured `docs/**/*.md` at 110
+path literals, **20 of them (18%) matching nothing**, before a single file was
+moved on purpose. `.github/signup-surface.paths` is 100% path globs and every
+entry moves in the first two extractions — and the signup E2E gate is the only
+thing proving account creation works before staging.
+
+**Exit codes: 0 pass · 1 violation · 2 cannot verify.** It fails *closed* on an
+unresolvable diff base, a missing artefact, or an extraction PR with no readable
+body — deliberately stricter than the KAN-411 UI/copy guard, which can fail open
+because CODEOWNERS still hard-gates its paths. Nothing sits underneath this one.
+
+**Escape hatch:** `EXTRACTION-DOD-OK: <JIRA-KEY> <check-id>` on a commit in the
+PR suppresses exactly one named check. A Jira key is required, every active
+exception is printed on every run, and more than three in one PR emits a
+`::warning::`. Check ids: `stale-refs`, `doc-manifest`, `module-manifest`,
+`test-estate`, `out-of-repo`, `coverage`, `routine-prompts`.
+
+**What it does not catch** (stated so it is not trusted past its limits): dead
+*globs* — it matches literal paths only, so `src/lib/age/**` surviving a move of
+`src/lib/age/gate.ts` is `check-guard-path-drift.sh`'s job (F1); test *floors*,
+which are not in `modules.json` until F5 lands; the two out-of-repo couplings, by
+construction; and Confluence, which the KAN-359 DoD covers.
+
 ## Self-Healing Flows (KAN-233)
 
 The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.
