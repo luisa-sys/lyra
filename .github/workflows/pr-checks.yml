@@ -140,6 +140,29 @@ jobs:
         # counted. Artefacts whose syntax forbids comments (package.json)
         # declare theirs in the script's DECLARED_EXCEPTIONS.
         run: python3 scripts/check-guard-path-drift.py
+      - name: Env-access ratchet (KAN-414 F8)
+        # 49 distinct environment variables are read from 38 files under src/,
+        # and src/lib/env.ts — the module built to be the single resolver — sees
+        # almost none of them. A missing variable therefore surfaces as
+        # `undefined` deep inside a request instead of failing loudly at boot,
+        # and no module can state its own configuration surface.
+        #
+        # This does NOT migrate anything. It freezes the existing 72 references
+        # as a baseline and makes the set SHRINK-ONLY: a new file, or a new
+        # variable in an already-listed file, fails; and so does a listed file
+        # or variable that has STOPPED being read, because a baseline that only
+        # grows is a suppression list.
+        #
+        # The precedent is why this is a gate and not a refactor:
+        # src/lib/deploy-env.ts was created to be the single environment
+        # resolver, and all six of the derivations it was meant to replace are
+        # still inline. Creating the module is 10% of the work; retiring the
+        # call sites and preventing new ones is the other 90%, and only CI does
+        # the 90%.
+        #
+        # Fails closed (exit 2) if the baseline is missing or unparseable.
+        # Escape hatch: `// env-access-ok: <JIRA-KEY> <reason>`.
+        run: python3 scripts/check-env-access.py
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
