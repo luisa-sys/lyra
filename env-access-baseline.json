@@ -1,0 +1,152 @@
+{
+  "$comment": "KAN-414 F8 \u2014 the frozen set of DIRECT `process.env` reads under src/, as measured 2026-07-29. Enforced by scripts/check-env-access.py in pr-checks.yml (CTL-037). SHRINK-ONLY: a new file, or a new variable in an already-listed file, fails the build; so does a listed file or variable that has stopped being read, because a baseline that only grows is a suppression list rather than a ratchet. Migrate a file by routing its configuration through src/lib/env.ts and deleting its entry here in the SAME PR. src/lib/env.ts itself is exempt by design \u2014 reading process.env is its job.",
+  "measured_at": "2026-07-29",
+  "allowed": {
+    "src/app/(auth)/signup/page.tsx": [
+      "LYRA_FORCE_WAITLIST"
+    ],
+    "src/app/(legal)/contact/actions.ts": [
+      "CONTACT_FROM_EMAIL",
+      "CONTACT_TO_EMAIL",
+      "RESEND_API_KEY"
+    ],
+    "src/app/api/convene/cron/post-event/route.ts": [
+      "CRON_SECRET"
+    ],
+    "src/app/api/convene/cron/send-invites/route.ts": [
+      "CRON_SECRET"
+    ],
+    "src/app/api/convene/cron/token-health/route.ts": [
+      "CRON_SECRET"
+    ],
+    "src/app/api/health/route.ts": [
+      "IS_BETA_DEPLOY",
+      "NEXT_PUBLIC_SITE_URL",
+      "VERCEL_ENV"
+    ],
+    "src/app/api/recommendations/v2/[slug]/route.ts": [
+      "SOVRN_API_KEY"
+    ],
+    "src/app/api/retention/cron/sweep/route.ts": [
+      "CRON_SECRET"
+    ],
+    "src/app/api/well-known/jwks/route.ts": [
+      "OAUTH_JWT_KID",
+      "OAUTH_JWT_KID_NEXT",
+      "OAUTH_JWT_PUBLIC_KEY_B64",
+      "OAUTH_JWT_PUBLIC_KEY_B64_NEXT"
+    ],
+    "src/app/dashboard/page.tsx": [
+      "NEXT_PUBLIC_SITE_URL"
+    ],
+    "src/app/dashboard/profile/steps/preview-step.tsx": [
+      "NEXT_PUBLIC_SITE_URL"
+    ],
+    "src/app/dashboard/settings/discoverability-helpers.ts": [
+      "CONTACT_SEARCH_HMAC_KEY",
+      "LYRA_SEARCH_PEPPER"
+    ],
+    "src/app/examples/page.tsx": [
+      "LYRA_FORCE_WAITLIST"
+    ],
+    "src/app/join/route.ts": [
+      "NODE_ENV"
+    ],
+    "src/app/layout.tsx": [
+      "IS_BETA_DEPLOY",
+      "VERCEL_ENV"
+    ],
+    "src/app/page.tsx": [
+      "LYRA_FORCE_WAITLIST"
+    ],
+    "src/app/service-worker-register.tsx": [
+      "NEXT_PUBLIC_VERCEL_ENV",
+      "NODE_ENV"
+    ],
+    "src/lib/affiliate/link-service.ts": [
+      "SOVRN_API_KEY"
+    ],
+    "src/lib/age/didit.ts": [
+      "DIDIT_API_BASE",
+      "DIDIT_API_KEY",
+      "DIDIT_WEBHOOK_SECRET",
+      "DIDIT_WORKFLOW_ID"
+    ],
+    "src/lib/beta-access/email.ts": [
+      "LYRA_BETA_FROM_EMAIL",
+      "LYRA_BETA_NOTIFY_EMAIL",
+      "RESEND_API_KEY"
+    ],
+    "src/lib/cf-access.ts": [
+      "CF_ACCESS_AUD",
+      "CF_ACCESS_TEAM_DOMAIN"
+    ],
+    "src/lib/convene/env.ts": [
+      "<dynamic>"
+    ],
+    "src/lib/convene/flags.ts": [
+      "CONVENE_ENABLED"
+    ],
+    "src/lib/convene/invites/dispatch.ts": [
+      "LYRA_SITE_URL"
+    ],
+    "src/lib/convene/invites/email.ts": [
+      "CONVENE_INVITE_ALLOWLIST",
+      "CONVENE_INVITE_FROM_EMAIL",
+      "RESEND_API_KEY"
+    ],
+    "src/lib/convene/invites/twilio.ts": [
+      "CONVENE_INVITE_SMS_ALLOWLIST",
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN",
+      "TWILIO_SMS_FROM",
+      "TWILIO_WHATSAPP_FROM"
+    ],
+    "src/lib/features/entitlements-service.ts": [
+      "PAID_LINKS_COMPLIANCE_READY"
+    ],
+    "src/lib/geo/places-city.ts": [
+      "GOOGLE_PLACES_API_KEY"
+    ],
+    "src/lib/invite-text.ts": [
+      "NEXT_PUBLIC_SITE_URL"
+    ],
+    "src/lib/oauth/config.ts": [
+      "LYRA_SITE_URL",
+      "NEXT_PUBLIC_SITE_URL",
+      "VERCEL_URL"
+    ],
+    "src/lib/oauth/jwt.ts": [
+      "OAUTH_JWT_KID",
+      "OAUTH_JWT_PRIVATE_KEY_B64",
+      "OAUTH_JWT_PUBLIC_KEY_B64",
+      "OAUTH_JWT_SIGNING_SECRET"
+    ],
+    "src/lib/recommender/v2/candidate-sourcing.ts": [
+      "ANTHROPIC_API_KEY",
+      "SOVRN_API_KEY"
+    ],
+    "src/lib/retention/affiliate-clicks.ts": [
+      "RETENTION_AFFILIATE_CLICKS_MONTHS"
+    ],
+    "src/lib/retention/flags.ts": [
+      "RETENTION_ENABLED"
+    ],
+    "src/lib/retention/gatherings.ts": [
+      "RETENTION_GATHERINGS_MONTHS"
+    ],
+    "src/lib/turnstile.ts": [
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+      "TURNSTILE_SECRET_KEY"
+    ],
+    "src/middleware.ts": [
+      "ADMIN_HOST",
+      "ADMIN_HOST_ENFORCED",
+      "IS_BETA_DEPLOY",
+      "NEXT_PUBLIC_SITE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "VERCEL_ENV"
+    ]
+  }
+}

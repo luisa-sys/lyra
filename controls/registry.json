@@ -626,6 +626,22 @@
       ],
       "escape_hatch": "guard-path-ok: <JIRA-KEY> <reason>",
       "added": "2026-07-29"
+    },
+    {
+      "id": "CTL-037",
+      "name": "Env-access ratchet",
+      "defect_class": "scattered-configuration",
+      "summary": "Freezes the set of DIRECT process.env reads under src/ (72 references across 37 files at 2026-07-29) in env-access-baseline.json and makes it shrink-only: a new file fails, a new variable in an already-listed file fails, and a listed file or variable that has STOPPED being read ALSO fails so the baseline cannot over-state the problem. src/lib/env.ts is exempt by design. Keyed on file plus variable-set rather than line number, so unrelated edits do not churn it. Exists because src/lib/deploy-env.ts proved that creating a canonical resolver is ~10% of the work - all six derivations it was meant to replace are still inline - and only CI retires call sites.",
+      "implementation": "scripts/check-env-access.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-414"
+      ],
+      "escape_hatch": "// env-access-ok: <JIRA-KEY> <reason>",
+      "added": "2026-07-29"
     }
   ]
 }
