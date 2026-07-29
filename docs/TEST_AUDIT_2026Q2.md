@@ -114,3 +114,13 @@ change any existing test assertion.
 - KAN-110 (original regression guard)
 - KAN-114 (Playwright E2E expansion — unchanged scope here)
 - KAN-359 (Documentation Definition-of-Done gate — added 2026-07-08)
+
+## Addendum — 2026-07-27 (KAN-417)
+
+The KAN-414 modularisation scoping epic re-measured the whole test estate at
+`lyra@2f330f1` / `lyra-mcp-server@31c114b` / `lyra-admin-mcp-server@6b8dfb3`:
+271 Jest files classified behavioural / convertible-text-scan / structural /
+guard, plus the E2E + soak layer (confirmed URL-coupled, resilient to file
+moves). Full inventory, path-manifest design, `jest.mock` re-pointing plan and
+the F4 sign-off request: `docs/modularisation/KAN-417-test-decoupling.md`
+(re-runnable classifier: `docs/modularisation/kan417-classify-tests.mjs`).

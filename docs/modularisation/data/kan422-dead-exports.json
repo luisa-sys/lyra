@@ -1,0 +1,4968 @@
+{
+ "$comment": "KAN-422 R7 \u2014 zero-consumer export enumeration. Reproduce with `python3 docs/modularisation/kan422-dead-exports.py`.",
+ "generatedFrom": "674f0a7f47c73d5673f2550f589b7f3fc4d086e0",
+ "totals": {
+  "srcFilesScanned": 274,
+  "exportedSymbols": 829,
+  "frameworkContractSymbols": 147,
+  "zeroConsumerSymbols": 219,
+  "zeroConsumerButTested": 125,
+  "bucket_OVER_EXPORTED": 160,
+  "bucket_DEAD_TESTED": 36,
+  "bucket_DEAD_ISOLATED": 23,
+  "deadLOC": 1130,
+  "overExportedLOC": 1463,
+  "filesWithAnyZeroConsumerExport": 90,
+  "filesEntirelyZeroConsumer": 9
+ },
+ "zeroConsumerByFile": {
+  "src/app/_marketing/sections.tsx": [
+   "AboutLyra",
+   "CTA",
+   "Hero",
+   "HowItWorks",
+   "ParentTeacherCallout",
+   "ProfilePreview",
+   "Sections",
+   "UseCases",
+   "WhatLyraIsNot",
+   "WishKnowFindFirstHand"
+  ],
+  "src/app/admin/beta-queue/actions.ts": [
+   "approveBetaUser"
+  ],
+  "src/app/admin/monitoring/integration-status.ts": [
+   "MonitoringIntegration"
+  ],
+  "src/app/admin/users/status-badges.ts": [
+   "Badge"
+  ],
+  "src/app/consent-state.ts": [
+   "CONSENT_STORAGE_KEY",
+   "ConsentValue"
+  ],
+  "src/app/dashboard/convene/contacts/contacts-helpers.ts": [
+   "ContactMethodKind",
+   "ContactMethodView"
+  ],
+  "src/app/dashboard/convene/gatherings/[id]/invite-actions.tsx": [
+   "InviteeView",
+   "ProposedSlot"
+  ],
+  "src/app/dashboard/profile/actions.ts": [
+   "ItemActionResult",
+   "updateSectionVisibility"
+  ],
+  "src/app/dashboard/profile/affiliation-fields.ts": [
+   "ALLOWED_AFFILIATION_TYPES",
+   "isAffiliationType"
+  ],
+  "src/app/dashboard/profile/city-actions.ts": [
+   "ResolveCityResult"
+  ],
+  "src/app/dashboard/profile/manual-of-me-fields.ts": [
+   "ManualOfMeField"
+  ],
+  "src/app/dashboard/profile/profile-fields.ts": [
+   "ALLOWED_PROFILE_FIELDS",
+   "AllowedProfileField"
+  ],
+  "src/app/dashboard/profile/section-visibility.ts": [
+   "CONTROLLABLE_SECTION_KEYS",
+   "ControllableSectionKey",
+   "ITEM_CATEGORY_TO_SECTION",
+   "getEffectiveItemVisibility"
+  ],
+  "src/app/dashboard/profile/sections/auto-save-core.ts": [
+   "AutoSaveResult",
+   "AutoSaveStatus"
+  ],
+  "src/app/dashboard/profile/sections/index.ts": [
+   "SectionSaveBar",
+   "useAutoSave"
+  ],
+  "src/app/dashboard/profile/visibility.ts": [
+   "DEFAULT_VISIBILITY",
+   "VISIBILITY_LEVELS",
+   "filterItemsByVisibility",
+   "isAllowedVisibility",
+   "isItemVisibleToViewer"
+  ],
+  "src/app/dashboard/settings/discoverability-actions.ts": [
+   "searchByPhone"
+  ],
+  "src/app/dashboard/settings/discoverability-helpers.ts": [
+   "ContactKind",
+   "RateLimitGate",
+   "getContactSearchHmacKey",
+   "getSearchPepper",
+   "hashContact",
+   "normalisePhone"
+  ],
+  "src/app/dashboard/share-profile.tsx": [
+   "default"
+  ],
+  "src/components/AffiliateBadge.tsx": [
+   "AffiliateBadgeProps"
+  ],
+  "src/lib/account-status.ts": [
+   "AccountStanding"
+  ],
+  "src/lib/admin.ts": [
+   "AdminUser",
+   "LogModerationActionInput",
+   "LogModerationActionsBatchInput"
+  ],
+  "src/lib/affiliate/country-codes.ts": [
+   "SupportedDeliveryCountry"
+  ],
+  "src/lib/affiliate/eligibility.ts": [
+   "AffiliateNetwork",
+   "MerchantEligibilityRow",
+   "isAffiliateNetwork",
+   "isMerchantEligibleInCountry"
+  ],
+  "src/lib/affiliate/fx.ts": [
+   "_clearFxCacheForTests"
+  ],
+  "src/lib/affiliate/link-service.ts": [
+   "AffiliateLinkRequest",
+   "AffiliateLinkResult"
+  ],
+  "src/lib/affiliate/merchant-detector.ts": [
+   "MERCHANT_RULES_INTERNAL"
+  ],
+  "src/lib/affiliate/reporting.ts": [
+   "ReconciliationUpdate",
+   "parseClickIdFromSubId"
+  ],
+  "src/lib/affiliate/smoke.ts": [
+   "FetchLike",
+   "MerchantSmokeProbe",
+   "ProbeResult",
+   "SMOKE_PROBES",
+   "SmokeMatrixEntry",
+   "SmokeRunSummary"
+  ],
+  "src/lib/affiliate/types.ts": [
+   "isCountryCode",
+   "parseSubId"
+  ],
+  "src/lib/age/didit.ts": [
+   "CHALLENGE_AGE",
+   "CreateSessionResult",
+   "NormalisedDecision"
+  ],
+  "src/lib/age/provider-gate.ts": [
+   "AgeStatus"
+  ],
+  "src/lib/beta-access/email.ts": [
+   "BetaEmailResult"
+  ],
+  "src/lib/beta-access/invite-link.ts": [
+   "INVITE_COOKIE",
+   "INVITE_COOKIE_MAX_AGE",
+   "buildBetaInviteLink"
+  ],
+  "src/lib/cf-access.ts": [
+   "__resetCfAccessJwksCacheForTests"
+  ],
+  "src/lib/compliance/disclosures.ts": [
+   "DisclosureFlags",
+   "disclosuresFromSwitches"
+  ],
+  "src/lib/content-moderation.ts": [
+   "ModerationResult",
+   "ModerationSeverity",
+   "PIIResult",
+   "ProfanityResult",
+   "SpamResult",
+   "containsPII",
+   "containsProfanity",
+   "detectSpam"
+  ],
+  "src/lib/convene/busy-time-consent.ts": [
+   "BusyTimeConsentError"
+  ],
+  "src/lib/convene/calendar/microsoft.ts": [
+   "microsoftCalendarAdapter"
+  ],
+  "src/lib/convene/gatherings/state-machine.ts": [
+   "InvalidTransitionError",
+   "canTransition",
+   "isFieldEditable"
+  ],
+  "src/lib/convene/google/calendar.ts": [
+   "BusyBlock",
+   "getFreeBusy"
+  ],
+  "src/lib/convene/google/oauth.ts": [
+   "GOOGLE_SCOPES",
+   "GoogleTokenResponse",
+   "exchangeCodeForTokens"
+  ],
+  "src/lib/convene/invites/dispatch.ts": [
+   "DispatchSummary",
+   "_internal",
+   "buildSendInputs",
+   "buildSmsBody"
+  ],
+  "src/lib/convene/invites/email.ts": [
+   "_internal"
+  ],
+  "src/lib/convene/invites/repository.ts": [
+   "InviteeLookup",
+   "PersistInviteInput",
+   "markInviteFailed",
+   "markInviteSent"
+  ],
+  "src/lib/convene/invites/sms-templates.ts": [
+   "SmsTemplateInput"
+  ],
+  "src/lib/convene/invites/templates.ts": [
+   "InviteTemplateInput"
+  ],
+  "src/lib/convene/invites/twilio.ts": [
+   "_internal"
+  ],
+  "src/lib/convene/microsoft/oauth.ts": [
+   "MICROSOFT_SCOPES"
+  ],
+  "src/lib/convene/oauth-connections.ts": [
+   "OAuthConnection",
+   "disconnectConnection",
+   "getConnection"
+  ],
+  "src/lib/convene/post-event.ts": [
+   "PostEventSummary"
+  ],
+  "src/lib/cookie-domain.ts": [
+   "PARENT_COOKIE_DOMAIN",
+   "PROD_SITE_URL",
+   "parentCookieDomain"
+  ],
+  "src/lib/dashboard/dismissal.ts": [
+   "WidgetDismissal"
+  ],
+  "src/lib/dashboard/profile-completion.ts": [
+   "COMPLETION_COMPONENTS",
+   "ProfileCompletionInput"
+  ],
+  "src/lib/dashboard/resolve-widgets.ts": [
+   "EMPTY_TO_DRAFTED_THRESHOLD",
+   "ResolvedWidget",
+   "WidgetResolverInput"
+  ],
+  "src/lib/deploy-env.ts": [
+   "DEPLOY_ENVS"
+  ],
+  "src/lib/features/entitlements-service.ts": [
+   "isFeatureEnabledByProfile",
+   "isPaidLinksComplianceReady"
+  ],
+  "src/lib/features/global-features.ts": [
+   "GlobalFeatureConfig"
+  ],
+  "src/lib/features/registry.ts": [
+   "FEATURE_KEYS",
+   "FeatureConfig",
+   "FeatureTier"
+  ],
+  "src/lib/file-magic-bytes.ts": [
+   "UploadPreflightOptions",
+   "matchesSignature",
+   "validateFileMagicBytes"
+  ],
+  "src/lib/geo/places-city.ts": [
+   "CityLookupResult",
+   "extractCity"
+  ],
+  "src/lib/metrics.ts": [
+   "getAnomalyWindow",
+   "getMetricsForWindow"
+  ],
+  "src/lib/moderation-audit.ts": [
+   "ModerationSource"
+  ],
+  "src/lib/oauth/access-tokens.ts": [
+   "AccessTokenRecord",
+   "IssueAccessJtiInput"
+  ],
+  "src/lib/oauth/authorize.ts": [
+   "AuthorizeError",
+   "AuthorizeRequest",
+   "ValidatedAuthorizeRequest"
+  ],
+  "src/lib/oauth/client-trust.ts": [
+   "ClientTrust"
+  ],
+  "src/lib/oauth/clients.ts": [
+   "RegisterClientInput",
+   "RegisteredClient",
+   "generateClientId",
+   "generateClientSecret"
+  ],
+  "src/lib/oauth/codes.ts": [
+   "CodeRecord",
+   "IssueCodeInput",
+   "generateAuthCode"
+  ],
+  "src/lib/oauth/config.ts": [
+   "wwwAuthenticateHeader"
+  ],
+  "src/lib/oauth/consents.ts": [
+   "ConsentRecord"
+  ],
+  "src/lib/oauth/jwt.ts": [
+   "AccessTokenClaims",
+   "IssueAccessTokenInput",
+   "IssuedAccessToken",
+   "VerifyOptions",
+   "verifyAccessToken"
+  ],
+  "src/lib/oauth/refresh.ts": [
+   "IssueRefreshInput",
+   "RefreshTokenRecord",
+   "generateRefreshToken",
+   "hashRefreshToken",
+   "issueAccessTokenJti"
+  ],
+  "src/lib/profile-rate-limit.ts": [
+   "ProfileRateLimitOutcome"
+  ],
+  "src/lib/rate-limit-shared.ts": [
+   "SharedRateLimitResult"
+  ],
+  "src/lib/recommend/categories.ts": [
+   "GiftCategory"
+  ],
+  "src/lib/recommend/convene/score-attendee.ts": [
+   "_internal",
+   "scoreAttendee"
+  ],
+  "src/lib/recommend/convene/score-venue.ts": [
+   "_internal"
+  ],
+  "src/lib/recommend/index.ts": [
+   "ProfileInsights",
+   "RecommendationOptions"
+  ],
+  "src/lib/recommender/events.ts": [
+   "RECOMMENDATION_EVENT_TYPES",
+   "RecommendationEventRow",
+   "RecommendationEventSource",
+   "RecommendationEventType",
+   "isRecommendationEventSource",
+   "isRecommendationEventType",
+   "sanitiseEventMetadata"
+  ],
+  "src/lib/recommender/inputs.ts": [
+   "AGE_RANGE_BUCKETS",
+   "ALLERGIES",
+   "AgeRangeBucket",
+   "Allergy",
+   "DIETARY_RESTRICTIONS",
+   "DietaryRestriction",
+   "OCCASIONS",
+   "Occasion",
+   "RELATIONSHIPS",
+   "RecipientAttributes",
+   "Relationship",
+   "coerceRecipientAttributes",
+   "isAgeRangeBucket",
+   "isAllergy",
+   "isDietaryRestriction",
+   "isOccasion",
+   "isRelationship"
+  ],
+  "src/lib/recommender/v2/candidate-sourcing.ts": [
+   "sourceCandidatesForConcept"
+  ],
+  "src/lib/recommender/v2/eligibility-filter.ts": [
+   "EligibilityFilterInput",
+   "EligibilityFilterResult",
+   "canShipTo",
+   "filterCandidatesByEligibility"
+  ],
+  "src/lib/recommender/v2/evergreen.ts": [
+   "isEvergreenFallback"
+  ],
+  "src/lib/recommender/v2/rank.ts": [
+   "DEFAULT_WEIGHTS",
+   "RankerWeights"
+  ],
+  "src/lib/retention/affiliate-clicks.ts": [
+   "DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS",
+   "affiliateClicksCutoff",
+   "affiliateClicksRetentionMonths"
+  ],
+  "src/lib/retention/gatherings.ts": [
+   "DEFAULT_GATHERINGS_RETENTION_MONTHS",
+   "gatheringsCutoff",
+   "gatheringsRetentionMonths"
+  ],
+  "src/lib/retention/sweep.ts": [
+   "RetentionJobSummary",
+   "RetentionSweepSummary"
+  ],
+  "src/lib/sanitise.ts": [
+   "stripHtml"
+  ],
+  "src/lib/turnstile.ts": [
+   "TurnstileResult",
+   "isTurnstileEnabled"
+  ],
+  "src/middleware.ts": [
+   "middleware"
+  ]
+ },
+ "zeroConsumerSymbols": [
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "AboutLyra",
+   "line": 288,
+   "loc": 36,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "CTA",
+   "line": 413,
+   "loc": 20,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "Hero",
+   "line": 45,
+   "loc": 32,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "HowItWorks",
+   "line": 120,
+   "loc": 49,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "ParentTeacherCallout",
+   "line": 326,
+   "loc": 47,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "ProfilePreview",
+   "line": 78,
+   "loc": 41,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "Sections",
+   "line": 170,
+   "loc": 32,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "UseCases",
+   "line": 203,
+   "loc": 41,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "WhatLyraIsNot",
+   "line": 245,
+   "loc": 41,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/_marketing/sections.tsx",
+   "dir": "src/app/_marketing",
+   "symbol": "WishKnowFindFirstHand",
+   "line": 375,
+   "loc": 37,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/admin/beta-queue/actions.ts",
+   "dir": "src/app/admin/beta-queue",
+   "symbol": "approveBetaUser",
+   "line": 8,
+   "loc": 44,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/beta-queue-approve.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/admin/monitoring/integration-status.ts",
+   "dir": "src/app/admin/monitoring",
+   "symbol": "MonitoringIntegration",
+   "line": 2,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/admin/users/status-badges.ts",
+   "dir": "src/app/admin/users",
+   "symbol": "Badge",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/consent-state.ts",
+   "dir": "src/app",
+   "symbol": "CONSENT_STORAGE_KEY",
+   "line": 11,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/consented-analytics.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/consent-state.ts",
+   "dir": "src/app",
+   "symbol": "ConsentValue",
+   "line": 14,
+   "loc": 1,
+   "internalUses": 4,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/consented-analytics.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/convene/contacts/contacts-helpers.ts",
+   "dir": "src/app/dashboard/convene/contacts",
+   "symbol": "ContactMethodKind",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/convene/contacts/contacts-helpers.ts",
+   "dir": "src/app/dashboard/convene/contacts",
+   "symbol": "ContactMethodView",
+   "line": 5,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/convene/gatherings/[id]/invite-actions.tsx",
+   "dir": "src/app/dashboard/convene/gatherings/[id]",
+   "symbol": "InviteeView",
+   "line": 75,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/convene/gatherings/[id]/invite-actions.tsx",
+   "dir": "src/app/dashboard/convene/gatherings/[id]",
+   "symbol": "ProposedSlot",
+   "line": 20,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/actions.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ItemActionResult",
+   "line": 238,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/actions.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "updateSectionVisibility",
+   "line": 525,
+   "loc": 42,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/section-visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/affiliation-fields.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ALLOWED_AFFILIATION_TYPES",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliations-and-autosave.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/affiliation-fields.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "isAffiliationType",
+   "line": 7,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliations-and-autosave.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/city-actions.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ResolveCityResult",
+   "line": 7,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ManualOfMeField",
+   "line": 13,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/profile-fields.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ALLOWED_PROFILE_FIELDS",
+   "line": 2,
+   "loc": 16,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/partial-write-safety.test.ts",
+    "tests/unit/profile-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/profile-fields.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "AllowedProfileField",
+   "line": 19,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/section-visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "CONTROLLABLE_SECTION_KEYS",
+   "line": 7,
+   "loc": 8,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/section-visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/section-visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ControllableSectionKey",
+   "line": 16,
+   "loc": 1,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/section-visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "ITEM_CATEGORY_TO_SECTION",
+   "line": 23,
+   "loc": 17,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/section-visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/section-visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "getEffectiveItemVisibility",
+   "line": 63,
+   "loc": 14,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/section-visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/sections/auto-save-core.ts",
+   "dir": "src/app/dashboard/profile/sections",
+   "symbol": "AutoSaveResult",
+   "line": 5,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/sections/auto-save-core.ts",
+   "dir": "src/app/dashboard/profile/sections",
+   "symbol": "AutoSaveStatus",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/sections/index.ts",
+   "dir": "src/app/dashboard/profile/sections",
+   "symbol": "SectionSaveBar",
+   "line": 9,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/sections/index.ts",
+   "dir": "src/app/dashboard/profile/sections",
+   "symbol": "useAutoSave",
+   "line": 7,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/profile/visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "DEFAULT_VISIBILITY",
+   "line": 7,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "VISIBILITY_LEVELS",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "filterItemsByVisibility",
+   "line": 36,
+   "loc": 6,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "isAllowedVisibility",
+   "line": 10,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/profile/visibility.ts",
+   "dir": "src/app/dashboard/profile",
+   "symbol": "isItemVisibleToViewer",
+   "line": 23,
+   "loc": 11,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/visibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-actions.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "searchByPhone",
+   "line": 150,
+   "loc": 16,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/discoverability-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "ContactKind",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "RateLimitGate",
+   "line": 80,
+   "loc": 5,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "getContactSearchHmacKey",
+   "line": 25,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/sec18-hmac-hash.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "getSearchPepper",
+   "line": 14,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/discoverability-helpers.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "hashContact",
+   "line": 59,
+   "loc": 10,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/sec18-hmac-hash.test.ts",
+    "tests/unit/discoverability-helpers.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/settings/discoverability-helpers.ts",
+   "dir": "src/app/dashboard/settings",
+   "symbol": "normalisePhone",
+   "line": 33,
+   "loc": 24,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/discoverability-helpers.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/app/dashboard/share-profile.tsx",
+   "dir": "src/app/dashboard",
+   "symbol": "default",
+   "line": 7,
+   "loc": 81,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/components/AffiliateBadge.tsx",
+   "dir": "src/components",
+   "symbol": "AffiliateBadgeProps",
+   "line": 5,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/account-status.ts",
+   "dir": "src/lib",
+   "symbol": "AccountStanding",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/admin.ts",
+   "dir": "src/lib",
+   "symbol": "AdminUser",
+   "line": 34,
+   "loc": 6,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/account-deletion.test.ts",
+    "tests/unit/beta-queue-approve.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts",
+    "tests/unit/sec82-reports-item-ownership.test.ts",
+    "tests/unit/set-feature-entitlement.test.ts",
+    "tests/unit/set-global-feature.test.ts",
+    "tests/unit/users-bulk-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/admin.ts",
+   "dir": "src/lib",
+   "symbol": "LogModerationActionInput",
+   "line": 68,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/account-deletion.test.ts",
+    "tests/unit/beta-queue-approve.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts",
+    "tests/unit/sec82-reports-item-ownership.test.ts",
+    "tests/unit/set-feature-entitlement.test.ts",
+    "tests/unit/set-global-feature.test.ts",
+    "tests/unit/users-bulk-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/admin.ts",
+   "dir": "src/lib",
+   "symbol": "LogModerationActionsBatchInput",
+   "line": 99,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/account-deletion.test.ts",
+    "tests/unit/beta-queue-approve.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts",
+    "tests/unit/sec82-reports-item-ownership.test.ts",
+    "tests/unit/set-feature-entitlement.test.ts",
+    "tests/unit/set-global-feature.test.ts",
+    "tests/unit/users-bulk-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/country-codes.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "SupportedDeliveryCountry",
+   "line": 16,
+   "loc": 2,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/delivery-country.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/eligibility.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "AffiliateNetwork",
+   "line": 5,
+   "loc": 7,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/eligibility.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "MerchantEligibilityRow",
+   "line": 13,
+   "loc": 12,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-eligibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/eligibility.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "isAffiliateNetwork",
+   "line": 79,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-eligibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/eligibility.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "isMerchantEligibleInCountry",
+   "line": 27,
+   "loc": 20,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-eligibility.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/fx.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "_clearFxCacheForTests",
+   "line": 67,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/link-service.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "AffiliateLinkRequest",
+   "line": 12,
+   "loc": 20,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/link-service.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "AffiliateLinkResult",
+   "line": 33,
+   "loc": 12,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/merchant-detector.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "MERCHANT_RULES_INTERNAL",
+   "line": 91,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-link-service.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/reporting.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "ReconciliationUpdate",
+   "line": 109,
+   "loc": 7,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/reporting.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "parseClickIdFromSubId",
+   "line": 139,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-reporting.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "FetchLike",
+   "line": 203,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-smoke.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "MerchantSmokeProbe",
+   "line": 7,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "ProbeResult",
+   "line": 210,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "SMOKE_PROBES",
+   "line": 17,
+   "loc": 114,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-smoke.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "SmokeMatrixEntry",
+   "line": 133,
+   "loc": 6,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/smoke.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "SmokeRunSummary",
+   "line": 312,
+   "loc": 20,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/affiliate/types.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "isCountryCode",
+   "line": 58,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-clicks.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/affiliate/types.ts",
+   "dir": "src/lib/affiliate",
+   "symbol": "parseSubId",
+   "line": 36,
+   "loc": 20,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/affiliate-clicks.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/age/didit.ts",
+   "dir": "src/lib/age",
+   "symbol": "CHALLENGE_AGE",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/didit-age.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/age/didit.ts",
+   "dir": "src/lib/age",
+   "symbol": "CreateSessionResult",
+   "line": 13,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/age/didit.ts",
+   "dir": "src/lib/age",
+   "symbol": "NormalisedDecision",
+   "line": 68,
+   "loc": 6,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/age/provider-gate.ts",
+   "dir": "src/lib/age",
+   "symbol": "AgeStatus",
+   "line": 4,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/beta-access/email.ts",
+   "dir": "src/lib/beta-access",
+   "symbol": "BetaEmailResult",
+   "line": 2,
+   "loc": 2,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/beta-access-resolve.test.ts",
+    "tests/unit/beta-queue-approve.test.ts",
+    "tests/unit/set-feature-entitlement.test.ts",
+    "tests/unit/users-bulk-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/beta-access/invite-link.ts",
+   "dir": "src/lib/beta-access",
+   "symbol": "INVITE_COOKIE",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/beta-access/invite-link.ts",
+   "dir": "src/lib/beta-access",
+   "symbol": "INVITE_COOKIE_MAX_AGE",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/beta-access/invite-link.ts",
+   "dir": "src/lib/beta-access",
+   "symbol": "buildBetaInviteLink",
+   "line": 8,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/invite-link.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/cf-access.ts",
+   "dir": "src/lib",
+   "symbol": "__resetCfAccessJwksCacheForTests",
+   "line": 52,
+   "loc": 4,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/admin/cf-access.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/compliance/disclosures.ts",
+   "dir": "src/lib/compliance",
+   "symbol": "DisclosureFlags",
+   "line": 6,
+   "loc": 4,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/compliance/disclosures.ts",
+   "dir": "src/lib/compliance",
+   "symbol": "disclosuresFromSwitches",
+   "line": 12,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/compliance/disclosures.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "ModerationResult",
+   "line": 293,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "ModerationSeverity",
+   "line": 291,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "PIIResult",
+   "line": 242,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "ProfanityResult",
+   "line": 106,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "SpamResult",
+   "line": 150,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "containsPII",
+   "line": 248,
+   "loc": 37,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/content-moderation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "containsProfanity",
+   "line": 112,
+   "loc": 34,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/content-moderation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/content-moderation.ts",
+   "dir": "src/lib",
+   "symbol": "detectSpam",
+   "line": 160,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/content-moderation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/busy-time-consent.ts",
+   "dir": "src/lib/convene",
+   "symbol": "BusyTimeConsentError",
+   "line": 6,
+   "loc": 6,
+   "internalUses": 4,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/busy-time-consent.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/calendar/microsoft.ts",
+   "dir": "src/lib/convene/calendar",
+   "symbol": "microsoftCalendarAdapter",
+   "line": 48,
+   "loc": 102,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/busy-time-consent.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/gatherings/state-machine.ts",
+   "dir": "src/lib/convene/gatherings",
+   "symbol": "InvalidTransitionError",
+   "line": 41,
+   "loc": 11,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/gathering-state-machine.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/gatherings/state-machine.ts",
+   "dir": "src/lib/convene/gatherings",
+   "symbol": "canTransition",
+   "line": 64,
+   "loc": 6,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/gathering-state-machine.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/gatherings/state-machine.ts",
+   "dir": "src/lib/convene/gatherings",
+   "symbol": "isFieldEditable",
+   "line": 77,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/gathering-state-machine.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/google/calendar.ts",
+   "dir": "src/lib/convene/google",
+   "symbol": "BusyBlock",
+   "line": 3,
+   "loc": 4,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/google/calendar.ts",
+   "dir": "src/lib/convene/google",
+   "symbol": "getFreeBusy",
+   "line": 8,
+   "loc": 29,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/google/oauth.ts",
+   "dir": "src/lib/convene/google",
+   "symbol": "GOOGLE_SCOPES",
+   "line": 5,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/google-oauth.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/google/oauth.ts",
+   "dir": "src/lib/convene/google",
+   "symbol": "GoogleTokenResponse",
+   "line": 11,
+   "loc": 7,
+   "internalUses": 4,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/google/oauth.ts",
+   "dir": "src/lib/convene/google",
+   "symbol": "exchangeCodeForTokens",
+   "line": 33,
+   "loc": 23,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/google-oauth.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/dispatch.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "DispatchSummary",
+   "line": 33,
+   "loc": 8,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/dispatch.test.ts",
+    "tests/unit/convene/invites-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/dispatch.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "_internal",
+   "line": 484,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/dispatch-atomic-claim.test.ts",
+    "tests/unit/convene/dispatch.test.ts",
+    "tests/unit/convene/invites-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/dispatch.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "buildSendInputs",
+   "line": 178,
+   "loc": 36,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/dispatch.test.ts",
+    "tests/unit/convene/invites-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/dispatch.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "buildSmsBody",
+   "line": 216,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/dispatch.test.ts",
+    "tests/unit/convene/invites-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/email.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "_internal",
+   "line": 75,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/invites.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/repository.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "InviteeLookup",
+   "line": 82,
+   "loc": 13,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/rsvp-submit-validation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/repository.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "PersistInviteInput",
+   "line": 15,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/rsvp-submit-validation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/repository.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "markInviteFailed",
+   "line": 52,
+   "loc": 10,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/rsvp-submit-validation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/repository.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "markInviteSent",
+   "line": 40,
+   "loc": 11,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/rsvp-submit-validation.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/invites/sms-templates.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "SmsTemplateInput",
+   "line": 3,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/invites/templates.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "InviteTemplateInput",
+   "line": 5,
+   "loc": 13,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/invites/twilio.ts",
+   "dir": "src/lib/convene/invites",
+   "symbol": "_internal",
+   "line": 91,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/twilio-send.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/microsoft/oauth.ts",
+   "dir": "src/lib/convene/microsoft",
+   "symbol": "MICROSOFT_SCOPES",
+   "line": 5,
+   "loc": 5,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/convene/oauth-connections.ts",
+   "dir": "src/lib/convene",
+   "symbol": "OAuthConnection",
+   "line": 16,
+   "loc": 12,
+   "internalUses": 7,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/busy-time-consent.test.ts",
+    "tests/unit/convene/calendar-google-adapter.test.ts",
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/organise-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/oauth-connections.ts",
+   "dir": "src/lib/convene",
+   "symbol": "disconnectConnection",
+   "line": 138,
+   "loc": 15,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/busy-time-consent.test.ts",
+    "tests/unit/convene/calendar-google-adapter.test.ts",
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/organise-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/oauth-connections.ts",
+   "dir": "src/lib/convene",
+   "symbol": "getConnection",
+   "line": 29,
+   "loc": 14,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/busy-time-consent.test.ts",
+    "tests/unit/convene/calendar-google-adapter.test.ts",
+    "tests/unit/convene/invites-actions.test.ts",
+    "tests/unit/convene/organise-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/convene/post-event.ts",
+   "dir": "src/lib/convene",
+   "symbol": "PostEventSummary",
+   "line": 6,
+   "loc": 7,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/cookie-domain.ts",
+   "dir": "src/lib",
+   "symbol": "PARENT_COOKIE_DOMAIN",
+   "line": 3,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/cookie-domain.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/cookie-domain.ts",
+   "dir": "src/lib",
+   "symbol": "PROD_SITE_URL",
+   "line": 2,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/cookie-domain.ts",
+   "dir": "src/lib",
+   "symbol": "parentCookieDomain",
+   "line": 11,
+   "loc": 13,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/cookie-domain.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/dashboard/dismissal.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "WidgetDismissal",
+   "line": 4,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/dashboard/profile-completion.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "COMPLETION_COMPONENTS",
+   "line": 18,
+   "loc": 12,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/profile-completion.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/dashboard/profile-completion.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "ProfileCompletionInput",
+   "line": 2,
+   "loc": 12,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/profile-completion.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/dashboard/resolve-widgets.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "EMPTY_TO_DRAFTED_THRESHOLD",
+   "line": 16,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/dashboard-resolve-widgets.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/dashboard/resolve-widgets.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "ResolvedWidget",
+   "line": 39,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/dashboard/resolve-widgets.ts",
+   "dir": "src/lib/dashboard",
+   "symbol": "WidgetResolverInput",
+   "line": 24,
+   "loc": 14,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/dashboard-resolve-widgets.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/deploy-env.ts",
+   "dir": "src/lib",
+   "symbol": "DEPLOY_ENVS",
+   "line": 5,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/deploy-env.test.ts",
+    "tests/unit/set-global-feature.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/features/entitlements-service.ts",
+   "dir": "src/lib/features",
+   "symbol": "isFeatureEnabledByProfile",
+   "line": 24,
+   "loc": 6,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/features/entitlements-service.ts",
+   "dir": "src/lib/features",
+   "symbol": "isPaidLinksComplianceReady",
+   "line": 48,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/features/global-features.ts",
+   "dir": "src/lib/features",
+   "symbol": "GlobalFeatureConfig",
+   "line": 15,
+   "loc": 13,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/features/registry.ts",
+   "dir": "src/lib/features",
+   "symbol": "FEATURE_KEYS",
+   "line": 3,
+   "loc": 8,
+   "internalUses": 5,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/admin-status-badges.test.ts",
+    "tests/unit/feature-entitlements.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/features/registry.ts",
+   "dir": "src/lib/features",
+   "symbol": "FeatureConfig",
+   "line": 17,
+   "loc": 11,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/features/registry.ts",
+   "dir": "src/lib/features",
+   "symbol": "FeatureTier",
+   "line": 15,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/file-magic-bytes.ts",
+   "dir": "src/lib",
+   "symbol": "UploadPreflightOptions",
+   "line": 99,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/file-magic-bytes.ts",
+   "dir": "src/lib",
+   "symbol": "matchesSignature",
+   "line": 43,
+   "loc": 27,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/file-magic-bytes.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/file-magic-bytes.ts",
+   "dir": "src/lib",
+   "symbol": "validateFileMagicBytes",
+   "line": 72,
+   "loc": 25,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/file-magic-bytes.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/geo/places-city.ts",
+   "dir": "src/lib/geo",
+   "symbol": "CityLookupResult",
+   "line": 5,
+   "loc": 5,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/geo/places-city.ts",
+   "dir": "src/lib/geo",
+   "symbol": "extractCity",
+   "line": 17,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/places-city.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/metrics.ts",
+   "dir": "src/lib",
+   "symbol": "getAnomalyWindow",
+   "line": 24,
+   "loc": 13,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/metrics.ts",
+   "dir": "src/lib",
+   "symbol": "getMetricsForWindow",
+   "line": 39,
+   "loc": 17,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/moderation-audit.ts",
+   "dir": "src/lib",
+   "symbol": "ModerationSource",
+   "line": 7,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/organise-actions.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/access-tokens.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "AccessTokenRecord",
+   "line": 30,
+   "loc": 8,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/access-tokens.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "IssueAccessJtiInput",
+   "line": 10,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/authorize.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "AuthorizeError",
+   "line": 15,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/authorize.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "AuthorizeRequest",
+   "line": 5,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/authorize.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "ValidatedAuthorizeRequest",
+   "line": 31,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/client-trust.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "ClientTrust",
+   "line": 3,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/oauth/clients.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "RegisterClientInput",
+   "line": 11,
+   "loc": 8,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/authorize.test.ts",
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/clients.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "RegisteredClient",
+   "line": 20,
+   "loc": 12,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/authorize.test.ts",
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/clients.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "generateClientId",
+   "line": 33,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/authorize.test.ts",
+    "tests/unit/oauth/clients.test.ts",
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/clients.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "generateClientSecret",
+   "line": 39,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/authorize.test.ts",
+    "tests/unit/oauth/clients.test.ts",
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/codes.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "CodeRecord",
+   "line": 44,
+   "loc": 11,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/codes.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "IssueCodeInput",
+   "line": 16,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/codes.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "generateAuthCode",
+   "line": 12,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/token-route.test.ts",
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/config.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "wwwAuthenticateHeader",
+   "line": 35,
+   "loc": 6,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/metadata.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/consents.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "ConsentRecord",
+   "line": 10,
+   "loc": 7,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/sec57-issuance-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/jwt.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "AccessTokenClaims",
+   "line": 37,
+   "loc": 10,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/oauth/jwt.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "IssueAccessTokenInput",
+   "line": 48,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/oauth/jwt.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "IssuedAccessToken",
+   "line": 54,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/oauth/jwt.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "VerifyOptions",
+   "line": 102,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/oauth/jwt.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "verifyAccessToken",
+   "line": 108,
+   "loc": 36,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/jwt-pkce.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/refresh.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "IssueRefreshInput",
+   "line": 21,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/refresh.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "RefreshTokenRecord",
+   "line": 48,
+   "loc": 9,
+   "internalUses": 4,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/refresh.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "generateRefreshToken",
+   "line": 13,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/refresh.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "hashRefreshToken",
+   "line": 17,
+   "loc": 3,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/oauth/refresh.ts",
+   "dir": "src/lib/oauth",
+   "symbol": "issueAccessTokenJti",
+   "line": 113,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/oauth/revoke-route.test.ts",
+    "tests/unit/oauth/token-route.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/profile-rate-limit.ts",
+   "dir": "src/lib",
+   "symbol": "ProfileRateLimitOutcome",
+   "line": 7,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/kan417-poc-media-uploads-gate.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/rate-limit-shared.ts",
+   "dir": "src/lib",
+   "symbol": "SharedRateLimitResult",
+   "line": 6,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommend/categories.ts",
+   "dir": "src/lib/recommend",
+   "symbol": "GiftCategory",
+   "line": 15,
+   "loc": 4,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommend/convene/score-attendee.ts",
+   "dir": "src/lib/recommend/convene",
+   "symbol": "_internal",
+   "line": 166,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/score-attendee.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommend/convene/score-attendee.ts",
+   "dir": "src/lib/recommend/convene",
+   "symbol": "scoreAttendee",
+   "line": 124,
+   "loc": 41,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/score-attendee.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommend/convene/score-venue.ts",
+   "dir": "src/lib/recommend/convene",
+   "symbol": "_internal",
+   "line": 266,
+   "loc": 1,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/convene/score-venue.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommend/index.ts",
+   "dir": "src/lib/recommend",
+   "symbol": "ProfileInsights",
+   "line": 72,
+   "loc": 12,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommend/index.ts",
+   "dir": "src/lib/recommend",
+   "symbol": "RecommendationOptions",
+   "line": 7,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RECOMMENDATION_EVENT_TYPES",
+   "line": 3,
+   "loc": 8,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommendation-events.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RecommendationEventRow",
+   "line": 33,
+   "loc": 12,
+   "internalUses": 0,
+   "bucket": "DEAD-ISOLATED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RecommendationEventSource",
+   "line": 23,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RecommendationEventType",
+   "line": 12,
+   "loc": 2,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isRecommendationEventSource",
+   "line": 27,
+   "loc": 5,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommendation-events.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isRecommendationEventType",
+   "line": 17,
+   "loc": 5,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommendation-events.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/events.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "sanitiseEventMetadata",
+   "line": 47,
+   "loc": 26,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommendation-events.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "AGE_RANGE_BUCKETS",
+   "line": 5,
+   "loc": 9,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "ALLERGIES",
+   "line": 51,
+   "loc": 13,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "AgeRangeBucket",
+   "line": 15,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "Allergy",
+   "line": 65,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "DIETARY_RESTRICTIONS",
+   "line": 26,
+   "loc": 13,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "DietaryRestriction",
+   "line": 40,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "OCCASIONS",
+   "line": 139,
+   "loc": 8,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "Occasion",
+   "line": 148,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RELATIONSHIPS",
+   "line": 156,
+   "loc": 9,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "RecipientAttributes",
+   "line": 76,
+   "loc": 11,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "Relationship",
+   "line": 166,
+   "loc": 1,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "coerceRecipientAttributes",
+   "line": 89,
+   "loc": 46,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isAgeRangeBucket",
+   "line": 19,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isAllergy",
+   "line": 69,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isDietaryRestriction",
+   "line": 44,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isOccasion",
+   "line": 152,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/inputs.ts",
+   "dir": "src/lib/recommender",
+   "symbol": "isRelationship",
+   "line": 170,
+   "loc": 3,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-inputs.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/v2/candidate-sourcing.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "sourceCandidatesForConcept",
+   "line": 40,
+   "loc": 14,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/v2/eligibility-filter.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "EligibilityFilterInput",
+   "line": 7,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/v2/eligibility-filter.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "EligibilityFilterResult",
+   "line": 15,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/v2/eligibility-filter.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "canShipTo",
+   "line": 107,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/eligibility-filter.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/v2/eligibility-filter.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "filterCandidatesByEligibility",
+   "line": 26,
+   "loc": 60,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/eligibility-filter.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/v2/evergreen.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "isEvergreenFallback",
+   "line": 54,
+   "loc": 6,
+   "internalUses": 0,
+   "bucket": "DEAD-TESTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/recommender-v2-evergreen.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/recommender/v2/rank.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "DEFAULT_WEIGHTS",
+   "line": 14,
+   "loc": 8,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/recommender/v2/rank.ts",
+   "dir": "src/lib/recommender/v2",
+   "symbol": "RankerWeights",
+   "line": 5,
+   "loc": 8,
+   "internalUses": 3,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/retention/affiliate-clicks.ts",
+   "dir": "src/lib/retention",
+   "symbol": "DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS",
+   "line": 8,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/affiliate-clicks-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/affiliate-clicks.ts",
+   "dir": "src/lib/retention",
+   "symbol": "affiliateClicksCutoff",
+   "line": 31,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/affiliate-clicks-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/affiliate-clicks.ts",
+   "dir": "src/lib/retention",
+   "symbol": "affiliateClicksRetentionMonths",
+   "line": 22,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/affiliate-clicks-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/gatherings.ts",
+   "dir": "src/lib/retention",
+   "symbol": "DEFAULT_GATHERINGS_RETENTION_MONTHS",
+   "line": 8,
+   "loc": 1,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/gatherings-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/gatherings.ts",
+   "dir": "src/lib/retention",
+   "symbol": "gatheringsCutoff",
+   "line": 31,
+   "loc": 5,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/gatherings-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/gatherings.ts",
+   "dir": "src/lib/retention",
+   "symbol": "gatheringsRetentionMonths",
+   "line": 22,
+   "loc": 7,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/retention/gatherings-retention.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/retention/sweep.ts",
+   "dir": "src/lib/retention",
+   "symbol": "RetentionJobSummary",
+   "line": 12,
+   "loc": 3,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/retention/sweep.ts",
+   "dir": "src/lib/retention",
+   "symbol": "RetentionSweepSummary",
+   "line": 16,
+   "loc": 4,
+   "internalUses": 2,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [],
+   "zeroConsumer": true,
+   "testedOnly": false
+  },
+  {
+   "file": "src/lib/sanitise.ts",
+   "dir": "src/lib",
+   "symbol": "stripHtml",
+   "line": 4,
+   "loc": 9,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/sanitise.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/turnstile.ts",
+   "dir": "src/lib",
+   "symbol": "TurnstileResult",
+   "line": 16,
+   "loc": 2,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/redesign-fidelity.test.js"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/lib/turnstile.ts",
+   "dir": "src/lib",
+   "symbol": "isTurnstileEnabled",
+   "line": 4,
+   "loc": 6,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/redesign-fidelity.test.js"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  },
+  {
+   "file": "src/middleware.ts",
+   "dir": "src",
+   "symbol": "middleware",
+   "line": 37,
+   "loc": 227,
+   "internalUses": 1,
+   "bucket": "OVER-EXPORTED",
+   "frameworkContract": false,
+   "consumersOutsideDir": [],
+   "consumersSameDir": [],
+   "toolingConsumers": [],
+   "testConsumers": [
+    "tests/unit/admin-host-routing.test.ts",
+    "tests/unit/middleware-suspension.test.ts"
+   ],
+   "zeroConsumer": true,
+   "testedOnly": true
+  }
+ ],
+ "stringReachability": {
+  "AGE_RANGE_BUCKETS": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ALLERGIES": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ALLOWED_AFFILIATION_TYPES": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ALLOWED_PROFILE_FIELDS": [
+   "/home/user/lyra/scripts/check-server-action-exports.sh",
+   "/home/user/lyra/scripts/check-partial-write-safety.py",
+   "/home/user/lyra/supabase/migrations/20260620120100_beta_access_lockdown.sql",
+   "/home/user/lyra/supabase/migrations/20260630020000_kan339_scrub_postcode.sql",
+   "/home/user/lyra/supabase/migrations/20260720100000_age_self_declaration.sql",
+   "/home/user/lyra/docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra/docs/ARCHITECTURE.md"
+  ],
+  "AboutLyra": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AccessTokenClaims": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AccessTokenRecord": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AccountStanding": [
+   "/home/user/lyra/docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AdminUser": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AffiliateBadgeProps": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AffiliateLinkRequest": [
+   "/home/user/lyra/docs/AFFILIATE_LINK_SERVICE_DESIGN.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AffiliateLinkResult": [
+   "/home/user/lyra/docs/AFFILIATE_LINK_SERVICE_DESIGN.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AffiliateNetwork": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AgeRangeBucket": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AgeStatus": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "Allergy": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AllowedProfileField": [
+   "/home/user/lyra/scripts/check-partial-write-safety.py",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AuthorizeError": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AuthorizeRequest": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AutoSaveResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "AutoSaveStatus": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "Badge": [
+   "/home/user/lyra/docs/modularisation/kan416-derive.py",
+   "/home/user/lyra/docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "BetaEmailResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "BusyBlock": [
+   "/home/user/lyra/docs/CONVENE.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "BusyTimeConsentError": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CHALLENGE_AGE": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "COMPLETION_COMPONENTS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CONSENT_STORAGE_KEY": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CONTROLLABLE_SECTION_KEYS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CityLookupResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ClientTrust": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CodeRecord": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ConsentRecord": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ConsentValue": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ContactKind": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ContactMethodKind": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ContactMethodView": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ControllableSectionKey": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "CreateSessionResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DEFAULT_GATHERINGS_RETENTION_MONTHS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DEFAULT_VISIBILITY": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DEFAULT_WEIGHTS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DEPLOY_ENVS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DIETARY_RESTRICTIONS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DietaryRestriction": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DisclosureFlags": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "DispatchSummary": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "EMPTY_TO_DRAFTED_THRESHOLD": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "EligibilityFilterInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "EligibilityFilterResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "FEATURE_KEYS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/feature-registry.ts",
+   "/home/user/lyra-admin-mcp-server/src/admin-tools.ts"
+  ],
+  "FeatureConfig": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "FeatureTier": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/feature-registry.ts"
+  ],
+  "FetchLike": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "GOOGLE_SCOPES": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "GiftCategory": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "GlobalFeatureConfig": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "GoogleTokenResponse": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "HowItWorks": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "INVITE_COOKIE": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "INVITE_COOKIE_MAX_AGE": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ITEM_CATEGORY_TO_SECTION": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "InvalidTransitionError": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "InviteTemplateInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "InviteeLookup": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "InviteeView": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "IssueAccessJtiInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "IssueAccessTokenInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "IssueCodeInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "IssueRefreshInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "IssuedAccessToken": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ItemActionResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "LogModerationActionInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "LogModerationActionsBatchInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "MERCHANT_RULES_INTERNAL": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "MICROSOFT_SCOPES": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ManualOfMeField": [
+   "/home/user/lyra/scripts/check-partial-write-safety.py",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "MerchantEligibilityRow": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "MerchantSmokeProbe": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ModerationResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts",
+   "/home/user/lyra-mcp-server/tests/moderation-policy.test.cjs"
+  ],
+  "ModerationSeverity": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "ModerationSource": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "MonitoringIntegration": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "NormalisedDecision": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "OAuthConnection": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "OCCASIONS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "Occasion": [
+   "/home/user/lyra/docs/DEV_E2E_REGRESSION.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra/docs/proposals/kan-178-occasion-gift-inspiration.md"
+  ],
+  "PARENT_COOKIE_DOMAIN": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "PIIResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "PROD_SITE_URL": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ParentTeacherCallout": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "PersistInviteInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "PostEventSummary": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProbeResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProfanityResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "ProfileCompletionInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProfileInsights": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProfilePreview": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProfileRateLimitOutcome": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ProposedSlot": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RECOMMENDATION_EVENT_TYPES": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RELATIONSHIPS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RankerWeights": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RateLimitGate": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RecipientAttributes": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RecommendationEventRow": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RecommendationEventSource": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RecommendationEventType": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RecommendationOptions": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ReconciliationUpdate": [
+   "/home/user/lyra/scripts/reconcile-affiliate-clicks.ts",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RefreshTokenRecord": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RegisterClientInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RegisteredClient": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "Relationship": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/convene-recommend-tools.ts",
+   "/home/user/lyra-mcp-server/src/write-tools.ts",
+   "/home/user/lyra-mcp-server/src/convene-recommend-scoring.ts"
+  ],
+  "ResolveCityResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ResolvedWidget": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RetentionJobSummary": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "RetentionSweepSummary": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SMOKE_PROBES": [
+   "/home/user/lyra/docs/AFFILIATE_MONETIZATION.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SectionSaveBar": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "Sections": [
+   "/home/user/lyra/.github/workflows/weekly-report.yml",
+   "/home/user/lyra/docs/OPS_ROUTINES_CONTROL_ROOM.md",
+   "/home/user/lyra/docs/JIRA_TICKET_STANDARD.md",
+   "/home/user/lyra/docs/STAGING_SOAK_TEST_PLAN.md",
+   "/home/user/lyra/docs/CYBER_LOCKDOWN.md",
+   "/home/user/lyra/docs/lyra-project-reference.jsx",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra/docs/KAN-131-FEATURE-GAP-AUDIT.md"
+  ],
+  "SharedRateLimitResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SmokeMatrixEntry": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SmokeRunSummary": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SmsTemplateInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "SpamResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "SupportedDeliveryCountry": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "TurnstileResult": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "UploadPreflightOptions": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "UseCases": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "VISIBILITY_LEVELS": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "ValidatedAuthorizeRequest": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "VerifyOptions": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "WhatLyraIsNot": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "WidgetDismissal": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "WidgetResolverInput": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "WishKnowFindFirstHand": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "__resetCfAccessJwksCacheForTests": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "_clearFxCacheForTests": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "_internal": [
+   "/home/user/lyra/docs/CYBER_LOCKDOWN.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/convene-recommend-venue-scoring.ts",
+   "/home/user/lyra-mcp-server/src/convene-places-adapter.ts",
+   "/home/user/lyra-mcp-server/src/convene-recommend-scoring.ts"
+  ],
+  "affiliateClicksCutoff": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "affiliateClicksRetentionMonths": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "approveBetaUser": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "buildBetaInviteLink": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "buildSendInputs": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "buildSmsBody": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "canShipTo": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "canTransition": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "coerceRecipientAttributes": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "containsPII": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "containsProfanity": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "default": [
+   "/home/user/lyra/.github/workflows/promote-staging-to-beta.yml",
+   "/home/user/lyra/.github/workflows/auto-fix-known-failures.yml",
+   "/home/user/lyra/.github/workflows/deploy-beta.yml",
+   "/home/user/lyra/.github/workflows/auto-promote-to-staging.yml",
+   "/home/user/lyra/.github/workflows/promote-to-production.yml",
+   "/home/user/lyra/.github/workflows/db-invariants.yml",
+   "/home/user/lyra/.github/workflows/cleanup-phantom-check-suites.yml",
+   "/home/user/lyra/.github/workflows/beta-gate-smoke.yml",
+   "/home/user/lyra/.github/workflows/mutation-testing.yml",
+   "/home/user/lyra/.github/workflows/e2e-authed.yml",
+   "/home/user/lyra/.github/workflows/backup-platform.yml",
+   "/home/user/lyra/.github/workflows/secret-rotation-reminder.yml"
+  ],
+  "detectSpam": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra-mcp-server/src/content-moderation.ts"
+  ],
+  "disclosuresFromSwitches": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "disconnectConnection": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "exchangeCodeForTokens": [
+   "/home/user/lyra/docs/CONVENE.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "extractCity": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "filterCandidatesByEligibility": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "filterItemsByVisibility": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "gatheringsCutoff": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "gatheringsRetentionMonths": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "generateAuthCode": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "generateClientId": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "generateClientSecret": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "generateRefreshToken": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getAnomalyWindow": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getConnection": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getContactSearchHmacKey": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getEffectiveItemVisibility": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getFreeBusy": [
+   "/home/user/lyra/docs/CONVENE.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getMetricsForWindow": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "getSearchPepper": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "hashContact": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "hashRefreshToken": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isAffiliateNetwork": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isAffiliationType": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isAgeRangeBucket": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isAllergy": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isAllowedVisibility": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isCountryCode": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isDietaryRestriction": [
+   "/home/user/lyra/docs/RECOMMENDER_INPUTS.md",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isEvergreenFallback": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isFeatureEnabledByProfile": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isFieldEditable": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isItemVisibleToViewer": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isMerchantEligibleInCountry": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isOccasion": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isPaidLinksComplianceReady": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isRecommendationEventSource": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isRecommendationEventType": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isRelationship": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "isTurnstileEnabled": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "issueAccessTokenJti": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "markInviteFailed": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "markInviteSent": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "matchesSignature": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "microsoftCalendarAdapter": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "middleware": [
+   "/home/user/lyra/.github/workflows/deploy-beta.yml",
+   "/home/user/lyra/.github/workflows/beta-gate-smoke.yml",
+   "/home/user/lyra/.github/workflows/pr-checks.yml",
+   "/home/user/lyra/.github/signup-surface.paths",
+   "/home/user/lyra/scripts/daily-security-check.sh",
+   "/home/user/lyra/scripts/check-ui-copy-ownership.sh",
+   "/home/user/lyra/supabase/migrations/20260504220000_add_beta_eligible_flag.sql",
+   "/home/user/lyra/supabase/migrations/20260622120000_two_axis_access_model.sql",
+   "/home/user/lyra/docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md",
+   "/home/user/lyra/docs/HANDOVER_BETA_2026-05-11.md",
+   "/home/user/lyra/docs/DAILY_SECURITY_CHECK.md",
+   "/home/user/lyra/docs/JIRA_TICKET_STANDARD.md"
+  ],
+  "normalisePhone": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "parentCookieDomain": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "parseClickIdFromSubId": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "parseSubId": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "sanitiseEventMetadata": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "scoreAttendee": [
+   "/home/user/lyra/supabase/migrations/20260516230400_convene_relationship_signals.sql",
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra/docs/proposals/kan-203-lyra-convene.md",
+   "/home/user/lyra-mcp-server/src/convene-recommend-tools.ts",
+   "/home/user/lyra-mcp-server/src/convene-recommend-scoring.ts",
+   "/home/user/lyra-mcp-server/tests/convene-recommend-tools.test.cjs"
+  ],
+  "searchByPhone": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "sourceCandidatesForConcept": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "stripHtml": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json",
+   "/home/user/lyra/docs/ARCHITECTURE.md",
+   "/home/user/lyra-mcp-server/src/sanitise.ts",
+   "/home/user/lyra-mcp-server/tests/sec59-striphtml-convergence.test.cjs"
+  ],
+  "updateSectionVisibility": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "useAutoSave": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "validateFileMagicBytes": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "verifyAccessToken": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ],
+  "wwwAuthenticateHeader": [
+   "/home/user/lyra/docs/modularisation/data/kan422-dead-exports.json"
+  ]
+ }
+}

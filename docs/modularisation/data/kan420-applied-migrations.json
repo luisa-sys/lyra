@@ -1,0 +1,898 @@
+{
+ "captured": "2026-07-27",
+ "captured_by": "KAN-420 spike \u2014 Supabase MCP list_migrations (read-only)",
+ "git_head": "55cb77609fbb17028b90aa8dccfa8d8432970f0d",
+ "environments": {
+  "dev": {
+   "project_id": "ilprytcrnqyrsbsrfujj",
+   "migrations": [
+    {
+     "version": "20260324061701",
+     "name": "create_lyra_schema"
+    },
+    {
+     "version": "20260329193250",
+     "name": "fix_security_advisories_and_rls_performance"
+    },
+    {
+     "version": "20260330105138",
+     "name": "add_missing_profile_item_categories"
+    },
+    {
+     "version": "20260330125312",
+     "name": "add_avatar_url_and_storage_rls"
+    },
+    {
+     "version": "20260504213950",
+     "name": "add_beta_eligible_flag"
+    },
+    {
+     "version": "20260514061116",
+     "name": "kan_143_profile_items_visibility"
+    },
+    {
+     "version": "20260514061136",
+     "name": "kan_154_manual_of_me"
+    },
+    {
+     "version": "20260514061204",
+     "name": "kan_153_phone_postcode_search"
+    },
+    {
+     "version": "20260516093640",
+     "name": "kan_141_admin_and_moderation"
+    },
+    {
+     "version": "20260516154758",
+     "name": "kan_182_add_current_problems_category"
+    },
+    {
+     "version": "20260516160110",
+     "name": "kan_142_profile_files"
+    },
+    {
+     "version": "20260516171016",
+     "name": "kan_181_conversation_starters"
+    },
+    {
+     "version": "20260516172640",
+     "name": "affiliate_clicks"
+    },
+    {
+     "version": "20260516173207",
+     "name": "delivery_country_code"
+    },
+    {
+     "version": "20260516174101",
+     "name": "recipient_recommender_fields"
+    },
+    {
+     "version": "20260516174416",
+     "name": "recommendation_events"
+    },
+    {
+     "version": "20260516175351",
+     "name": "recommender_catalogue"
+    },
+    {
+     "version": "20260516180112",
+     "name": "kan_63a_metrics_window_fn"
+    },
+    {
+     "version": "20260516210951",
+     "name": "convene_spike_oauth"
+    },
+    {
+     "version": "20260516214154",
+     "name": "affiliate_merchant_eligibility"
+    },
+    {
+     "version": "20260516221809",
+     "name": "convene_identity_consent"
+    },
+    {
+     "version": "20260516221933",
+     "name": "convene_people"
+    },
+    {
+     "version": "20260516222011",
+     "name": "convene_venues"
+    },
+    {
+     "version": "20260516222120",
+     "name": "convene_gatherings"
+    },
+    {
+     "version": "20260516222339",
+     "name": "convene_relationship_signals"
+    },
+    {
+     "version": "20260516222350",
+     "name": "convene_profile_categories"
+    },
+    {
+     "version": "20260516224234",
+     "name": "drop_convene_spike"
+    },
+    {
+     "version": "20260516225223",
+     "name": "kan220_affiliation_type"
+    },
+    {
+     "version": "20260516225307",
+     "name": "convene_oauth_connect_state"
+    },
+    {
+     "version": "20260516231319",
+     "name": "kan221_section_visibility"
+    },
+    {
+     "version": "20260517171435",
+     "name": "oauth_2_1_server"
+    },
+    {
+     "version": "20260517205843",
+     "name": "kan_232_mcp_tool_call_log"
+    },
+    {
+     "version": "20260517214338",
+     "name": "kan_245_mcp_tool_call_log_retention"
+    },
+    {
+     "version": "20260517214442",
+     "name": "kan_244_content_moderation_flags"
+    },
+    {
+     "version": "20260607184706",
+     "name": "profile_redesign_favourite_categories"
+    },
+    {
+     "version": "20260607184716",
+     "name": "affiliation_description"
+    },
+    {
+     "version": "20260618130542",
+     "name": "kan263_about_me_fields"
+    },
+    {
+     "version": "20260618130552",
+     "name": "kan263_affiliation_show_on_profile"
+    },
+    {
+     "version": "20260618130600",
+     "name": "kan263_favourites_categories"
+    },
+    {
+     "version": "20260620112836",
+     "name": "beta_access_status"
+    },
+    {
+     "version": "20260620183837",
+     "name": "beta_access_lockdown"
+    },
+    {
+     "version": "20260621055255",
+     "name": "sec_01_bugs24_revoke_convene_vault_anon_grants"
+    },
+    {
+     "version": "20260621060029",
+     "name": "security_audit_20260621_lockdown_anon_exposed_surface"
+    },
+    {
+     "version": "20260621060217",
+     "name": "security_audit_20260621_restrict_authenticated_suspended_profiles"
+    },
+    {
+     "version": "20260621060527",
+     "name": "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+    },
+    {
+     "version": "20260621062527",
+     "name": "security_audit_20260621_fn_searchpath_and_view_invoker"
+    },
+    {
+     "version": "20260621062531",
+     "name": "security_audit_20260621_contact_hash_authn_only"
+    },
+    {
+     "version": "20260621063103",
+     "name": "revoke_secdef_exec_bugs44"
+    },
+    {
+     "version": "20260621063249",
+     "name": "revoke_secdef_exec_bugs44_v2_public"
+    },
+    {
+     "version": "20260621063635",
+     "name": "profile_files_private_bugs33"
+    },
+    {
+     "version": "20260621064603",
+     "name": "security_audit_20260621_residual_definer_fn_public_revoke"
+    },
+    {
+     "version": "20260621110146",
+     "name": "sec06_oauth_connections_secret_columns_lockdown"
+    },
+    {
+     "version": "20260621120659",
+     "name": "sec18_availability_consent"
+    },
+    {
+     "version": "20260621212828",
+     "name": "two_axis_access_model"
+    },
+    {
+     "version": "20260621225438",
+     "name": "feature_entitlements"
+    },
+    {
+     "version": "20260622060018",
+     "name": "age_verification_status"
+    },
+    {
+     "version": "20260622061853",
+     "name": "sec27_block_admin_is_suspended_self_set"
+    },
+    {
+     "version": "20260622061926",
+     "name": "block_admin_suspended_self_set"
+    },
+    {
+     "version": "20260624080656",
+     "name": "clean_access_model_user_status_access_tier"
+    },
+    {
+     "version": "20260624083715",
+     "name": "admin_list_users_status_fields"
+    },
+    {
+     "version": "20260628205416",
+     "name": "kan326_phase_c_drop_legacy_access_cols"
+    },
+    {
+     "version": "20260630071830",
+     "name": "kan345_dashboard_widget_state"
+    },
+    {
+     "version": "20260630071833",
+     "name": "kan339_scrub_postcode"
+    },
+    {
+     "version": "20260704070345",
+     "name": "sec45_profile_items_public_read_visibility"
+    },
+    {
+     "version": "20260704152942",
+     "name": "sec54_sec56_bugs65_secdef_rls_grant_batch"
+    },
+    {
+     "version": "20260707033237",
+     "name": "sec64_moderation_logs_hash_chain"
+    },
+    {
+     "version": "20260707195520",
+     "name": "sec76_oauth_clients_is_first_party"
+    },
+    {
+     "version": "20260708033550",
+     "name": "sec62_oauth_rate_limit_store"
+    },
+    {
+     "version": "20260712033659",
+     "name": "sec74_affiliate_clicks_retention_purge"
+    },
+    {
+     "version": "20260712112824",
+     "name": "sec75_moderation_actor_anonymise"
+    },
+    {
+     "version": "20260712153119",
+     "name": "sec75_erasure_obligations"
+    },
+    {
+     "version": "20260713093343",
+     "name": "sec80_contact_hash_suspended_guard"
+    },
+    {
+     "version": "20260717033222",
+     "name": "sec74_gatherings_retention_purge"
+    },
+    {
+     "version": "20260720132156",
+     "name": "age_self_declaration"
+    },
+    {
+     "version": "20260721082629",
+     "name": "global_feature_switches"
+    },
+    {
+     "version": "20260724231226",
+     "name": "bugs69_revoke_global_feature_switch_trigger_exec"
+    },
+    {
+     "version": "20260727104200",
+     "name": "security_invariants_report"
+    },
+    {
+     "version": "20260727123637",
+     "name": "security_invariants_report_v2"
+    }
+   ]
+  },
+  "staging": {
+   "project_id": "uobmlkzrjkptwhttzmmi",
+   "migrations": [
+    {
+     "version": "20260329193343",
+     "name": "fix_security_advisories_and_rls_performance"
+    },
+    {
+     "version": "20260330105146",
+     "name": "add_missing_profile_item_categories"
+    },
+    {
+     "version": "20260330125322",
+     "name": "add_avatar_url_and_storage_rls"
+    },
+    {
+     "version": "20260504214001",
+     "name": "add_beta_eligible_flag"
+    },
+    {
+     "version": "20260514062236",
+     "name": "kan_143_profile_items_visibility"
+    },
+    {
+     "version": "20260514062249",
+     "name": "kan_154_manual_of_me"
+    },
+    {
+     "version": "20260514062308",
+     "name": "kan_153_phone_postcode_search"
+    },
+    {
+     "version": "20260516100235",
+     "name": "kan_141_admin_and_moderation"
+    },
+    {
+     "version": "20260516154808",
+     "name": "kan_182_add_current_problems_category"
+    },
+    {
+     "version": "20260516160131",
+     "name": "kan_142_profile_files"
+    },
+    {
+     "version": "20260516171036",
+     "name": "kan_181_conversation_starters"
+    },
+    {
+     "version": "20260516180125",
+     "name": "kan_63a_metrics_window_fn"
+    },
+    {
+     "version": "20260516225020",
+     "name": "convene_vault_helpers"
+    },
+    {
+     "version": "20260516225033",
+     "name": "convene_identity_consent"
+    },
+    {
+     "version": "20260516225049",
+     "name": "convene_people"
+    },
+    {
+     "version": "20260516225058",
+     "name": "convene_venues"
+    },
+    {
+     "version": "20260516225134",
+     "name": "convene_gatherings"
+    },
+    {
+     "version": "20260516225140",
+     "name": "convene_relationship_signals"
+    },
+    {
+     "version": "20260516225144",
+     "name": "convene_profile_categories"
+    },
+    {
+     "version": "20260516232304",
+     "name": "convene_oauth_connect_state"
+    },
+    {
+     "version": "20260517053300",
+     "name": "affiliate_clicks"
+    },
+    {
+     "version": "20260517053305",
+     "name": "delivery_country_code"
+    },
+    {
+     "version": "20260517053310",
+     "name": "recipient_recommender_fields"
+    },
+    {
+     "version": "20260517053315",
+     "name": "recommendation_events"
+    },
+    {
+     "version": "20260517053320",
+     "name": "recommender_catalogue"
+    },
+    {
+     "version": "20260517053327",
+     "name": "affiliate_merchant_eligibility"
+    },
+    {
+     "version": "20260517055352",
+     "name": "kan220_affiliation_type"
+    },
+    {
+     "version": "20260517055356",
+     "name": "kan221_section_visibility"
+    },
+    {
+     "version": "20260517214300",
+     "name": "kan_232_mcp_tool_call_log"
+    },
+    {
+     "version": "20260517214349",
+     "name": "kan_245_mcp_tool_call_log_retention"
+    },
+    {
+     "version": "20260517214455",
+     "name": "kan_244_content_moderation_flags"
+    },
+    {
+     "version": "20260619100913",
+     "name": "kan263_profile_redesign"
+    },
+    {
+     "version": "20260620194407",
+     "name": "beta_access_status"
+    },
+    {
+     "version": "20260620194410",
+     "name": "beta_access_lockdown"
+    },
+    {
+     "version": "20260621055311",
+     "name": "sec_01_bugs24_revoke_convene_vault_anon_grants"
+    },
+    {
+     "version": "20260621060225",
+     "name": "security_audit_20260621_lockdown_anon_exposed_surface"
+    },
+    {
+     "version": "20260621060246",
+     "name": "security_audit_20260621_restrict_authenticated_suspended_profiles"
+    },
+    {
+     "version": "20260621060609",
+     "name": "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+    },
+    {
+     "version": "20260621062629",
+     "name": "security_audit_20260621_fn_searchpath_and_view_invoker"
+    },
+    {
+     "version": "20260621062639",
+     "name": "security_audit_20260621_contact_hash_authn_only"
+    },
+    {
+     "version": "20260621063109",
+     "name": "revoke_secdef_exec_bugs44"
+    },
+    {
+     "version": "20260621063401",
+     "name": "revoke_secdef_exec_bugs44_v2_public"
+    },
+    {
+     "version": "20260621063637",
+     "name": "profile_files_private_bugs33"
+    },
+    {
+     "version": "20260621064623",
+     "name": "security_audit_20260621_residual_definer_fn_public_revoke"
+    },
+    {
+     "version": "20260621114119",
+     "name": "sec06_oauth_connections_secret_columns_lockdown"
+    },
+    {
+     "version": "20260621120713",
+     "name": "sec18_availability_consent"
+    },
+    {
+     "version": "20260622061837",
+     "name": "sec27_block_admin_is_suspended_self_set"
+    },
+    {
+     "version": "20260622063445",
+     "name": "two_axis_access_model"
+    },
+    {
+     "version": "20260622063517",
+     "name": "feature_entitlements"
+    },
+    {
+     "version": "20260622063548",
+     "name": "age_verification_status"
+    },
+    {
+     "version": "20260622063619",
+     "name": "block_admin_suspended_self_set"
+    },
+    {
+     "version": "20260624165428",
+     "name": "clean_access_model_user_status_access_tier"
+    },
+    {
+     "version": "20260624165509",
+     "name": "admin_list_users_status_fields"
+    },
+    {
+     "version": "20260628135411",
+     "name": "oauth_2_1_server"
+    },
+    {
+     "version": "20260628135452",
+     "name": "homepage_example_profiles"
+    },
+    {
+     "version": "20260628210349",
+     "name": "kan326_phase_c_drop_legacy_access_cols"
+    },
+    {
+     "version": "20260707105041",
+     "name": "kan349_404_promote_batch_staging"
+    },
+    {
+     "version": "20260707195537",
+     "name": "sec76_oauth_clients_is_first_party"
+    },
+    {
+     "version": "20260708033709",
+     "name": "sec62_oauth_rate_limit_store"
+    },
+    {
+     "version": "20260712033737",
+     "name": "sec74_affiliate_clicks_retention_purge"
+    },
+    {
+     "version": "20260712153152",
+     "name": "sec75_erasure_obligations"
+    },
+    {
+     "version": "20260713093350",
+     "name": "sec80_contact_hash_suspended_guard"
+    },
+    {
+     "version": "20260717033311",
+     "name": "sec74_gatherings_retention_purge"
+    },
+    {
+     "version": "20260721115824",
+     "name": "age_self_declaration"
+    },
+    {
+     "version": "20260722085355",
+     "name": "bugs62_convene_invite_atomic_claim"
+    },
+    {
+     "version": "20260722085650",
+     "name": "sec64_moderation_logs_hash_chain"
+    },
+    {
+     "version": "20260722085757",
+     "name": "global_feature_switches"
+    },
+    {
+     "version": "20260724231235",
+     "name": "bugs69_revoke_global_feature_switch_trigger_exec"
+    },
+    {
+     "version": "20260727104255",
+     "name": "security_invariants_report"
+    },
+    {
+     "version": "20260727123657",
+     "name": "security_invariants_report_v2"
+    }
+   ]
+  },
+  "prod": {
+   "project_id": "llzkgprqewuwkiwclowi",
+   "migrations": [
+    {
+     "version": "20260329193356",
+     "name": "fix_security_advisories_and_rls_performance"
+    },
+    {
+     "version": "20260330105153",
+     "name": "add_missing_profile_item_categories"
+    },
+    {
+     "version": "20260330125331",
+     "name": "add_avatar_url_and_storage_rls"
+    },
+    {
+     "version": "20260504214014",
+     "name": "add_beta_eligible_flag"
+    },
+    {
+     "version": "20260516100301",
+     "name": "kan_141_admin_and_moderation"
+    },
+    {
+     "version": "20260516154821",
+     "name": "kan_182_add_current_problems_category"
+    },
+    {
+     "version": "20260516160150",
+     "name": "kan_142_profile_files"
+    },
+    {
+     "version": "20260516171057",
+     "name": "kan_181_conversation_starters"
+    },
+    {
+     "version": "20260516180140",
+     "name": "kan_63a_metrics_window_fn"
+    },
+    {
+     "version": "20260517053345",
+     "name": "affiliate_clicks"
+    },
+    {
+     "version": "20260517053350",
+     "name": "delivery_country_code"
+    },
+    {
+     "version": "20260517053353",
+     "name": "recipient_recommender_fields"
+    },
+    {
+     "version": "20260517053358",
+     "name": "recommendation_events"
+    },
+    {
+     "version": "20260517053404",
+     "name": "recommender_catalogue"
+    },
+    {
+     "version": "20260517053411",
+     "name": "affiliate_merchant_eligibility"
+    },
+    {
+     "version": "20260517060542",
+     "name": "kan220_affiliation_type"
+    },
+    {
+     "version": "20260517060547",
+     "name": "kan221_section_visibility"
+    },
+    {
+     "version": "20260517062654",
+     "name": "convene_vault_helpers"
+    },
+    {
+     "version": "20260517062707",
+     "name": "convene_identity_consent"
+    },
+    {
+     "version": "20260517062725",
+     "name": "convene_people"
+    },
+    {
+     "version": "20260517062731",
+     "name": "convene_venues"
+    },
+    {
+     "version": "20260517062808",
+     "name": "convene_gatherings"
+    },
+    {
+     "version": "20260517062814",
+     "name": "convene_relationship_signals"
+    },
+    {
+     "version": "20260517062819",
+     "name": "convene_profile_categories"
+    },
+    {
+     "version": "20260517062823",
+     "name": "convene_oauth_connect_state"
+    },
+    {
+     "version": "20260517214313",
+     "name": "kan_232_mcp_tool_call_log"
+    },
+    {
+     "version": "20260517214359",
+     "name": "kan_245_mcp_tool_call_log_retention"
+    },
+    {
+     "version": "20260517214508",
+     "name": "kan_244_content_moderation_flags"
+    },
+    {
+     "version": "20260619102025",
+     "name": "kan154_kan263_manual_of_me_and_affiliation_cols"
+    },
+    {
+     "version": "20260619102033",
+     "name": "kan263_favourites_categories"
+    },
+    {
+     "version": "20260620200638",
+     "name": "beta_access_status"
+    },
+    {
+     "version": "20260620200641",
+     "name": "beta_access_lockdown"
+    },
+    {
+     "version": "20260621055315",
+     "name": "sec_01_bugs24_revoke_convene_vault_anon_grants"
+    },
+    {
+     "version": "20260621060232",
+     "name": "security_audit_20260621_lockdown_anon_exposed_surface"
+    },
+    {
+     "version": "20260621060248",
+     "name": "security_audit_20260621_restrict_authenticated_suspended_profiles"
+    },
+    {
+     "version": "20260621060613",
+     "name": "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+    },
+    {
+     "version": "20260621062635",
+     "name": "security_audit_20260621_fn_searchpath_and_view_invoker"
+    },
+    {
+     "version": "20260621062641",
+     "name": "security_audit_20260621_contact_hash_authn_only"
+    },
+    {
+     "version": "20260621063112",
+     "name": "revoke_secdef_exec_bugs44"
+    },
+    {
+     "version": "20260621063406",
+     "name": "revoke_secdef_exec_bugs44_v2_public"
+    },
+    {
+     "version": "20260621063640",
+     "name": "profile_files_private_bugs33"
+    },
+    {
+     "version": "20260621064626",
+     "name": "security_audit_20260621_residual_definer_fn_public_revoke"
+    },
+    {
+     "version": "20260621114130",
+     "name": "sec06_oauth_connections_secret_columns_lockdown"
+    },
+    {
+     "version": "20260621120716",
+     "name": "sec18_availability_consent"
+    },
+    {
+     "version": "20260622061545",
+     "name": "sec27_block_admin_is_suspended_self_set"
+    },
+    {
+     "version": "20260622064642",
+     "name": "two_axis_access_model"
+    },
+    {
+     "version": "20260622064716",
+     "name": "feature_entitlements"
+    },
+    {
+     "version": "20260622064750",
+     "name": "age_verification_status"
+    },
+    {
+     "version": "20260622064815",
+     "name": "block_admin_suspended_self_set"
+    },
+    {
+     "version": "20260624170015",
+     "name": "clean_access_model_user_status_access_tier"
+    },
+    {
+     "version": "20260624170050",
+     "name": "admin_list_users_status_fields"
+    },
+    {
+     "version": "20260628135337",
+     "name": "oauth_2_1_server"
+    },
+    {
+     "version": "20260628142659",
+     "name": "homepage_example_profiles"
+    },
+    {
+     "version": "20260628211844",
+     "name": "kan326_phase_c_drop_legacy_access_cols"
+    },
+    {
+     "version": "20260706122603",
+     "name": "sec45_profile_items_public_read_visibility"
+    },
+    {
+     "version": "20260706122613",
+     "name": "sec56_revoke_oauth_connections_direct_writes"
+    },
+    {
+     "version": "20260707110345",
+     "name": "kan349_404_promote_batch_prod"
+    },
+    {
+     "version": "20260721115842",
+     "name": "age_self_declaration"
+    },
+    {
+     "version": "20260724004519",
+     "name": "bugs62_convene_invite_atomic_claim"
+    },
+    {
+     "version": "20260724004602",
+     "name": "sec64_moderation_logs_hash_chain"
+    },
+    {
+     "version": "20260724004700",
+     "name": "sec76_oauth_clients_is_first_party"
+    },
+    {
+     "version": "20260724004718",
+     "name": "sec62_oauth_rate_limit_store"
+    },
+    {
+     "version": "20260724004731",
+     "name": "sec74_affiliate_clicks_retention_purge"
+    },
+    {
+     "version": "20260724004802",
+     "name": "sec75_erasure_obligations"
+    },
+    {
+     "version": "20260724004816",
+     "name": "sec80_contact_hash_suspended_guard"
+    },
+    {
+     "version": "20260724004830",
+     "name": "sec74_gatherings_retention_purge"
+    },
+    {
+     "version": "20260724004845",
+     "name": "global_feature_switches"
+    },
+    {
+     "version": "20260724231243",
+     "name": "bugs69_revoke_global_feature_switch_trigger_exec"
+    },
+    {
+     "version": "20260725150440",
+     "name": "bugs69_revoke_global_feature_switch_trigger_exec"
+    },
+    {
+     "version": "20260727104318",
+     "name": "security_invariants_report"
+    },
+    {
+     "version": "20260727123717",
+     "name": "security_invariants_report_v2"
+    }
+   ]
+  }
+ }
+}

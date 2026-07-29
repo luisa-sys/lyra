@@ -560,6 +560,55 @@
       ],
       "self_test": "npx jest tests/scripts/check-dependency-rules.test.js",
       "escape_hatch": "None. A violation is a finding: fix the import or move the shared code to src/lib/. DEPCRUISE_SEVERITY is a roll-out dial, not a per-violation waiver."
+    },
+    {
+      "id": "CTL-031",
+      "name": "Bash 3.2 portability",
+      "defect_class": "dev-ci-environment-parity",
+      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS \u2014 a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
+      "implementation": "scripts/check-bash-portability.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-76"
+      ],
+      "self_test": "python3 scripts/check-bash-portability.py --self-test",
+      "escape_hatch": "# bash-portability-ok:",
+      "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-032",
+      "name": "Dependabot target-branch",
+      "defect_class": "release-pipeline-config-drift",
+      "summary": "Fails the build if any .github/dependabot.yml ecosystem block omits target-branch: develop. The github-actions ecosystem had no target-branch and fell back to the repo default (main), so every weekly Actions bump opened a PR that main-chain-guard.yml (SEC-98) correctly blocks as a chain-bypass attempt — a permanently-red required check on a benign PR, which trains reviewers to stop reading it.",
+      "implementation": "tests/unit/dependabot-target-branch.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-79"
+      ],
+      "escape_hatch": "None. Every ecosystem must target develop so its PRs flow through the develop -> staging -> beta -> main chain like any other change.",
+      "added": "2026-07-28"
+    },
+    {
+      "id": "CTL-033",
+      "name": "Extraction Definition-of-Done",
+      "defect_class": "path-coupling-drift",
+      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green \u2014 KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
+      "implementation": "scripts/check-extraction-dod.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-428"
+      ],
+      "escape_hatch": "EXTRACTION-DOD-OK: <JIRA-KEY> <check-id> on a commit in the PR. Suppresses exactly one named check, requires a Jira key, every active exception is printed on every run, and more than three in one PR emits a ::warning:: that the hatch is papering over drift.",
+      "added": "2026-07-28"
     }
   ]
 }
