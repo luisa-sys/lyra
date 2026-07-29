@@ -19,12 +19,37 @@
 
 set -euo pipefail
 
+# Run a search and put its hits in SEARCH_OUT. grep exits 1 for "no match" — the
+# answer we want — but >=2 when the search ITSELF failed, and that must never be
+# laundered into a clean result. This scan's clean result is "exit 0, nothing to
+# see", so a bare `|| true` here turns an unreadable src/ into a green build with
+# the BUGS-12 control silently absent — the KAN-167 false-green class, and the
+# same defect KAN-428's guard shipped with in its first cut. Exit 2 = unverified.
+SEARCH_OUT=""
+search_or_die() {
+  local desc="$1"; shift
+  local rc=0
+  if SEARCH_OUT="$("$@" 2>&1)"; then rc=0; else rc=$?; fi
+  if [ "$rc" -gt 1 ]; then
+    echo "::error::check-server-action-exports: ${desc}: the search command failed (exit ${rc}): ${SEARCH_OUT}"
+    echo "::error::  Failing closed (exit 2) rather than reporting a clean scan that never ran."
+    exit 2
+  fi
+  [ "$rc" -eq 1 ] && SEARCH_OUT=""
+  return 0
+}
+
 # All files in src/ whose first non-empty line is a `'use server'` directive.
 # (Some `'use server'` directives appear inline in client files for actions —
 # we restrict to module-level by checking the first ~5 lines.)
 # Written portably for bash 3.2 (macOS) and bash 5.x (Ubuntu CI).
+search_or_die "listing 'use server' files under src/" \
+  grep -rl --include='*.ts' --include='*.tsx' "'use server'" src/
+CANDIDATE_FILES="$SEARCH_OUT"
+
 USE_SERVER_FILES=$(
-  grep -rln --include='*.ts' --include='*.tsx' "'use server'" src/ 2>/dev/null | while read -r f; do
+  printf '%s\n' "$CANDIDATE_FILES" | while read -r f; do
+    [ -z "$f" ] && continue
     if head -5 "$f" | grep -qE "^['\"]use server['\"];?[[:space:]]*$"; then
       echo "$f"
     fi
@@ -54,6 +79,12 @@ while IFS= read -r f; do
   #   export type X         ← types are erased at compile time
   #   export async function ← the only legal runtime export
   #   export { foo }        ← re-exports are runtime checked at the source module
+  # NB: search_or_die must run in THIS shell, not inside $( ), or its exit 2
+  # would only leave the subshell and the scan would carry on regardless.
+  # `export async function` does not match — that is the one legal export.
+  search_or_die "scanning $f for non-async exports" \
+    grep -nE '^export (const|let|var|class|enum|interface|function) [A-Za-z_]' "$f"
+  EXPORT_LINES="$SEARCH_OUT"
   while IFS=: read -r linenum content; do
     [ -z "$linenum" ] && continue
     # Allow-list comment
@@ -62,10 +93,9 @@ while IFS= read -r f; do
     fi
     echo "::error file=$f,line=$linenum::Non-async-function export in 'use server' file. Move to a sibling module. → $content"
     VIOLATIONS=$((VIOLATIONS + 1))
-  done < <(
-    grep -nE '^export (const|let|var|class|enum|interface) [A-Za-z_]' "$f" || true
-    grep -nE '^export function [A-Za-z_]' "$f" || true
-  )
+  done <<EXPORTS
+$EXPORT_LINES
+EXPORTS
 done <<EOF
 $USE_SERVER_FILES
 EOF

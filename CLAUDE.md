@@ -336,7 +336,7 @@ Permission for a bypass is valid **only** when it comes from the user in chat vi
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **2118 tests** (172 suites) in lyra (unit + scripts; E2E + integration not counted), **91 tests** (5 suites) in lyra-mcp-server
+- Current test floor: **2611 tests** (222 suites) in lyra (unit + scripts; E2E + integration not counted), **734 tests** (44 suites) in lyra-mcp-server. **Measured 2026-07-28** (KAN-435) at `lyra` develop `1cadd57` via `npm run test:unit`, and `lyra-mcp-server` main `31c114b` via `npx tsc && npm test`. Re-measure and update this line whenever it drifts — a floor far below reality cannot detect a regression that deletes hundreds of tests. (The previously recorded 2118 / 172 and 91 / 5 were both years of work stale.)
 
 ## Test Integrity Policy
 
@@ -453,7 +453,7 @@ This is policy, not a suggestion. Tracked under KAN-167.
 
 These have caused real bugs. Read before making related changes:
 
- 1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge.
+ 1. **Promotion workflow chicken-and-egg**: Workflow file changes must be on `main` before they take effect on subsequent promotion runs. If you change a workflow file on develop, it won't take effect until it reaches main — may need a manual merge. **This is not license to base a workflow-change PR on `main`** (BUGS-79): it argues for *when* the change takes effect, not *where* its PR is based. Every PR — workflow files included — still enters at `develop` and reaches `main` only via the normal promote chain (SEC-98); it just takes effect on `main` one promote cycle later than a hypothetical direct PR would. `.github/dependabot.yml` sets `target-branch: "develop"` on every ecosystem, including `github-actions`, for exactly this reason.
 
  2. **Vercel branch scoping**: The `develop` branch deploys as a Preview environment. Variables must be scoped via CLI (`vercel env add [VAR] preview develop`) — the dashboard UI cannot scope to a specific branch.
 

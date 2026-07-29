@@ -577,6 +577,38 @@
       "self_test": "python3 scripts/check-bash-portability.py --self-test",
       "escape_hatch": "# bash-portability-ok:",
       "added": "2026-07-27"
+    },
+    {
+      "id": "CTL-032",
+      "name": "Dependabot target-branch",
+      "defect_class": "release-pipeline-config-drift",
+      "summary": "Fails the build if any .github/dependabot.yml ecosystem block omits target-branch: develop. The github-actions ecosystem had no target-branch and fell back to the repo default (main), so every weekly Actions bump opened a PR that main-chain-guard.yml (SEC-98) correctly blocks as a chain-bypass attempt — a permanently-red required check on a benign PR, which trains reviewers to stop reading it.",
+      "implementation": "tests/unit/dependabot-target-branch.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-79"
+      ],
+      "escape_hatch": "None. Every ecosystem must target develop so its PRs flow through the develop -> staging -> beta -> main chain like any other change.",
+      "added": "2026-07-28"
+    },
+    {
+      "id": "CTL-033",
+      "name": "Extraction Definition-of-Done",
+      "defect_class": "path-coupling-drift",
+      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green \u2014 KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
+      "implementation": "scripts/check-extraction-dod.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-428"
+      ],
+      "escape_hatch": "EXTRACTION-DOD-OK: <JIRA-KEY> <check-id> on a commit in the PR. Suppresses exactly one named check, requires a Jira key, every active exception is printed on every run, and more than three in one PR emits a ::warning:: that the hatch is papering over drift.",
+      "added": "2026-07-28"
     }
   ]
 }
