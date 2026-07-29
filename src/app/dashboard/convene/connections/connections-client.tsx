@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase-browser';
+import { disconnectOAuthConnection } from './disconnect-actions';
 
 interface ConnectionRow {
   id: string;
@@ -55,12 +55,8 @@ export function ConnectionsClient({ connections }: { connections: ConnectionRow[
     setBusy(connectionId);
     setError(null);
     try {
-      const sb = createClient();
-      const { error: updErr } = await sb
-        .from('oauth_connections')
-        .update({ deleted_at: new Date().toISOString(), status: 'revoked' })
-        .eq('id', connectionId);
-      if (updErr) throw new Error(updErr.message);
+      const res = await disconnectOAuthConnection(connectionId);
+      if (!res.ok) throw new Error(res.error);
       startTransition(() => {
         window.location.reload();
       });

@@ -46,6 +46,16 @@ jobs:
         # (build does NOT catch it), so without this guard a regression
         # ships green and breaks every form on the affected page.
         run: bash scripts/check-server-action-exports.sh
+      - name: Client-side privileged-write check (SEC-109)
+        # Static scan forbidding any `'use client'` module from writing directly
+        # to a table whose invariant is enforced server-side. The Convene
+        # Disconnect button soft-deleted oauth_connections from the browser and
+        # so never revoked the vaulted OAuth refresh token — the UI promised
+        # "we'll forget your tokens immediately" and the code did not. RLS does
+        # not catch this class: it governs which row you may write, not what
+        # else was supposed to happen alongside. Allow-list a genuinely
+        # invariant-free write with `// client-write-ok: <JIRA-KEY> <reason>`.
+        run: bash scripts/check-client-side-privileged-writes.sh
       - name: Service-role client centralisation check (KAN-352)
         # Static scan forbidding any call to env.supabaseServiceRoleKey()
         # outside src/lib/supabase-service.ts. The service-role client
