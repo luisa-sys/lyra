@@ -11,7 +11,9 @@
 const mockRevalidatePath = jest.fn();
 jest.mock('next/cache', () => ({ revalidatePath: (...a: unknown[]) => mockRevalidatePath(...a) }));
 
-const mockDisconnectConnection = jest.fn(async () => undefined);
+const mockDisconnectConnection = jest.fn(async (id: string) => {
+  void id;
+});
 jest.mock('@/lib/convene/oauth-connections', () => ({
   disconnectConnection: (id: string) => mockDisconnectConnection(id),
 }));
@@ -20,7 +22,13 @@ let mockUserId: string | null = 'owner-1';
 // Rows visible to the *caller's own* client, keyed by `${id}::${ownerUserId}`.
 let ownedRows: Set<string> = new Set();
 let lookupError: unknown = null;
-const captured = { lookups: [] as Record<string, unknown>[] };
+// 'ok' | 'suspended' | 'missing-row' | 'error' — drives the profiles read that
+// getAccountStanding performs.
+let standing = 'ok';
+const captured = {
+  lookups: [] as Record<string, unknown>[],
+  profileLookups: [] as Record<string, unknown>[],
+};
 
 jest.mock('@/lib/supabase-server', () => ({
   createClient: jest.fn(async () => ({
@@ -42,6 +50,12 @@ jest.mock('@/lib/supabase-server', () => ({
           return chain;
         };
         chain.maybeSingle = async () => {
+          if (table === 'profiles') {
+            captured.profileLookups.push(filters);
+            if (standing === 'error') return { data: null, error: { message: 'profiles boom' } };
+            if (standing === 'missing-row') return { data: null, error: null };
+            return { data: { is_suspended: standing === 'suspended' }, error: null };
+          }
           captured.lookups.push(filters);
           if (lookupError) return { data: null, error: lookupError };
           const key = `${String(filters.id)}::${String(filters.owner_user_id)}`;
@@ -59,7 +73,9 @@ beforeEach(() => {
   mockUserId = 'owner-1';
   ownedRows = new Set(['conn-1::owner-1', 'conn-2::owner-2']);
   lookupError = null;
+  standing = 'ok';
   captured.lookups = [];
+  captured.profileLookups = [];
   mockRevalidatePath.mockClear();
   mockDisconnectConnection.mockClear();
   mockDisconnectConnection.mockImplementation(async () => undefined);
@@ -123,6 +139,39 @@ describe('disconnectOAuthConnection', () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).not.toContain('boom');
     expect(mockDisconnectConnection).not.toHaveBeenCalled();
+  });
+
+  test('refuses a confirmed-suspended caller before touching the connection', async () => {
+    standing = 'suspended';
+    const res = await disconnectOAuthConnection('conn-1');
+    expect(res.ok).toBe(false);
+    expect(captured.profileLookups[0]).toMatchObject({ table: 'profiles', user_id: 'owner-1' });
+    expect(captured.lookups).toHaveLength(0);
+    expect(mockDisconnectConnection).not.toHaveBeenCalled();
+  });
+
+  test('the suspension refusal is distinguishable from the connection error', async () => {
+    standing = 'suspended';
+    const suspended = await disconnectOAuthConnection('conn-1');
+    standing = 'ok';
+    const unknownId = await disconnectOAuthConnection('no-such-connection');
+    expect(suspended).not.toEqual(unknownId);
+  });
+
+  test('a profiles lookup error does not trap the token — disconnect still proceeds', async () => {
+    // SEC-57's softer posture: only a *confirmed* suspension refuses, so a
+    // transient read failure cannot stop a user withdrawing consent.
+    standing = 'error';
+    const res = await disconnectOAuthConnection('conn-1');
+    expect(res).toEqual({ ok: true });
+    expect(mockDisconnectConnection).toHaveBeenCalledWith('conn-1');
+  });
+
+  test('a missing profile row does not block disconnect either', async () => {
+    standing = 'missing-row';
+    const res = await disconnectOAuthConnection('conn-1');
+    expect(res).toEqual({ ok: true });
+    expect(mockDisconnectConnection).toHaveBeenCalledWith('conn-1');
   });
 
   test('surfaces a generic error, not the internal one, if the disconnect throws', async () => {
