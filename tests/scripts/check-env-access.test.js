@@ -225,7 +225,12 @@ describe('check-env-access.py — fail-closed', () => {
       execFileSync('git', ['clone', '--local', '--quiet', ROOT, sb], { stdio: 'ignore' });
       const script = path.join(sb, SCRIPT_REL);
       fs.copyFileSync(SCRIPT, script);
-      // deliberately do NOT copy the baseline in
+      // Delete it EXPLICITLY. An earlier version relied on simply not copying
+      // it in, which passed only while the baseline was still untracked — once
+      // committed, `git clone` brings it along and the case silently inverted.
+      // CI caught it; the lesson is that "absent because I did not add it" and
+      // "absent because I removed it" are different assertions.
+      fs.rmSync(path.join(sb, BASELINE_REL), { force: true });
       const r = runAt(script, [], sb);
       expect(r.exitCode).toBe(2);
       expect(r.exitCode).not.toBe(0);
