@@ -117,6 +117,29 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
+      - name: Guard-path-drift check (KAN-414 F1)
+        # Guard #12, and the companion to #13 above. Where the DoD gate looks at
+        # THIS PR's diff, this one audits the WHOLE registry on every run: every
+        # path pattern in all 18 registered artefacts must match at least one
+        # TRACKED file. A pattern that matches nothing does not fail — it
+        # silently protects nothing while the gate keeps reporting green, which
+        # is the SEC-79 shape.
+        #
+        # Tracked files, not the filesystem: a pattern matching only an
+        # untracked or gitignored file must FAIL, because CI checks out tracked
+        # content and the pattern would be inert there.
+        #
+        # Proven by mutation (KAN-414): moving src/lib/supabase-service.ts into
+        # a module — literally D1's work — disarms TWO controls at once, the
+        # signup E2E gate and the service-role containment. Before this guard
+        # that move was green.
+        #
+        # Fails CLOSED (exit 2) when an artefact is missing or unparseable.
+        # Escape hatch: `guard-path-ok: <JIRA-KEY> <reason>` on the pattern's
+        # own line, suppressing exactly one pattern, printed on every run and
+        # counted. Artefacts whose syntax forbids comments (package.json)
+        # declare theirs in the script's DECLARED_EXCEPTIONS.
+        run: python3 scripts/check-guard-path-drift.py
       - name: Schema-drift ratchet (KAN-414 F6)
         # The three Supabase projects do NOT have identical schemas (KAN-420):
         # prod lacks the KAN-153 columns, the KAN-143 `draft` label and two

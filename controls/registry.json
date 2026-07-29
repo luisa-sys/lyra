@@ -611,6 +611,23 @@
       "added": "2026-07-28"
     },
     {
+      "id": "CTL-035",
+      "name": "Guard-path-drift",
+      "defect_class": "path-coupling-drift",
+      "summary": "Audits the WHOLE registry on every PR: every path pattern in all 18 registered artefacts must match at least one TRACKED file. Companion to CTL-033, which looks only at the current PR's diff. A pattern matching nothing does not fail - it silently protects nothing while the gate keeps reporting green (the SEC-79 shape). Resolution set is `git ls-files`, so a pattern matching only an untracked or gitignored file FAILS, because CI checks out tracked content and the pattern would be inert there. Implements all seven matching syntaxes separately (bash-case, bash-dbl-bracket, codeowners, literal, glob, regex, basename-regex) because collapsing them produces false verdicts both ways - notably bash's '*' crosses '/' while fnmatch's does not, which would report the largest protected pattern in the estate as dead.",
+      "implementation": "scripts/check-guard-path-drift.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-414",
+        "KAN-419"
+      ],
+      "escape_hatch": "guard-path-ok: <JIRA-KEY> <reason>",
+      "added": "2026-07-29"
+    },
+    {
       "id": "CTL-036",
       "name": "Schema-drift ratchet",
       "defect_class": "schema-parity-drift",
