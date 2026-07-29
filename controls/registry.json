@@ -5,7 +5,7 @@
     "Machine-readable index of every preventive control in this repo, and the",
     "defect it exists to stop. This is the memory of the Defect Feedback Loop:",
     "when a BUGS or SEC ticket closes, its root cause is traced to a control",
-    "here \u2014 either one that already exists (and failed to fire, which is itself",
+    "here — either one that already exists (and failed to fire, which is itself",
     "a finding) or a new one that gets added.",
     "",
     "Enforced by scripts/check-control-registry.py, which fails the build if a",
@@ -23,7 +23,7 @@
       "id": "CTL-001",
       "name": "Workflow integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
+      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing — GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
       "implementation": "scripts/check-workflow-integrity.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -127,7 +127,7 @@
       "id": "CTL-007",
       "name": "Doc mirror content check",
       "defect_class": "doc-drift",
-      "summary": "Fails the PR if a listed mirror exists but is an empty or stub file \u2014 the 'backup that looks successful but contains placeholder content' failure mode.",
+      "summary": "Fails the PR if a listed mirror exists but is an empty or stub file — the 'backup that looks successful but contains placeholder content' failure mode.",
       "implementation": "scripts/check-doc-mirror-content.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -192,7 +192,7 @@
       "id": "CTL-011",
       "name": "Auto-heal pattern catalogue self-test",
       "defect_class": "false-green-ci",
-      "summary": "Verifies every auto-fix pattern still matches its fixture and does not false-positive on a sibling \u2014 the regression guard that stops the auto-fix workflow silently breaking.",
+      "summary": "Verifies every auto-fix pattern still matches its fixture and does not false-positive on a sibling — the regression guard that stops the auto-fix workflow silently breaking.",
       "implementation": "scripts/auto-fix-known-failures.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -240,7 +240,7 @@
       "id": "CTL-014",
       "name": "Backup integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Fails if a backup artefact is a placeholder rather than real data \u2014 a dump that does not start with '--', contains no CREATE statements, or is suspiciously short.",
+      "summary": "Fails if a backup artefact is a placeholder rather than real data — a dump that does not start with '--', contains no CREATE statements, or is suspiciously short.",
       "implementation": "scripts/check-backup-integrity.sh",
       "kind": "scheduled",
       "wired_in": [
@@ -307,7 +307,7 @@
       "id": "CTL-018",
       "name": "Main-chain guard",
       "defect_class": "release-control",
-      "summary": "Fails loud if main gains any commit not present on beta \u2014 i.e. a change that did not arrive through develop \u2192 staging \u2192 beta \u2192 main \u2014 and blocks any PR targeting main.",
+      "summary": "Fails loud if main gains any commit not present on beta — i.e. a change that did not arrive through develop → staging → beta → main — and blocks any PR targeting main.",
       "implementation": ".github/workflows/main-chain-guard.yml",
       "kind": "ci-gate",
       "wired_in": [
@@ -319,13 +319,13 @@
       ],
       "escape_hatch": "BYPASS CONTROLS commit marker",
       "added": "2026-07-25",
-      "notes": "NOT yet in main's required status checks \u2014 see docs/DEFECT_FEEDBACK_LOOP.md open gaps."
+      "notes": "NOT yet in main's required status checks — see docs/DEFECT_FEEDBACK_LOOP.md open gaps."
     },
     {
       "id": "CTL-019",
       "name": "Dashboard loading.tsx guard",
       "defect_class": "framework-footgun",
-      "summary": "Fails any PR that reintroduces a src/app/**/loading.* without an explicit marker \u2014 the Next 16 Suspense boundary that never reveals on hard load and blanks the dashboard.",
+      "summary": "Fails any PR that reintroduces a src/app/**/loading.* without an explicit marker — the Next 16 Suspense boundary that never reveals on hard load and blanks the dashboard.",
       "implementation": "tests/unit/bugs66-dashboard-loading-guard.test.js",
       "kind": "test",
       "wired_in": [
@@ -395,7 +395,7 @@
       "id": "CTL-023",
       "name": "Migration privilege lint",
       "defect_class": "postgres-privilege-drift",
-      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES \u2014 the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink.",
+      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES — the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink.",
       "implementation": "scripts/check-migration-privileges.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -468,7 +468,7 @@
       "id": "CTL-026",
       "name": "Control registry integrity",
       "defect_class": "control-rot",
-      "summary": "The meta-control. Fails if a registered control's implementation is missing, if it is no longer referenced by any workflow (the SEC-79 'silently disabled for weeks' mode), or if a check script exists in the repo but is not registered \u2014 so the registry cannot drift away from reality.",
+      "summary": "The meta-control. Fails if a registered control's implementation is missing, if it is no longer referenced by any workflow (the SEC-79 'silently disabled for weeks' mode), or if a check script exists in the repo but is not registered — so the registry cannot drift away from reality.",
       "implementation": "scripts/check-control-registry.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -506,7 +506,7 @@
       "id": "CTL-028",
       "name": "Suspension-guard coverage",
       "defect_class": "authz-coverage-drift",
-      "summary": "Any query filtering is_published = true is selecting content for public consumption and must also filter is_suspended = false. Stated on the QUERY rather than the file or the client, so it enumerates the surface instead of sampling it \u2014 the property every previous fix in this class lacked. Found three unguarded sites beyond the two identified by review, including the homepage and the sitemap.",
+      "summary": "Any query filtering is_published = true is selecting content for public consumption and must also filter is_suspended = false. Stated on the QUERY rather than the file or the client, so it enumerates the surface instead of sampling it — the property every previous fix in this class lacked. Found three unguarded sites beyond the two identified by review, including the homepage and the sitemap.",
       "implementation": "scripts/check-suspension-guard-coverage.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -548,7 +548,7 @@
       "id": "CTL-030",
       "name": "Structural dependency rules (module/segment/cycle)",
       "defect_class": "regression-risk",
-      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/lib/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
+      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/lib/deploy-env.ts — built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
       "implementation": "scripts/check-dependency-rules.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -565,7 +565,7 @@
       "id": "CTL-031",
       "name": "Bash 3.2 portability",
       "defect_class": "dev-ci-environment-parity",
-      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS \u2014 a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
+      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS — a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
       "implementation": "scripts/check-bash-portability.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -598,7 +598,7 @@
       "id": "CTL-033",
       "name": "Extraction Definition-of-Done",
       "defect_class": "path-coupling-drift",
-      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green \u2014 KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
+      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green — KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
       "implementation": "scripts/check-extraction-dod.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -609,6 +609,22 @@
       ],
       "escape_hatch": "EXTRACTION-DOD-OK: <JIRA-KEY> <check-id> on a commit in the PR. Suppresses exactly one named check, requires a Jira key, every active exception is printed on every run, and more than three in one PR emits a ::warning:: that the hatch is papering over drift.",
       "added": "2026-07-28"
+    },
+    {
+      "id": "CTL-034",
+      "name": "Client-side privileged-write guard",
+      "defect_class": "client-write-bypasses-server-invariant",
+      "summary": "Fails any PR in which a 'use client' module calls .update/.insert/.delete/.upsert on a table whose invariant is enforced server-side. SEC-109: the Convene Disconnect button soft-deleted oauth_connections straight from the browser, so the vaulted OAuth refresh token was never revoked — the UI promised 'we'll forget your tokens immediately' and the code did not, a consent withdrawal (GDPR Art.7(3)/17) that silently did not happen. A browser-side write can only touch the row; anything owed alongside it — revoking a secret, notifying the provider, writing an audit row — is lost. RLS does not catch this class: it governs WHICH ROW you may write, not what else was supposed to happen. Reads are not flagged; they carry no invariant. Guarded-table list is the knob — add a table whenever a write to it has a server-side counterpart that must not be skipped.",
+      "implementation": "scripts/check-client-side-privileged-writes.sh",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-109"
+      ],
+      "escape_hatch": "// client-write-ok: <JIRA-KEY> <reason> in the client module. Use only when the write genuinely carries no server-side invariant.",
+      "added": "2026-07-29"
     }
   ]
 }
