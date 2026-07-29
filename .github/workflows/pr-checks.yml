@@ -117,6 +117,30 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
+      - name: Schema-drift ratchet (KAN-414 F6)
+        # The three Supabase projects do NOT have identical schemas (KAN-420):
+        # prod lacks the KAN-153 columns, the KAN-143 `draft` label and two
+        # functions; dev lacks BUGS-62's claimed_at. The app compiles against
+        # dev, so TypeScript actively asserts prod has columns it does not —
+        # a deliberate, documented trade that means the type system cannot be
+        # the control here. This gate is.
+        #
+        # Diffs the three committed schemas as SEMANTIC FACTS (column, enum
+        # label, function) rather than lines: the generator wraps a 5-label
+        # union and inlines a 4-label one, so a line diff reports 16
+        # differences for the single fact "prod is missing `draft`". Noise is
+        # how a gate earns the right to be ignored.
+        #
+        # The baseline is SHRINK-ONLY. New drift fails; so does a baseline
+        # entry that has STOPPED drifting, because a list you may only add to
+        # is a suppression list, not a ratchet. Fails closed (exit 2) if a
+        # schema file or the baseline is missing or unparseable.
+        #
+        # It deliberately does NOT regenerate from Supabase: that needs
+        # credentials CI does not have, and a step that skips when a secret is
+        # absent is the silent-skip pattern KAN-167 forbids. Regeneration is a
+        # documented manual step.
+        run: python3 scripts/check-schema-type-parity.py
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
