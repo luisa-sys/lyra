@@ -1,5 +1,22 @@
 # Migration Parity & Promotion Discipline (SEC-8 / OPS-04)
 
+> **2026-07-27 update (KAN-420): the prod leg and the git↔DB reconciliation are now measured.**
+> The four-way matrix (git ↔ dev ↔ staging ↔ prod), a full live-schema fingerprint
+> diff of all three projects, captured DDL for the three out-of-band objects, and
+> the monotonicity-check specification live in
+> `docs/modularisation/KAN-420-migration-parity.md` (+ `data/kan420-*.json`,
+> regenerable via `docs/modularisation/kan420-parity.py`). Headlines: staging ≡ prod
+> on every function; **no semantic function drift anywhere**; real schema drift is
+> exactly two legs — **prod is missing KAN-143 + KAN-153** (SEC-107: breaks the
+> `search_by_contact_hash` SECURITY DEFINER RPC on prod and the `'draft'`
+> visibility value on beta/prod) and **dev is missing BUGS-62** (`claimed_at`).
+> The "SQUASH — verify DDL at next promote" items in §1 below are now verified
+> DDL-equal (formatting-only text drift). The prod leg of "Deferred to Luisa"
+> below is superseded by the KAN-420 artefact; the OAuth promote/quarantine
+> decision (criterion 2) remains open — `oauth_2_1_server` is confirmed applied
+> on all three environments with fingerprint-equal tables, so the remaining
+> decision is product-level, not schema-level.
+
 **Status:** dev↔staging baseline established 2026-07-12 (autopilot, SEC-8).
 **Owner:** SEC-8 (`https://checklyra.atlassian.net/browse/SEC-8`), risk-register OPS-04.
 **Scope of this doc:** the dev↔staging leg of SEC-8 acceptance criterion 1 (schema-diff, differences catalogued) and criterion 3 (the written promotion rule). The **prod** leg of the three-way diff and the **dev-only OAuth-server promote/quarantine decision** (criterion 2) are deliberately **out of scope here** — they require prod DB access and a Luisa decision (see "Deferred to Luisa" below).

@@ -94,6 +94,29 @@ jobs:
         # list so guard and robot agree. Fail-open ONLY when the diff base can't be
         # resolved (CODEOWNERS still hard-gates these paths). See KAN-411.
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-ui-copy-ownership.sh
+      - name: Extraction Definition-of-Done (KAN-428)
+        # Guard #13. INERT unless the PR deletes or renames a file under src/
+        # (an "extraction"). When it fires, every artefact that classifies a
+        # file BY PATH must have moved with it in the same PR: the signup
+        # manifest, CODEOWNERS, the shell guards' path lists, stryker's mutate
+        # globs, docs/, modules.json and tests/. A glob that matches nothing
+        # protects nothing while CI stays green — KAN-419 measured the docs
+        # layer at 18% dead path literals BEFORE anyone moved a file on
+        # purpose. It also requires the PR body to answer the two couplings CI
+        # can never see (~/lyra-design-system/build.py and the claude.ai
+        # routine prompts, neither in any repo CI can read) plus the covering
+        # Playwright project / soak clause.
+        #
+        # Fails CLOSED (exit 2) when it cannot verify — unresolvable diff base,
+        # missing artefact, or an extraction PR with no readable body. Stricter
+        # than KAN-411's UI guard on purpose: that one has CODEOWNERS
+        # underneath it, this one is the gate that protects the other gates.
+        # Escape hatch: `EXTRACTION-DOD-OK: <JIRA-KEY> <check-id>` on a commit,
+        # suppressing exactly one named check, printed on every run and counted.
+        # See docs/MODULARISATION_EXTRACTION_DOD.md.
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
@@ -185,6 +208,20 @@ jobs:
         # prevents the auto-fix workflow from silently breaking when
         # someone edits a pattern.
         run: python3 scripts/auto-fix-known-failures.py --self-test
+      - name: Bash 3.2 portability check (BUGS-76)
+        # macOS ships bash 3.2; CI ships bash 5. A bash-4 builtin in
+        # scripts/ therefore works here and exits 127 on the machine where
+        # releases are prepared. That is how the SEC-77 auto-promote gate
+        # became unrunnable locally — all seven of its tests failed on macOS
+        # while passing on ubuntu-latest, which trains the reader to ignore a
+        # red suite. staging-soak.sh has documented the rule since it was
+        # written and two scripts shipped with mapfile anyway; a convention
+        # without a gate erodes. Workflow YAML is out of scope by design —
+        # inline run: blocks only ever execute on the runner.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-bash-portability.py --self-test
+          python3 scripts/check-bash-portability.py
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:

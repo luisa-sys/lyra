@@ -1,0 +1,3901 @@
+{
+ "$comment": "KAN-421 R6 \u2014 profiles column inventory across all three repos. Reproduce: python3 docs/modularisation/kan421-profiles-inventory.py",
+ "measuredAt": "2026-07-28",
+ "liveColumnCount": 41,
+ "repos": {
+  "lyra": 77,
+  "lyra-mcp-server": 15,
+  "lyra-admin-mcp-server": 4
+ },
+ "totals": {
+  "productionSites": 96,
+  "testHarnessSites": 9,
+  "writeSites": 21,
+  "boundedSites": 82,
+  "unboundedSites": 14,
+  "unboundedWriteSites": 8,
+  "unboundedReasonHistogram": {
+   "select-star": 6,
+   "write-variable-payload": 8
+  },
+  "kan416UnboundedSites": 23,
+  "kan416FalsePositives": 9,
+  "unattributedColumns": 0,
+  "columnsInMapNotInLiveSchema": [],
+  "multiWriterColumns": 2,
+  "nonOwnerWrittenColumns": 8,
+  "filesWithNoModule": 0
+ },
+ "inventory": [
+  {
+   "column": "id",
+   "owner": "db/schema (identity kernel)",
+   "writers": [],
+   "readers": [
+    "account",
+    "admin",
+    "age",
+    "convene",
+    "dashboard",
+    "features",
+    "marketing-legal",
+    "profile",
+    "public-profile",
+    "recommendations",
+    "trust-safety"
+   ],
+   "boundedSites": 60,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "user_id",
+   "owner": "db/schema (identity kernel)",
+   "writers": [],
+   "readers": [
+    "access",
+    "account",
+    "admin",
+    "age",
+    "convene",
+    "dashboard",
+    "features",
+    "profile",
+    "trust-safety"
+   ],
+   "boundedSites": 48,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "display_name",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "access",
+    "admin",
+    "convene",
+    "marketing-legal",
+    "public-profile",
+    "recommendations"
+   ],
+   "boundedSites": 23,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "slug",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "account",
+    "admin",
+    "convene",
+    "marketing-legal",
+    "public-profile",
+    "recommendations",
+    "trust-safety"
+   ],
+   "boundedSites": 23,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "headline",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "admin",
+    "marketing-legal",
+    "public-profile",
+    "recommendations"
+   ],
+   "boundedSites": 11,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "bio_short",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "admin",
+    "public-profile",
+    "recommendations"
+   ],
+   "boundedSites": 5,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "city",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "convene",
+    "marketing-legal",
+    "public-profile"
+   ],
+   "boundedSites": 6,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "region",
+   "owner": "profile",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "postcode_prefix",
+   "owner": "profile",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "country",
+   "owner": "profile",
+   "writers": [],
+   "readers": [
+    "marketing-legal",
+    "public-profile"
+   ],
+   "boundedSites": 5,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "is_published",
+   "owner": "profile",
+   "writers": [
+    "admin",
+    "profile"
+   ],
+   "readers": [
+    "admin",
+    "convene",
+    "marketing-legal",
+    "public-profile",
+    "recommendations"
+   ],
+   "boundedSites": 26,
+   "multiWriter": true,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "onboarding_complete",
+   "owner": "profile",
+   "writers": [
+    "profile"
+   ],
+   "readers": [],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "completion_score",
+   "owner": "profile",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "created_at",
+   "owner": "db/schema (identity kernel)",
+   "writers": [],
+   "readers": [
+    "admin"
+   ],
+   "boundedSites": 4,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "updated_at",
+   "owner": "db/schema (identity kernel)",
+   "writers": [],
+   "readers": [
+    "marketing-legal"
+   ],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "avatar_url",
+   "owner": "profile",
+   "writers": [
+    "profile"
+   ],
+   "readers": [
+    "marketing-legal",
+    "public-profile"
+   ],
+   "boundedSites": 4,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "phone_search_hash",
+   "owner": "convene",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "postcode_search_hash",
+   "owner": "convene",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "discoverable_by_phone",
+   "owner": "convene",
+   "writers": [],
+   "readers": [
+    "account"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "discoverable_by_postcode",
+   "owner": "convene",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "is_admin",
+   "owner": "access",
+   "writers": [],
+   "readers": [
+    "admin"
+   ],
+   "boundedSites": 6,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "is_suspended",
+   "owner": "access",
+   "writers": [
+    "admin"
+   ],
+   "readers": [
+    "access",
+    "admin",
+    "convene",
+    "features",
+    "marketing-legal",
+    "public-profile",
+    "recommendations"
+   ],
+   "boundedSites": 31,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "suspended_at",
+   "owner": "access",
+   "writers": [
+    "admin"
+   ],
+   "readers": [
+    "admin"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "suspension_reason",
+   "owner": "access",
+   "writers": [
+    "admin"
+   ],
+   "readers": [
+    "admin"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "delivery_country_code",
+   "owner": "affiliate",
+   "writers": [
+    "profile"
+   ],
+   "readers": [
+    "recommendations"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "profile"
+   ]
+  },
+  {
+   "column": "age_range",
+   "owner": "profile",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "recipient_attributes",
+   "owner": "recommendations",
+   "writers": [],
+   "readers": [],
+   "boundedSites": 0,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "section_visibility",
+   "owner": "profile",
+   "writers": [
+    "profile"
+   ],
+   "readers": [
+    "profile"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "beta_requested_at",
+   "owner": "access",
+   "writers": [
+    "access"
+   ],
+   "readers": [
+    "access"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "beta_approved_at",
+   "owner": "access",
+   "writers": [
+    "admin"
+   ],
+   "readers": [],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "share_availability_with_contacts",
+   "owner": "convene",
+   "writers": [
+    "convene"
+   ],
+   "readers": [
+    "convene"
+   ],
+   "boundedSites": 4,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "age_status",
+   "owner": "age",
+   "writers": [
+    "age"
+   ],
+   "readers": [
+    "admin",
+    "age",
+    "features",
+    "profile"
+   ],
+   "boundedSites": 7,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "age_checked_at",
+   "owner": "age",
+   "writers": [
+    "age"
+   ],
+   "readers": [],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "age_provider",
+   "owner": "age",
+   "writers": [
+    "age"
+   ],
+   "readers": [],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "age_provider_ref",
+   "owner": "age",
+   "writers": [
+    "age"
+   ],
+   "readers": [],
+   "boundedSites": 1,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "user_status",
+   "owner": "access",
+   "writers": [
+    "access",
+    "admin"
+   ],
+   "readers": [
+    "access",
+    "admin",
+    "features"
+   ],
+   "boundedSites": 14,
+   "multiWriter": true,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "access_tier",
+   "owner": "access",
+   "writers": [
+    "admin"
+   ],
+   "readers": [
+    "access",
+    "admin",
+    "features"
+   ],
+   "boundedSites": 10,
+   "multiWriter": false,
+   "writtenByNonOwner": [
+    "admin"
+   ]
+  },
+  {
+   "column": "is_homepage_example",
+   "owner": "marketing-legal",
+   "writers": [],
+   "readers": [
+    "marketing-legal",
+    "public-profile"
+   ],
+   "boundedSites": 5,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "homepage_example_order",
+   "owner": "marketing-legal",
+   "writers": [],
+   "readers": [
+    "marketing-legal"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "dashboard_widget_state",
+   "owner": "dashboard",
+   "writers": [
+    "dashboard"
+   ],
+   "readers": [
+    "dashboard"
+   ],
+   "boundedSites": 2,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  },
+  {
+   "column": "age_declared_18_at",
+   "owner": "age",
+   "writers": [
+    "age"
+   ],
+   "readers": [
+    "admin",
+    "age"
+   ],
+   "boundedSites": 3,
+   "multiWriter": false,
+   "writtenByNonOwner": []
+  }
+ ],
+ "multiWriterColumns": [
+  {
+   "column": "is_published",
+   "owner": "profile",
+   "writers": [
+    "admin",
+    "profile"
+   ]
+  },
+  {
+   "column": "user_status",
+   "owner": "access",
+   "writers": [
+    "access",
+    "admin"
+   ]
+  }
+ ],
+ "nonOwnerWrites": [
+  {
+   "column": "is_published",
+   "owner": "profile",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "is_suspended",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "suspended_at",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "suspension_reason",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "delivery_country_code",
+   "owner": "affiliate",
+   "nonOwnerWriters": [
+    "profile"
+   ]
+  },
+  {
+   "column": "beta_approved_at",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "user_status",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  },
+  {
+   "column": "access_tier",
+   "owner": "access",
+   "nonOwnerWriters": [
+    "admin"
+   ]
+  }
+ ],
+ "unboundedSites": [
+  {
+   "repo": "lyra",
+   "file": "src/app/[slug]/page.tsx",
+   "line": 185,
+   "module": "public-profile",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/[slug]/page.tsx",
+   "line": 107,
+   "module": "admin",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/actions.ts",
+   "line": 114,
+   "module": "admin",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/page.tsx",
+   "line": 29,
+   "module": "dashboard",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 132,
+   "module": "profile",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/legacy/page.tsx",
+   "line": 36,
+   "module": "profile",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/page.tsx",
+   "line": 36,
+   "module": "profile",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/actions.ts",
+   "line": 50,
+   "module": "account",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/discoverability-actions.ts",
+   "line": 114,
+   "module": "account",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/waitlist/actions.ts",
+   "line": 61,
+   "module": "access",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/beta-access/flow.ts",
+   "line": 134,
+   "module": "access",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 176,
+   "module": "public-profile",
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "unboundedReasons": [
+    "select-star"
+   ]
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/write-tools.ts",
+   "line": 109,
+   "module": "profile",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  },
+  {
+   "repo": "lyra-admin-mcp-server",
+   "file": "src/admin-tools.ts",
+   "line": 94,
+   "module": "admin",
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "unboundedReasons": [
+    "write-variable-payload"
+   ]
+  }
+ ],
+ "kan416FalsePositives": [
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/[slug]/page.tsx",
+   "line": 150,
+   "module": "admin"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/connections/availability-actions.ts",
+   "line": 25,
+   "module": "convene"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 608,
+   "module": "profile"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 643,
+   "module": "profile"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 710,
+   "module": "profile"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/delivery-country-actions.ts",
+   "line": 58,
+   "module": "profile"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/widgets/actions.ts",
+   "line": 43,
+   "module": "dashboard"
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/record-declaration.ts",
+   "line": 40,
+   "module": "age"
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/write-tools.ts",
+   "line": 542,
+   "module": "profile"
+  }
+ ],
+ "unmappedFiles": [],
+ "testHarnessSites": [
+  {
+   "file": "tests/e2e/signup/signup.e2e.spec.ts",
+   "line": 84,
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columns": [
+    "id",
+    "slug",
+    "user_id"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/soak/journey.soak.spec.ts",
+   "line": 84,
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columns": [
+    "bio_short",
+    "id"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/soak/journey.soak.spec.ts",
+   "line": 98,
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columns": [
+    "id",
+    "is_published"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/support/seed-user.ts",
+   "line": 98,
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columns": [
+    "id",
+    "slug",
+    "user_id"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/support/seed-user.ts",
+   "line": 125,
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columns": [
+    "access_tier",
+    "age_checked_at",
+    "age_declared_18_at",
+    "age_provider",
+    "age_range",
+    "age_status",
+    "bio_short",
+    "dashboard_widget_state",
+    "display_name",
+    "id",
+    "is_published",
+    "user_status"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/support/soak-user.ts",
+   "line": 91,
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columns": [
+    "id",
+    "slug",
+    "user_id"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/support/soak-user.ts",
+   "line": 116,
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columns": [
+    "access_tier",
+    "age_checked_at",
+    "age_declared_18_at",
+    "age_provider",
+    "age_range",
+    "age_status",
+    "bio_short",
+    "dashboard_widget_state",
+    "display_name",
+    "id",
+    "is_published",
+    "user_status"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/e2e/support/soak-user.ts",
+   "line": 159,
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columns": [
+    "age_declared_18_at",
+    "bio_short",
+    "id",
+    "is_published"
+   ],
+   "unbounded": false
+  },
+  {
+   "file": "tests/unit/profile-item-url.test.ts",
+   "line": 38,
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "unbounded": false
+  }
+ ],
+ "sites": [
+  {
+   "repo": "lyra",
+   "file": "src/app/[slug]/page.tsx",
+   "line": 90,
+   "module": "public-profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "bio_short",
+    "display_name",
+    "headline",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "bio_short",
+     "display_name",
+     "headline"
+    ],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/[slug]/page.tsx",
+   "line": 185,
+   "module": "public-profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/beta-queue/actions.ts",
+   "line": 30,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "beta_approved_at",
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "access_tier",
+     "beta_approved_at",
+     "user_status"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/moderation/page.tsx",
+   "line": 68,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 40,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 41,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "access_tier",
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 42,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "access_tier",
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 43,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 46,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_admin"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "is_admin"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/monitoring/page.tsx",
+   "line": 47,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/page.tsx",
+   "line": 25,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/page.tsx",
+   "line": 26,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_published"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "is_published"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/page.tsx",
+   "line": 27,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/page.tsx",
+   "line": 35,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "created_at",
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "created_at"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/page.tsx",
+   "line": 51,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "created_at",
+    "display_name",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "created_at",
+     "display_name",
+     "id",
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "filter": [
+     "created_at"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/reports/[id]/page.tsx",
+   "line": 87,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended",
+    "suspended_at",
+    "suspension_reason"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "is_suspended",
+     "suspended_at",
+     "suspension_reason"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/[slug]/page.tsx",
+   "line": 53,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "age_declared_18_at",
+    "bio_short",
+    "created_at",
+    "display_name",
+    "headline",
+    "id",
+    "is_admin",
+    "is_published",
+    "is_suspended",
+    "slug",
+    "suspended_at",
+    "suspension_reason",
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "access_tier",
+     "age_declared_18_at",
+     "bio_short",
+     "created_at",
+     "display_name",
+     "headline",
+     "id",
+     "is_admin",
+     "is_published",
+     "is_suspended",
+     "slug",
+     "suspended_at",
+     "suspension_reason",
+     "user_id",
+     "user_status"
+    ],
+    "filter": [
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/[slug]/page.tsx",
+   "line": 107,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/[slug]/page.tsx",
+   "line": 150,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_published"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "is_published"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/actions.ts",
+   "line": 114,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/actions.ts",
+   "line": 128,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "user_id"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/page.tsx",
+   "line": 63,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/page.tsx",
+   "line": 64,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "access_tier",
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/page.tsx",
+   "line": 65,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "access_tier",
+     "user_status"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/admin/users/page.tsx",
+   "line": 66,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/api/recommendations/[slug]/route.ts",
+   "line": 65,
+   "module": "recommendations",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "bio_short",
+    "display_name",
+    "headline",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "bio_short",
+     "display_name",
+     "headline",
+     "id",
+     "is_published"
+    ],
+    "filter": [
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/api/recommendations/v2/[slug]/route.ts",
+   "line": 96,
+   "module": "recommendations",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "bio_short",
+    "delivery_country_code",
+    "display_name",
+    "headline",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "bio_short",
+     "delivery_country_code",
+     "display_name",
+     "headline",
+     "id",
+     "is_published"
+    ],
+    "filter": [
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/api/reports/route.ts",
+   "line": 99,
+   "module": "trust-safety",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "slug",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id",
+     "user_id"
+    ],
+    "filter": [
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/connections/availability-actions.ts",
+   "line": 25,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "share_availability_with_contacts",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": [
+     "share_availability_with_contacts"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/connections/page.tsx",
+   "line": 63,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "share_availability_with_contacts",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "share_availability_with_contacts"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/contacts/actions.ts",
+   "line": 159,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "is_published"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id",
+     "is_published"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/contacts/actions.ts",
+   "line": 196,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "city",
+    "display_name",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "city",
+     "display_name",
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "display_name",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/convene/contacts/page.tsx",
+   "line": 68,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/page.tsx",
+   "line": 29,
+   "module": "dashboard",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 30,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 122,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_status",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "age_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 132,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 597,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "section_visibility",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "section_visibility"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 608,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "section_visibility",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": [
+     "section_visibility"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 633,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_status",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "age_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 643,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "is_published",
+    "onboarding_complete",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": [
+     "is_published",
+     "onboarding_complete"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/actions.ts",
+   "line": 710,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "avatar_url",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": [
+     "avatar_url"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/conversation-starters-actions.ts",
+   "line": 39,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/delivery-country-actions.ts",
+   "line": 58,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "delivery_country_code",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": [
+     "delivery_country_code"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/files-actions.ts",
+   "line": 52,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/legacy/page.tsx",
+   "line": 36,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/manual-of-me-actions.ts",
+   "line": 98,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/profile/page.tsx",
+   "line": 36,
+   "module": "profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/actions.ts",
+   "line": 50,
+   "module": "account",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/discoverability-actions.ts",
+   "line": 70,
+   "module": "account",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "discoverable_by_phone",
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "discoverable_by_phone",
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/discoverability-actions.ts",
+   "line": 114,
+   "module": "account",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/settings/discoverability-actions.ts",
+   "line": 142,
+   "module": "account",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "discoverable_by_phone",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "discoverable_by_phone"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/widgets/actions.ts",
+   "line": 30,
+   "module": "dashboard",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "dashboard_widget_state",
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "dashboard_widget_state",
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/dashboard/widgets/actions.ts",
+   "line": 43,
+   "module": "dashboard",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "dashboard_widget_state",
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "dashboard_widget_state"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/examples/page.tsx",
+   "line": 55,
+   "module": "marketing-legal",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "avatar_url",
+    "city",
+    "country",
+    "display_name",
+    "headline",
+    "homepage_example_order",
+    "id",
+    "is_homepage_example",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "avatar_url",
+     "city",
+     "country",
+     "display_name",
+     "headline",
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "homepage_example_order",
+     "is_homepage_example",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/page.tsx",
+   "line": 68,
+   "module": "marketing-legal",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "avatar_url",
+    "display_name",
+    "headline",
+    "homepage_example_order",
+    "is_homepage_example",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "avatar_url",
+     "display_name",
+     "headline",
+     "slug"
+    ],
+    "filter": [
+     "homepage_example_order",
+     "is_homepage_example",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/search/page.tsx",
+   "line": 75,
+   "module": "public-profile",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "avatar_url",
+    "city",
+    "country",
+    "display_name",
+    "headline",
+    "id",
+    "is_homepage_example",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "avatar_url",
+     "city",
+     "country",
+     "display_name",
+     "headline",
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "display_name",
+     "is_homepage_example",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/sitemap.ts",
+   "line": 21,
+   "module": "marketing-legal",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "is_published",
+    "is_suspended",
+    "slug",
+    "updated_at"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "slug",
+     "updated_at"
+    ],
+    "filter": [
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/verify-age/page.tsx",
+   "line": 34,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_status",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "age_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/waitlist/actions.ts",
+   "line": 61,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/app/waitlist/page.tsx",
+   "line": 41,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "user_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/account-status.ts",
+   "line": 40,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "is_suspended",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "is_suspended"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/admin.ts",
+   "line": 86,
+   "module": "admin",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id",
+    "is_admin",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id",
+     "is_admin"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/age-service.ts",
+   "line": 25,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_checked_at",
+    "age_provider",
+    "age_provider_ref",
+    "age_status",
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "age_checked_at",
+     "age_provider",
+     "age_provider_ref",
+     "age_status"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/age-service.ts",
+   "line": 40,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/age-service.ts",
+   "line": 48,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/record-declaration.ts",
+   "line": 24,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_declared_18_at",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "age_declared_18_at"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/age/record-declaration.ts",
+   "line": 40,
+   "module": "age",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "age_declared_18_at",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "age_declared_18_at",
+     "user_id"
+    ],
+    "write": [
+     "age_declared_18_at"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/beta-access/flow.ts",
+   "line": 98,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "beta_requested_at",
+    "display_name",
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "access_tier",
+     "beta_requested_at",
+     "display_name",
+     "user_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/beta-access/flow.ts",
+   "line": 134,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/beta-access/flow.ts",
+   "line": 146,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "beta_requested_at",
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [
+     "user_id"
+    ],
+    "filter": [
+     "beta_requested_at",
+     "user_id"
+    ],
+    "write": [
+     "beta_requested_at",
+     "user_status"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/convene/busy-time-consent.ts",
+   "line": 62,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "share_availability_with_contacts",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "share_availability_with_contacts"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/convene/invites/dispatch.ts",
+   "line": 169,
+   "module": "convene",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "display_name",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/features/entitlements-service.ts",
+   "line": 49,
+   "module": "features",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/lib/features/entitlements.ts",
+   "line": 23,
+   "module": "features",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/middleware.ts",
+   "line": 179,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "is_suspended",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "is_suspended"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra",
+   "file": "src/middleware.ts",
+   "line": 232,
+   "module": "access",
+   "attribution": "MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "access_tier",
+     "user_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/auth.ts",
+   "line": 68,
+   "module": "account",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id",
+    "slug",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/convene-availability-tool.ts",
+   "line": 500,
+   "module": "convene",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended",
+    "share_availability_with_contacts",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id",
+     "share_availability_with_contacts",
+     "user_id"
+    ],
+    "filter": [
+     "id",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/convene-contact-tools.ts",
+   "line": 290,
+   "module": "convene",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id",
+    "is_published",
+    "is_suspended"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "id",
+     "is_published"
+    ],
+    "filter": [
+     "id",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/feature-entitlements.ts",
+   "line": 93,
+   "module": "features",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "age_status",
+    "id",
+    "is_suspended",
+    "user_id",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "access_tier",
+     "age_status",
+     "id",
+     "is_suspended",
+     "user_status"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/feature-entitlements.ts",
+   "line": 97,
+   "module": "features",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "age_status",
+    "id",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "age_status",
+     "id"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/feature-entitlements.ts",
+   "line": 170,
+   "module": "features",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id",
+    "is_suspended"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "is_suspended"
+    ],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 96,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "city",
+    "country",
+    "display_name",
+    "headline",
+    "is_homepage_example",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "city",
+     "country",
+     "display_name",
+     "headline",
+     "slug"
+    ],
+    "filter": [
+     "is_homepage_example",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 126,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "city",
+    "country",
+    "display_name",
+    "headline",
+    "id",
+    "is_homepage_example",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "city",
+     "country",
+     "display_name",
+     "headline",
+     "id",
+     "slug"
+    ],
+    "filter": [
+     "is_homepage_example",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 161,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "display_name",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "slug"
+    ],
+    "filter": [
+     "display_name",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 176,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "select-star"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 288,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id"
+    ],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 583,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "display_name",
+    "headline",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "headline",
+     "id"
+    ],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/index.ts",
+   "line": 706,
+   "module": "public-profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "bio_short",
+    "city",
+    "country",
+    "display_name",
+    "headline",
+    "id",
+    "is_published",
+    "is_suspended",
+    "slug"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "bio_short",
+     "city",
+     "country",
+     "display_name",
+     "headline",
+     "id"
+    ],
+    "filter": [
+     "is_published",
+     "is_suspended",
+     "slug"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/write-tools.ts",
+   "line": 109,
+   "module": "profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra-mcp-server",
+   "file": "src/write-tools.ts",
+   "line": 542,
+   "module": "profile",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id",
+    "is_published"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": [
+     "is_published"
+    ]
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra-admin-mcp-server",
+   "file": "src/admin-auth.ts",
+   "line": 40,
+   "module": "admin",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id",
+    "is_admin",
+    "is_suspended",
+    "user_id"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id",
+     "is_admin",
+     "is_suspended"
+    ],
+    "filter": [
+     "user_id"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-admin-mcp-server",
+   "file": "src/admin-auth.ts",
+   "line": 124,
+   "module": "admin",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "display_name",
+    "id",
+    "is_admin",
+    "is_published",
+    "is_suspended",
+    "slug",
+    "user_id"
+   ],
+   "ops": [
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "display_name",
+     "id",
+     "is_admin",
+     "is_published",
+     "is_suspended",
+     "slug",
+     "user_id"
+    ],
+    "filter": [],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  },
+  {
+   "repo": "lyra-admin-mcp-server",
+   "file": "src/admin-tools.ts",
+   "line": 94,
+   "module": "admin",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "id"
+   ],
+   "ops": [
+    "filter",
+    "write"
+   ],
+   "columnsByOp": {
+    "read": [],
+    "filter": [
+     "id"
+    ],
+    "write": []
+   },
+   "unbounded": true,
+   "unboundedReasons": [
+    "write-variable-payload"
+   ],
+   "kan416Unbounded": true
+  },
+  {
+   "repo": "lyra-admin-mcp-server",
+   "file": "src/admin-tools.ts",
+   "line": 126,
+   "module": "admin",
+   "attribution": "MCP_MODULE_RULES",
+   "columns": [
+    "access_tier",
+    "age_status",
+    "created_at",
+    "display_name",
+    "id",
+    "is_admin",
+    "is_published",
+    "is_suspended",
+    "slug",
+    "user_status"
+   ],
+   "ops": [
+    "filter",
+    "read"
+   ],
+   "columnsByOp": {
+    "read": [
+     "access_tier",
+     "age_status",
+     "created_at",
+     "display_name",
+     "id",
+     "is_admin",
+     "is_published",
+     "is_suspended",
+     "slug",
+     "user_status"
+    ],
+    "filter": [
+     "created_at",
+     "is_admin",
+     "is_published",
+     "is_suspended"
+    ],
+    "write": []
+   },
+   "unbounded": false,
+   "unboundedReasons": [],
+   "kan416Unbounded": false
+  }
+ ]
+}
