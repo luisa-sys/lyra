@@ -80,6 +80,24 @@ export interface VenueSuggestContext {
   capacityRequired?: number;
 }
 
+/**
+ * A contact as the organise wizard consumes it.
+ *
+ * Lives here rather than in `page.tsx` (BUGS-80 / KAN-414 F2). The wizard needs
+ * the type and the page renders the wizard, so declaring it on the page made
+ * `page.tsx` <-> `organise-wizard.tsx` the only import cycle left in the tree.
+ * It was type-only, so it erased at build time and cost nothing at runtime —
+ * which is exactly why it survived: nothing ever went red. `organise-fields.ts`
+ * is the module both sides already depend on, so the cycle simply stops
+ * existing rather than being suppressed.
+ */
+export interface WizardContact {
+  id: string;
+  display_name: string;
+  city: string | null;
+  has_linked_profile: boolean;
+}
+
 export function isGatheringType(v: string): v is GatheringType {
   return (GATHERING_TYPES as string[]).includes(v);
 }

@@ -117,6 +117,76 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
+      - name: Guard-path-drift check (KAN-414 F1)
+        # Guard #12, and the companion to #13 above. Where the DoD gate looks at
+        # THIS PR's diff, this one audits the WHOLE registry on every run: every
+        # path pattern in all 18 registered artefacts must match at least one
+        # TRACKED file. A pattern that matches nothing does not fail — it
+        # silently protects nothing while the gate keeps reporting green, which
+        # is the SEC-79 shape.
+        #
+        # Tracked files, not the filesystem: a pattern matching only an
+        # untracked or gitignored file must FAIL, because CI checks out tracked
+        # content and the pattern would be inert there.
+        #
+        # Proven by mutation (KAN-414): moving src/lib/supabase-service.ts into
+        # a module — literally D1's work — disarms TWO controls at once, the
+        # signup E2E gate and the service-role containment. Before this guard
+        # that move was green.
+        #
+        # Fails CLOSED (exit 2) when an artefact is missing or unparseable.
+        # Escape hatch: `guard-path-ok: <JIRA-KEY> <reason>` on the pattern's
+        # own line, suppressing exactly one pattern, printed on every run and
+        # counted. Artefacts whose syntax forbids comments (package.json)
+        # declare theirs in the script's DECLARED_EXCEPTIONS.
+        run: python3 scripts/check-guard-path-drift.py
+      - name: Env-access ratchet (KAN-414 F8)
+        # 49 distinct environment variables are read from 38 files under src/,
+        # and src/lib/env.ts — the module built to be the single resolver — sees
+        # almost none of them. A missing variable therefore surfaces as
+        # `undefined` deep inside a request instead of failing loudly at boot,
+        # and no module can state its own configuration surface.
+        #
+        # This does NOT migrate anything. It freezes the existing 72 references
+        # as a baseline and makes the set SHRINK-ONLY: a new file, or a new
+        # variable in an already-listed file, fails; and so does a listed file
+        # or variable that has STOPPED being read, because a baseline that only
+        # grows is a suppression list.
+        #
+        # The precedent is why this is a gate and not a refactor:
+        # src/lib/deploy-env.ts was created to be the single environment
+        # resolver, and all six of the derivations it was meant to replace are
+        # still inline. Creating the module is 10% of the work; retiring the
+        # call sites and preventing new ones is the other 90%, and only CI does
+        # the 90%.
+        #
+        # Fails closed (exit 2) if the baseline is missing or unparseable.
+        # Escape hatch: `// env-access-ok: <JIRA-KEY> <reason>`.
+        run: python3 scripts/check-env-access.py
+      - name: Schema-drift ratchet (KAN-414 F6)
+        # The three Supabase projects do NOT have identical schemas (KAN-420):
+        # prod lacks the KAN-153 columns, the KAN-143 `draft` label and two
+        # functions; dev lacks BUGS-62's claimed_at. The app compiles against
+        # dev, so TypeScript actively asserts prod has columns it does not —
+        # a deliberate, documented trade that means the type system cannot be
+        # the control here. This gate is.
+        #
+        # Diffs the three committed schemas as SEMANTIC FACTS (column, enum
+        # label, function) rather than lines: the generator wraps a 5-label
+        # union and inlines a 4-label one, so a line diff reports 16
+        # differences for the single fact "prod is missing `draft`". Noise is
+        # how a gate earns the right to be ignored.
+        #
+        # The baseline is SHRINK-ONLY. New drift fails; so does a baseline
+        # entry that has STOPPED drifting, because a list you may only add to
+        # is a suppression list, not a ratchet. Fails closed (exit 2) if a
+        # schema file or the baseline is missing or unparseable.
+        #
+        # It deliberately does NOT regenerate from Supabase: that needs
+        # credentials CI does not have, and a step that skips when a secret is
+        # absent is the silent-skip pattern KAN-167 forbids. Regeneration is a
+        # documented manual step.
+        run: python3 scripts/check-schema-type-parity.py
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
