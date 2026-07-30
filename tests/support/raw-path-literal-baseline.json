@@ -1,0 +1,7 @@
+{
+  "$comment": "KAN-414 F4 / KAN-417 §3 — the SHRINK-ONLY ratchet on raw repo-path literals in tests/. Measured 2026-07-31 on develop. Every one of these is a file move away from an information-free ENOENT, and the pressure that creates is to weaken the test rather than fix the path — which the Test Integrity Policy forbids. Converting a file to the generated manifest (tests/support/source-paths.ts) lowers these counts; the guard fails if they RISE, and also fails if they fall without this baseline being updated, so the baseline cannot quietly over-state the remaining work. tests/support/** is excluded — the manifest is where the literals are supposed to live.",
+  "measured_at": "2026-07-31",
+  "measured_on": "develop",
+  "total_occurrences": 418,
+  "files_with_raw_literals": 96
+}
