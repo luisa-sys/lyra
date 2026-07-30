@@ -642,6 +642,24 @@
       ],
       "escape_hatch": "// env-access-ok: <JIRA-KEY> <reason>",
       "added": "2026-07-29"
+    },
+    {
+      "id": "CTL-036",
+      "name": "Schema-drift ratchet",
+      "defect_class": "schema-parity-drift",
+      "summary": "Diffs the three committed Supabase schemas (src/types/database/{dev,staging,prod}.ts) as semantic facts - column, enum label, function - against a shrink-only baseline at supabase/schema-drift-baseline.json. New drift fails; a baseline entry that has stopped drifting ALSO fails, so the list cannot quietly over-state the problem. Exists because the app compiles against the dev schema while production genuinely lacks the KAN-153 columns, the KAN-143 'draft' visibility label and two functions - so TypeScript asserts prod has columns it does not, and the type system cannot be its own control. Compares facts rather than lines because the generator wraps a 5-label union and inlines a 4-label one, making a line diff report 16 differences for one fact.",
+      "implementation": "scripts/check-schema-type-parity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-414",
+        "SEC-107",
+        "BUGS-62"
+      ],
+      "escape_hatch": "none - add the drift to supabase/schema-drift-baseline.json with a ticket",
+      "added": "2026-07-29"
     }
   ]
 }
