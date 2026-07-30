@@ -14,11 +14,33 @@
  * modules.json and land in KAN-415 C2. Do not add them here.
  *
  * SEVERITY IS A ROLL-OUT DIAL, NOT A WAY TO SILENCE A FINDING.
- * The gate ships at `warn` (violations are reported, the build stays green)
- * and flips to `error` (blocking) once the outstanding KAN-424 defects land
- * and develop is clean for a week. Override with DEPCRUISE_SEVERITY=error.
  * Never relax a rule's *definition* to make it pass — a violation is a
  * finding: fix it, or record it in the ticket.
+ *
+ * SEVERITY IS NOW PER RULE (KAN-414 F3, 2026-07-29). A single global dial made
+ * the whole gate hostage to its worst rule: two of the three rules have been at
+ * zero violations for some time and could not go blocking because the third
+ * could not. Measured on this branch:
+ *
+ *     no-module-to-app          0 violations  -> error (BLOCKING)
+ *     no-circular               0 violations  -> error (BLOCKING), once
+ *                                                BUGS-80's type-only cycle is
+ *                                                fixed (it is, on this branch)
+ *     no-cross-segment-app      4 violations  -> warn
+ *
+ * The 4 remaining cross-segment edges are NOT unrouted work being tolerated;
+ * the plan assigns three of them elsewhere on purpose:
+ *   - src/app/[slug]/page.tsx -> dashboard/profile/{section-visibility,
+ *     manual-of-me-fields}.ts   are the D-4 privacy finding, moved into D8's
+ *     acceptance criteria (plan §6 F2 note), not F2/F3 debt.
+ *   - src/app/(legal)/about/page.tsx -> _marketing/sections.tsx  is implicated
+ *     in KAN-422's DELETE list.
+ *   - src/app/dashboard/page.tsx -> (auth)/actions.ts  is currently routed
+ *     NOWHERE. It needs an owner before this rule can flip.
+ *
+ * So `no-cross-segment-app` flips to error when D8 and KAN-422 land and that
+ * fourth edge has a home — not on a calendar date. DEPCRUISE_SEVERITY=error
+ * still forces every rule to error for a local dry run.
  *
  * Run via `npm run depcruise` (see scripts/check-dependency-rules.sh).
  */
@@ -26,7 +48,20 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SEVERITY = process.env.DEPCRUISE_SEVERITY === 'error' ? 'error' : 'warn';
+const FORCE_ERROR = process.env.DEPCRUISE_SEVERITY === 'error';
+
+/**
+ * Per-rule severity. A rule at zero violations should block; a rule with known,
+ * ticketed, elsewhere-owned violations should warn. Collapsing both into one
+ * dial means the cleanest rule gets no enforcement until the messiest one is
+ * finished, which is how a gate spends months reporting and preventing nothing.
+ */
+const severityFor = (ruleAtZero) => (FORCE_ERROR || ruleAtZero ? 'error' : 'warn');
+
+// Flipped to blocking 2026-07-29 (KAN-414 F3): measured 0 violations each.
+const BLOCKING = true;
+// Still warn: 4 violations, 3 of them owned by D8 / KAN-422, 1 unrouted.
+const NOT_YET = false;
 
 /** Escape a literal string for safe embedding in a regular expression. */
 const rx = (literal) => literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -67,7 +102,7 @@ const APP_SEGMENTS = (() => {
 
 const crossSegmentRules = APP_SEGMENTS.map((segment) => ({
   name: `no-cross-segment-app/${segment}`,
-  severity: SEVERITY,
+  severity: severityFor(NOT_YET),
   comment:
     'One top-level src/app segment must not import from another. Segments are independent ' +
     'route trees; a cross-segment edge silently couples two features so neither can be ' +
@@ -85,7 +120,7 @@ module.exports = {
   forbidden: [
     {
       name: 'no-module-to-app',
-      severity: SEVERITY,
+      severity: severityFor(BLOCKING),
       comment:
         'A library under src/lib/** must not import from a route tree under src/app/**. ' +
         'Libraries are the stable core; route folders are the churn surface. An edge in this ' +
@@ -98,7 +133,7 @@ module.exports = {
     ...crossSegmentRules,
     {
       name: 'no-circular',
-      severity: SEVERITY,
+      severity: severityFor(BLOCKING),
       comment:
         'No import cycles. A cycle means neither module can be understood, tested or extracted ' +
         'on its own, and it makes module-init order load-bearing. Break it by moving the shared ' +

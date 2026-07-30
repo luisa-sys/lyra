@@ -20,9 +20,9 @@ import {
   type BusyBlockView,
   type ProposedSlotInput,
   type VenueSuggestion,
+  type WizardContact,
 } from './organise-fields';
 import type { GatheringType } from '@/lib/recommend/convene/types';
-import type { WizardContact } from './page';
 
 const inputCls =
   'w-full px-3 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-ink)] bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-sage)]';
