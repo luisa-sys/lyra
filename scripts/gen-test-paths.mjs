@@ -39,8 +39,21 @@
  *   tests/support/source-paths.json  — for .cjs and shell consumers
  *
  * USAGE
- *   npm run gen:test-paths          # write
- *   npm run gen:test-paths -- --check   # verify committed output is current
+ *   npm run gen:test-paths                    # write the manifest
+ *   npm run gen:test-paths -- --check         # verify committed output is current
+ *   npm run gen:test-paths -- --write-baseline  # re-measure the raw-literal ratchet
+ *
+ * WHY --write-baseline IS A SEPARATE FLAG
+ * ---------------------------------------
+ * The raw-literal baseline is a RATCHET: it must only move deliberately, so
+ * normal generation must never touch it (auto-writing would let someone add
+ * coupling and silently raise the bar).
+ *
+ * But hand-measuring it is how this went wrong twice: `git ls-files` does not
+ * see a file that has not been staged yet, so a baseline measured before
+ * `git add` under-counts by exactly the file being added — green locally, red
+ * in CI. Measuring it HERE, with the same code path the guard uses, removes the
+ * hand step without weakening the ratchet. Stage your changes first.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -195,6 +208,66 @@ export type SourcePathKey = keyof typeof SRC;
   return { ts, json };
 }
 
+const BASELINE_OUT = join(ROOT, 'tests/support/raw-path-literal-baseline.json');
+
+/**
+ * Count RAW literals still in tests/ — the same measurement the guard test
+ * makes, deliberately duplicated nowhere else.
+ */
+function countRawLiterals() {
+  let total = 0;
+  const files = new Set();
+  for (const rel of trackedTestFiles()) {
+    if (rel.startsWith('tests/support/')) continue;
+    let text;
+    try {
+      text = readFileSync(join(ROOT, rel), 'utf-8');
+    } catch {
+      continue;
+    }
+    const n = [...text.matchAll(LITERAL_RE)].length;
+    if (n) {
+      total += n;
+      files.add(rel);
+    }
+  }
+  return { total, files: files.size };
+}
+
+function writeBaseline() {
+  const { total, files } = countRawLiterals();
+  const prev = existsSync(BASELINE_OUT)
+    ? JSON.parse(readFileSync(BASELINE_OUT, 'utf-8'))
+    : null;
+  if (prev && total > prev.total_occurrences) {
+    console.error(
+      `::error::Refusing to RAISE the ratchet: ${prev.total_occurrences} -> ${total}. ` +
+        'The raw-literal count may only shrink. Route the new path through ' +
+        'tests/support/source-paths.ts instead of adding a literal.',
+    );
+    process.exit(1);
+  }
+  const doc = {
+    $comment:
+      'KAN-414 F4 / KAN-417 §3 — the SHRINK-ONLY ratchet on raw repo-path literals in ' +
+      'tests/. Regenerate with `npm run gen:test-paths -- --write-baseline` AFTER staging ' +
+      'your changes: `git ls-files` cannot see an unstaged file, so measuring first ' +
+      'under-counts by exactly the file you are adding. Converting a file to the generated ' +
+      'manifest lowers these counts; the guard fails if they rise, AND if they fall without ' +
+      'this baseline being updated, so it cannot quietly over-state the remaining work. ' +
+      'tests/support/** is excluded — the manifest is where the literals are supposed to live.',
+    measured_at: new Date().toISOString().slice(0, 10),
+    measured_on: 'develop',
+    total_occurrences: total,
+    files_with_raw_literals: files,
+  };
+  writeFileSync(BASELINE_OUT, `${JSON.stringify(doc, null, 2)}\n`);
+  console.log(
+    `Baseline: ${total} raw literal occurrences across ${files} files` +
+      (prev ? ` (was ${prev.total_occurrences}/${prev.files_with_raw_literals})` : ''),
+  );
+}
+
 function main() {
   const check = process.argv.includes('--check');
   const paths = collectLiterals();
@@ -209,6 +282,14 @@ function main() {
 
   const names = nameFor(paths);
   const { ts, json } = render(paths, names);
+
+  if (process.argv.includes('--write-baseline')) {
+    mkdirSync(dirname(OUT_TS), { recursive: true });
+    writeFileSync(OUT_TS, ts);
+    writeFileSync(OUT_JSON, json);
+    writeBaseline();
+    return;
+  }
 
   if (check) {
     const cur = existsSync(OUT_TS) ? readFileSync(OUT_TS, 'utf-8') : '';

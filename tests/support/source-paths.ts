@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 168 entries.
+// 169 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -50,6 +50,7 @@ export const SRC = {
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
   docSyncHealthcheck: 'scripts/doc-sync-healthcheck.sh',
+  genTestPaths: 'scripts/gen-test-paths.mjs',
   lyraMaintenanceWorker: 'scripts/lyra-maintenance-worker.js',
   restoreDatabase: 'scripts/restore-database.sh',
   rollbackVercel: 'scripts/rollback-vercel.sh',

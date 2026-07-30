@@ -86,7 +86,15 @@ describe('test path manifest (KAN-414 F4)', () => {
 
   test('the committed manifest is up to date with the tree', () => {
     // Catches "someone added a test with a new literal and did not regenerate".
-    const r = execFileSync('node', ['scripts/gen-test-paths.mjs', '--check'], {
+    //
+    // Note this file routes the generator's own path through the manifest
+    // (`SRC.genTestPaths`) rather than hard-coding it. That is deliberate: the
+    // ratchet counts raw literals, and a guard that exempted itself would be
+    // asking everyone else to do something it would not. It is mildly
+    // circular — a broken manifest breaks this test — but that is the failure
+    // mode we want, not one we want to hide.
+    const { SRC } = JSON.parse(fs.readFileSync(MANIFEST_JSON, 'utf-8'));
+    const r = execFileSync('node', [SRC.genTestPaths, '--check'], {
       cwd: ROOT,
       encoding: 'utf-8',
     });

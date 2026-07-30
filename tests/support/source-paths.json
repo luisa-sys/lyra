@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 168,
+  "count": 169,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -37,6 +37,7 @@
     "checkWorkflowIntegrity": "scripts/check-workflow-integrity.sh",
     "dailySecurityCheck": "scripts/daily-security-check.sh",
     "docSyncHealthcheck": "scripts/doc-sync-healthcheck.sh",
+    "genTestPaths": "scripts/gen-test-paths.mjs",
     "lyraMaintenanceWorker": "scripts/lyra-maintenance-worker.js",
     "restoreDatabase": "scripts/restore-database.sh",
     "rollbackVercel": "scripts/rollback-vercel.sh",
