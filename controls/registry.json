@@ -395,7 +395,7 @@
       "id": "CTL-023",
       "name": "Migration privilege lint",
       "defect_class": "postgres-privilege-drift",
-      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES — the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink.",
+      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES — the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink. R6 (BUGS-77, 2026-07-30): every function named by an UNGUARDED REVOKE/GRANT must be CREATEd earlier in the lineage - ordering, not just presence, since a function created in a later migration is still a replay failure. Revokes inside a do-block are excluded because they no-op on a fresh database. Also fixed an R4 false positive: DDL text inside a string literal (an event trigger's 'CREATE TABLE AS' tag list) was read as a real CREATE TABLE.",
       "implementation": "scripts/check-migration-privileges.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -414,7 +414,8 @@
         "BUGS-65",
         "BUGS-69",
         "BUGS-49",
-        "BUGS-75"
+        "BUGS-75",
+        "BUGS-77"
       ],
       "self_test": "python3 scripts/check-migration-privileges.py --self-test",
       "escape_hatch": "-- db-privileges-ok:",
@@ -641,6 +642,24 @@
         "KAN-414"
       ],
       "escape_hatch": "// env-access-ok: <JIRA-KEY> <reason>",
+      "added": "2026-07-29"
+    },
+    {
+      "id": "CTL-036",
+      "name": "Schema-drift ratchet",
+      "defect_class": "schema-parity-drift",
+      "summary": "Diffs the three committed Supabase schemas (src/types/database/{dev,staging,prod}.ts) as semantic facts - column, enum label, function - against a shrink-only baseline at supabase/schema-drift-baseline.json. New drift fails; a baseline entry that has stopped drifting ALSO fails, so the list cannot quietly over-state the problem. Exists because the app compiles against the dev schema while production genuinely lacks the KAN-153 columns, the KAN-143 'draft' visibility label and two functions - so TypeScript asserts prod has columns it does not, and the type system cannot be its own control. Compares facts rather than lines because the generator wraps a 5-label union and inlines a 4-label one, making a line diff report 16 differences for one fact.",
+      "implementation": "scripts/check-schema-type-parity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-414",
+        "SEC-107",
+        "BUGS-62"
+      ],
+      "escape_hatch": "none - add the drift to supabase/schema-drift-baseline.json with a ticket",
       "added": "2026-07-29"
     }
   ]

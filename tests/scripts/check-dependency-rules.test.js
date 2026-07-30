@@ -188,3 +188,45 @@ describe('scripts/check-dependency-rules.sh (KAN-425)', () => {
     expect(out).toMatch(/DEPCRUISE_SEVERITY must be/);
   });
 });
+
+// ── KAN-414 F3: per-rule severity ─────────────────────────────────────────────
+// A single global dial made the whole gate hostage to its worst rule. These pin
+// which rules are BLOCKING so nobody can quietly demote one back to `warn` to
+// get a red build green — the demotion, not the violation, is the regression.
+describe('per-rule severity (KAN-414 F3)', () => {
+  const cfg = require('node:fs').readFileSync(
+    require('node:path').resolve(__dirname, '../../.dependency-cruiser.cjs'),
+    'utf-8',
+  );
+
+  test('no-module-to-app is blocking', () => {
+    expect(cfg).toMatch(/name: 'no-module-to-app',\s*\n\s*severity: severityFor\(BLOCKING\)/);
+  });
+
+  test('no-circular is blocking', () => {
+    expect(cfg).toMatch(/name: 'no-circular',\s*\n\s*severity: severityFor\(BLOCKING\)/);
+  });
+
+  test('no-cross-segment-app is still warn, with its 4 edges owned elsewhere', () => {
+    // Deliberately NOT blocking: 3 of its 4 violations are assigned to D8 and
+    // KAN-422 by the plan, and the 4th is unrouted. Flipping it early would
+    // force someone to either do D8 out of order or weaken the rule.
+    expect(cfg).toMatch(/no-cross-segment-app\/\$\{segment\}`,\s*\n\s*severity: severityFor\(NOT_YET\)/);
+  });
+
+  test('the reason each rule sits where it does is written down', () => {
+    // A severity with no recorded justification is the thing that rots. Assert
+    // the owners are NAMED, without pinning comment line-wrapping.
+    // Strip leading comment asterisks before collapsing whitespace, or a
+    // wrapped sentence reads as "D8's * acceptance criteria".
+    const prose = cfg.replace(/^\s*\*\s?/gm, '').replace(/\s+/g, ' ');
+    expect(prose).toMatch(/no-module-to-app 0 violations/);
+    expect(prose).toMatch(/D8's acceptance criteria/);
+    expect(prose).toMatch(/KAN-422's DELETE list/);
+    expect(prose).toMatch(/routed NOWHERE/);
+  });
+
+  test('DEPCRUISE_SEVERITY=error still forces every rule to error', () => {
+    expect(cfg).toMatch(/FORCE_ERROR \|\| ruleAtZero/);
+  });
+});
