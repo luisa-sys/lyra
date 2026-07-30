@@ -58,10 +58,33 @@ describe('check-secret-rotation.py', () => {
   test('with --warn-days=0: no in-window warnings unless overdue', () => {
     // The day OF rotation due is days_until=0 → marked overdue per script logic.
     // The day BEFORE is days_until=1, which with --warn-days=0 is not in window.
-    const r = run(['--today', '2027-04-27', '--warn-days', '0']);
+    //
+    // Anchored to the EARLIEST due date in the doc, not to an arbitrary gap.
+    // This date was 2027-04-27, one day before LYRA_BACKUP_PAT's 2027-04-28 —
+    // a premise that held only because every dated row happened to be an
+    // "Annual" cadence anchored in May 2026. Adding the first 90-day secret
+    // (NPM_TOKEN, due 2026-10-27) turned this case red, which meant the
+    // rotation doc could not gain a short-cadence secret without breaking CI —
+    // exactly the kind of secret it most needs to track.
+    //
+    // Re-anchoring to the day before the earliest due date keeps the assertion
+    // identical and makes it self-maintaining. If a shorter-dated secret is
+    // ever added, move this to the day before ITS due date; do not widen the
+    // assertion.
+    const r = run(['--today', '2026-10-26', '--warn-days', '0']);
     expect(r.stdout).not.toMatch(/rotation due/);
     expect(r.stdout).not.toMatch(/OVERDUE/);
     expect(r.exitCode).toBe(0);
+  });
+
+  test('the day OF the earliest due date IS flagged — the boundary still works', () => {
+    // Guards the re-anchoring above: if the date were moved somewhere the
+    // assertion is vacuously true, this case would fail. A boundary test needs
+    // both sides checked or it only proves the easy one.
+    const r = run(['--today', '2026-10-27', '--warn-days', '0']);
+    expect(r.stdout).toMatch(/NPM_TOKEN/);
+    expect(r.stdout).toMatch(/OVERDUE/);
+    expect(r.exitCode).toBe(1);
   });
 
   test('skips rows with "Only on suspicion" cadence (no-schedule path)', () => {
