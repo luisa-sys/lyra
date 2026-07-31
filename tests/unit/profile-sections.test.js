@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
@@ -14,7 +15,7 @@ const NEW_CATEGORIES = [
 ];
 
 describe('KAN-137: Wizard supports new section categories', () => {
-  const wizardPath = path.join(root, 'src/app/dashboard/profile/wizard.tsx');
+  const wizardPath = path.join(root, SRC.wizard);
   let wizardContent;
 
   beforeAll(() => {
@@ -69,7 +70,7 @@ describe('KAN-137: Wizard supports new section categories', () => {
 });
 
 describe('KAN-137: ItemsStep has labels for all categories', () => {
-  const itemsStepPath = path.join(root, 'src/app/dashboard/profile/steps/items-step.tsx');
+  const itemsStepPath = path.join(root, SRC.itemsStep);
   let content;
 
   beforeAll(() => {
@@ -87,7 +88,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // left-rule on each heading, a favourites grid, a Q&A block). Every category is
   // still rendered — these guards prove each is referenced so a future refactor
   // can't silently drop one (which would make those items vanish from profiles).
-  const profilePath = path.join(root, 'src/app/[slug]/page.tsx');
+  const profilePath = path.join(root, SRC.slugPage);
   let content;
 
   beforeAll(() => {

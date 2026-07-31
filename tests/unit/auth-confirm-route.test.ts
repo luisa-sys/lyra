@@ -38,6 +38,7 @@ jest.mock('@/lib/auth/post-login-redirect', () => ({
 }));
 
 import { GET } from '@/app/auth/confirm/route';
+import { SRC } from '../support/source-paths';
 
 const ORIGIN = 'https://dev.checklyra.com';
 
@@ -127,7 +128,7 @@ describe('GET /auth/confirm (BUGS-50 token-hash flow)', () => {
 
 describe('BUGS-50: auth-route surface guards', () => {
   test('/auth/confirm route exists and uses verifyOtp (not the PKCE code exchange)', () => {
-    const p = resolve(ROOT, 'src/app/auth/confirm/route.ts');
+    const p = resolve(ROOT, SRC.confirmRoute);
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toMatch(/verifyOtp/);
@@ -137,7 +138,7 @@ describe('BUGS-50: auth-route surface guards', () => {
   });
 
   test('/auth/callback is still the OAuth code-exchange route (regression guard)', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/auth/callback/route.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.authCallbackRoute), 'utf-8');
     expect(src).toMatch(/exchangeCodeForSession/);
     expect(src).toMatch(/searchParams\.get\(['"]next['"]\)/);
   });

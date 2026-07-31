@@ -2,9 +2,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.resolve(REPO_ROOT, 'scripts/check-ui-copy-ownership.sh');
+const SCRIPT = path.resolve(REPO_ROOT, SRC.checkUiCopyOwnership);
 
 // Build a throwaway git repo with a `develop` branch and a `feature` branch
 // whose commits (ahead of develop) create/modify the supplied files with the
@@ -56,7 +57,7 @@ function runOverCommits(commits, { baseRef = 'develop' } = {}) {
   }
 }
 
-describe('scripts/check-ui-copy-ownership.sh', () => {
+describe(SRC.checkUiCopyOwnership, () => {
   let source = '';
   beforeAll(() => {
     source = fs.readFileSync(SCRIPT, 'utf8');
@@ -89,7 +90,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
 
   it('FAILS a src/app page (.tsx) change with no trailer', () => {
     const { status, output } = runOverCommits([
-      { files: ['src/app/dashboard/page.tsx'], message: 'change the dashboard' },
+      { files: [SRC.dashboardPage], message: 'change the dashboard' },
     ]);
     expect(status).not.toBe(0);
     expect(output).toMatch(/no approval trailer/);
@@ -99,7 +100,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
   it('PASSES the same .tsx change when a UI-Change-Approved trailer is present', () => {
     const { status, output } = runOverCommits([
       {
-        files: ['src/app/dashboard/page.tsx'],
+        files: [SRC.dashboardPage],
         message: 'feat: new dashboard hero\n\nUI-Change-Approved: KAN-410',
       },
     ]);
@@ -111,7 +112,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
   it('PASSES the same .tsx change with a UI-Bugfix-Only trailer (carve-out)', () => {
     const { status, output } = runOverCommits([
       {
-        files: ['src/app/dashboard/page.tsx'],
+        files: [SRC.dashboardPage],
         message: 'fix: correct a typo in the heading\n\nUI-Bugfix-Only: BUGS-70',
       },
     ]);
@@ -129,7 +130,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
 
   it('PASSES an admin-console change (carve-out) with no trailer', () => {
     const { status, output } = runOverCommits([
-      { files: ['src/app/admin/features/page.tsx'], message: 'admin: tweak' },
+      { files: [SRC.featuresPage], message: 'admin: tweak' },
     ]);
     expect(status).toBe(0);
     expect(output).toMatch(/no founder-owned UI\/copy paths changed/);
@@ -144,7 +145,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
 
   it('FAILS a named copy module change (src/lib/invite-text.ts) with no trailer', () => {
     const { status, output } = runOverCommits([
-      { files: ['src/lib/invite-text.ts'], message: 'reword the invite copy' },
+      { files: [SRC.inviteText], message: 'reword the invite copy' },
     ]);
     expect(status).not.toBe(0);
     expect(output).toMatch(/invite-text\.ts/);
@@ -152,14 +153,14 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
 
   it('PASSES a non-copy src/lib logic change with no trailer', () => {
     const { status } = runOverCommits([
-      { files: ['src/lib/dashboard/resolve-widgets.ts'], message: 'logic: gate a widget' },
+      { files: [SRC.resolveWidgets], message: 'logic: gate a widget' },
     ]);
     expect(status).toBe(0);
   });
 
   it('FAILS a globals.css / design-token change with no trailer', () => {
     const { status, output } = runOverCommits([
-      { files: ['src/app/globals.css'], message: 'restyle tokens' },
+      { files: [SRC.globals], message: 'restyle tokens' },
     ]);
     expect(status).not.toBe(0);
     expect(output).toMatch(/globals\.css/);
@@ -168,7 +169,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
   it('requires a JIRA key on the trailer (bare trailer does not satisfy)', () => {
     const { status } = runOverCommits([
       {
-        files: ['src/app/page.tsx'],
+        files: [SRC.appPage],
         message: 'change home\n\nUI-Change-Approved: yes please',
       },
     ]);
@@ -177,7 +178,7 @@ describe('scripts/check-ui-copy-ownership.sh', () => {
 
   it('WARNS and passes (fail-open) when the base ref cannot be resolved', () => {
     const { status, output } = runOverCommits(
-      [{ files: ['src/app/page.tsx'], message: 'change home' }],
+      [{ files: [SRC.appPage], message: 'change home' }],
       { baseRef: 'origin/does-not-exist-xyz' },
     );
     expect(status).toBe(0);

@@ -10,11 +10,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('KAN-193: privacy policy — Affiliate partners section', () => {
-  const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -77,7 +78,7 @@ describe('KAN-193: privacy policy — Affiliate partners section', () => {
 });
 
 describe('KAN-193: cookie policy — Affiliate links section', () => {
-  const filePath = path.join(root, 'src/app/(legal)/cookies/page.tsx');
+  const filePath = path.join(root, SRC.cookiesPage);
   let content;
 
   beforeAll(() => {
@@ -151,8 +152,8 @@ describe('KAN-193: cookie audit doc', () => {
   });
 
   test('points at the public-facing pages for the human-readable disclosure', () => {
-    expect(content).toContain('src/app/(legal)/cookies/page.tsx');
-    expect(content).toContain('src/app/(legal)/privacy/page.tsx');
-    expect(content).toContain('src/app/(legal)/partners/page.tsx');
+    expect(content).toContain(SRC.cookiesPage);
+    expect(content).toContain(SRC.privacyPage);
+    expect(content).toContain(SRC.partnersPage);
   });
 });

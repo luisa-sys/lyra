@@ -16,13 +16,14 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
 describe('KAN-181 conversation starters — surface-area regression guards', () => {
   test('migration file exists and creates both tables', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
+      resolve(ROOT, SRC.migrations20260516200200ConversationStarters),
       'utf-8',
     );
     expect(src).toMatch(/create table.*conversation_starter_prompts/i);
@@ -31,7 +32,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration seeds at least 8 prompts', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
+      resolve(ROOT, SRC.migrations20260516200200ConversationStarters),
       'utf-8',
     );
     const matches = src.match(/^\s*\(['"]/gm);
@@ -43,7 +44,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces the 5-answer cap via a BEFORE INSERT trigger', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
+      resolve(ROOT, SRC.migrations20260516200200ConversationStarters),
       'utf-8',
     );
     expect(src).toMatch(/limit \(5\) reached/i);
@@ -52,7 +53,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces 500-char answer limit via CHECK', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
+      resolve(ROOT, SRC.migrations20260516200200ConversationStarters),
       'utf-8',
     );
     expect(src).toMatch(/check \(length\(answer\) <= 500/i);
@@ -60,7 +61,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('migration enforces unique (profile_id, prompt_id)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516200200_conversation_starters.sql'),
+      resolve(ROOT, SRC.migrations20260516200200ConversationStarters),
       'utf-8',
     );
     expect(src).toMatch(/unique\s*\(\s*profile_id\s*,\s*prompt_id\s*\)/i);
@@ -68,7 +69,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('server-actions file exports the three CRUD functions', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'),
+      resolve(ROOT, SRC.conversationStartersActions),
       'utf-8',
     );
     expect(src).toMatch(/export\s+async\s+function\s+addConversationStarter/);
@@ -78,7 +79,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('server-actions file uses sanitiseText and a 500-char cap', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'),
+      resolve(ROOT, SRC.conversationStartersActions),
       'utf-8',
     );
     expect(src).toMatch(/sanitiseText/);
@@ -87,7 +88,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('server-actions file surfaces the answer cap as a clean error', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'),
+      resolve(ROOT, SRC.conversationStartersActions),
       'utf-8',
     );
     // KAN-404 #14: the actions file now matches the trigger message with a
@@ -106,13 +107,13 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('wizard step component exists', () => {
     expect(existsSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/conversation-starters-step.tsx'),
+      resolve(ROOT, SRC.conversationStartersStep),
     )).toBe(true);
   });
 
   test('public profile page references the conversation starters table', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     expect(src).toMatch(/profile_conversation_starters/);
@@ -122,7 +123,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('dashboard profile page fetches conversation starter data', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/page.tsx'),
+      resolve(ROOT, SRC.profilePage),
       'utf-8',
     );
     expect(src).toMatch(/conversation_starter_prompts/);

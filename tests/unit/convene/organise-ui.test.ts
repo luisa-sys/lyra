@@ -4,9 +4,10 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
-const base = 'src/app/dashboard/convene/organise';
+const base = SRC.organise;
 const pagePath = path.join(ROOT, base, 'page.tsx');
 const wizardPath = path.join(ROOT, base, 'organise-wizard.tsx');
 const actionsPath = path.join(ROOT, base, 'actions.ts');

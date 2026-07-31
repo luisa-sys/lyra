@@ -19,6 +19,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { preflightUpload } from '@/lib/file-magic-bytes';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -114,7 +115,7 @@ describe('SEC-52 preflightUpload', () => {
 describe('SEC-52 source guards — both upload paths enforce the shared preflight', () => {
   test('uploadAvatar runs preflightUpload before the profile-photos upload', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/actions.ts'),
+      resolve(ROOT, SRC.profileActions),
       'utf-8',
     );
     const fn = src.slice(src.indexOf('export async function uploadAvatar'));
@@ -128,7 +129,7 @@ describe('SEC-52 source guards — both upload paths enforce the shared prefligh
 
   test('uploadProfileFile runs preflightUpload before the profile-files upload', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/files-actions.ts'),
+      resolve(ROOT, SRC.filesActions),
       'utf-8',
     );
     const fn = src.slice(src.indexOf('export async function uploadProfileFile'));
@@ -142,7 +143,7 @@ describe('SEC-52 source guards — both upload paths enforce the shared prefligh
   test('preflightUpload always reaches the magic-byte validator', () => {
     // Guard the helper itself: it must call validateFileMagicBytes so a future
     // edit can't quietly drop the anti-spoofing check.
-    const src = readFileSync(resolve(ROOT, 'src/lib/file-magic-bytes.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.fileMagicBytes), 'utf-8');
     const fn = src.slice(src.indexOf('export async function preflightUpload'));
     expect(fn).toMatch(/validateFileMagicBytes\(/);
   });

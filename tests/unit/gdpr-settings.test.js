@@ -5,10 +5,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const actionsPath = path.join(root, 'src/app/dashboard/settings/actions.ts');
-const clientPath = path.join(root, 'src/app/dashboard/settings/settings-client.tsx');
+const actionsPath = path.join(root, SRC.settingsActions);
+const clientPath = path.join(root, SRC.settingsClient);
 
 describe('KAN-140: Data export action', () => {
   let content;

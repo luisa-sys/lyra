@@ -13,6 +13,7 @@ const ROOT = path.join(__dirname, '..', '..', '..');
 // ─── ICS builder ────────────────────────────────────────────────────────
 
 import { buildICS } from '@/lib/convene/invites/ics';
+import { SRC } from '../../support/source-paths';
 
 describe('buildICS (KAN-209)', () => {
   const base = {
@@ -180,9 +181,9 @@ describe('generateRsvpToken (KAN-209)', () => {
 // ─── /r/[token] page + form ────────────────────────────────────────────
 
 describe('RSVP UI pages (KAN-209)', () => {
-  const pagePath = path.join(ROOT, 'src/app/r/[token]/page.tsx');
-  const formPath = path.join(ROOT, 'src/app/r/[token]/rsvp-form.tsx');
-  const actionsPath = path.join(ROOT, 'src/app/r/[token]/actions.ts');
+  const pagePath = path.join(ROOT, SRC.tokenPage);
+  const formPath = path.join(ROOT, SRC.rsvpForm);
+  const actionsPath = path.join(ROOT, SRC.tokenActions);
 
   test('all three files exist', () => {
     expect(fs.existsSync(pagePath)).toBe(true);

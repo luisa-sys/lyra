@@ -8,11 +8,12 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('consent screen wires the trust surface (SEC-76 web-oauth-7)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/oauth/authorize/page.tsx'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.authorizePage), 'utf8');
 
   test('imports clientTrust + redirectHost from the helper module', () => {
     expect(src).toMatch(
@@ -45,7 +46,7 @@ describe('consent screen wires the trust surface (SEC-76 web-oauth-7)', () => {
 });
 
 describe('oauth_clients repository treats DCR clients as unverified (SEC-76)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/oauth/clients.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.clients), 'utf8');
 
   test('DCR insert explicitly sets is_first_party: false', () => {
     expect(src).toMatch(/is_first_party:\s*false/);
@@ -62,7 +63,7 @@ describe('oauth_clients repository treats DCR clients as unverified (SEC-76)', (
 
 describe('migration adds the is_first_party column (SEC-76)', () => {
   const mig = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260707193000_sec76_oauth_clients_is_first_party.sql'),
+    path.join(ROOT, SRC.migrations20260707193000Sec76OauthClientsIsFirstParty),
     'utf8'
   );
 

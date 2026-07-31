@@ -17,9 +17,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const migrationsDir = path.join(root, 'supabase/migrations');
+const migrationsDir = path.join(root, SRC.migrations);
 
 const OVERBROAD_POLICY = 'Anyone can read items from published non-suspended profiles';
 const ADHOC_DUPLICATE = 'Read public items from published profiles';

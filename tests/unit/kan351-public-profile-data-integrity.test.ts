@@ -18,9 +18,10 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
-const PAGE = 'src/app/[slug]/page.tsx';
+const PAGE = SRC.slugPage;
 
 describe('KAN-351: public profile reads are batched and errors surfaced', () => {
   const src = readFileSync(resolve(ROOT, PAGE), 'utf8');
