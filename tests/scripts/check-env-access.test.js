@@ -12,9 +12,10 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { SRC } = require('../support/source-paths.json');
 
 const ROOT = path.resolve(__dirname, '../..');
-const SCRIPT_REL = 'scripts/check-env-access.py';
+const SCRIPT_REL = SRC.checkEnvAccess;
 const SCRIPT = path.join(ROOT, SCRIPT_REL);
 const BASELINE_REL = 'env-access-baseline.json';
 
@@ -93,7 +94,7 @@ describe('check-env-access.py — against the real tree', () => {
     // The resolver reading process.env is the point; baselining it would imply
     // it should eventually stop.
     const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE_REL), 'utf-8'));
-    expect(Object.keys(baseline.allowed)).not.toContain('src/lib/env.ts');
+    expect(Object.keys(baseline.allowed)).not.toContain(SRC.libEnv);
   });
 
   test('--show emits a valid baseline shape, so one can be regenerated', () => {
@@ -120,7 +121,7 @@ describe('check-env-access.py — the ratchet, in all four directions', () => {
   });
 
   test('a known-bad file reading MORE fails — may shrink, never grow', () => {
-    const rel = 'src/lib/turnstile.ts';
+    const rel = SRC.turnstile;
     const p = path.join(SANDBOX, rel);
     const original = fs.readFileSync(p, 'utf-8');
     try {
@@ -137,7 +138,7 @@ describe('check-env-access.py — the ratchet, in all four directions', () => {
   test('a MIGRATED file fails until its baseline entry is deleted', () => {
     // This is the direction that turns a suppression list into a ratchet. If it
     // ever goes green, the baseline can permanently over-state the problem.
-    const rel = 'src/lib/turnstile.ts';
+    const rel = SRC.turnstile;
     const p = path.join(SANDBOX, rel);
     const original = fs.readFileSync(p, 'utf-8');
     try {
@@ -152,7 +153,7 @@ describe('check-env-access.py — the ratchet, in all four directions', () => {
   });
 
   test('a stale baselined VARIABLE fails too, not just a stale file', () => {
-    const rel = 'src/lib/convene/invites/twilio.ts';
+    const rel = SRC.twilio;
     const p = path.join(SANDBOX, rel);
     const original = fs.readFileSync(p, 'utf-8');
     const baseline = JSON.parse(

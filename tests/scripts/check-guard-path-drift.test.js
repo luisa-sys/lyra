@@ -26,9 +26,10 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { SRC } = require('../support/source-paths.json');
 
 const ROOT = path.resolve(__dirname, '../..');
-const SCRIPT_REL = 'scripts/check-guard-path-drift.py';
+const SCRIPT_REL = SRC.checkGuardPathDrift;
 const SCRIPT = path.join(ROOT, SCRIPT_REL);
 
 let SANDBOX = null;
@@ -123,7 +124,7 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
 
   // §7.9 case 2.
   test('a moved file that disarms a control fails with exit 1 and names it', () => {
-    const from = path.join(SANDBOX, 'src/lib/supabase-service.ts');
+    const from = path.join(SANDBOX, SRC.supabaseService);
     const toDir = path.join(SANDBOX, 'src/modules/platform/data');
     fs.mkdirSync(toDir, { recursive: true });
     execFileSync('git', ['mv', from, path.join(toDir, 'supabase-service.ts')], { cwd: SANDBOX });
@@ -155,7 +156,7 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
     const dir = path.join(SANDBOX, 'src/untracked-probe');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'thing.ts'), 'export {};\n');
-    sandboxWrite('.github/signup-surface.paths', (s) => `${s}\nsrc/untracked-probe/**\n`);
+    sandboxWrite(SRC.signupSurface, (s) => `${s}\nsrc/untracked-probe/**\n`);
 
     const r = runSandbox();
     expect(r.exitCode).toBe(1);
@@ -164,7 +165,7 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
 
   // §7.9 case 15.
   test('an escape-hatch marker without a Jira key does NOT suppress', () => {
-    sandboxWrite('.github/signup-surface.paths', (s) =>
+    sandboxWrite(SRC.signupSurface, (s) =>
       `${s}\nsrc/nope/a/**   # guard-path-ok: no key here\n`);
     const r = runSandbox();
     expect(r.exitCode).toBe(1);
@@ -173,7 +174,7 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
 
   // §7.9 case 14.
   test('a valid hatch suppresses exactly its own pattern, not its neighbour', () => {
-    sandboxWrite('.github/signup-surface.paths', (s) =>
+    sandboxWrite(SRC.signupSurface, (s) =>
       `${s}\nsrc/nope/b/**   # guard-path-ok: KAN-414 fixture\nsrc/nope/c/**\n`);
     const r = runSandbox();
     expect(r.exitCode).toBe(1);
@@ -230,7 +231,7 @@ describe('check-guard-path-drift.py — fail-closed (§7.9 cases 12–13, NOT op
       execFileSync('git', ['clone', '--local', '--quiet', ROOT, sb], { stdio: 'ignore' });
       const script = path.join(sb, SCRIPT_REL);
       fs.copyFileSync(SCRIPT, script);
-      fs.writeFileSync(path.join(sb, '.github/signup-surface.paths'), '# all commented out\n');
+      fs.writeFileSync(path.join(sb, SRC.signupSurface), '# all commented out\n');
 
       const r = runAt(script, [], sb);
       expect(r.exitCode).toBe(2);
