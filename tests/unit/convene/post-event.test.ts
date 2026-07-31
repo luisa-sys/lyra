@@ -8,11 +8,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('post-event sweep library (KAN-212 P8)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/post-event.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.postEvent), 'utf8');
 
   test('exports runPostEventSweep + PostEventSummary type', () => {
     expect(src).toMatch(/export async function runPostEventSweep/);
@@ -59,7 +60,7 @@ describe('post-event sweep library (KAN-212 P8)', () => {
 });
 
 describe('post-event cron route (KAN-212 P8)', () => {
-  const p = path.join(ROOT, 'src/app/api/convene/cron/post-event/route.ts');
+  const p = path.join(ROOT, SRC.postEventRoute);
   test('route file exists', () => {
     expect(fs.existsSync(p)).toBe(true);
   });

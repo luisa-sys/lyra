@@ -6,6 +6,7 @@ import { renderSmsBody } from '@/lib/convene/invites/sms-templates';
 import { _internal as twilioInternal } from '@/lib/convene/invites/twilio';
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
@@ -78,7 +79,7 @@ describe('Twilio allowlist gate (KAN-214)', () => {
 });
 
 describe('Twilio source structure (KAN-214)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/invites/twilio.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.twilio), 'utf8');
 
   test('uses HTTP Basic auth with TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN', () => {
     expect(src).toMatch(/TWILIO_ACCOUNT_SID/);
@@ -115,7 +116,7 @@ describe('Twilio source structure (KAN-214)', () => {
 });
 
 describe('dispatch.ts channel routing (KAN-214)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/invites/dispatch.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.dispatch), 'utf8');
 
   test('imports twilio + sms-templates', () => {
     expect(src).toMatch(/from\s+['"]\.\/twilio['"]/);

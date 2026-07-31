@@ -20,6 +20,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { SRC } from '../support/source-paths';
 
 // Mock next/cache
 const mockRevalidatePath = jest.fn();
@@ -202,7 +203,7 @@ describe('ALLOWED_PROFILE_FIELDS — allowlist contents', () => {
 });
 
 describe('Regression guard — actions.ts must never reintroduce the property injection pattern', () => {
-  const actionsPath = path.join(__dirname, '../..', 'src/app/dashboard/profile/actions.ts');
+  const actionsPath = path.join(__dirname, '../..', SRC.profileActions);
   const source = fs.readFileSync(actionsPath, 'utf8');
 
   test('the deleted updateProfile function MUST NOT be re-added without an allowlist', () => {

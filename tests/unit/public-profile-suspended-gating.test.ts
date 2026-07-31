@@ -12,9 +12,10 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 
 const root = path.join(__dirname, '../..');
-const pagePath = 'src/app/[slug]/page.tsx';
+const pagePath = SRC.slugPage;
 
 describe('SEC-44: public profile page filters suspended profiles', () => {
   const content = fs.readFileSync(path.join(root, pagePath), 'utf8');

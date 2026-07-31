@@ -15,6 +15,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -349,7 +350,7 @@ describe('KAN-221: updateSectionVisibility server action', () => {
 describe('KAN-221: surface-area regression guards', () => {
   test('migration file exists and adds the JSONB column', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260517020000_section_visibility.sql'),
+      resolve(ROOT, SRC.migrations20260517020000SectionVisibility),
       'utf-8',
     );
     expect(src).toMatch(/add column section_visibility jsonb/i);
@@ -358,7 +359,7 @@ describe('KAN-221: surface-area regression guards', () => {
   });
 
   test('section-visibility.ts module exports the right surface', () => {
-    const p = resolve(ROOT, 'src/app/dashboard/profile/section-visibility.ts');
+    const p = resolve(ROOT, SRC.sectionVisibility);
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toMatch(/export const CONTROLLABLE_SECTION_KEYS/);
@@ -371,7 +372,7 @@ describe('KAN-221: surface-area regression guards', () => {
 
   test('actions.ts exports updateSectionVisibility and imports the helper', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/actions.ts'),
+      resolve(ROOT, SRC.profileActions),
       'utf-8',
     );
     expect(src).toMatch(/export async function updateSectionVisibility/);
@@ -381,7 +382,7 @@ describe('KAN-221: surface-area regression guards', () => {
 
   test('section-visibility helper module is NOT a "use server" file (BUGS-12 safe)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/section-visibility.ts'),
+      resolve(ROOT, SRC.sectionVisibility),
       'utf-8',
     );
     expect(src).not.toMatch(/^['"]use server['"]/m);

@@ -10,9 +10,10 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
-const PROFILE = resolve(ROOT, 'src/app/dashboard/profile');
+const PROFILE = resolve(ROOT, SRC.profile);
 
 describe('KAN-404 (#12): ItemsStep inline edit', () => {
   const src = readFileSync(resolve(PROFILE, 'steps/items-step.tsx'), 'utf-8');

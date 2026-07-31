@@ -13,6 +13,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 import {
   isAgeDeclared,
   AGE_DECLARATION_FIELD,
@@ -48,7 +49,7 @@ describe('constants are shared, not restated', () => {
 
 describe('the declaration gates BOTH sign-up paths', () => {
   const form = fs.readFileSync(
-    path.join(root, 'src/app/(auth)/signup/signup-form.tsx'),
+    path.join(root, SRC.signupForm),
     'utf8',
   );
 
@@ -65,7 +66,7 @@ describe('the declaration gates BOTH sign-up paths', () => {
 });
 
 describe('server-side enforcement (not just the UI)', () => {
-  const actions = fs.readFileSync(path.join(root, 'src/app/(auth)/actions.ts'), 'utf8');
+  const actions = fs.readFileSync(path.join(root, SRC.actions), 'utf8');
 
   it('signUp re-checks the declaration and refuses without it', () => {
     // Client state is an affordance; a hand-crafted POST must still be refused.
@@ -91,7 +92,7 @@ describe('server-side enforcement (not just the UI)', () => {
 
 describe('recording + backstop at the shared chokepoint', () => {
   const chokepoint = fs.readFileSync(
-    path.join(root, 'src/lib/auth/post-login-redirect.ts'),
+    path.join(root, SRC.postLoginRedirect),
     'utf8',
   );
 
@@ -110,7 +111,7 @@ describe('the declaration is not user-writable', () => {
     // It is written by the service role only. If it ever became user-settable
     // the record would be worthless as evidence.
     const fields = fs.readFileSync(
-      path.join(root, 'src/app/dashboard/profile/profile-fields.ts'),
+      path.join(root, SRC.profileFields),
       'utf8',
     );
     expect(fields).not.toContain('age_declared_18_at');
@@ -124,7 +125,7 @@ describe('the declaration is not user-writable', () => {
 describe('the provider age gate is re-introduced as an opt-in switch (KAN-408)', () => {
   it('both publish paths consult the (switch-gated) provider age check', () => {
     const actions = fs.readFileSync(
-      path.join(root, 'src/app/dashboard/profile/actions.ts'),
+      path.join(root, SRC.profileActions),
       'utf8',
     );
     expect((actions.match(/isProviderAgeCheckActive\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
@@ -135,6 +136,6 @@ describe('the provider age gate is re-introduced as an opt-in switch (KAN-408)',
     // gate.ts was the AGE_VERIFICATION_REQUIRED env-var gate — it stays deleted.
     expect(fs.existsSync(path.join(root, 'src/lib/age/gate.ts'))).toBe(false);
     // provider-gate.ts is the new switch-keyed gate.
-    expect(fs.existsSync(path.join(root, 'src/lib/age/provider-gate.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.providerGate))).toBe(true);
   });
 });

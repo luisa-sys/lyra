@@ -15,13 +15,14 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
 describe('BUGS-14 — route configuration regression guards', () => {
   test('src/app/[slug]/page.tsx exports dynamic = "force-dynamic"', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     // Look for the export. We accept any of the canonical forms so the
@@ -48,18 +49,18 @@ describe('BUGS-14 — route configuration regression guards', () => {
     // Any URL with no closer not-found.tsx (e.g. `/foo/bar/baz`) falls
     // back to this root one. The segment-level `[slug]/not-found.tsx`
     // is preferred for slug URLs by Next.js routing.
-    expect(existsSync(resolve(ROOT, 'src/app/not-found.tsx'))).toBe(true);
+    expect(existsSync(resolve(ROOT, SRC.appNotFound))).toBe(true);
   });
 
   test('src/app/[slug]/not-found.tsx still exists for slug-specific UX', () => {
     // Provides "This profile doesn't exist" copy. Next.js's
     // closest-ancestor matching prefers this over the root one for
     // /[slug] routes.
-    expect(existsSync(resolve(ROOT, 'src/app/[slug]/not-found.tsx'))).toBe(true);
+    expect(existsSync(resolve(ROOT, SRC.notFound))).toBe(true);
   });
 
   test('root not-found.tsx contains the canonical 404 + Go to Lyra UI', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/not-found.tsx'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.appNotFound), 'utf-8');
     // The visible "404" heading is what the E2E test (and humans) check.
     // If a refactor moves the heading to something else we want the
     // test to fail rather than silently regress.

@@ -9,11 +9,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..');
 
 describe('public/sw.js (KAN-213 P9)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.sw), 'utf8');
 
   test('exists + has a CACHE_VERSION constant for cache busting', () => {
     expect(src).toMatch(/CACHE_VERSION/);
@@ -66,7 +67,7 @@ describe('public/sw.js (KAN-213 P9)', () => {
 });
 
 describe('public/offline.html (KAN-213 P9)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'public/offline.html'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.offline), 'utf8');
   test('exists', () => {
     expect(src).toBeTruthy();
   });
@@ -83,7 +84,7 @@ describe('public/offline.html (KAN-213 P9)', () => {
 });
 
 describe('manifest.webmanifest Convene shortcuts (KAN-213 P9)', () => {
-  const m = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/manifest.webmanifest'), 'utf8'));
+  const m = JSON.parse(fs.readFileSync(path.join(ROOT, SRC.manifest), 'utf8'));
   test('has the Convene gatherings shortcut', () => {
     const urls = m.shortcuts.map((s: { url: string }) => s.url);
     expect(urls).toContain('/dashboard/convene/gatherings?source=pwa');
@@ -100,7 +101,7 @@ describe('manifest.webmanifest Convene shortcuts (KAN-213 P9)', () => {
 });
 
 describe('service-worker-register component (KAN-213 P9)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/service-worker-register.tsx'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.serviceWorkerRegister), 'utf8');
   test("declares 'use client'", () => {
     expect(src).toMatch(/^['"]use client['"]/);
   });
@@ -116,7 +117,7 @@ describe('service-worker-register component (KAN-213 P9)', () => {
 });
 
 describe('layout wires the registration component (KAN-213 P9)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/layout.tsx'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.layout), 'utf8');
   test('imports + renders ServiceWorkerRegister', () => {
     expect(src).toMatch(/import\s*\{\s*ServiceWorkerRegister\s*\}\s*from\s*['"]\.\/service-worker-register['"]/);
     expect(src).toMatch(/<ServiceWorkerRegister\s*\/>/);

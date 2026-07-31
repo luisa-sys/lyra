@@ -6,14 +6,15 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('Convene gatherings UI (KAN-236)', () => {
-  const listPath = path.join(ROOT, 'src/app/dashboard/convene/gatherings/page.tsx');
-  const detailPath = path.join(ROOT, 'src/app/dashboard/convene/gatherings/[id]/page.tsx');
-  const actionsPath = path.join(ROOT, 'src/app/dashboard/convene/gatherings/[id]/actions.ts');
-  const clientPath = path.join(ROOT, 'src/app/dashboard/convene/gatherings/[id]/gathering-actions.tsx');
+  const listPath = path.join(ROOT, SRC.gatheringsPage);
+  const detailPath = path.join(ROOT, SRC.idPage);
+  const actionsPath = path.join(ROOT, SRC.idActions);
+  const clientPath = path.join(ROOT, SRC.gatheringActions);
 
   test('all four files exist', () => {
     expect(fs.existsSync(listPath)).toBe(true);

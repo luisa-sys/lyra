@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 import {
   DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS,
   affiliateClicksRetentionMonths,
@@ -66,7 +67,7 @@ describe('affiliateClicksCutoff — always strictly in the past', () => {
 
 describe('SQL purge function — safety rails (structural)', () => {
   const sql = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql'),
+    path.join(ROOT, SRC.migrations20260712033000Sec74AffiliateClicksRetentionPurge),
     'utf8',
   );
 
@@ -93,10 +94,10 @@ describe('SQL purge function — safety rails (structural)', () => {
 
 describe('retention cron route + flag (structural)', () => {
   const route = fs.readFileSync(
-    path.join(ROOT, 'src/app/api/retention/cron/sweep/route.ts'),
+    path.join(ROOT, SRC.sweepRoute),
     'utf8',
   );
-  const flag = fs.readFileSync(path.join(ROOT, 'src/lib/retention/flags.ts'), 'utf8');
+  const flag = fs.readFileSync(path.join(ROOT, SRC.flags), 'utf8');
 
   test('flag is disabled by default (opt-in via RETENTION_ENABLED=true)', () => {
     expect(flag).toMatch(/process\.env\.RETENTION_ENABLED === 'true'/);

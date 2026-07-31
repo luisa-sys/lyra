@@ -43,10 +43,11 @@ import { resolve, join } from 'node:path';
 
 import { MANUAL_OF_ME_FIELDS } from '@/app/dashboard/profile/manual-of-me-fields';
 import { ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/profile-fields';
+import { SRC } from '../support/source-paths';
 
 const REPO_ROOT = resolve(__dirname, '../..');
 const SRC_ROOT = join(REPO_ROOT, 'src');
-const MIGRATIONS_ROOT = join(REPO_ROOT, 'supabase/migrations');
+const MIGRATIONS_ROOT = join(REPO_ROOT, SRC.migrations);
 
 // ---------------------------------------------------------------------------
 // Registry — 1-1 "form-backed" tables whose allowlist IS the complete set of
@@ -259,9 +260,9 @@ describe('form-backed tables: every reader loads the full field set', () => {
     // them, coverage above is meaningless.
     expect(files).toEqual(
       expect.arrayContaining([
-        'src/app/dashboard/profile/page.tsx',
-        'src/app/[slug]/page.tsx',
-        'src/app/dashboard/profile/legacy/page.tsx',
+        SRC.profilePage,
+        SRC.slugPage,
+        SRC.legacyPage,
       ]),
     );
   });

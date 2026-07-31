@@ -9,10 +9,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const examplesPath = path.join(root, 'src/app/examples/page.tsx');
-const homepagePath = path.join(root, 'src/app/page.tsx');
+const examplesPath = path.join(root, SRC.examplesPage);
+const homepagePath = path.join(root, SRC.appPage);
 
 describe('Example profiles gallery (/examples)', () => {
   let content;
