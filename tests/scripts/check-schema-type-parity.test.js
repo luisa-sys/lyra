@@ -10,9 +10,10 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { SRC } = require('../support/source-paths.json');
 
 const ROOT = path.resolve(__dirname, '../..');
-const SCRIPT_REL = 'scripts/check-schema-type-parity.py';
+const SCRIPT_REL = SRC.checkSchemaTypeParity;
 const SCRIPT = path.join(ROOT, SCRIPT_REL);
 
 function runAt(scriptPath, args = [], cwd = ROOT) {
@@ -36,7 +37,7 @@ const run = (args = []) => runAt(SCRIPT, args);
  */
 function sandbox() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schema-parity-'));
-  fs.mkdirSync(path.join(dir, 'src/types/database'), { recursive: true });
+  fs.mkdirSync(path.join(dir, SRC.database), { recursive: true });
   fs.mkdirSync(path.join(dir, 'scripts'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'supabase'), { recursive: true });
   for (const env of ['dev', 'staging', 'prod']) {
@@ -46,8 +47,8 @@ function sandbox() {
     );
   }
   fs.copyFileSync(
-    path.join(ROOT, 'supabase/schema-drift-baseline.json'),
-    path.join(dir, 'supabase/schema-drift-baseline.json'),
+    path.join(ROOT, SRC.schemaDriftBaseline),
+    path.join(dir, SRC.schemaDriftBaseline),
   );
   // The script resolves its repo root from __file__, so copying it in is what
   // repoints it at the sandbox.
@@ -89,7 +90,7 @@ describe('check-schema-type-parity.py', () => {
   test('--show works without a baseline, so a baseline can be bootstrapped', () => {
     const { dir, script } = sandbox();
     try {
-      fs.rmSync(path.join(dir, 'supabase/schema-drift-baseline.json'));
+      fs.rmSync(path.join(dir, SRC.schemaDriftBaseline));
       const r = runAt(script, ['--show'], dir);
       expect(r.exitCode).toBe(0);
       expect(() => JSON.parse(r.stdout)).not.toThrow();
@@ -101,7 +102,7 @@ describe('check-schema-type-parity.py', () => {
   test('NEW, unrecorded drift fails with exit 1 and names the fact', () => {
     const { dir, script } = sandbox();
     try {
-      const prod = path.join(dir, 'src/types/database/prod.ts');
+      const prod = path.join(dir, SRC.prod);
       fs.writeFileSync(
         prod,
         fs.readFileSync(prod, 'utf-8').replace('          is_suspended: boolean\n', ''),
@@ -121,7 +122,7 @@ describe('check-schema-type-parity.py', () => {
     // will notice the day it is actually fixed.
     const { dir, script } = sandbox();
     try {
-      const prod = path.join(dir, 'src/types/database/prod.ts');
+      const prod = path.join(dir, SRC.prod);
       fs.writeFileSync(
         prod,
         fs.readFileSync(prod, 'utf-8').replace(
@@ -142,7 +143,7 @@ describe('check-schema-type-parity.py', () => {
   test('a MISSING schema file exits 2, not 0 and not 1', () => {
     const { dir, script } = sandbox();
     try {
-      fs.rmSync(path.join(dir, 'src/types/database/staging.ts'));
+      fs.rmSync(path.join(dir, SRC.staging));
       const r = runAt(script, [], dir);
       expect(r.exitCode).toBe(2);
       expect(r.exitCode).not.toBe(0);
@@ -158,7 +159,7 @@ describe('check-schema-type-parity.py', () => {
     // wrong file yielding zero facts would otherwise read as perfect parity.
     const { dir, script } = sandbox();
     try {
-      fs.writeFileSync(path.join(dir, 'src/types/database/prod.ts'), '// oops\n');
+      fs.writeFileSync(path.join(dir, SRC.prod), '// oops\n');
       const r = runAt(script, [], dir);
       expect(r.exitCode).toBe(2);
       expect(r.stdout).toMatch(/does not declare `export type Database`/);
@@ -170,7 +171,7 @@ describe('check-schema-type-parity.py', () => {
   test('an unparseable baseline exits 2', () => {
     const { dir, script } = sandbox();
     try {
-      fs.writeFileSync(path.join(dir, 'supabase/schema-drift-baseline.json'), '{ not json');
+      fs.writeFileSync(path.join(dir, SRC.schemaDriftBaseline), '{ not json');
       const r = runAt(script, [], dir);
       expect(r.exitCode).toBe(2);
       expect(r.stdout).toMatch(/not valid JSON/);
@@ -201,7 +202,7 @@ describe('the committed Database types', () => {
 
   test('the app imports the schema through the index, not a specific environment', () => {
     // The indirection is what lets F7 change the canonical target in one line.
-    const index = fs.readFileSync(path.join(ROOT, 'src/types/database/index.ts'), 'utf-8');
+    const index = fs.readFileSync(path.join(ROOT, SRC.index), 'utf-8');
     expect(index).toMatch(/export type \{ Database, Json \} from '\.\/dev'/);
   });
 });

@@ -5,32 +5,33 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('Public Profile', () => {
   test('public profile page exists at [slug]', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/[slug]/page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.slugPage))).toBe(true);
   });
 
   test('custom 404 page exists for missing profiles', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/[slug]/not-found.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.notFound))).toBe(true);
   });
 
   test('public profile page has dynamic metadata generation', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(content).toContain('generateMetadata');
     expect(content).toContain('openGraph');
   });
 
   test('public profile page only shows published profiles', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(content).toContain("is_published");
     expect(content).toContain("notFound");
   });
 
   test('public profile page displays all profile sections', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(content).toContain('bio_short');
     expect(content).toContain('school_affiliations');
     expect(content).toContain('profile_items');
@@ -44,7 +45,7 @@ describe('Public Profile', () => {
   // intentionally removed so edit == published. Guard that no Files/media
   // rendering — nor any bucket URL access — reappears on the public page.
   test('public profile does not render a Files & media section (KAN-404)', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(content).not.toContain('Files & media');
     expect(content).not.toContain('createSignedUrl');
     expect(content).not.toContain('object/public/profile-files');
@@ -54,7 +55,7 @@ describe('Public Profile', () => {
   // rendered on the public profile (FAV_DEFS had no 'plays' entry, so Play items
   // saved but never showed). Guard that the public favourites grid includes it.
   test("public profile renders the 'plays' favourites category (KAN-404)", () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(content).toContain("'plays'");
     expect(content).toContain('Favourite plays');
   });

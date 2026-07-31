@@ -5,33 +5,34 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('Backup & Rollback', () => {
   test('rollback script exists and is executable', () => {
-    const scriptPath = path.join(root, 'scripts/rollback-vercel.sh');
+    const scriptPath = path.join(root, SRC.rollbackVercel);
     expect(fs.existsSync(scriptPath)).toBe(true);
     const stats = fs.statSync(scriptPath);
     expect(stats.mode & 0o111).toBeTruthy(); // executable
   });
 
   test('backup script exists and is executable', () => {
-    const scriptPath = path.join(root, 'scripts/backup-database.sh');
+    const scriptPath = path.join(root, SRC.scriptsBackupDatabase);
     expect(fs.existsSync(scriptPath)).toBe(true);
     const stats = fs.statSync(scriptPath);
     expect(stats.mode & 0o111).toBeTruthy();
   });
 
   test('restore script exists and is executable', () => {
-    const scriptPath = path.join(root, 'scripts/restore-database.sh');
+    const scriptPath = path.join(root, SRC.restoreDatabase);
     expect(fs.existsSync(scriptPath)).toBe(true);
     const stats = fs.statSync(scriptPath);
     expect(stats.mode & 0o111).toBeTruthy();
   });
 
   test('backup workflow exists for GitHub Actions', () => {
-    const workflowPath = path.join(root, '.github/workflows/backup-database.yml');
+    const workflowPath = path.join(root, SRC.backupDatabase);
     expect(fs.existsSync(workflowPath)).toBe(true);
     const content = fs.readFileSync(workflowPath, 'utf8');
     expect(content).toContain('schedule');
@@ -60,22 +61,22 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
   const executable = (p) => Boolean(fs.statSync(path.join(root, p)).mode & 0o111);
 
   test('complete backup script exists, is executable, and captures auth+storage', () => {
-    expect(exists('scripts/backup-database-complete.sh')).toBe(true);
-    expect(executable('scripts/backup-database-complete.sh')).toBe(true);
-    const s = read('scripts/backup-database-complete.sh');
+    expect(exists(SRC.backupDatabaseComplete)).toBe(true);
+    expect(executable(SRC.backupDatabaseComplete)).toBe(true);
+    const s = read(SRC.backupDatabaseComplete);
     // The whole point: it must NOT be public-only like backup-database.sh.
     expect(s).toMatch(/SCHEMAS=\(public auth storage\)/);
     expect(s).toContain('pg_dumpall --roles-only');
   });
 
   test('complete-backup integrity validator exists and is executable', () => {
-    expect(exists('scripts/check-complete-backup.sh')).toBe(true);
-    expect(executable('scripts/check-complete-backup.sh')).toBe(true);
+    expect(exists(SRC.checkCompleteBackup)).toBe(true);
+    expect(executable(SRC.checkCompleteBackup)).toBe(true);
   });
 
   test('complete backup workflow: daily cadence documented, encrypts, write-only WORM cred, dispatchable', () => {
-    expect(exists('.github/workflows/backup-complete.yml')).toBe(true);
-    const w = read('.github/workflows/backup-complete.yml');
+    expect(exists(SRC.backupComplete)).toBe(true);
+    const w = read(SRC.backupComplete);
     // Daily cadence is documented; the schedule ships commented until the backup
     // is commissioned (SEC-23) so prod never goes nightly-red before secrets exist.
     expect(w).toMatch(/cron:\s*'0 1 \* \* \*'/);
@@ -86,7 +87,7 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
   });
 
   test('restore drill actually restores (no silent-skip) and asserts round-trip', () => {
-    const w = read('.github/workflows/backup-restore-test.yml');
+    const w = read(SRC.backupRestoreTest);
     expect(w).toContain('image: postgres:17'); // clean-room restore target
     expect(w).toMatch(/Restore the backup/);
     expect(w).toMatch(/row count|round-trip/i);
@@ -95,13 +96,13 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
   });
 
   test('REST fallback enumerates tables dynamically (not a hardcoded short list)', () => {
-    const s = read('scripts/backup-database-api.sh');
+    const s = read(SRC.backupDatabaseApi);
     expect(s).not.toMatch(/TABLES=\("profiles" "profile_items"/);
     expect(s).toMatch(/PostgREST|paths/);
   });
 
   test('restore script resets the whole public schema, not a hardcoded table list', () => {
-    const s = read('scripts/restore-database.sh');
+    const s = read(SRC.restoreDatabase);
     expect(s).toContain('DROP SCHEMA IF EXISTS public CASCADE');
   });
 

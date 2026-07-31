@@ -3,6 +3,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 import {
   FEATURE_KEYS,
   FEATURE_CONFIG,
@@ -61,12 +62,12 @@ describe('media_uploads gate covers BOTH upload entrypoints (KAN-309)', () => {
   // file uploader AND the avatar uploader must check it, or an admin's revoke
   // is only partially effective.
   it('uploadProfileFile gates on media_uploads', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/files-actions.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.filesActions), 'utf-8');
     expect(src).toMatch(/getMyFeatureEntitlements/);
     expect(src).toMatch(/media_uploads/);
   });
   it('uploadAvatar gates on media_uploads', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/actions.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.profileActions), 'utf-8');
     // the gate must appear inside uploadAvatar, before the storage upload
     const fn = src.slice(src.indexOf('export async function uploadAvatar'));
     const gateIdx = fn.indexOf('features.media_uploads');

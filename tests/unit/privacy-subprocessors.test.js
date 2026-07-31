@@ -17,11 +17,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('SEC-73: privacy policy — sub-processor disclosure', () => {
-  const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -59,7 +60,7 @@ describe('SEC-73: privacy policy — sub-processor disclosure', () => {
 });
 
 describe('KAN-407: privacy policy — 18+ self-declaration (no biometric)', () => {
-  const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -111,7 +112,7 @@ describe('KAN-407: privacy policy — 18+ self-declaration (no biometric)', () =
 
 describe('SEC-73: policy stays in sync with the sub-processor register', () => {
   const registerPath = path.join(root, 'docs/compliance/SUBPROCESSORS.md');
-  const policyPath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+  const policyPath = path.join(root, SRC.privacyPage);
 
   test('register exists', () => {
     expect(fs.existsSync(registerPath)).toBe(true);

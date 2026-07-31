@@ -7,11 +7,12 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const PAGE = fs.readFileSync(path.join(root, 'src/app/status/page.tsx'), 'utf8');
-const MW = fs.readFileSync(path.join(root, 'src/middleware.ts'), 'utf8');
-const WORKER = fs.readFileSync(path.join(root, 'scripts/lyra-maintenance-worker.js'), 'utf8');
+const PAGE = fs.readFileSync(path.join(root, SRC.statusPage), 'utf8');
+const MW = fs.readFileSync(path.join(root, SRC.middleware), 'utf8');
+const WORKER = fs.readFileSync(path.join(root, SRC.lyraMaintenanceWorker), 'utf8');
 
 describe('SEC-4 status page', () => {
   test('does a live MCP health probe, not a faked status', () => {

@@ -5,20 +5,21 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('Profile Wizard', () => {
   test('wizard page exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/dashboard/profile/page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.profilePage))).toBe(true);
   });
 
   test('wizard client component exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/dashboard/profile/wizard.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.wizard))).toBe(true);
   });
 
   test('wizard has all 8 steps defined', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/dashboard/profile/wizard.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.wizard), 'utf8');
     expect(content).toContain("id: 'identity'");
     expect(content).toContain("id: 'school'");
     expect(content).toContain("id: 'bio'");
@@ -30,7 +31,7 @@ describe('Profile Wizard', () => {
   });
 
   test('profile actions file exists with all CRUD operations', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/dashboard/profile/actions.ts'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.profileActions), 'utf8');
     expect(content).toContain('export async function updateProfileFields');
     expect(content).toContain('export async function addProfileItem');
     expect(content).toContain('export async function removeProfileItem');
@@ -40,7 +41,7 @@ describe('Profile Wizard', () => {
   });
 
   test('dashboard links to profile wizard', () => {
-    const content = fs.readFileSync(path.join(root, 'src/app/dashboard/page.tsx'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.dashboardPage), 'utf8');
     expect(content).toContain('/dashboard/profile');
   });
 });

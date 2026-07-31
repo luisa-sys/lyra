@@ -22,6 +22,7 @@ jest.mock('@/lib/oauth/access-tokens', () => ({
 }));
 
 import { POST } from '@/app/oauth/revoke/route';
+import { SRC } from '../../support/source-paths';
 
 function form(body: Record<string, string>): Request {
   return new Request('https://dev.checklyra.com/oauth/revoke', {
@@ -86,7 +87,7 @@ describe('POST /oauth/revoke (KAN-88 P6, RFC 7009)', () => {
 });
 
 describe('revoke route source structure (KAN-88 P6)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/oauth/revoke/route.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.revokeRoute), 'utf8');
 
   test('calls revokeFamily for refresh tokens (not just markUsed)', () => {
     expect(src).toMatch(/revokeFamily\(/);

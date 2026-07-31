@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 // The guard under test resolves the repo root from its own location
 // ($SCRIPT_DIR/..), so to exercise the failure paths deterministically we
@@ -15,13 +16,13 @@ const REAL_SCRIPT = path.resolve(
 // The four target files and a minimal body that carries EVERY required marker.
 // Keep these in sync with check-marker() calls in the script.
 const GOOD_FILES = {
-  '.github/workflows/weekly-report.yml': [
+  [SRC.weeklyReport]: [
     'name: Weekly Status Report',
     '# Section 1 reads the liveness owner:',
     'gh run list --workflow=health-check.yml -L 1',
     'echo "_Source of record: **Daily Security routine** (docs/DAILY_SECURITY_CHECK.md)._"',
   ].join('\n'),
-  '.github/workflows/security-audit.yml': [
+  [SRC.securityAudit]: [
     'name: Weekly Security Audit',
     '# KAN-361 — Belt-and-braces only. Authoritative sweep = the',
     '# Daily Security routine (docs/DAILY_SECURITY_CHECK.md).',
@@ -41,7 +42,7 @@ const GOOD_FILES = {
     '# Staging Soak',
     '## The release contract — what good looks like on staging',
   ].join('\n'),
-  '.github/signup-surface.paths': [
+  [SRC.signupSurface]: [
     '# Lyra sign-up / account-creation surface',
     'src/app/(auth)/signup/**',
   ].join('\n'),
@@ -73,7 +74,7 @@ function run(scriptPath) {
   }
 }
 
-describe('scripts/check-routine-ownership.sh', () => {
+describe(SRC.checkRoutineOwnership, () => {
   let source = '';
   beforeAll(() => {
     source = fs.readFileSync(REAL_SCRIPT, 'utf8');
@@ -120,22 +121,22 @@ describe('scripts/check-routine-ownership.sh', () => {
   const MARKER_REMOVALS = [
     {
       name: 'weekly-report drops the health-check.yml liveness read',
-      file: '.github/workflows/weekly-report.yml',
+      file: SRC.weeklyReport,
       strip: /gh run list --workflow=health-check\.yml -L 1/,
     },
     {
       name: 'security-audit loses its belt-and-braces demotion header',
-      file: '.github/workflows/security-audit.yml',
+      file: SRC.securityAudit,
       strip: /Belt-and-braces only\. Authoritative sweep = the/,
     },
     {
       name: 'security-audit stops citing the Daily Security routine',
-      file: '.github/workflows/security-audit.yml',
+      file: SRC.securityAudit,
       strip: /Daily Security routine \(docs\/DAILY_SECURITY_CHECK\.md\)\./,
     },
     {
       name: 'weekly-report Section 5 drops the Daily-Security source-of-record cite',
-      file: '.github/workflows/weekly-report.yml',
+      file: SRC.weeklyReport,
       strip: /Source of record: \*\*Daily Security routine\*\*/,
     },
     {
@@ -165,7 +166,7 @@ describe('scripts/check-routine-ownership.sh', () => {
     },
     {
       name: 'signup-surface manifest drops the sign-up form path (KAN-413)',
-      file: '.github/signup-surface.paths',
+      file: SRC.signupSurface,
       strip: /src\/app\/\(auth\)\/signup\/\*\*/,
     },
   ];

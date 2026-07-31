@@ -30,9 +30,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const repoRoot = path.join(__dirname, '../..');
-const migrationsDir = path.join(repoRoot, 'supabase/migrations');
+const migrationsDir = path.join(repoRoot, SRC.migrations);
 const docPath = path.join(repoRoot, 'docs/DAILY_SECURITY_CHECK.md');
 
 // The intended-ACL migration (BUGS-60). Its 14-digit timestamp prefix is the

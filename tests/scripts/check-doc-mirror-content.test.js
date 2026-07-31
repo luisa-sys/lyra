@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/check-doc-mirror-content.sh');
 
@@ -46,7 +47,7 @@ function scaffold(rows, docs = {}) {
 // A substantial, valid doc: a heading plus well over MIN_NONBLANK content lines.
 const GOOD_DOC = ['# Title', '', 'Line one.', 'Line two.', 'Line three.', 'Line four.', 'Line five.', 'Line six.'].join('\n');
 
-describe('scripts/check-doc-mirror-content.sh', () => {
+describe(SRC.checkDocMirrorContent, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 

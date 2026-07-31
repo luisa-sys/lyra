@@ -2,10 +2,11 @@ const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/weekly-health-regression.sh');
 
-describe('scripts/weekly-health-regression.sh', () => {
+describe(SRC.weeklyHealthRegression, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 

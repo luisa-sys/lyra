@@ -273,7 +273,15 @@ function writeBaseline() {
       'under-counts by exactly the file you are adding. Converting a file to the generated ' +
       'manifest lowers these counts; the guard fails if they rise, AND if they fall without ' +
       'this baseline being updated, so it cannot quietly over-state the remaining work. ' +
-      'tests/support/** is excluded — the manifest is where the literals are supposed to live.',
+      'tests/support/** is excluded — the manifest is where the literals are supposed to live. ' +
+      'THE FLOOR IS NOT ZERO. After the F4 Group 1 conversion the residual literals are all ' +
+      'paths that DO NOT EXIST: synthetic fixture paths written into sandbox trees ' +
+      "(src/app/alpha/a.ts, src/lib/__probe_new.ts, scripts/keep.sh) and deliberately " +
+      'asserted-absent paths (src/app/loading.tsx, the BUGS-66 guard). They are fixture ' +
+      'CONTENT, not references to real source, and the manifest only ever contains paths that ' +
+      'exist — that is its whole promise. Driving this count to 0 would mean inventing manifest ' +
+      'entries for files that are not there, which defeats the point. Expect this number to ' +
+      'move only when real source references are added or removed.',
     measured_at: new Date().toISOString().slice(0, 10),
     measured_on: 'develop',
     total_occurrences: total,

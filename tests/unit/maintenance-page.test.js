@@ -5,6 +5,7 @@
  * Tests the validation and rate-limiting logic extracted from the Worker.
  * The actual Worker runs on Cloudflare, but we test the core logic here.
  */
+const { SRC } = require('../support/source-paths.json');
 
 // Extract validation logic from Worker for testing
 function isValidEmail(email) {
@@ -99,7 +100,7 @@ describe('KAN-129: Worker code file integrity', () => {
   const fs = require('fs');
   const path = require('path');
   const root = path.join(__dirname, '../..');
-  const workerPath = path.join(root, 'scripts/lyra-maintenance-worker.js');
+  const workerPath = path.join(root, SRC.lyraMaintenanceWorker);
 
   test('worker script file exists', () => {
     expect(fs.existsSync(workerPath)).toBe(true);
