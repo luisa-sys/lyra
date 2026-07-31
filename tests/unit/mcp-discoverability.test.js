@@ -5,12 +5,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('MCP Discoverability', () => {
   test('llms.txt exists in public directory', () => {
-    const llmsTxt = fs.readFileSync(path.join(root, 'public/llms.txt'), 'utf8');
+    const llmsTxt = fs.readFileSync(path.join(root, SRC.llms), 'utf8');
     expect(llmsTxt).toContain('# Lyra');
     expect(llmsTxt).toContain('MCP');
     expect(llmsTxt).toContain('lyra_search_profiles');
@@ -19,7 +20,7 @@ describe('MCP Discoverability', () => {
   });
 
   test('llms.txt follows spec format (H1, blockquote, sections)', () => {
-    const llmsTxt = fs.readFileSync(path.join(root, 'public/llms.txt'), 'utf8');
+    const llmsTxt = fs.readFileSync(path.join(root, SRC.llms), 'utf8');
     const lines = llmsTxt.split('\n');
     expect(lines[0]).toBe('# Lyra');
     expect(llmsTxt).toContain('> ');
@@ -27,7 +28,7 @@ describe('MCP Discoverability', () => {
   });
 
   test('.well-known/mcp.json exists with valid structure', () => {
-    const mcpJson = JSON.parse(fs.readFileSync(path.join(root, 'public/.well-known/mcp.json'), 'utf8'));
+    const mcpJson = JSON.parse(fs.readFileSync(path.join(root, SRC.mcp), 'utf8'));
     expect(mcpJson.name).toBe('Lyra');
     expect(mcpJson.mcp).toBeDefined();
     expect(mcpJson.mcp.transport).toBe('streamable-http');
@@ -36,7 +37,7 @@ describe('MCP Discoverability', () => {
   });
 
   test('public profile page includes JSON-LD structured data', () => {
-    const profilePage = fs.readFileSync(path.join(root, 'src/app/[slug]/page.tsx'), 'utf8');
+    const profilePage = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
     expect(profilePage).toContain('application/ld+json');
     expect(profilePage).toContain('@context');
     expect(profilePage).toContain('schema.org');
@@ -44,7 +45,7 @@ describe('MCP Discoverability', () => {
   });
 
   test('landing page includes JSON-LD structured data', () => {
-    const homePage = fs.readFileSync(path.join(root, 'src/app/page.tsx'), 'utf8');
+    const homePage = fs.readFileSync(path.join(root, SRC.appPage), 'utf8');
     expect(homePage).toContain('application/ld+json');
     expect(homePage).toContain('WebSite');
     expect(homePage).toContain('checklyra.com');

@@ -6,13 +6,14 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 
 const root = path.join(__dirname, '../..');
 
 describe('SEC-19/F-13: recommendation routes filter suspended profiles', () => {
   for (const rel of [
-    'src/app/api/recommendations/[slug]/route.ts',
-    'src/app/api/recommendations/v2/[slug]/route.ts',
+    SRC.slugRoute,
+    SRC.v2SlugRoute,
   ]) {
     test(`${rel} filters is_suspended = false on the profile lookup`, () => {
       const content = fs.readFileSync(path.join(root, rel), 'utf8');

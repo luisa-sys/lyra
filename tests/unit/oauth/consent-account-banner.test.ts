@@ -11,11 +11,12 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('Account banner on /oauth/authorize page (KAN-88)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/oauth/authorize/page.tsx'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.authorizePage), 'utf8');
 
   test("the prominent 'granting access as <email>' line exists", () => {
     expect(src).toMatch(/You will be granting access as/);
@@ -51,7 +52,7 @@ describe('Account banner on /oauth/authorize page (KAN-88)', () => {
 });
 
 describe('switchAccountAndContinue server action (KAN-88)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/oauth/authorize/actions.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.authorizeActions), 'utf8');
 
   test('is an exported async function (use-server safe)', () => {
     expect(src).toMatch(/export async function switchAccountAndContinue/);

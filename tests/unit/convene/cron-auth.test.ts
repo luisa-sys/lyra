@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { timingSafeStrEqual } from '@/lib/convene/cron-auth';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
@@ -48,9 +49,9 @@ describe('timingSafeStrEqual', () => {
 
 describe('cron routes use the constant-time helper', () => {
   const routes = [
-    'src/app/api/convene/cron/send-invites/route.ts',
-    'src/app/api/convene/cron/post-event/route.ts',
-    'src/app/api/convene/cron/token-health/route.ts',
+    SRC.sendInvitesRoute,
+    SRC.postEventRoute,
+    SRC.tokenHealthRoute,
   ];
 
   test.each(routes)('%s imports and calls timingSafeStrEqual', (rel) => {

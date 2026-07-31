@@ -11,6 +11,7 @@ jest.mock('@/lib/features/global-switches-service', () => ({
 }));
 
 import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
+import { SRC } from '../support/source-paths';
 
 describe('paid referrals — global switch enforcement (KAN-408)', () => {
   const OLD = process.env.PAID_LINKS_COMPLIANCE_READY;
@@ -39,22 +40,22 @@ describe('enforcement wiring is present at each gate (KAN-408)', () => {
   const read = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
 
   it('age: BOTH web publish paths gate on the provider age check (global switch)', () => {
-    const actions = read('src/app/dashboard/profile/actions.ts');
+    const actions = read(SRC.profileActions);
     expect(
       (actions.match(/isProviderAgeCheckActive\(\)/g) || []).length,
     ).toBeGreaterThanOrEqual(2);
     // and the provider gate itself is keyed on the age_verification global switch
-    const gate = read('src/lib/age/provider-gate.ts');
+    const gate = read(SRC.providerGate);
     expect(gate).toMatch(/isFeatureGloballyEnabled\('age_verification'\)/);
   });
 
   it('paid: the recipient gate ANDs the global paid_gift_links switch', () => {
-    const svc = read('src/lib/features/entitlements-service.ts');
+    const svc = read(SRC.entitlementsService);
     expect(svc).toMatch(/isFeatureGloballyEnabled\('paid_gift_links'\)/);
   });
 
   it('mcp: API-key generation gates on the global mcp switch', () => {
-    const settings = read('src/app/dashboard/settings/actions.ts');
+    const settings = read(SRC.settingsActions);
     expect(settings).toMatch(/isFeatureGloballyEnabled\('mcp'\)/);
   });
 });

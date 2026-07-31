@@ -20,13 +20,14 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
 describe('KAN-182 current_problems category — surface-area regression guards', () => {
   test('dashboard items-step has a categoryLabel for current_problems', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     expect(src).toMatch(/current_problems\s*:\s*['"`][^'"`]+['"`]/);
@@ -34,7 +35,7 @@ describe('KAN-182 current_problems category — surface-area regression guards',
 
   test('dashboard wizard step 9 lists current_problems', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/wizard.tsx'),
+      resolve(ROOT, SRC.wizard),
       'utf-8',
     );
     // The categories prop on step 9's ItemsStep — match the array entry.
@@ -43,7 +44,7 @@ describe('KAN-182 current_problems category — surface-area regression guards',
 
   test('public profile [slug]/page.tsx renders current_problems with a warm heading', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     // KAN-265 redesign: rendered via an explicit <CardSection> (grouped items +
@@ -54,7 +55,7 @@ describe('KAN-182 current_problems category — surface-area regression guards',
 
   test('migration file exists and adds the enum value', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260516160000_add_current_problems_category.sql'),
+      resolve(ROOT, SRC.migrations20260516160000AddCurrentProblemsCategory),
       'utf-8',
     );
     expect(src).toMatch(/alter type item_category add value/i);

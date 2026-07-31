@@ -9,11 +9,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('KAN-143 — profile_items visibility migration', () => {
-  const migrationsDir = path.join(root, 'supabase/migrations');
+  const migrationsDir = path.join(root, SRC.migrations);
 
   function findVisibilityMigration() {
     const files = fs.readdirSync(migrationsDir);
@@ -73,7 +74,7 @@ describe('KAN-143 — profile_items visibility migration', () => {
 });
 
 describe('KAN-143 — public profile page filters by visibility', () => {
-  const pagePath = path.join(root, 'src/app/[slug]/page.tsx');
+  const pagePath = path.join(root, SRC.slugPage);
   const content = fs.readFileSync(pagePath, 'utf8');
 
   // KAN-234: filter helper switched to `isItemVisibleUnderHybridModel`
@@ -107,7 +108,7 @@ describe('KAN-143 — public profile page filters by visibility', () => {
 });
 
 describe('KAN-143 — items step UI exposes visibility selector', () => {
-  const stepPath = path.join(root, 'src/app/dashboard/profile/steps/items-step.tsx');
+  const stepPath = path.join(root, SRC.itemsStep);
   const content = fs.readFileSync(stepPath, 'utf8');
 
   test('renders a <select> for visibility on the add-item form', () => {
@@ -140,7 +141,7 @@ describe('KAN-143 — items step UI exposes visibility selector', () => {
 });
 
 describe('KAN-143 — actions.ts wiring', () => {
-  const actionsPath = path.join(root, 'src/app/dashboard/profile/actions.ts');
+  const actionsPath = path.join(root, SRC.profileActions);
   const content = fs.readFileSync(actionsPath, 'utf8');
 
   test('imports coerceVisibility from the sibling module (not inlined in the use-server file)', () => {

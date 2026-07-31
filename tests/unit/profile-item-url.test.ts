@@ -24,6 +24,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 // ───────────── Mocks ─────────────
 
@@ -211,7 +212,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('items-step.tsx renders a Link input with type="url"', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     expect(src).toMatch(/Link \(optional\)/);
@@ -221,7 +222,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('items-step.tsx handleAdd passes the trimmed URL in onAdd payload', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     expect(src).toMatch(/trimmedUrl/);
@@ -230,7 +231,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('items-step.tsx renders ↗ link on saved items when url is present', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     expect(src).toMatch(/item\.url/);
@@ -239,7 +240,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('actions.ts addProfileItem accepts url param and uses sanitiseUrl', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/actions.ts'),
+      resolve(ROOT, SRC.profileActions),
       'utf-8',
     );
     // url is an optional param on the addProfileItem data type
@@ -252,7 +253,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('public profile [slug]/page.tsx renders item URLs as clickable links', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     // The ProfileItem interface declares the url column
@@ -265,7 +266,7 @@ describe('KAN-219: surface-area regression guards', () => {
 
   test('wizard.tsx uses the richer Python lyra-app prompts', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/wizard.tsx'),
+      resolve(ROOT, SRC.wizard),
       'utf-8',
     );
     // Replaces the terse one-liners with the Python predecessor's longer

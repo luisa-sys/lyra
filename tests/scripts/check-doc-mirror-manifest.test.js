@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/check-doc-mirror-manifest.sh');
 const REPO_ROOT = path.resolve(__dirname, '../..');
@@ -31,7 +32,7 @@ function scaffold(manifestBody) {
 const BLOCK = (rows) =>
   ['# fixture', '', '<!-- doc-mirror-manifest:start -->', '| Repo path | x |', '|---|---|', ...rows, '<!-- doc-mirror-manifest:end -->', ''].join('\n');
 
-describe('scripts/check-doc-mirror-manifest.sh', () => {
+describe(SRC.checkDocMirrorManifest, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 
