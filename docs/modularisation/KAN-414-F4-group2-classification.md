@@ -72,3 +72,44 @@ set."* Given that 6 of 8 in the supposedly-harder Group 2 turned out to be (c),
 **classify before converting** rather than assuming the ranking. The test is
 simple: *can a running program observe this?* Absence of a pattern, file
 content, export surface and call ordering cannot.
+
+---
+
+## Group 3 triage (added 2026-07-31)
+
+`scripts/triage-source-text-tests.py` classifies every remaining source-text
+assertion. Run it before converting anything.
+
+**KAN-417 §2 estimated Group 3 at "~38 files … mechanical once the pattern is
+set". The real figure is ~120 files and ~377 source reads.**
+
+| Bucket | Blocks | Convertible? |
+|---|---:|---|
+| behavioural | 263 | candidate |
+| absence (`not.toMatch`) | 28 | **no** — unobservable by construction |
+| existence (`existsSync`) | 27 | **no** |
+| migration content | 18 | **no** — needs a database |
+| export surface | 4 | **no** |
+| source ordering (`indexOf`) | 9 | **no** |
+
+`behavioural` is the **fallback** bucket, so it over-counts: anything the triage
+cannot confidently classify lands there. That is deliberate — it must never
+silently call a structural scan convertible. Treat 263 as an upper bound on
+candidates, not a target.
+
+### Converted so far
+
+- **`convene/drain-route`** — the file §2 names as the family's pattern-setter.
+  Mutation M2 (hardcode a different `hostUserId`, i.e. one user draining
+  another's queue) reddens the behavioural test **while the old regex still
+  matches**, because `hostUserId:` remains in the file. The scan guarding
+  per-user scoping would have stayed green through the exact bug it existed to
+  prevent.
+
+### Deliberately not started
+
+`convene/connections-page.test.ts` is the top candidate by count, but it is the
+**SEC-109** file — its behavioural conversion is already half-specified on the
+open SEC-109 branch, including the assertion that had to move to
+`oauth-connections.ts:158`. Converting it here would collide. It should ride
+SEC-109's merge instead.
