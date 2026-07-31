@@ -100,6 +100,25 @@ function collectLiterals() {
   return [...found].sort();
 }
 
+/**
+ * Read a file, or return `fallback` if it is not there.
+ *
+ * Deliberately NOT `existsSync(p) ? readFileSync(p) : fallback` — that is a
+ * time-of-check/time-of-use race (CodeQL `js/file-system-race`), because the
+ * file can vanish between the two calls. Attempting the read and handling
+ * ENOENT is both correct and one syscall shorter. The impact here is small (a
+ * build tool, not a privileged path), but the pattern is wrong wherever it
+ * appears and this is the version worth copying.
+ */
+function readIfPresent(file, fallback = null) {
+  try {
+    return readFileSync(file, 'utf-8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return fallback;
+    throw err;
+  }
+}
+
 function camel(parts) {
   return parts
     .map((s, i) =>
@@ -236,9 +255,8 @@ function countRawLiterals() {
 
 function writeBaseline() {
   const { total, files } = countRawLiterals();
-  const prev = existsSync(BASELINE_OUT)
-    ? JSON.parse(readFileSync(BASELINE_OUT, 'utf-8'))
-    : null;
+  const prevRaw = readIfPresent(BASELINE_OUT);
+  const prev = prevRaw ? JSON.parse(prevRaw) : null;
   if (prev && total > prev.total_occurrences) {
     console.error(
       `::error::Refusing to RAISE the ratchet: ${prev.total_occurrences} -> ${total}. ` +
@@ -292,8 +310,8 @@ function main() {
   }
 
   if (check) {
-    const cur = existsSync(OUT_TS) ? readFileSync(OUT_TS, 'utf-8') : '';
-    const curJson = existsSync(OUT_JSON) ? readFileSync(OUT_JSON, 'utf-8') : '';
+    const cur = readIfPresent(OUT_TS, '');
+    const curJson = readIfPresent(OUT_JSON, '');
     if (cur !== ts || curJson !== json) {
       console.error(
         '::error::tests/support/source-paths.{ts,json} are out of date. ' +
