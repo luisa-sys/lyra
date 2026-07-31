@@ -31,6 +31,14 @@ on:
         description: 'DNS-only grey-cloud staging alias to run against (bypasses CF bot-mgmt)'
         required: false
         default: 'https://e2e-stage.checklyra.com'
+  # Fire automatically after every staging deploy, so a promote is always soaked
+  # against the build that actually landed rather than against whatever staging
+  # happened to be running when someone last remembered to press the button.
+  # promote-staging-to-beta.yml then REFUSES to promote until the soak for that
+  # exact SHA has passed — see its "post-deploy soak" gate.
+  workflow_run:
+    workflows: ["Deploy to Staging"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -43,6 +51,9 @@ jobs:
   soak-journey:
     name: Playwright soak journey (staging via e2e-stage)
     runs-on: ubuntu-latest
+    # Don't soak a staging deploy that itself failed — there is nothing
+    # meaningful to test and a red soak would mask the real cause.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 20
     # Fixed soak-user email → concurrent runs would race on reset/create. Serialise.
     concurrency:
