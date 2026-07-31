@@ -9,6 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 import {
   analyticsAllowed,
   getConsentSnapshot,
@@ -54,7 +55,7 @@ describe('SEC-72 analytics consent gate', () => {
     test('gate reads the same localStorage key the banner writes', () => {
       expect(CONSENT_STORAGE_KEY).toBe('lyra-cookie-consent');
       const banner = fs.readFileSync(
-        path.join(root, 'src/app/cookie-consent.tsx'),
+        path.join(root, SRC.cookieConsent),
         'utf8',
       );
       expect(banner).toContain(CONSENT_STORAGE_KEY);
@@ -63,7 +64,7 @@ describe('SEC-72 analytics consent gate', () => {
 
   describe('layout wiring', () => {
     const layout = fs.readFileSync(
-      path.join(root, 'src/app/layout.tsx'),
+      path.join(root, SRC.layout),
       'utf8',
     );
 
@@ -82,7 +83,7 @@ describe('SEC-72 analytics consent gate', () => {
 
     test('the gate component owns the Vercel analytics imports', () => {
       const gate = fs.readFileSync(
-        path.join(root, 'src/app/consented-analytics.tsx'),
+        path.join(root, SRC.consentedAnalytics),
         'utf8',
       );
       expect(gate).toContain('@vercel/analytics/react');

@@ -17,6 +17,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -220,7 +221,7 @@ describe('KAN-225: updateRecoveryPassword', () => {
 
 describe('KAN-225: surface-area regression guards', () => {
   test('forgot-password page exists in the (auth) route group', () => {
-    const p = resolve(ROOT, 'src/app/(auth)/forgot-password/page.tsx');
+    const p = resolve(ROOT, SRC.page);
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toMatch(/requestPasswordReset/);
@@ -229,7 +230,7 @@ describe('KAN-225: surface-area regression guards', () => {
   });
 
   test('reset-password page exists and guards against missing session', () => {
-    const p = resolve(ROOT, 'src/app/(auth)/reset-password/page.tsx');
+    const p = resolve(ROOT, SRC.resetPasswordPage);
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toMatch(/updateRecoveryPassword/);
@@ -245,7 +246,7 @@ describe('KAN-225: surface-area regression guards', () => {
     // and /reset-password routes remain in place but unlinked, pending a
     // follow-up that removes the vestigial password-reset flow.
     const src = readFileSync(
-      resolve(ROOT, 'src/app/(auth)/login/page.tsx'),
+      resolve(ROOT, SRC.loginPage),
       'utf-8',
     );
     expect(src).not.toMatch(/name=["']password["']/);
@@ -255,7 +256,7 @@ describe('KAN-225: surface-area regression guards', () => {
 
   test('login page surfaces the post-reset success message', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/(auth)/login/page.tsx'),
+      resolve(ROOT, SRC.loginPage),
       'utf-8',
     );
     expect(src).toMatch(/params\.message/);
@@ -263,7 +264,7 @@ describe('KAN-225: surface-area regression guards', () => {
 
   test('auth/callback continues to handle the `next` query param (recovery redirect)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/auth/callback/route.ts'),
+      resolve(ROOT, SRC.authCallbackRoute),
       'utf-8',
     );
     // The recovery flow piggybacks on the existing callback behaviour:
@@ -276,7 +277,7 @@ describe('KAN-225: surface-area regression guards', () => {
 
   test('actions.ts exports both recovery actions', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/(auth)/actions.ts'),
+      resolve(ROOT, SRC.actions),
       'utf-8',
     );
     expect(src).toMatch(/export async function requestPasswordReset/);
@@ -285,7 +286,7 @@ describe('KAN-225: surface-area regression guards', () => {
 
   test('actions.ts uses Supabase-side rate limiting (no custom token table)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/(auth)/actions.ts'),
+      resolve(ROOT, SRC.actions),
       'utf-8',
     );
     // Critical: we lean on Supabase Auth for the email + token lifecycle.

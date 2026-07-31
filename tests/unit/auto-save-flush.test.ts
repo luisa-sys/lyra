@@ -22,9 +22,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runSave } from '@/app/dashboard/profile/sections/auto-save-core';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
-const SECTIONS = resolve(ROOT, 'src/app/dashboard/profile/sections');
+const SECTIONS = resolve(ROOT, SRC.profileSections);
 
 // ─────────── 1. runSave behaviour ───────────
 
@@ -119,7 +120,7 @@ describe('KAN-404: SectionSaveBar + free-text sections render a visible Save', (
 });
 
 describe('KAN-404: Continue button gated behind showContinue', () => {
-  const STEPS = resolve(ROOT, 'src/app/dashboard/profile/steps');
+  const STEPS = resolve(ROOT, SRC.steps);
 
   test.each(['items-step.tsx', 'links-step.tsx', 'conversation-starters-step.tsx', 'files-step.tsx'])(
     '%s only renders the Continue button when showContinue is not false',
@@ -135,7 +136,7 @@ describe('KAN-404: Continue button gated behind showContinue', () => {
 
   test('single-page editor passes showContinue={false} to the list steps', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/edit-profile-form.tsx'),
+      resolve(ROOT, SRC.editProfileForm),
       'utf-8',
     );
     const count = (src.match(/showContinue=\{false\}/g) || []).length;
@@ -144,7 +145,7 @@ describe('KAN-404: Continue button gated behind showContinue', () => {
 
   test('legacy wizard.tsx does NOT pass showContinue (keeps the default true)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/wizard.tsx'),
+      resolve(ROOT, SRC.wizard),
       'utf-8',
     );
     expect(src).not.toMatch(/showContinue/);

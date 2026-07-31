@@ -7,12 +7,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('admin drain-queue route (KAN-209)', () => {
-  const routePath = path.join(ROOT, 'src/app/api/convene/admin/drain-queue/route.ts');
-  const authPath = path.join(ROOT, 'src/lib/convene/auth-bearer.ts');
+  const routePath = path.join(ROOT, SRC.route);
+  const authPath = path.join(ROOT, SRC.authBearer);
 
   test('route file exists', () => {
     expect(fs.existsSync(routePath)).toBe(true);
@@ -85,7 +86,7 @@ describe('admin drain-queue route (KAN-209)', () => {
 });
 
 describe('dispatchQueuedInvites — hostUserId filter (KAN-209)', () => {
-  const dispatchPath = path.join(ROOT, 'src/lib/convene/invites/dispatch.ts');
+  const dispatchPath = path.join(ROOT, SRC.dispatch);
 
   test('accepts optional hostUserId option', () => {
     const src = fs.readFileSync(dispatchPath, 'utf8');

@@ -11,12 +11,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 const callbacks = [
-  'src/app/api/convene/oauth/google/callback/route.ts',
-  'src/app/api/convene/oauth/microsoft/callback/route.ts',
+  SRC.callbackRoute,
+  SRC.microsoftCallbackRoute,
 ];
 
 describe.each(callbacks)('%s error masking', (rel) => {

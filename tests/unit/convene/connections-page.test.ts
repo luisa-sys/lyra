@@ -8,12 +8,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('Convene connections page (KAN-206)', () => {
-  const pagePath = path.join(ROOT, 'src/app/dashboard/convene/connections/page.tsx');
-  const clientPath = path.join(ROOT, 'src/app/dashboard/convene/connections/connections-client.tsx');
+  const pagePath = path.join(ROOT, SRC.connectionsPage);
+  const clientPath = path.join(ROOT, SRC.connectionsClient);
 
   test('page file exists', () => {
     expect(fs.existsSync(pagePath)).toBe(true);
@@ -57,7 +58,7 @@ describe('Convene connections page (KAN-206)', () => {
 });
 
 describe('Convene token-health cron route (KAN-206)', () => {
-  const routePath = path.join(ROOT, 'src/app/api/convene/cron/token-health/route.ts');
+  const routePath = path.join(ROOT, SRC.tokenHealthRoute);
 
   test('route file exists', () => {
     expect(fs.existsSync(routePath)).toBe(true);

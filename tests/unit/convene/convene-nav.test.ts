@@ -7,11 +7,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
-const dashboardPath = path.join(ROOT, 'src/app/dashboard/page.tsx');
-const profileFormPath = path.join(ROOT, 'src/app/dashboard/profile/edit-profile-form.tsx');
-const profilePagePath = path.join(ROOT, 'src/app/dashboard/profile/page.tsx');
+const dashboardPath = path.join(ROOT, SRC.dashboardPage);
+const profileFormPath = path.join(ROOT, SRC.editProfileForm);
+const profilePagePath = path.join(ROOT, SRC.profilePage);
 
 describe('Convene nav entry points (KAN-303)', () => {
   describe('dashboard page', () => {
@@ -31,7 +32,7 @@ describe('Convene nav entry points (KAN-303)', () => {
       expect(src).toMatch(/conveneEntitled:\s*conveneEnabled/);
     });
     test('the widget resolver only emits the convene widget when entitled (KAN-349)', () => {
-      const resolverSrc = fs.readFileSync(path.join(ROOT, 'src/lib/dashboard/resolve-widgets.ts'), 'utf8');
+      const resolverSrc = fs.readFileSync(path.join(ROOT, SRC.resolveWidgets), 'utf8');
       expect(resolverSrc).toMatch(/if \(input\.conveneEntitled\)[\s\S]{0,80}'convene'/);
     });
   });

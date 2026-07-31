@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -360,7 +361,7 @@ describe('KAN-241: conversation starter moderation', () => {
 
 describe('KAN-241: surface-area regression guards', () => {
   test('moderation-policy module exists with checkModeration export', () => {
-    const src = readFileSync(resolve(ROOT, 'src/lib/moderation-policy.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.moderationPolicy), 'utf-8');
     expect(src).toMatch(/export function checkModeration/);
     expect(src).toMatch(/moderateContent/); // pulls from content-moderation
   });
@@ -370,7 +371,7 @@ describe('KAN-241: surface-area regression guards', () => {
   // row). The guards accept either entry point — the original intent
   // ("moderation is wired in this file") is preserved.
   test('actions.ts imports + calls moderation (checkModeration or moderateAndAudit)', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/actions.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.profileActions), 'utf-8');
     expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
     // Used in at least 4 places (updateProfileFields, addProfileItem,
     // addSchoolAffiliation, addExternalLink)
@@ -379,13 +380,13 @@ describe('KAN-241: surface-area regression guards', () => {
   });
 
   test('manual-of-me-actions.ts imports + calls moderation', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/manual-of-me-actions.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.manualOfMeActions), 'utf-8');
     expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
     expect(src).toMatch(/(?:checkModeration|moderateAndAudit)\(/);
   });
 
   test('conversation-starters-actions.ts imports + calls moderation in both add + update', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/conversation-starters-actions.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.conversationStartersActions), 'utf-8');
     expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
     // One call in add path, one in update path
     const callCount = (src.match(/(?:checkModeration|moderateAndAudit)\(/g) || []).length;
@@ -393,7 +394,7 @@ describe('KAN-241: surface-area regression guards', () => {
   });
 
   test('moderation-policy.ts is NOT a use-server file (BUGS-12 safe)', () => {
-    const src = readFileSync(resolve(ROOT, 'src/lib/moderation-policy.ts'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.moderationPolicy), 'utf-8');
     expect(src).not.toMatch(/^['"]use server['"]/m);
   });
 });

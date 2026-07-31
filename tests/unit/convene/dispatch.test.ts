@@ -15,6 +15,7 @@ import path from 'path';
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 import { _internal } from '@/lib/convene/invites/dispatch';
+import { SRC } from '../../support/source-paths';
 const { buildSendInputs } = _internal;
 
 describe('buildSendInputs (KAN-209)', () => {
@@ -81,7 +82,7 @@ describe('buildSendInputs (KAN-209)', () => {
 // ─── cron route shape ──────────────────────────────────────────────────
 
 describe('send-invites cron route (KAN-209)', () => {
-  const routePath = path.join(ROOT, 'src/app/api/convene/cron/send-invites/route.ts');
+  const routePath = path.join(ROOT, SRC.sendInvitesRoute);
 
   test('route file exists', () => {
     expect(fs.existsSync(routePath)).toBe(true);

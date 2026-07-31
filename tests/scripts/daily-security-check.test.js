@@ -1,10 +1,11 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/daily-security-check.sh');
 
-describe('scripts/daily-security-check.sh', () => {
+describe(SRC.dailySecurityCheck, () => {
   let source = '';
 
   beforeAll(() => {

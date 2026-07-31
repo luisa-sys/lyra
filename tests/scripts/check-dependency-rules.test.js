@@ -14,9 +14,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
-const SCRIPT = path.join(REPO_ROOT, 'scripts/check-dependency-rules.sh');
+const SCRIPT = path.join(REPO_ROOT, SRC.checkDependencyRules);
 const CONFIG = path.join(REPO_ROOT, '.dependency-cruiser.cjs');
 
 /**
@@ -152,11 +153,11 @@ describe('scripts/check-dependency-rules.sh (KAN-425)', () => {
     const { code, out } = run(
       makeTree({
         'src/lib/util.ts': 'export const util = 1;\n',
-        'src/app/[slug]/slug-utils.ts': 'export const slugUtil = 1;\n',
-        'src/app/[slug]/page.tsx':
+        [SRC.slugUtils]: 'export const slugUtil = 1;\n',
+        [SRC.slugPage]:
           "import { slugUtil } from './slug-utils';\nexport default () => slugUtil;\n",
-        'src/app/(auth)/auth-errors.ts': 'export const authError = 1;\n',
-        'src/app/(auth)/login/page.tsx':
+        [SRC.authErrors]: 'export const authError = 1;\n',
+        [SRC.loginPage]:
           "import { authError } from '../auth-errors';\nexport default () => authError;\n",
       })
     );

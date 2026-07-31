@@ -10,6 +10,7 @@
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -19,12 +20,12 @@ function readJson(path: string): Record<string, unknown> {
 
 describe('KAN-69a — PWA manifest invariants', () => {
   test('public/manifest.webmanifest exists and is valid JSON', () => {
-    expect(existsSync(resolve(ROOT, 'public/manifest.webmanifest'))).toBe(true);
-    expect(() => readJson('public/manifest.webmanifest')).not.toThrow();
+    expect(existsSync(resolve(ROOT, SRC.manifest))).toBe(true);
+    expect(() => readJson(SRC.manifest)).not.toThrow();
   });
 
   test('manifest declares the required PWA fields', () => {
-    const m = readJson('public/manifest.webmanifest');
+    const m = readJson(SRC.manifest);
     expect(m.name).toBeDefined();
     expect(m.short_name).toBeDefined();
     expect(m.start_url).toBeDefined();
@@ -36,7 +37,7 @@ describe('KAN-69a — PWA manifest invariants', () => {
   });
 
   test('manifest includes BOTH 192x192 and 512x512 icons (Lighthouse PWA minimum)', () => {
-    const m = readJson('public/manifest.webmanifest');
+    const m = readJson(SRC.manifest);
     const icons = m.icons as Array<{ sizes: string; purpose?: string }>;
     const sizes = icons.map((i) => i.sizes);
     expect(sizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
@@ -45,14 +46,14 @@ describe('KAN-69a — PWA manifest invariants', () => {
   test('manifest includes a maskable icon', () => {
     // Maskable icons let Android apply its adaptive-icon masks without
     // cropping the Lyra mark. Required for the "polish" Lighthouse score.
-    const m = readJson('public/manifest.webmanifest');
+    const m = readJson(SRC.manifest);
     const icons = m.icons as Array<{ purpose?: string }>;
     const maskable = icons.find((i) => i.purpose === 'maskable');
     expect(maskable).toBeDefined();
   });
 
   test('every icon file referenced in the manifest actually exists on disk', () => {
-    const m = readJson('public/manifest.webmanifest');
+    const m = readJson(SRC.manifest);
     const icons = m.icons as Array<{ src: string }>;
     for (const icon of icons) {
       const path = resolve(ROOT, 'public', icon.src.replace(/^\//, ''));
@@ -68,12 +69,12 @@ describe('KAN-69a — PWA manifest invariants', () => {
     // dashboard rather than the marketing homepage; the `source=pwa` is
     // a telemetry hook so we can measure how often the installed app
     // gets opened vs the web entry points.
-    const m = readJson('public/manifest.webmanifest');
+    const m = readJson(SRC.manifest);
     expect(m.start_url).toMatch(/^\/dashboard.*source=pwa/);
   });
 
   test('layout.tsx wires up the manifest, viewport, and install prompt', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/layout.tsx'), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.layout), 'utf-8');
     expect(src).toMatch(/manifest:\s*['"]\/manifest\.webmanifest['"]/);
     expect(src).toMatch(/export\s+const\s+viewport/);
     expect(src).toMatch(/InstallPrompt/);
@@ -84,7 +85,7 @@ describe('KAN-69a — PWA manifest invariants', () => {
   });
 
   test('install-prompt component exists and only renders client-side', () => {
-    const path = resolve(ROOT, 'src/app/install-prompt.tsx');
+    const path = resolve(ROOT, SRC.installPrompt);
     expect(existsSync(path)).toBe(true);
     const src = readFileSync(path, 'utf-8');
     expect(src).toMatch(/^['"]use client['"]/);

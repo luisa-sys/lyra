@@ -1,10 +1,11 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/security-alert-email.sh');
 
-describe('scripts/security-alert-email.sh', () => {
+describe(SRC.securityAlertEmail, () => {
   let source = '';
 
   beforeAll(() => {

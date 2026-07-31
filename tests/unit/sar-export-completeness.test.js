@@ -11,9 +11,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const actionsPath = path.join(root, 'src/app/dashboard/settings/actions.ts');
+const actionsPath = path.join(root, SRC.settingsActions);
 
 describe('SEC-71: SAR export covers all user/profile-keyed personal data', () => {
   let content;

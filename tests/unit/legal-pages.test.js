@@ -5,11 +5,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('KAN-126: Privacy policy page', () => {
-  const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -71,7 +72,7 @@ describe('KAN-126: Privacy policy page', () => {
 });
 
 describe('KAN-126: Terms of service page', () => {
-  const filePath = path.join(root, 'src/app/(legal)/terms/page.tsx');
+  const filePath = path.join(root, SRC.termsPage);
   let content;
 
   beforeAll(() => {
@@ -125,7 +126,7 @@ describe('KAN-272: Site-wide footer links (moved from homepage to the shared Foo
   // <Footer/> rendered in the root layout, so they appear on EVERY page (the
   // Companies Act company line needs to be everywhere). Assert the shared
   // footer carries the legal routes.
-  const filePath = path.join(root, 'src/app/footer.tsx');
+  const filePath = path.join(root, SRC.footer);
   let content;
 
   beforeAll(() => {
@@ -154,13 +155,13 @@ describe('KAN-272: Site-wide footer links (moved from homepage to the shared Foo
   });
 
   test('footer is rendered in the root layout (so it is site-wide)', () => {
-    const layout = fs.readFileSync(path.join(root, 'src/app/layout.tsx'), 'utf8');
+    const layout = fs.readFileSync(path.join(root, SRC.layout), 'utf8');
     expect(layout).toContain('<Footer');
   });
 });
 
 describe('KAN-144: Cookie policy page', () => {
-  const filePath = path.join(root, 'src/app/(legal)/cookies/page.tsx');
+  const filePath = path.join(root, SRC.cookiesPage);
   let content;
 
   beforeAll(() => {

@@ -2,9 +2,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.resolve(REPO_ROOT, 'scripts/check-extraction-dod.sh');
+const SCRIPT = path.resolve(REPO_ROOT, SRC.checkExtractionDod);
 
 // A PR body that answers every attestation. Individual tests override it.
 const FULL_BODY = [
@@ -34,7 +35,7 @@ function makeRepo({ estate = {}, extra = {} } = {}) {
 
   // --- baseline estate on develop, all pointing at the pre-move path ---
   write('src/lib/age/gate.ts', 'export const gate = 1;\n');
-  write('.github/CODEOWNERS', '* @luisa\n/src/lib/age/gate.ts @luisa\n');
+  write(SRC.codeowners, '* @luisa\n/src/lib/age/gate.ts @luisa\n');
   write('scripts/some-guard.sh', '#!/usr/bin/env bash\ngrep -q x src/lib/age/gate.ts\n');
   write('docs/ARCHITECTURE.md', 'The age gate lives at `src/lib/age/gate.ts`.\n');
   write(
@@ -79,7 +80,7 @@ function runMove({
 
   // Default: every artefact is updated to the new path (the passing case).
   const updated = {
-    '.github/CODEOWNERS': `* @luisa\n/${to} @luisa\n`,
+    [SRC.codeowners]: `* @luisa\n/${to} @luisa\n`,
     'scripts/some-guard.sh': `#!/usr/bin/env bash\ngrep -q x ${to}\n`,
     'docs/ARCHITECTURE.md': `The age gate lives at \`${to}\`.\n`,
     'docs/DOC_SOURCE_OF_TRUTH.md': `<!-- doc-mirror-manifest:start -->\n| \`${to}\` | wiki |\n<!-- doc-mirror-manifest:end -->\n`,
@@ -115,7 +116,7 @@ function runMove({
   return { status, output };
 }
 
-describe('scripts/check-extraction-dod.sh', () => {
+describe(SRC.checkExtractionDod, () => {
   let source = '';
   beforeAll(() => {
     source = fs.readFileSync(SCRIPT, 'utf8');
@@ -165,7 +166,7 @@ describe('scripts/check-extraction-dod.sh', () => {
   // ------------------------------------------------------------ violations
   it('fails, naming file and line, when a stale reference remains in .github/', () => {
     const { status, output } = runMove({
-      estate: { '.github/CODEOWNERS': '* @luisa\n/src/lib/age/gate.ts @luisa\n' },
+      estate: { [SRC.codeowners]: '* @luisa\n/src/lib/age/gate.ts @luisa\n' },
     });
     expect(status).toBe(1);
     expect(output).toMatch(/\[stale-refs\] stale reference to moved path 'src\/lib\/age\/gate\.ts'/);
@@ -281,7 +282,7 @@ describe('scripts/check-extraction-dod.sh', () => {
   it('suppresses exactly the named check and nothing else', () => {
     const { status, output } = runMove({
       estate: {
-        '.github/CODEOWNERS': '* @luisa\n/src/lib/age/gate.ts @luisa\n',
+        [SRC.codeowners]: '* @luisa\n/src/lib/age/gate.ts @luisa\n',
         'modules.json': JSON.stringify({ modules: { age: { paths: ['src/lib/age/gate.ts'] } } }, null, 2),
       },
       commitMessage: 'refactor: extract age module\n\nEXTRACTION-DOD-OK: KAN-428 stale-refs\n',
@@ -332,7 +333,7 @@ describe('scripts/check-extraction-dod.sh — routine-prompt coupling', () => {
     git('config user.name tester');
     git('config commit.gpgsign false');
     write('src/components/Card.tsx', 'export const Card = () => null;\n');
-    write('.github/CODEOWNERS', '* @luisa\n');
+    write(SRC.codeowners, '* @luisa\n');
     write('scripts/keep.sh', '#!/usr/bin/env bash\ntrue\n');
     write('docs/ARCHITECTURE.md', 'docs\n');
     write('docs/DOC_SOURCE_OF_TRUTH.md', '<!-- doc-mirror-manifest:start -->\n<!-- doc-mirror-manifest:end -->\n');

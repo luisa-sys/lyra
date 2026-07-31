@@ -62,12 +62,49 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve the Playwright version for the cache key
+        # Keyed on the exact installed version, not a floating one: browser
+        # binaries are version-locked, and a stale cache would produce
+        # "Executable doesn't exist" — the same failure the webkit note below
+        # describes, but harder to diagnose because the install step is green.
+        id: pw
+        run: |
+          set -euo pipefail
+          V=$(node -p "require('@playwright/test/package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Playwright $V"
+
+      - name: Cache Playwright browsers
+        # This step download hung for 19+ minutes on 2026-07-31 and again on
+        # 2026-07-30, both times tripping the job's 20-minute timeout and
+        # cancelling a run that was otherwise fine. Normal duration is ~54s, so
+        # this is upstream CDN variance, not our code — but two cancelled runs
+        # cost ~40 minutes of CI and, worse, read as a red check on a healthy PR.
+        # A cache hit removes the download from the critical path entirely.
+        id: pw-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
       - name: Install Playwright browsers
         # chromium + webkit: playwright.config.ts defines a mobile-safari
         # (iPhone 14 / webkit) project alongside chromium. Without webkit
         # every mobile-safari test errors with "Executable doesn't exist"
         # and the job goes red even when chromium passes (KAN-180).
-        run: npx playwright install --with-deps chromium webkit
+        #
+        # On a cache hit only the OS-level deps are installed (fast, and not
+        # cacheable); the browser binaries come from the cache. `--with-deps` is
+        # kept in both paths because those system packages live outside
+        # ~/.cache/ms-playwright and are NOT restored by the cache.
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Browser binaries restored from cache; installing OS deps only."
+            npx playwright install-deps chromium webkit
+          else
+            npx playwright install --with-deps chromium webkit
+          fi
 
       - name: Build the app
         # Run the production build as its own step so its duration doesn't

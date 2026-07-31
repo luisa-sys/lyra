@@ -9,11 +9,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('KAN-184: Partners page', () => {
-  const filePath = path.join(root, 'src/app/(legal)/partners/page.tsx');
+  const filePath = path.join(root, SRC.partnersPage);
   let content;
 
   beforeAll(() => {
@@ -68,7 +69,7 @@ describe('KAN-184: Partners link in the site-wide footer', () => {
   // verification requirement is unchanged — Partners must stay reachable from
   // the footer alongside the legal links — so the assertion just moves to the
   // footer component.
-  const filePath = path.join(root, 'src/app/footer.tsx');
+  const filePath = path.join(root, SRC.footer);
   let content;
 
   beforeAll(() => {

@@ -6,28 +6,29 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('Auth pages', () => {
   test('signup page file exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/(auth)/signup/page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.signupPage))).toBe(true);
   });
 
   test('login page file exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/(auth)/login/page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.loginPage))).toBe(true);
   });
 
   test('auth callback route exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/auth/callback/route.ts'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.authCallbackRoute))).toBe(true);
   });
 
   test('dashboard page exists', () => {
-    expect(fs.existsSync(path.join(root, 'src/app/dashboard/page.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(root, SRC.dashboardPage))).toBe(true);
   });
 
   test('middleware exists and handles auth routes', () => {
-    const middlewarePath = path.join(root, 'src/middleware.ts');
+    const middlewarePath = path.join(root, SRC.middleware);
     expect(fs.existsSync(middlewarePath)).toBe(true);
     const content = fs.readFileSync(middlewarePath, 'utf8');
     expect(content).toContain('/dashboard');
@@ -36,7 +37,7 @@ describe('Auth pages', () => {
   });
 
   test('server actions file exists with signUp, signIn, signOut', () => {
-    const actionsPath = path.join(root, 'src/app/(auth)/actions.ts');
+    const actionsPath = path.join(root, SRC.actions);
     expect(fs.existsSync(actionsPath)).toBe(true);
     const content = fs.readFileSync(actionsPath, 'utf8');
     expect(content).toContain('export async function signUp');
@@ -47,7 +48,7 @@ describe('Auth pages', () => {
 
 describe('KAN-130: Apple Sign-In commented out', () => {
   test('social-login-buttons does not import signInWithApple as active import', () => {
-    const filePath = path.join(root, 'src/app/(auth)/social-login-buttons.tsx');
+    const filePath = path.join(root, SRC.socialLoginButtons);
     const content = fs.readFileSync(filePath, 'utf8');
     // signInWithApple should only appear inside a comment, not as an active import
     const lines = content.split('\n');
@@ -62,7 +63,7 @@ describe('KAN-130: Apple Sign-In commented out', () => {
   });
 
   test('social-login-buttons still exports SocialLoginButtons with Google', () => {
-    const filePath = path.join(root, 'src/app/(auth)/social-login-buttons.tsx');
+    const filePath = path.join(root, SRC.socialLoginButtons);
     const content = fs.readFileSync(filePath, 'utf8');
     expect(content).toContain('export function SocialLoginButtons');
     expect(content).toContain('signInWithGoogle');
@@ -70,7 +71,7 @@ describe('KAN-130: Apple Sign-In commented out', () => {
   });
 
   test('actions.ts has signInWithApple commented out with KAN-37 reference', () => {
-    const actionsPath = path.join(root, 'src/app/(auth)/actions.ts');
+    const actionsPath = path.join(root, SRC.actions);
     const content = fs.readFileSync(actionsPath, 'utf8');
     // signInWithApple should be commented out
     expect(content).not.toMatch(/^export async function signInWithApple/m);
@@ -81,7 +82,7 @@ describe('KAN-130: Apple Sign-In commented out', () => {
   });
 
   test('Google signInWithGoogle is still exported and active', () => {
-    const actionsPath = path.join(root, 'src/app/(auth)/actions.ts');
+    const actionsPath = path.join(root, SRC.actions);
     const content = fs.readFileSync(actionsPath, 'utf8');
     expect(content).toMatch(/^export async function signInWithGoogle/m);
   });

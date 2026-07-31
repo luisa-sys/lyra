@@ -8,11 +8,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('microsoft/oauth.ts (KAN-211 P7)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/microsoft/oauth.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.oauth), 'utf8');
 
   test('declares the documented Microsoft Graph scopes', () => {
     expect(src).toMatch(/offline_access/);
@@ -49,7 +50,7 @@ describe('microsoft/oauth.ts (KAN-211 P7)', () => {
 });
 
 describe('microsoft.ts calendar adapter (KAN-211 P7)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/calendar/microsoft.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.microsoft), 'utf8');
 
   test('exports microsoftCalendarAdapter implementing CalendarAdapter', () => {
     expect(src).toMatch(/export const microsoftCalendarAdapter:\s*CalendarAdapter/);
@@ -87,7 +88,7 @@ describe('microsoft.ts calendar adapter (KAN-211 P7)', () => {
 
 describe('Microsoft OAuth routes (KAN-211 P7)', () => {
   test('/api/convene/oauth/microsoft/initiate route exists + gated by Convene flag', () => {
-    const p = path.join(ROOT, 'src/app/api/convene/oauth/microsoft/initiate/route.ts');
+    const p = path.join(ROOT, SRC.initiateRoute);
     expect(fs.existsSync(p)).toBe(true);
     const src = fs.readFileSync(p, 'utf8');
     expect(src).toMatch(/isConveneEnabled\(\)/);
@@ -96,7 +97,7 @@ describe('Microsoft OAuth routes (KAN-211 P7)', () => {
   });
 
   test('/api/convene/oauth/microsoft/callback exists + validates state.provider', () => {
-    const p = path.join(ROOT, 'src/app/api/convene/oauth/microsoft/callback/route.ts');
+    const p = path.join(ROOT, SRC.microsoftCallbackRoute);
     expect(fs.existsSync(p)).toBe(true);
     const src = fs.readFileSync(p, 'utf8');
     expect(src).toMatch(/stateRow\.provider !== ['"]microsoft['"]/);
@@ -107,7 +108,7 @@ describe('Microsoft OAuth routes (KAN-211 P7)', () => {
 
   test('callback consumes the state row (single-use)', () => {
     const src = fs.readFileSync(
-      path.join(ROOT, 'src/app/api/convene/oauth/microsoft/callback/route.ts'),
+      path.join(ROOT, SRC.microsoftCallbackRoute),
       'utf8'
     );
     expect(src).toMatch(/\.delete\(\)\.eq\(['"]state['"]/);
@@ -115,7 +116,7 @@ describe('Microsoft OAuth routes (KAN-211 P7)', () => {
 
   test('callback rejects when offline_access scope missing (no refresh_token)', () => {
     const src = fs.readFileSync(
-      path.join(ROOT, 'src/app/api/convene/oauth/microsoft/callback/route.ts'),
+      path.join(ROOT, SRC.microsoftCallbackRoute),
       'utf8'
     );
     expect(src).toMatch(/no_refresh_token/);
@@ -124,7 +125,7 @@ describe('Microsoft OAuth routes (KAN-211 P7)', () => {
 });
 
 describe('oauth-connections provider dispatch (KAN-211 P7)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/oauth-connections.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.oauthConnections), 'utf8');
 
   test('imports both refresh functions under aliases', () => {
     expect(src).toMatch(/refreshAccessToken as refreshGoogleAccessToken/);
@@ -141,7 +142,7 @@ describe('oauth-connections provider dispatch (KAN-211 P7)', () => {
 });
 
 describe('conveneEnv microsoft entries (KAN-211 P7)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/env.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.env), 'utf8');
   test('declares MICROSOFT_CALENDAR_CLIENT_ID/SECRET/REDIRECT_URI', () => {
     expect(src).toMatch(/MICROSOFT_CALENDAR_CLIENT_ID/);
     expect(src).toMatch(/MICROSOFT_CALENDAR_CLIENT_SECRET/);

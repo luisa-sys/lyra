@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
 
@@ -47,7 +48,7 @@ function runIn(dir, script, { pathPrefix } = {}) {
 // "run from the wrong directory, or src/ moved" failure.
 function makeTreeWithoutSrc() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'failclosed-'));
-  fs.mkdirSync(path.join(dir, '.github/workflows'), { recursive: true });
+  fs.mkdirSync(path.join(dir, SRC.workflows), { recursive: true });
   fs.writeFileSync(path.join(dir, '.github/workflows/a.yml'), 'on: push\njobs: {}\n');
   return dir;
 }
