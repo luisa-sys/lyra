@@ -32,6 +32,10 @@ BUCKETS
                module export surface, not behaviour.
   ordering     compares `indexOf` positions to assert one thing precedes
                another in the SOURCE. A proxy for ordering, not ordering.
+  copy-pin     asserts on natural-language prose — legal headings, button
+               text. KAN-417 §8 GROUP 4: founder-gated content, out of scope.
+               Rendering the page to assert the same string is the same pin
+               with more machinery, so these do not benefit from conversion.
   behavioural  everything else — a positive assertion about what the code does,
                which is the (b) candidate set worth converting.
 
@@ -52,13 +56,49 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 READ = re.compile(r"readFileSync\(")
+
+# A COPY PIN asserts on natural-language prose — legal headings, button text,
+# marketing wording. KAN-417 §8 puts these in GROUP 4: "explicitly out of scope,
+# no approval sought … founder-gated content pins, untouched." They also cannot
+# be improved by conversion: rendering a page to assert the same string is the
+# same pin with more machinery in front of it.
+#
+# Heuristic: a quoted literal of two or more words containing a word of four or
+# more letters, with nothing identifier-ish in it (no _ . ( ) and no camelCase
+# run). Deliberately narrow — a false "copy" call would HIDE a real candidate,
+# so anything ambiguous stays in the behavioural bucket for a human to judge.
+COPY_PIN = re.compile(r"""to(?:Contain|Match)\(\s*['"]([^'"]+)['"]""")
+IDENTIFIERISH = re.compile(r"[_.()/]|[a-z][A-Z]")
+
+
+def _is_copy_pin(block: str) -> bool:
+    for m in COPY_PIN.finditer(block):
+        phrase = m.group(1)
+        if IDENTIFIERISH.search(phrase):
+            continue
+        words = phrase.split()
+        if len(words) >= 2 and any(len(w) >= 4 and w.isalpha() for w in words):
+            return True
+    return False
+
+
 BUCKETS = [
     ("absence", re.compile(r"not\.(toMatch|toContain)")),
     ("existence", re.compile(r"existsSync\(|toBe\(true\)\s*;?\s*//\s*exists")),
     ("surface", re.compile(r"toMatch\(/export (const|function|type|interface)")),
     ("ordering", re.compile(r"indexOf\(|toBeLessThan\(|toBeGreaterThan\(")),
 ]
-MIGRATION_READ = re.compile(r"supabase/migrations|SRC\.migrations")
+# Catching a migration read by its path literal alone MISSES the common shape,
+# where a test lists the migrations directory and `.find()`s the file it wants —
+# `tests/unit/profile-items-visibility-migration.test.js` does exactly that, and
+# its 8 assertions on RLS-policy SQL were being reported as convertible.
+#
+# Any assertion over the text of a `.sql` file is migration content: a static
+# fact that needs a database to observe. So match the SQL-ness of what is being
+# read, not the spelling of the path.
+MIGRATION_READ = re.compile(
+    r"supabase/migrations|SRC\.migrations|\.sql\b|\bsql\s*\)|const sql\b"
+)
 
 
 def tracked_tests() -> list[str]:
@@ -88,7 +128,7 @@ def classify(text: str) -> Counter:
                 counts[name] += 1
                 break
         else:
-            counts["behavioural"] += 1
+            counts["copy-pin" if _is_copy_pin(b) else "behavioural"] += 1
     return counts
 
 
@@ -122,7 +162,7 @@ def main() -> int:
         print()
 
     print("Assertion blocks that read source, by bucket:")
-    for k in ("behavioural", "absence", "existence", "migration", "surface", "ordering"):
+    for k in ("behavioural", "copy-pin", "absence", "existence", "migration", "surface", "ordering"):
         if total.get(k):
             print(f"  {total[k]:4}  {k}")
     structural = sum(v for k, v in total.items() if k != "behavioural")

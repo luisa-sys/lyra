@@ -85,17 +85,55 @@ set". The real figure is ~120 files and ~377 source reads.**
 
 | Bucket | Blocks | Convertible? |
 |---|---:|---|
-| behavioural | 263 | candidate |
-| absence (`not.toMatch`) | 28 | **no** — unobservable by construction |
-| existence (`existsSync`) | 27 | **no** |
-| migration content | 18 | **no** — needs a database |
+| behavioural | 234 | candidate |
+| copy-pin | 17 | **no** — Group 4, founder-gated content |
+| absence (`not.toMatch`) | 25 | **no** — unobservable by construction |
+| existence (`existsSync`) | 24 | **no** |
+| migration content | 36 | **no** — needs a database |
 | export surface | 4 | **no** |
 | source ordering (`indexOf`) | 9 | **no** |
 
 `behavioural` is the **fallback** bucket, so it over-counts: anything the triage
 cannot confidently classify lands there. That is deliberate — it must never
-silently call a structural scan convertible. Treat 263 as an upper bound on
+silently call a structural scan convertible. Treat 234 as an upper bound on
 candidates, not a target.
+
+### The upper bound keeps falling, and that is the finding
+
+The first run reported **263 convertible vs 86 structural**. Two rounds of
+hand-inspection moved 29 blocks out of `behavioural` — not by changing what the
+tests do, but by correcting what the triage could see:
+
+- **copy-pin (17 blocks).** `gdpr.test.js` pins the privacy policy's mandated
+  GDPR headings and the cookie banner's button text. That is founder-owned
+  legal copy — **Group 4, out of scope**. It is also not improvable: rendering
+  the page to assert the same string is the same pin with more machinery.
+- **migration content (18 → 36 blocks).** The original detector matched the
+  path literal `supabase/migrations`, and therefore **missed the common shape**
+  — a test that lists the migrations directory and `.find()`s its file.
+  `profile-items-visibility-migration.test.js` does exactly that, and its 8
+  assertions on RLS-policy SQL were being reported as convertible. It now
+  matches on the SQL-ness of what is read rather than the spelling of the path.
+
+**The lesson is the one this programme keeps relearning: a classifier that
+reports the wrong bucket is worse than no classifier**, because 263 reads as a
+work queue. Every hand-inspection so far has shrunk the number. Expect the real
+convertible set to be materially smaller again, and re-run the triage after each
+batch rather than working from a cached figure.
+
+### Not convertible without a config change
+
+`seo.test.js`'s root-layout metadata scans **cannot** be converted today.
+Asserting the exported `metadata` object would be a genuine improvement — it
+catches "`metadataBase` present but pointing at a preview host", which the regex
+structurally cannot — but importing `@/app/layout` fails under Jest: it pulls in
+`./globals.css` and `next/font/google`, and `jest.config.js` has no CSS mapper.
+
+Adding one is a **jest.config change**, which the Test Integrity Policy puts
+behind sign-off. It was **not** made. Worth knowing before anyone else reaches
+for it: this blocks exactly **1 of the 109** src modules the test tree
+references, so it is a one-file question, not a systemic blocker, and almost
+certainly not worth the config change on its own.
 
 ### Converted so far
 
@@ -105,6 +143,34 @@ candidates, not a target.
   matches**, because `hostUserId:` remains in the file. The scan guarding
   per-user scoping would have stayed green through the exact bug it existed to
   prevent.
+
+- **`convene/post-event`** — the sweep that marks gatherings completed and
+  attendees attended. Mutation: flip the invitee filter from `accepted` to
+  `pending` and the behavioural test reddens while the original regexes all
+  still match, because every literal they search for is still in the file.
+  The bug that would ship is recording someone as having attended an event
+  they declined.
+
+- **`sentry-scaffold` → `sentry-client-init-behaviour`** — the strongest
+  evidence in Group 3 so far. Two mutations redden the behavioural suite while
+  the old scan stays **9/9 green**:
+
+  | Mutation | Behavioural | Old scan |
+  |---|---|---|
+  | `beforeSend: (event) => event` | **1 failed** | 9 passed |
+  | `Sentry.init` hoisted out of `if (dsn)` | **2 failed** | 9 passed |
+
+  The first is **SEC-55 undone** — the scan asserts `toContain('beforeSend')`,
+  so wiring the hook to identity keeps it green while every OAuth secret in
+  every error event ships to a third-party processor. The second is why "the
+  gate is present" and "the gate works" must not be the same assertion: the
+  literal `if (dsn)` survives in the file above the hoisted call.
+
+  What replaced the scan asserts the **output** of the registered hook — feed
+  it an event carrying `client_secret` and an `Authorization` header, and
+  require the secret to be absent from the result. No text scan can express
+  that, which is precisely why the conversion is worth making here and not in
+  the six Group 2 files where it would have lost coverage.
 
 ### Deliberately not started
 
