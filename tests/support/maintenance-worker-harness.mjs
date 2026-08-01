@@ -142,7 +142,20 @@ const out = {};
   } finally {
     globalThis.fetch = realFetch;
   }
-  const resend = sent.find((s) => s.url.includes('api.resend.com'));
+  // Match the HOST exactly rather than substring-matching the URL. A
+  // `.includes('api.resend.com')` test would also match
+  // `https://api.resend.com.evil.test/`, which CodeQL flags as
+  // js/incomplete-url-substring-sanitization — correctly, even here: picking
+  // the wrong recorded call would make the escaping assertion below silently
+  // examine the wrong payload.
+  const isResend = (u) => {
+    try {
+      return new URL(u).hostname === 'api.resend.com';
+    } catch {
+      return false;
+    }
+  };
+  const resend = sent.find((s) => isResend(s.url));
   // Split the payload: `html` is rendered as markup and is what escapeHtml
   // guards; `subject` is plain text in every mail client, so it legitimately
   // carries the raw address. Asserting over the whole serialised body would

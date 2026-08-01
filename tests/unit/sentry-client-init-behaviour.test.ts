@@ -152,7 +152,9 @@ describe('Sentry client initialisation (behavioural, KAN-414 F4)', () => {
     const mod = await load(undefined);
 
     expect(typeof mod.onRouterTransitionStart).toBe('function');
-    expect(() => mod.onRouterTransitionStart()).not.toThrow();
+    // Next.js calls this on every App Router navigation, so with Sentry off it
+    // must absorb the call rather than reach a live SDK handle.
+    expect(() => mod.onRouterTransitionStart('/dashboard', 'push')).not.toThrow();
     expect(captureRouterTransitionStart).not.toHaveBeenCalled();
   });
 
