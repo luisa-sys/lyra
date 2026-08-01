@@ -212,6 +212,61 @@ as a `--self-test` fixture (CLAUDE.md gotcha #28) — but the test-side scans do
 not. **Any Group 3 scan that is kept rather than converted should strip comments
 before matching.**
 
+### A hole, not a weak test — `maintenance-page.test.js`
+
+Every other item in this batch replaced a scan that was *weaker* than a
+behavioural test. This one replaced seven tests that asserted **nothing at all**
+about the worker.
+
+`tests/unit/maintenance-page.test.js` opens by re-declaring the worker's own
+logic inside the test file:
+
+```js
+// Extract validation logic from Worker for testing
+function isValidEmail(email) { ... }
+function createRateLimiter() { ... }
+```
+
+and then tests those copies. Its header is candid — *"The actual Worker runs on
+Cloudflare, but we test the core logic here."*
+`scripts/lyra-maintenance-worker.js` is never loaded.
+
+**Proven by mutating the worker and re-running that suite:**
+
+| Mutation applied to the worker | `maintenance-page.test.js` | New behavioural suite |
+|---|---|---|
+| `isValidEmail` → `return true` | **19/19 pass** | 2 failed |
+| `isRateLimited` → `return false` | **19/19 pass** | 2 failed |
+| `escapeHtml` → identity (SEC-21 F-23 undone) | **19/19 pass** | 1 failed |
+
+So the public maintenance page's email-capture form had **no effective coverage
+on its input validation, its abuse limiting, or its HTML escaping**, while
+reporting 19 green tests. This is the shape CLAUDE.md names directly: *a control
+that has never been seen to fail is indistinguishable from no control.* Here it
+was worse than absent, because 19 passing tests read as coverage.
+
+It matters more this week than last: **BUGS-19 closed 2026-07-31**, making this
+worker's repo-owned workflow the single live deploy path to production.
+
+**Raised as a defect in its own right, not just a conversion** — the finding is
+that the coverage was absent, which is true regardless of whether anyone
+converts the scan.
+
+#### How it runs without a jest.config change
+
+The worker is an ES module and `jest.config.js` transforms only `.ts`/`.tsx`.
+Adding a `.js` rule would change how ~100 existing `.js` test files execute — a
+jest.config change affecting test behaviour, which the Test Integrity Policy
+puts behind sign-off. **It was not made.** Instead this follows the convention
+already used throughout `tests/scripts/`: invoke the real thing in a subprocess.
+`tests/support/maintenance-worker-harness.mjs` imports the actual worker,
+exercises it, and prints observations as JSON; the assertions live in the test.
+
+One detail worth keeping: the notification `subject` is **not** escaped, and
+that is correct — mail clients render subjects as plain text. It is pinned
+explicitly so a future reader does not have to re-derive whether the asymmetry
+with `html` is a bug.
+
 ### Deliberately not started
 
 `convene/connections-page.test.ts` is the top candidate by count, but it is the

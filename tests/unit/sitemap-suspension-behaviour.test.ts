@@ -78,8 +78,8 @@ jest.mock('@/lib/supabase-service', () => ({
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const sitemap = require('@/app/sitemap').default as () => Promise<MetadataRoute.Sitemap>;
+// `jest.mock` is hoisted above imports, so the route sees the stubs below.
+import sitemap from '@/app/sitemap';
 
 const LIVE: Row = {
   slug: 'ada',
