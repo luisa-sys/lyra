@@ -172,6 +172,46 @@ certainly not worth the config change on its own.
   that, which is precisely why the conversion is worth making here and not in
   the six Group 2 files where it would have lost coverage.
 
+- **`seo.test.js` sitemap block → `sitemap-suspension-behaviour`** — the
+  strongest evidence in the programme, because the defect is not hypothetical.
+
+  | Mutation | Behavioural | Old scan |
+  |---|---|---|
+  | drop `.eq('is_suspended', false)` — **SEC-100 verbatim** | **3 failed** | 9 passed |
+  | flip to `.eq('is_suspended', true)` | **3 failed** | — |
+  | drop `.eq('is_published', true)` | **1 failed** | 9 passed |
+
+  **SEC-100 was live while `expect(sitemap).toContain('is_published')` was
+  green.** Suspended — moderated, taken-down — members' slugs were being
+  published to search engines for crawling. `is_published` was in the file the
+  whole time; the missing filter was `is_suspended`. The scan asserted the
+  presence of the one string that was never the problem, so it read identically
+  before the defect, during it, and after the fix.
+
+#### The comment keeps the scan green after the code is deleted
+
+The third mutation is worth stating on its own, because it generalises well
+beyond this file. `is_published` occurs **twice** in `sitemap.ts` — once in the
+query, and once in the comment explaining why the query needs it:
+
+```ts
+// SEC-100: the sitemap is built with the SERVICE-ROLE client, which
+// bypasses RLS — the `is_published = true AND is_suspended = false`
+```
+
+Delete `.eq('is_published', true)` and `toContain('is_published')` **still
+matches — on the comment.** The prose written to document the fix is precisely
+what conceals the fix's removal.
+
+This is not unique to `sitemap.ts`; it is structural to the whole technique. Any
+source-text scan over a file whose comments discuss the thing being asserted is
+weaker than it appears, and the better a fix is documented, the weaker its scan
+becomes. The codebase already knows this in one place —
+`check-bash-portability.py` strips comments before matching, and pins that case
+as a `--self-test` fixture (CLAUDE.md gotcha #28) — but the test-side scans do
+not. **Any Group 3 scan that is kept rather than converted should strip comments
+before matching.**
+
 ### Deliberately not started
 
 `convene/connections-page.test.ts` is the top candidate by count, but it is the
