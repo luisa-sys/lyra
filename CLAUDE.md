@@ -648,7 +648,25 @@ These have caused real bugs. Read before making related changes:
 
     **Note the shape of this failure — it is the one worth remembering.** `staging-soak.sh:16` has carried the comment *"Portability: no `mapfile`/`readarray` (absent in macOS bash 3.2)"* since the day it was written, and two other scripts shipped with `mapfile` anyway. **A documented convention with no gate erodes** — the same lesson as `deploy-env.ts`, whose six ad-hoc callers survived the module built to replace them.
 
-    **Guard (CTL-031):** `scripts/check-bash-portability.py` (in `pr-checks.yml`, with `--self-test`). Comments are stripped before matching, so the prose explaining this hazard does not trip it — that case is pinned as a self-test fixture. **Workflow YAML is deliberately out of scope**: an inline `run:` block only ever executes on the runner, so findings there could only be allow-listed, and standing noise is what teaches people to wave a gate through. (`.github/workflows/backup-complete.yml` legitimately uses `shopt -s globstar` at lines 305 and 334.) Allow-list a genuinely CI-only line with `# bash-portability-ok: <reason>` plus a Jira key.
+    **Guard (CTL-031):** `scripts/check-bash-portability.py` (in `pr-checks.yml`, with `--self-test`).
+
+29. **A test that reimplements its subject reports green no matter what the subject does — and 19 passing tests read as coverage, so nobody looks**: `tests/unit/maintenance-page.test.js` opened with
+
+    ```js
+    // Extract validation logic from Worker for testing
+    function isValidEmail(email) { ... }
+    function createRateLimiter() { ... }
+    ```
+
+    and then tested those copies. `scripts/lyra-maintenance-worker.js` was never imported. Proven 2026-08-01 by mutating the **worker** and re-running that suite: `isValidEmail → return true`, `isRateLimited → return false`, and `escapeHtml → identity` **each left all 19 tests passing**. So input validation, abuse limiting and HTML escaping were all unguarded on `checklyra.com`'s public unauthenticated waitlist form. That is **BUGS-85**.
+
+    This is the *"a control never seen to fail is indistinguishable from no control"* rule with a twist worth internalising: the control **fired constantly** and reported on a copy. The green tick was not stale — it was answering a different question.
+
+    **The same family, different mechanism (also 2026-08-01):** `expect(sitemap).toContain('is_published')` stayed green throughout **SEC-100**, when suspended members' slugs were being published to search engines. The missing filter was `is_suspended`; `is_published` was in the file the whole time. Worse, `is_published` occurs **twice** in `sitemap.ts` — once in the query and once in the comment explaining why the query needs it — so *deleting the filter entirely* leaves the scan green, matching on the comment. **The prose documenting a fix is what conceals its removal, and the better the fix is documented the weaker its scan becomes.** If you keep a source-text scan rather than converting it, strip comments before matching (`check-bash-portability.py` already does this and pins the case as a `--self-test` fixture).
+
+    **Guard (CTL-038):** `scripts/check-test-reimplementation.py` (in `pr-checks.yml`, with `--self-test`). Flags a test that names a subject module, defines a function whose name also exists there, and never reaches the real module. Two severities — **`vacuous`** (never imported, never invoked: nothing can observe the real code) and **`partial`** (subject *is* reached, via import or the legitimate `tests/scripts/` `execFileSync` convention, but a private copy of some logic remains and can silently diverge). Shrink-only ratchet at `tests/support/test-reimplementation-baseline.json`; a fixed-but-still-baselined entry fails too. Allow-list with `// test-reimplementation-ok: <JIRA-KEY> <reason>`.
+
+    **When you genuinely cannot import the subject**, do *not* reach for a jest.config change — that needs sign-off, and adding a `.js` transform rule changes how ~100 existing test files execute. Use a subprocess harness under `tests/support/*.mjs` driven from `tests/scripts/`, which is the convention already in the repo. `tests/support/maintenance-worker-harness.mjs` is the worked example. Comments are stripped before matching, so the prose explaining this hazard does not trip it — that case is pinned as a self-test fixture. **Workflow YAML is deliberately out of scope**: an inline `run:` block only ever executes on the runner, so findings there could only be allow-listed, and standing noise is what teaches people to wave a gate through. (`.github/workflows/backup-complete.yml` legitimately uses `shopt -s globstar` at lines 305 and 334.) Allow-list a genuinely CI-only line with `# bash-portability-ok: <reason>` plus a Jira key.
 
 ## Supabase Migration Rules
 
