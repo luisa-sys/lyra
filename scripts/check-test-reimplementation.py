@@ -106,7 +106,15 @@ IMPORT = re.compile(
 # self-test fixture below.
 INVOKE = re.compile(r"\b(?:execFileSync|execSync|spawnSync|spawn|execa)\s*\(")
 SRC_KEY = re.compile(r"SRC\.([A-Za-z_$][\w$]*)")
-PATH_LIT = re.compile(r"""['"]((?:src|scripts)/[\w./-]+\.(?:ts|tsx|js|mjs))['"]""")
+# The `(?:\.{1,2}/)*` prefix is load-bearing. Anchoring the repo path directly
+# to the opening quote missed `path.join(__dirname, '../../src/lib/rate-limit.ts')`
+# — the single most common way a test names its subject — and that blind spot
+# hid a VACUOUS suite on the auth rate limiter, where three clean compiling
+# mutations (off-by-one on the limit, auth limit 10 -> 1000, counter never
+# incremented) all left 8/8 tests green. Pinned as a self-test fixture below.
+PATH_LIT = re.compile(
+    r"""['"](?:\.{1,2}/)*((?:src|scripts)/[\w./-]+\.(?:ts|tsx|js|mjs))['"]"""
+)
 
 # Names too generic to mean anything. A collision on these is noise, and noise
 # is what gets a gate waved through.
@@ -318,6 +326,25 @@ test('drives the real thing through the manifest', () => {
 });
 """
 
+# The second blind spot this control shipped with, and the costly one. A test
+# that names its subject with a RELATIVE literal — by far the commonest form —
+# was invisible, because PATH_LIT anchored the repo path to the opening quote.
+# tests/unit/rate-limit.test.js is exactly this, and it hid a vacuous suite on
+# the AUTH RATE LIMITER: three clean compiling mutations (off-by-one on the
+# limit comparison, auth limit 10 -> 1000, counter never incremented) each left
+# all 8 of its tests green.
+RELATIVE_PATH_SUBJECT = """
+const fs = require('fs');
+const path = require('path');
+// --- Replicated from src/lib/w.js ---
+function isValidEmail(email) { return true; }
+test('accepts', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../scripts/w.js'), 'utf8');
+  expect(source).toContain('function isValidEmail');
+  expect(isValidEmail('a@b.c')).toBe(true);
+});
+"""
+
 # The converse: importing child_process somewhere in a file that merely mentions
 # the subject must NOT count as reaching it. Without this, the fix above would
 # have made almost everything `partial`.
@@ -345,6 +372,11 @@ def self_test() -> int:
         (
             "an UNRELATED subprocess call does not count as reaching it",
             INVOKE_UNRELATED,
+            "vacuous",
+        ),
+        (
+            "subject named by a RELATIVE literal is seen (rate-limit blind spot)",
+            RELATIVE_PATH_SUBJECT,
             "vacuous",
         ),
     ]

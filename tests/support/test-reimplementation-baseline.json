@@ -18,6 +18,15 @@
         "isValidEmail"
       ],
       "severity": "vacuous"
+    },
+    {
+      "test": "tests/unit/rate-limit.test.js",
+      "subject": "src/lib/rate-limit.ts",
+      "shared": [
+        "cleanup",
+        "rateLimit"
+      ],
+      "severity": "vacuous"
     }
   ]
 }
