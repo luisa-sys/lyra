@@ -250,7 +250,24 @@ worker's repo-owned workflow the single live deploy path to production.
 
 **Raised as a defect in its own right, not just a conversion** — the finding is
 that the coverage was absent, which is true regardless of whether anyone
-converts the scan.
+converts the scan. Tracked as **BUGS-85**.
+
+**Now guarded: CTL-038** (`scripts/check-test-reimplementation.py`, in
+`pr-checks.yml`). SEC-101 outcome (b) — no control existed, so one was built.
+It flags a test that names a subject module, defines a function whose name also
+exists there, and never reaches the real module; `vacuous` when the subject is
+never imported *and* never invoked, `partial` when it is reached but a private
+copy of some logic remains. Shrink-only ratchet, failing on new, worsened
+**and stale** entries, exit 2 with no baseline.
+
+Two blind spots surfaced while building it, both now `--self-test` fixtures:
+a subject named only as `SRC.<key>` and driven by `execFileSync` was misread as
+`vacuous`; fixing that then over-matched the
+`const { execFileSync } = require(...)` destructure, whose argument window
+swallowed the rest of the file. Both are the same class of error as the defect
+itself — **a check reporting on something adjacent to, but not, the thing it
+names** — which is worth noticing, because it is evidently easy to make even
+while concentrating on exactly that failure mode.
 
 #### How it runs without a jest.config change
 

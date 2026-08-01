@@ -23,9 +23,16 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { resolve } = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+// Manifest-routed, not raw path literals — CTL-035 resolves these against the
+// tracked tree, so a rename breaks the build here rather than silently turning
+// this guard into a no-op. That is the F4 raw-literal ratchet's whole point.
+const { SRC } = require('../support/source-paths.json');
 
 const ROOT = resolve(__dirname, '../..');
-const SCRIPT = resolve(ROOT, 'scripts/check-test-reimplementation.py');
+// No manifest key exists for the registry (it is not a test-covered source
+// module), so it is named once here rather than repeated as a literal.
+const REGISTRY = 'controls/registry.json';
+const SCRIPT = resolve(ROOT, SRC.checkTestReimplementation);
 const BASELINE = resolve(ROOT, 'tests/support/test-reimplementation-baseline.json');
 
 function run(args, opts = {}) {
@@ -69,20 +76,17 @@ describe('CTL-038 — test-reimplementation ratchet', () => {
 
   it('is registered in controls/registry.json and wired into CI', () => {
     const registry = JSON.parse(
-      fs.readFileSync(resolve(ROOT, 'controls/registry.json'), 'utf-8'),
+      fs.readFileSync(resolve(ROOT, REGISTRY), 'utf-8'),
     );
     const ctl = registry.controls.find((c) => c.id === 'CTL-038');
     expect(ctl).toBeDefined();
-    expect(ctl.implementation).toBe('scripts/check-test-reimplementation.py');
+    expect(ctl.implementation).toBe(SRC.checkTestReimplementation);
     expect(ctl.prevents).toContain('BUGS-85');
 
     // SEC-79: a registered control nothing invokes is the failure mode.
-    const wf = fs.readFileSync(
-      resolve(ROOT, '.github/workflows/pr-checks.yml'),
-      'utf-8',
-    );
-    expect(wf).toContain('scripts/check-test-reimplementation.py --self-test');
-    expect(wf).toContain('scripts/check-test-reimplementation.py\n');
+    const wf = fs.readFileSync(resolve(ROOT, SRC.prChecks), 'utf-8');
+    expect(wf).toContain(`${SRC.checkTestReimplementation} --self-test`);
+    expect(wf).toContain(`${SRC.checkTestReimplementation}\n`);
   });
 
   it('still detects the BUGS-85 defect it was built for', () => {
@@ -96,7 +100,7 @@ describe('CTL-038 — test-reimplementation ratchet', () => {
     );
     expect(bugs85).toBeDefined();
     expect(bugs85.severity).toBe('vacuous');
-    expect(bugs85.subject).toBe('scripts/lyra-maintenance-worker.js');
+    expect(bugs85.subject).toBe(SRC.lyraMaintenanceWorker);
     expect(bugs85.shared).toContain('isValidEmail');
   });
 
