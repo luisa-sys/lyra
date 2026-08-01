@@ -12,6 +12,21 @@ import { SRC } from '../../support/source-paths';
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 describe('admin drain-queue route (KAN-209)', () => {
+  // Six route-behaviour scans that sat here — the isConveneEnabled/auth gate,
+  // POST-not-GET, the body api_key fallback, header-preferred ordering,
+  // body-parse resilience, and the per-user hostUserId scoping — are now
+  // executed rather than regexed, in ./drain-route-behaviour.test.ts.
+  //
+  // The scoping one is why it was worth doing: hardcoding a different id is a
+  // cross-user data leak, and `hostUserId:` is STILL PRESENT in the file
+  // afterwards, so the old regex stayed green through it. Mutation-proven.
+  //
+  // The remaining tests here are deliberately NOT converted: file-existence
+  // checks, and assertions about auth-bearer's internals (sha256 hashing, the
+  // lyra_ prefix, revoked-key handling) which the behavioural test mocks out
+  // rather than exercises. Deleting those would lose real coverage.
+  // (KAN-414 F4, KAN-417 §8 group 3.)
+
   const routePath = path.join(ROOT, SRC.route);
   const authPath = path.join(ROOT, SRC.authBearer);
 
@@ -23,50 +38,11 @@ describe('admin drain-queue route (KAN-209)', () => {
     expect(fs.existsSync(authPath)).toBe(true);
   });
 
-  test('route gates on isConveneEnabled + authenticateBearerApiKey', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    expect(src).toMatch(/isConveneEnabled\(\)/);
-    expect(src).toMatch(/authenticateBearerApiKey/);
-  });
 
-  test('route uses POST not GET (so a stray browser cannot accidentally fire it)', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    expect(src).toMatch(/export async function POST/);
-    expect(src).not.toMatch(/export async function GET/);
-  });
 
-  test('accepts api_key in JSON body as fallback when Authorization header absent (KAN-240 symmetry)', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    // Body parse + api_key extraction.
-    expect(src).toMatch(/await req\.json\(\)/);
-    expect(src).toMatch(/api_key\?:\s*unknown/);
-    expect(src).toMatch(/typeof apiKey === ['"]string['"] && apiKey\.length > 0/);
-    // The fallback re-runs Bearer auth with the body value wrapped as a Bearer.
-    expect(src).toMatch(/authenticateBearerApiKey\(`Bearer \$\{apiKey\}`\)/);
-  });
 
-  test('header path is preferred over body — header is tried first', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    // Implementation order matters: header path runs before body path.
-    const headerIdx = src.indexOf("req.headers.get('authorization')");
-    const bodyIdx = src.indexOf('await req.json()');
-    expect(headerIdx).toBeGreaterThan(-1);
-    expect(bodyIdx).toBeGreaterThan(-1);
-    expect(headerIdx).toBeLessThan(bodyIdx);
-  });
 
-  test('body-parse errors do not crash the route', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    // try/catch around req.json() so non-JSON bodies just fall through
-    // to the header-auth error.
-    expect(src).toMatch(/try\s*\{\s*body\s*=\s*await req\.json\(\)/);
-    expect(src).toMatch(/\}\s*catch\b/);
-  });
 
-  test('dispatcher is called with hostUserId filter (per-user scoping)', () => {
-    const src = fs.readFileSync(routePath, 'utf8');
-    expect(src).toMatch(/dispatchQueuedInvites\(\s*\{\s*hostUserId:\s*auth\.userId\s*\}/);
-  });
 
   test('auth helper hashes the key with sha256 (matches generateApiKey storage)', () => {
     const src = fs.readFileSync(authPath, 'utf8');
