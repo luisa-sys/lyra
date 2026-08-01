@@ -304,6 +304,24 @@ jobs:
             SEEN_RUN_ID="$RUN_ID"
             LAST_STATUS="$STATUS"
 
+            # SEC-106: the Production environment now requires a reviewer, so a
+            # deploy legitimately sits at 'waiting' until a human approves it.
+            # That is the control working, NOT a failure — but this loop was
+            # written when nothing could pause a production deploy, so it burned
+            # its budget, failed, and fired AUTO-ROLLBACK on a perfectly good
+            # promote (2026-07-31, run 30666194572: a spurious rollback alert
+            # emailed, and the rollback itself then failed on a Vercel 409).
+            #
+            # Exit 0 and stop waiting. main is already merged and correct; the
+            # deploy will run the moment it is approved, and deploy-production
+            # carries its own smoke tests. Blocking here adds nothing except a
+            # false failure and a misleading alert.
+            if [ "$STATUS" = "waiting" ]; then
+              echo "::notice::deploy-production run $RUN_ID is WAITING for environment approval (SEC-106 required reviewer). main is merged at ${EXPECTED_SHA:0:8}; the deploy runs on approval."
+              echo "::notice::Approve it at ${{ github.server_url }}/${{ github.repository }}/actions/runs/$RUN_ID — this promote is not failing and no rollback is warranted."
+              exit 0
+            fi
+
             if [ "$STATUS" = "completed" ]; then
               if [ "$CONCLUSION" = "success" ]; then
                 echo "::notice::deploy-production run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
