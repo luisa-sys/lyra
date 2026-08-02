@@ -291,3 +291,60 @@ with `html` is a bug.
 open SEC-109 branch, including the assertion that had to move to
 `oauth-connections.ts:158`. Converting it here would collide. It should ride
 SEC-109's merge instead.
+
+
+---
+
+## How much of group 3 is actually left (measured 2026-08-02)
+
+The triage headline is **105 files / 239 behavioural blocks**. That number has
+never survived contact with the files, and it does not here either.
+
+| Bucket | Files |
+|---|---:|
+| classified + adversarially refuted (tranche 1) | 8 |
+| classified (tranche 2) | 8 |
+| converted, or deliberately deferred | 7 |
+| **never inspected** | **82** (134 blocks) |
+
+### The untouched tail is thinner than its block count
+
+**50 of the 82 files have exactly ONE behavioural block**, 17 have two, and only
+15 have three or more. A single `toContain` is overwhelmingly a copy pin, an
+assertion already covered behaviourally elsewhere, or structural — which is what
+tranche 1 kept demonstrating (11 of 25 conversion claims refuted outright).
+
+### A mechanical filter that turned out to be reassuring
+
+Cross-referencing the untouched tail against **CTL-039**'s baseline finds
+**7 comment-satisfied assertions across 5 files**. Those are, by construction,
+assertions a text scan cannot make load-bearing — so they looked like the most
+promising place to find another BUGS-85.
+
+**Every one was checked, and none is a coverage gap:**
+
+| Assertion | Verdict |
+|---|---|
+| `revoke-route` → `/Unknown token — return 200/` (RFC 7009 §2.2) | already behavioural — the suite calls `POST(req)` and asserts real statuses |
+| `gdpr` → `deleteAccount` | already behavioural — `account-deletion.test.ts` invokes it |
+| `section-visibility` → `/coerceSectionVisibility/` | already behavioural — the same file invokes it |
+| `retention` → `/security definer/`, `/cutoff >= now()/` | migration SQL — structural, needs a database |
+| `dcr-anti-phishing` → `/drop column if exists …/` | migration rollback note — structural |
+
+They are decorative redundancy sitting **alongside** real tests, not holes. That
+is a materially different picture from `maintenance-page.test.js` and
+`rate-limit.test.js`, where the scan was the *only* thing present.
+
+### Revised estimate
+
+Expect roughly **two more classification tranches** over the 15 files with three
+or more blocks, then a single cheap sweep across the ~67 one-and-two-block
+files. The genuinely convertible remainder is likely nearer **10-15 blocks than
+134**.
+
+**A units warning for whoever continues.** The classifier agents report every
+`test` in a file, while the triage script reports only blocks it bucketed as
+behavioural. `convene/microsoft-calendar.test.ts` is 5 blocks by the triage and
+22 tests by the agent, which reported 20 "convertible". Those two numbers are
+not comparable, and quoting the agent's figure as progress would overstate the
+remaining work by roughly four times.
