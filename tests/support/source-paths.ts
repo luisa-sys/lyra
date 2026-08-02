@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 169 entries.
+// 171 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -24,6 +24,7 @@ export const SRC = {
   backupComplete: '.github/workflows/backup-complete.yml',
   backupDatabase: '.github/workflows/backup-database.yml',
   backupRestoreTest: '.github/workflows/backup-restore-test.yml',
+  prChecks: '.github/workflows/pr-checks.yml',
   securityAudit: '.github/workflows/security-audit.yml',
   weeklyReport: '.github/workflows/weekly-report.yml',
   mcp: 'public/.well-known/mcp.json',
@@ -46,6 +47,7 @@ export const SRC = {
   checkGuardPathDrift: 'scripts/check-guard-path-drift.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
+  checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
