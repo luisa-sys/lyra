@@ -348,3 +348,76 @@ behavioural. `convene/microsoft-calendar.test.ts` is 5 blocks by the triage and
 22 tests by the agent, which reported 20 "convertible". Those two numbers are
 not comparable, and quoting the agent's figure as progress would overstate the
 remaining work by roughly four times.
+
+
+---
+
+## Tranche 2 results (2026-08-02) — ready for the next batch
+
+8 files classified, every convertible verdict given to a skeptic:
+**8 refuted, 16 survived.** (The synthesis agent died on a session limit; this
+section is the hand-written replacement, from `journal.jsonl`.)
+
+### TWO INCIDENTAL FINDINGS — worth more than the conversions
+
+Both came out of the microsoft-calendar refutation and are **not** group-3 work.
+
+**1. `tests/unit/convene/google-oauth.test.ts:37-43` is itself partially vacuous.**
+It asserts the scopes like this:
+
+```ts
+for (const s of GOOGLE_SCOPES) expect(scope).toContain(s);
+```
+
+The oracle is the constant under test. **Delete an entry from `GOOGLE_SCOPES`
+and it stays green** (the loop iterates whatever remains); **empty the constant
+and it passes with zero assertions executed.** That is CTL-038's shape in an
+existing *behavioural* test, and CTL-038 cannot see it — the test imports its
+subject, so it is not a reimplementation.
+
+Losing `offline_access` is the mutation that matters: without it Google/Microsoft
+return no refresh token and every calendar connection dies at the first access-
+token expiry. **Do not copy this pattern when converting the Microsoft one** —
+hardcode the literals and assert set equality on
+`new URL(url).searchParams.get('scope').split(' ')`, which also catches
+*over*-requesting Graph permissions. A presence-only loop is structurally
+incapable of that, on a service holding minors' data.
+
+**2. SEC-76 error masking does not cover the `initiate` routes.**
+`src/app/api/convene/oauth/microsoft/initiate/route.ts:39` returns
+`detail: error.message`. The guard at
+`tests/unit/convene/oauth-callback-error-masking.test.ts:28` covers only the two
+**callback** routes.
+
+Both need their own tickets; neither is a KAN-414 conversion.
+
+### The 16 survivors, grouped
+
+| Group | Survivors | Note |
+|---|---|---|
+| **microsoft-calendar** | 4 — Graph scopes, `grant_type`, v2.0 `/common` endpoints, PKCE params | The scopes one is security-relevant and the strongest of the tranche |
+| **public-profile** | 3 — hybrid visibility filter, published-only, JSON-LD | Visibility filter is the valuable one |
+| **legal-pages / privacy-complaints** | 6 — footer links to `/privacy`, `/terms`, `/complaints`, Companies Act line, complaints links | Borderline: these are link-presence pins, close to copy pins |
+| **convene gathering-ui** | 1 — per-user convene gate on the list page | |
+| **current-problems** | 2 — category label, public heading | Founder-gated UI copy; likely Group 4 |
+
+**Recommended order:** microsoft-calendar scopes first (security-relevant, and
+carries the google-oauth lesson), then the public-profile visibility filter.
+The legal-pages and current-problems ones are weak — link/label presence — and
+should be re-examined against the copy-pin rule before any work.
+
+### A units warning, restated with numbers
+
+The classifier called `convene/microsoft-calendar.test.ts` **20 convertible**.
+The triage counts **5** behavioural blocks in that file, and the file has 22
+tests total. The agents classify every `test`; the triage counts only blocks it
+bucketed behavioural. **Do not add the agent figures to the triage figures.**
+
+### Next batch — PREPARED, NOT LAUNCHED
+
+Script ready at
+`.../workflows/scripts/kan-414-f4-group3-classify-v2-…-tranche2.js`; change the
+`FILES` array to the next 8 and re-invoke. The remaining multi-block candidates
+after tranche 2 are the ~15 files with three or more behavioural blocks; after
+those, the ~67 one-and-two-block files want a single cheap sweep rather than
+per-file agents.
