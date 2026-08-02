@@ -679,6 +679,25 @@
       ],
       "escape_hatch": "// test-reimplementation-ok: <JIRA-KEY> <reason>",
       "added": "2026-08-01"
+    },
+    {
+      "id": "CTL-039",
+      "name": "Comment-satisfied assertion ratchet",
+      "defect_class": "non-load-bearing-source-scan",
+      "summary": "Flags a source-text assertion whose literal or regex is satisfied by a COMMENT in the module it scans. Two severities: 'comment-only' (the string exists nowhere but the prose, so the guard proves nothing today) and 'comment-shadowed' (it exists in the code AND a comment, so the guard passes for the right reason now but would keep passing if the code were deleted). Exists because expect(sitemap).toContain('is_published') was green throughout SEC-100, when suspended members' slugs reached search engines, and because at src/app/dashboard/profile/page.tsx:27 the comment was written to satisfy the scan - deleting all three real data-fetch lines leaves 11/11 green. Gates the modularisation (KAN-415 moves files, and such a guard follows the prose rather than the code). Strips comments PER FILE TYPE - CSS has no '#' comments so #4a7359 is a colour, and .txt has none at all - and attributes each assertion to the subject read in its own test block, because a test file commonly reads a different subject per block. Both of those were false-positive sources in the prototype and are pinned as self-test fixtures.",
+      "implementation": "scripts/check-comment-only-assertions.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-440",
+        "SEC-100",
+        "KAN-414",
+        "KAN-415"
+      ],
+      "escape_hatch": "// comment-assertion-ok: <JIRA-KEY> <reason>",
+      "added": "2026-08-02"
     }
   ]
 }
