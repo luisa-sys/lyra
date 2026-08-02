@@ -421,3 +421,63 @@ Script ready at
 after tranche 2 are the ~15 files with three or more behavioural blocks; after
 those, the ~67 one-and-two-block files want a single cheap sweep rather than
 per-file agents.
+
+
+---
+
+## Tranche 2 — what was converted, and what the refuters got wrong
+
+**Converted: 1 of 16 survivors.** That ratio is the finding, not a shortfall.
+
+### `microsoft-calendar` → `microsoft-oauth-behaviour` (done)
+
+The strongest survivor of the tranche, and a clean sweep — the old scan stayed
+**22/22 green under all four mutations**:
+
+| mutation to `src/lib/convene/microsoft/oauth.ts` | new suite | old scan |
+|---|---|---|
+| delete the `scope:` entry from the authorize params | 3 failed | 22 PASS |
+| `MICROSOFT_SCOPES.join(',')` instead of `' '` | 2 failed | 22 PASS |
+| **add** `'Mail.Read'` to `MICROSOFT_SCOPES` | 2 failed | 22 PASS |
+| `fetch(TOKEN_URL)` → `fetch(AUTHORIZE_URL)` | 1 failed | 22 PASS |
+
+Row 1 is the security case: Microsoft is asked for **no permissions at all** —
+no calendar access and no refresh token — while all three scope regexes match,
+because they grep the *array declaration*, never the URL.
+
+Row 3 only fails because the assertion is **set equality**, not `toContain`.
+Presence-only assertions are structurally incapable of catching over-requested
+Graph permissions.
+
+The literals are hardcoded rather than derived from `MICROSOFT_SCOPES`,
+deliberately — see **BUGS-86**.
+
+### Three survivors that should NOT have survived
+
+The refuters were told to default to refuting and still let these through. Each
+was checked by hand afterwards:
+
+| Survivor | Why it should have been refuted |
+|---|---|
+| `[slug]/page.tsx uses the hybrid filter` | **Already covered.** `isItemVisibleUnderHybridModel` is exercised directly at `tests/unit/section-visibility.test.ts:177+` across public / members-only / private and both auth states. The refuter checked whether the *page* was covered and missed the *helper's* own suite. |
+| `landing page includes JSON-LD` / `public profile page includes JSON-LD` | Structured-data **presence** pins. Rendering the page to assert the same `<script type="application/ld+json">` is the same pin with more machinery — the copy-pin rule, one step removed. |
+
+**Refutation rate understates the true structural share.** Tranche 2 reported
+8 refuted / 16 survived; hand-checking moves at least 3 more into the refuted
+column, so the real rate is nearer 11/16. Treat "survived" as *worth a human
+look*, never as *approved for conversion*.
+
+### The remaining survivors, and why they are parked
+
+- **legal-pages / privacy-complaints (6)** — footer links to `/privacy`,
+  `/terms`, `/complaints`, and the Companies Act line. These are link- and
+  copy-presence pins on founder-owned pages. Group 4 by the copy-pin rule.
+- **current-problems (2)** — a category label and a public heading. Founder-gated
+  UI copy.
+- **convene gathering-ui (1)** — the per-user convene gate. Worth doing when the
+  Convene work is next touched; not worth a standalone render harness now.
+- **public-profile published-only (1)** — `[slug]/page.tsx` filters
+  `is_published` in **two** queries (l.93, l.188). The wiring is genuinely
+  untested and this is the SEC-100 family, but driving the page needs a heavy
+  server-component harness. Left as the best remaining candidate in this
+  tranche, not as a rejection.
