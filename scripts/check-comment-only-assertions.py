@@ -296,29 +296,38 @@ def analyse(root: Path, rel: str, manifest: dict) -> list[dict]:
         return []
 
     preamble, blocks = scopes_of(text)
-    pre_subjects = sorted(
-        {
-            s
-            for s in (
-                resolve_subject(m.group(1), manifest) for m in READ.finditer(preamble)
-            )
-            if s
-        }
-    )
 
-    findings = []
-    for block in blocks:
-        own = sorted(
+    def subjects_in(chunk: str) -> list[str]:
+        return sorted(
             {
-                s
-                for s in (
-                    resolve_subject(m.group(1), manifest) for m in READ.finditer(block)
+                x
+                for x in (
+                    resolve_subject(m.group(1), manifest) for m in READ.finditer(chunk)
                 )
-                if s
+                if x
             }
         )
-        # Prefer the block's own read; fall back to a describe-level one.
-        uniq = own or pre_subjects
+
+    findings = []
+    # Carry the most recently-read subject forward. A `describe` that is not the
+    # FIRST in the file does its `readFileSync` in its own body, which lands at
+    # the tail of the PREVIOUS test block's chunk — so a file-level preamble
+    # alone misses it. That blind spot hid src/lib/auth/post-login-redirect.ts,
+    # where `/confirm-age` sits in both a comment and the code, and it is the
+    # commonest shape in this repo. Pinned as a self-test fixture.
+    current = subjects_in(preamble)
+    current_vars = RECEIVER.findall(preamble)
+    for block in blocks:
+        own = subjects_in(block)
+        if own:
+            # The receiver travels with the read — `const chokepoint = ...` sits
+            # in the same chunk as its readFileSync, not in the block that
+            # asserts on it.
+            current_vars = RECEIVER.findall(block) or current_vars
+            # A block's own read wins, and becomes the running subject for any
+            # following block that does not read for itself.
+            current = own
+        uniq = current
         # Exactly one subject is attributable. More and we cannot tell which
         # assertion belongs to which — skip rather than guess. Guessing is how
         # the prototype reported the server action's `image/jpeg` assertions
@@ -338,7 +347,7 @@ def analyse(root: Path, rel: str, manifest: dict) -> list[dict]:
         comments = comment_text(stext, bare)
 
         # Which variable holds this file's contents in this block?
-        vars_ = RECEIVER.findall(block) or RECEIVER.findall(preamble)
+        vars_ = RECEIVER.findall(block) or current_vars
         if not vars_:
             continue
 
@@ -408,10 +417,21 @@ def compare(found: list[dict], baseline: list[dict]) -> list[str]:
     fails = []
     for k, f in sorted(seen.items()):
         if k not in base:
+            # The message must match the severity. A single hardcoded string
+            # said "appears ONLY in a comment" for both kinds, which is false
+            # for the commoner one and would send a reader looking for code
+            # that is in fact still there — a control that reports the wrong
+            # thing erodes trust in the ones that report correctly.
+            why = (
+                "that string appears ONLY in a comment, so the assertion "
+                "proves nothing about the code"
+                if f.get("severity") == "comment-only"
+                else "that string appears in the code AND in a comment, so "
+                "deleting the code would leave this assertion green"
+            )
             fails.append(
-                f"NEW: {f['test']} asserts {f['assertion']!r} against "
-                f"{f['subject']}, where that string appears ONLY in a comment. "
-                f"Deleting the code it guards would leave this test green."
+                f"NEW [{f.get('severity', 'unknown')}]: {f['test']} asserts "
+                f"{f['assertion']!r} against {f['subject']} — {why}."
             )
     for b in sorted(base - set(seen)):
         fails.append(
@@ -536,6 +556,35 @@ def self_test() -> int:
         got = _case(r, "src/b.ts", "// foo\nconst x = 1;\n// bar\n",
                     T("src/b.ts", "expect(c).toContain('foobar');"))
         check("separate comments are not concatenated", len(got), 0)
+
+    # --- carry-forward: a describe-level read in a NON-FIRST describe --------
+    with tempfile.TemporaryDirectory() as td:
+        r = Path(td)
+        (r / "src").mkdir(parents=True)
+        (r / "src" / "a.ts").write_text("const x = 1;\n")
+        (r / "src" / "chokepoint.ts").write_text(
+            "// diverted to /confirm-age first\n"
+            "return `${origin}/confirm-age?next=x`;\n"
+        )
+        (r / "tests" / "unit").mkdir(parents=True)
+        (r / "tests" / "unit" / "t.test.js").write_text(
+            "describe('first', () => {\n"
+            "  const a = require('fs').readFileSync('src/a.ts', 'utf8');\n"
+            "  test('one', () => { expect(a).toContain('const x'); });\n"
+            "});\n"
+            "describe('second', () => {\n"
+            "  const chokepoint = require('fs').readFileSync('src/chokepoint.ts', 'utf8');\n"
+            "  test('two', () => { expect(chokepoint).toContain('/confirm-age'); });\n"
+            "});\n"
+        )
+        got = scan(r, ["tests/unit/t.test.js"], {})
+        # The read sits in the SECOND describe's body, which lands at the tail
+        # of the first test block's chunk. A file-level preamble alone missed
+        # this and reported post-login-redirect.ts clean.
+        check("describe-level read in a NON-FIRST describe is seen", len(got), 1)
+        if got:
+            check("  ...and is comment-shadowed, not comment-only",
+                  1 if got[0]["severity"] == "comment-shadowed" else 0, 1)
 
     # --- (2) scoped subject attribution --------------------------------------
     with tempfile.TemporaryDirectory() as td:
