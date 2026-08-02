@@ -1,0 +1,120 @@
+{
+  "_comment": "CTL-039 (KAN-440) shrink-only ratchet. Each entry is an assertion whose literal exists in the subject ONLY inside a comment, so deleting the guarded code leaves the test green. Entries may be REMOVED as tests are fixed; a stale entry fails the build, so this cannot become a suppression list. Regenerate with --write-baseline AFTER staging.",
+  "ticket": "KAN-440",
+  "findings": [
+    {
+      "test": "tests/unit/affiliations-and-autosave.test.ts",
+      "subject": "src/app/dashboard/profile/page.tsx",
+      "assertion": "/conversation_starter_prompts/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/affiliations-and-autosave.test.ts",
+      "subject": "src/app/dashboard/profile/page.tsx",
+      "assertion": "/profile_conversation_starters/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/affiliations-and-autosave.test.ts",
+      "subject": "supabase/migrations/20260517010000_affiliation_type.sql",
+      "assertion": "/rollback/",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/affiliations-and-autosave.test.ts",
+      "subject": "supabase/migrations/20260517010000_affiliation_type.sql",
+      "assertion": "/school_affiliations_profile_type_idx/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/conversation-starters.test.ts",
+      "subject": "src/app/[slug]/page.tsx",
+      "assertion": "/A few more things about me/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/conversation-starters.test.ts",
+      "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
+      "assertion": "/500/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/conversation-starters.test.ts",
+      "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
+      "assertion": "/sanitiseText/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/conversation-starters.test.ts",
+      "subject": "src/app/dashboard/profile/page.tsx",
+      "assertion": "/conversation_starter_prompts/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/conversation-starters.test.ts",
+      "subject": "src/app/dashboard/profile/page.tsx",
+      "assertion": "/profile_conversation_starters/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/current-problems-category.test.ts",
+      "subject": "supabase/migrations/20260516160000_add_current_problems_category.sql",
+      "assertion": "/current_problems/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/forgot-reset-password.test.ts",
+      "subject": "src/app/(auth)/actions.ts",
+      "assertion": "/resetPasswordForEmail/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/gdpr.test.js",
+      "subject": "src/app/dashboard/settings/actions.ts",
+      "assertion": "deleteAccount",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/mcp-discoverability.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "checklyra.com",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/moderation-actions.test.ts",
+      "subject": "src/lib/moderation-policy.ts",
+      "assertion": "/moderateContent/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/public-profile.test.js",
+      "subject": "src/app/[slug]/page.tsx",
+      "assertion": "notFound",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/pwa-service-worker.test.ts",
+      "subject": "public/sw.js",
+      "assertion": "/CACHE_VERSION/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/section-visibility.test.ts",
+      "subject": "src/app/dashboard/profile/actions.ts",
+      "assertion": "/coerceSectionVisibility/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/section-visibility.test.ts",
+      "subject": "supabase/migrations/20260517020000_section_visibility.sql",
+      "assertion": "/rollback/",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/seo.test.js",
+      "subject": "src/app/sitemap.ts",
+      "assertion": "is_published",
+      "severity": "comment-shadowed"
+    }
+  ]
+}
