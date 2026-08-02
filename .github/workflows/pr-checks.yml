@@ -306,6 +306,18 @@ jobs:
           set -euo pipefail
           python3 scripts/check-test-reimplementation.py --self-test
           python3 scripts/check-test-reimplementation.py
+      - name: CTL-039 - a scan must not be satisfied by a comment
+        # KAN-440. A source-text assertion passes if the string exists anywhere
+        # in the file, comments included. SEC-100 ran live while
+        # toContain('is_published') was green, and at
+        # dashboard/profile/page.tsx:27 the comment was written to satisfy the
+        # scan - deleting all three real data-fetch lines leaves 11/11 green.
+        # Gates the modularisation: KAN-415 moves files, and such a guard
+        # follows the prose rather than the code.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-comment-only-assertions.py --self-test
+          python3 scripts/check-comment-only-assertions.py
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
