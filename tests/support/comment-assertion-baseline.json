@@ -27,6 +27,12 @@
       "severity": "comment-shadowed"
     },
     {
+      "test": "tests/unit/age-self-declaration.test.ts",
+      "subject": "src/lib/auth/post-login-redirect.ts",
+      "assertion": "/confirm-age",
+      "severity": "comment-shadowed"
+    },
+    {
       "test": "tests/unit/conversation-starters.test.ts",
       "subject": "src/app/[slug]/page.tsx",
       "assertion": "/A few more things about me/",
@@ -87,6 +93,18 @@
       "severity": "comment-shadowed"
     },
     {
+      "test": "tests/unit/oauth/dcr-anti-phishing.test.ts",
+      "subject": "supabase/migrations/20260707193000_sec76_oauth_clients_is_first_party.sql",
+      "assertion": "/drop column if exists is_first_party/",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/oauth/revoke-route.test.ts",
+      "subject": "src/app/oauth/revoke/route.ts",
+      "assertion": "/Unknown token \u2014 return 200/",
+      "severity": "comment-only"
+    },
+    {
       "test": "tests/unit/public-profile.test.js",
       "subject": "src/app/[slug]/page.tsx",
       "assertion": "notFound",
@@ -96,6 +114,30 @@
       "test": "tests/unit/pwa-service-worker.test.ts",
       "subject": "public/sw.js",
       "assertion": "/CACHE_VERSION/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/retention/affiliate-clicks-retention.test.ts",
+      "subject": "supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql",
+      "assertion": "/cutoff >= now\\(\\)/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/retention/affiliate-clicks-retention.test.ts",
+      "subject": "supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql",
+      "assertion": "/security definer/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/retention/gatherings-retention.test.ts",
+      "subject": "supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql",
+      "assertion": "/cutoff >= now\\(\\)/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/retention/gatherings-retention.test.ts",
+      "subject": "supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql",
+      "assertion": "/security definer/",
       "severity": "comment-shadowed"
     },
     {

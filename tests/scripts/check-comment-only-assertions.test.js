@@ -116,7 +116,11 @@ describe('CTL-039 — comment-satisfied assertion ratchet', () => {
       spawnSync('git', ['add', '--intent-to-add', rel], { cwd: ROOT });
       const r = run();
       expect(r.status).toBe(1);
-      expect(r.stdout).toContain('NEW:');
+      // The severity is part of the message on purpose: a single hardcoded
+      // "appears ONLY in a comment" was wrong for the commoner
+      // `comment-shadowed` kind and would send a reader hunting for code that
+      // is in fact still there.
+      expect(r.stdout).toContain('NEW [comment-only]:');
       expect(r.stdout).toContain('__ctl039_probe__');
     } finally {
       spawnSync('git', ['rm', '-q', '--cached', '--force', rel], { cwd: ROOT });
