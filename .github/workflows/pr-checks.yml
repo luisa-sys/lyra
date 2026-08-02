@@ -292,6 +292,20 @@ jobs:
           set -euo pipefail
           python3 scripts/check-bash-portability.py --self-test
           python3 scripts/check-bash-portability.py
+      - name: CTL-038 - tests must not reimplement their subject
+        # BUGS-85: tests/unit/maintenance-page.test.js reported 19 passing tests
+        # for the public maintenance page's email form and asserted nothing about
+        # it - it re-declared the worker's own isValidEmail and rate limiter in
+        # the test file and tested those copies. Stubbing the WORKER's
+        # validation, its rate limiting and its HTML escaping each left all 19
+        # green. Worse than no tests: 19 passing tests read as coverage.
+        # Shrink-only ratchet - a NEW or WORSENED finding fails, and so does a
+        # baselined one that has been fixed, because a list you may only add to
+        # is a suppression list.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-test-reimplementation.py --self-test
+          python3 scripts/check-test-reimplementation.py
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:

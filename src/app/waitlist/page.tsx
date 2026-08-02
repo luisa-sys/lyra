@@ -68,7 +68,7 @@ export default async function WaitlistPage({
 
         <p className="text-[var(--color-muted)] leading-relaxed">
           Thanks for trying the Lyra beta. Beta access is invite-only while we&rsquo;re polishing things.
-          We&rsquo;ll send an email when your account is approved.
+          We&rsquo;ll send an email when your account is ready to go.
         </p>
 
         {showCodeForm && (
