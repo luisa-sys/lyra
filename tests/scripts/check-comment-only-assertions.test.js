@@ -105,7 +105,15 @@ describe('CTL-039 — comment-satisfied assertion ratchet', () => {
       "const fs = require('fs');\n" +
         "describe('probe', () => {\n" +
         "  test('comment-satisfied', () => {\n" +
-        `    const c = fs.readFileSync('${SRC.sanitise}', 'utf8');\n` +
+        // DOUBLE quotes, deliberately. This probe is briefly `git add
+        // --intent-to-add`ed, so it is visible to `git ls-files` while it
+        // exists — and the F4 raw-literal ratchet in
+        // tests/scripts/source-paths-manifest.test.js counts SINGLE-quoted repo
+        // paths across every tracked test file. Jest runs suites in parallel
+        // workers, so a single-quoted path here intermittently pushed that
+        // ratchet from 40 to 41 and reddened CI on unrelated PRs. CTL-039's own
+        // PATH_LIT accepts either quote style, so detection is unaffected.
+        `    const c = fs.readFileSync("${SRC.sanitise}", 'utf8');\n` +
         // `<scr<script>ipt>` appears in sanitise.ts only inside a block comment
         // describing a nested-tag bypass.
         "    expect(c).toContain('<scr<script>ipt>');\n" +
