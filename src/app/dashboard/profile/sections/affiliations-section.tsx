@@ -28,6 +28,7 @@ import {
   updateAffiliationVisibility,
   updateSchoolAffiliation,
 } from '../actions';
+import { AffiliationNamePicker } from './affiliation-name-picker';
 import { useRouter } from 'next/navigation';
 
 const AFFILIATION_ORDER: AffiliationType[] = ['school', 'organisation', 'community'];
@@ -63,11 +64,13 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
           key={type}
           type={type}
           items={grouped[type]}
-          onAdd={(name, location) => {
+          onAdd={(name, location, description) => {
             startTransition(async () => {
               const result = await addSchoolAffiliation({
                 school_name: name,
                 school_location: location || undefined,
+                // KAN-451 — sent even when empty; the action treats '' as null.
+                description,
                 affiliation_type: type,
               });
               if (result.success) router.refresh();
@@ -105,7 +108,7 @@ function AffiliationGroup({
 }: {
   type: AffiliationType;
   items: WizardSchool[];
-  onAdd: (name: string, location: string) => void;
+  onAdd: (name: string, location: string, description: string) => void;
   onRemove: (id: string) => void;
   onToggleVisibility: (id: string, show: boolean) => void;
   // KAN-448 — edit an existing row's name / location / description. Returns
@@ -119,6 +122,9 @@ function AffiliationGroup({
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [locationError, setLocationError] = useState('');
+  // KAN-451: a short note captured at the same time as the row, so a member
+  // doesn't have to add the affiliation and then edit it to say what they do.
+  const [description, setDescription] = useState('');
 
   // KAN-448: inline edit state. Only one row edits at a time.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -137,6 +143,10 @@ function AffiliationGroup({
     type === 'organisation' ? 'Example: Acme Ltd' :
     'Example: Local running club';
   const locationPlaceholder = needsPostcode ? 'Example: SW1A 1AA' : 'Example: London';
+  const descriptionPlaceholder =
+    type === 'school' ? 'Example: Year 2 teacher' :
+    type === 'organisation' ? 'Example: Ops team' :
+    'Example: Saturday runner';
   const POSTCODE_HINT =
     'Enter a postcode (full or partial) so people can tell schools with the same name apart.';
 
@@ -147,9 +157,10 @@ function AffiliationGroup({
       setLocationError(POSTCODE_HINT);
       return;
     }
-    onAdd(name.trim(), location.trim());
+    onAdd(name.trim(), location.trim(), description.trim());
     setName('');
     setLocation('');
+    setDescription('');
     setLocationError('');
   };
 
@@ -294,11 +305,21 @@ function AffiliationGroup({
       )}
 
       <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
-        <Field
+        {/* KAN-451: type-ahead with an explicit "add your own" row, so a name
+            that isn't in the list can still be entered by hand. */}
+        <AffiliationNamePicker
           label={`${AFFILIATION_LABELS[type].slice(0, -1)} name`}
           value={name}
           onChange={setName}
+          onPick={(pickedName, pickedLocation) => {
+            setName(pickedName);
+            setLocation(pickedLocation);
+            if (locationError) setLocationError('');
+          }}
           placeholder={namePlaceholder}
+          affiliationType={type}
+          location={location}
+          disabled={isPending}
         />
         <div>
           <Field
@@ -314,6 +335,14 @@ function AffiliationGroup({
             <p className="mt-1 text-xs text-red-500">{locationError}</p>
           )}
         </div>
+        {/* KAN-451: short description on add — the edit path has had one since
+            KAN-448, so adding then editing was the only way to set it. */}
+        <Field
+          label="Description (optional)"
+          value={description}
+          onChange={setDescription}
+          placeholder={descriptionPlaceholder}
+        />
         <button
           onClick={handleAdd}
           disabled={isPending || !name.trim() || postcodeInvalid}

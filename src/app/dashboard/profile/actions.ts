@@ -407,6 +407,12 @@ export async function removeProfileItem(itemId: string): Promise<ActionResult> {
 export async function addSchoolAffiliation(data: {
   school_name: string;
   school_location?: string;
+  // KAN-451: a short note added at the same time as the affiliation
+  // ("Year 2 teacher"). Optional; the edit path (updateSchoolAffiliation)
+  // has carried it since KAN-448 and gets identical sanitise + moderation
+  // treatment here, so a member cannot use the add path to write something
+  // the edit path would refuse.
+  description?: string;
   relationship?: string;
   // KAN-220: one of school|organisation|community. Defaults to 'school'
   // for backward compat with pre-KAN-220 callers; coerced on write so
@@ -443,6 +449,10 @@ export async function addSchoolAffiliation(data: {
   const sanitisedLoc = data.school_location
     ? sanitiseText(data.school_location, 200)
     : null;
+  // KAN-451 — same 200-char cap and empty-means-NULL rule as the edit path.
+  const sanitisedDesc = data.description && data.description.trim() !== ''
+    ? sanitiseText(data.description, 200)
+    : null;
   const nameMod = await moderateAndAudit(supabase, {
     text: sanitisedName,
     fieldType: 'public',
@@ -461,6 +471,16 @@ export async function addSchoolAffiliation(data: {
     });
     if (!locMod.ok) return { success: false, error: locMod.error };
   }
+  if (sanitisedDesc) {
+    const descMod = await moderateAndAudit(supabase, {
+      text: sanitisedDesc,
+      fieldType: 'public',
+      field: 'school_affiliations.description',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!descMod.ok) return { success: false, error: descMod.error };
+  }
 
   const { error } = await supabase
     .from('school_affiliations')
@@ -468,6 +488,7 @@ export async function addSchoolAffiliation(data: {
       profile_id: profile.id,
       school_name: sanitisedName,
       school_location: sanitisedLoc,
+      description: sanitisedDesc,
       relationship: data.relationship || 'parent',
       affiliation_type: affiliationType,
     });
