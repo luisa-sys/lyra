@@ -137,7 +137,8 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
 
   test('questions + conversation starters render as a Q&A section', () => {
     expect(content).toContain("groupedItems['questions']");
-    expect(content).toContain('A few more things about me');
+    // KAN-445 renamed the heading to the founder's wording.
+    expect(content).toContain('A bit more about me');
   });
 
   test('billboard has special large-quote rendering', () => {

@@ -243,8 +243,8 @@ export function ProfileWizard({
             prompts={conversationPrompts}
             answers={conversationAnswers}
             onAdd={(input) => { startTransition(async () => { await addConversationStarter(input); router.refresh(); }); }}
-            onUpdate={async (id, answer) => {
-              const res = await updateConversationStarter(id, answer);
+            onUpdate={async (id, answer, customPrompt) => {
+              const res = await updateConversationStarter(id, answer, customPrompt);
               if (res.success) router.refresh();
               return { success: res.success, error: res.success ? undefined : res.error };
             }}

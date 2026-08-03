@@ -34,12 +34,6 @@
     },
     {
       "test": "tests/unit/conversation-starters.test.ts",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "/A few more things about me/",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/conversation-starters.test.ts",
       "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
       "assertion": "/500/",
       "severity": "comment-shadowed"

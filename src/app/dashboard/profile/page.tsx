@@ -74,7 +74,12 @@ export default async function ProfilePage() {
     .order('sort_order', { ascending: true });
   const { data: starterRows } = await supabase
     .from('profile_conversation_starters')
-    .select('id, prompt_id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
+    // KAN-445: `*` rather than a column list, deliberately. `custom_prompt`
+    // arrives with migration 20260803160000, and code reaches an environment
+    // before its migration runs — PostgREST rejects the WHOLE query with 42703
+    // if a named column is absent, which would blank the profile editor. `*`
+    // returns the column once it exists and simply omits it before then.
+    .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
     .eq('profile_id', profile.id)
     .order('created_at', { ascending: true });
   const conversationAnswers = (starterRows ?? []).map((r) => {
@@ -84,11 +89,14 @@ export default async function ProfilePage() {
     const joinedPrompt = Array.isArray(promptCandidate)
       ? ((promptCandidate[0] as { prompt: string } | undefined)?.prompt ?? '')
       : ((promptCandidate as { prompt: string } | null)?.prompt ?? '');
+    const customPrompt = (r.custom_prompt as string | null | undefined) ?? null;
     return {
       id: r.id as string,
-      prompt_id: r.prompt_id as string,
+      prompt_id: (r.prompt_id as string | null) ?? null,
       answer: r.answer as string,
-      prompt: joinedPrompt,
+      // A member-written question IS the question shown above the answer.
+      prompt: customPrompt ?? joinedPrompt,
+      custom_prompt: customPrompt,
     };
   });
 

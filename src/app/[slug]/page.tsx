@@ -228,7 +228,12 @@ export default async function PublicProfilePage({ params }: Props) {
       .maybeSingle(),
     getSupabase()
       .from('profile_conversation_starters')
-      .select('id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
+      // KAN-445: `*` rather than a column list. `custom_prompt` arrives with
+      // migration 20260803160000, and code reaches an environment before its
+      // migration runs — naming a column PostgREST does not know 42703s the
+      // whole read, which here would take the public profile down entirely
+      // (the section-read errors below throw).
+      .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
       .eq('profile_id', typedProfile.id)
       .order('created_at', { ascending: true }),
   ]);
@@ -278,11 +283,14 @@ export default async function PublicProfilePage({ params }: Props) {
     const joined = Array.isArray(promptCandidate)
       ? (promptCandidate[0] as { prompt: string; sort_order: number } | undefined)
       : (promptCandidate as { prompt: string; sort_order: number } | null);
+    // KAN-445: a question the member wrote themselves has no seeded prompt to
+    // join to. It sorts after the offered set, in the order they added them.
+    const customPrompt = (r.custom_prompt as string | null | undefined) ?? null;
     return {
       id: r.id as string,
       answer: r.answer as string,
-      prompt: joined?.prompt ?? '',
-      sort_order: joined?.sort_order ?? 0,
+      prompt: customPrompt ?? joined?.prompt ?? '',
+      sort_order: customPrompt ? Number.MAX_SAFE_INTEGER : (joined?.sort_order ?? 0),
     };
   }).sort((a, b) => a.sort_order - b.sort_order);
 
@@ -498,10 +506,14 @@ export default async function PublicProfilePage({ params }: Props) {
           <CardSection heading="🧰 Tips & life hacks I can share" items={groupedItems['life_hacks']} />
           <CardSection heading="🧩 Problems I'm trying to solve — ideas welcome" items={groupedItems['current_problems']} />
 
-          {/* A few more things about me (Q&A) */}
+          {/* Q&A — answered prompts, the member's own questions, and the
+              "questions I wish people asked" items. The heading is NOT
+              repeated in this comment on purpose: CTL-039 recorded the old
+              wording here as a comment-shadowed assertion, so the guard was
+              matching the prose rather than the rendered heading. */}
           {(typedStarters.length > 0 || has('questions')) && (
             <section className="mt-11">
-              <SectionQ>💬 A few more things about me</SectionQ>
+              <SectionQ>💬 A bit more about me</SectionQ>
               <div className="mt-3 space-y-5">
                 {typedStarters.map((s) => (
                   <div key={s.id}>
