@@ -4,6 +4,9 @@ import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from './manual-of-me-fields';
 import { MANUAL_OF_ME_FIELDS } from './manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
+import { getRecommendations } from '@/lib/recommend';
+import { keyForRecommendation } from '@/lib/recommend/dismissals';
+import type { GiftSuggestionView } from './sections';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -92,9 +95,46 @@ export default async function ProfilePage() {
     };
   });
 
+  // KAN-443 — the auto-generated gift suggestions, so the member can say "not
+  // for me" to any of them. `getRecommendations` is pure and runs over data
+  // this page has already loaded, so this costs no extra query. The limit
+  // matches the public profile's concept window, so what the member curates
+  // here is what visitors are offered.
+  //
+  // `gift_suggestion_dismissals` is created by
+  // 20260803170000_kan443_gift_redesign.sql, and code reaches an environment
+  // before its migration does. Only `data` is read (as every other read on this
+  // page does), so a not-yet-migrated environment degrades to "nothing
+  // dismissed" — the member sees every suggestion — rather than failing to
+  // render their editor.
+  const { data: dismissalRows } = await supabase
+    .from('gift_suggestion_dismissals')
+    .select('suggestion_key')
+    .eq('profile_id', profile.id);
+  const dismissedKeys = new Set(
+    ((dismissalRows ?? []) as { suggestion_key: string }[]).map((r) => r.suggestion_key),
+  );
+
+  const giftSuggestions: GiftSuggestionView[] = getRecommendations(
+    {
+      bio: profile.bio_short,
+      headline: profile.headline,
+      items: (items ?? []).map((i) => ({
+        category: i.category,
+        title: i.title,
+        description: i.description,
+      })),
+    },
+    { limit: 8 },
+  ).map((r) => {
+    const key = keyForRecommendation(r);
+    return { key, title: r.title, description: r.description, dismissed: dismissedKeys.has(key) };
+  });
+
   return (
     <EditProfileForm
       profile={profile}
+      giftSuggestions={giftSuggestions}
       items={items || []}
       schools={schools || []}
       links={links || []}
