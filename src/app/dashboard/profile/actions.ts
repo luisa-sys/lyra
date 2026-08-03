@@ -449,6 +449,128 @@ export async function addSchoolAffiliation(data: {
   return { success: true };
 }
 
+/**
+ * KAN-448 — edit an existing affiliation's name / location / description.
+ * Mirrors `addSchoolAffiliation` for sanitise + moderation and the KAN-404
+ * postcode rule, and `updateProfileItem` for the partial-update shape: only
+ * the fields the caller passes are written, so an omitted field keeps its
+ * stored value (BUGS-74). `affiliation_type` is deliberately NOT editable
+ * here — the row's stored type is what decides whether a postcode is required.
+ *
+ * KAN-451's schools picker will reuse this action and supplies a school
+ * description and location alongside the name, so the signature already
+ * carries both and won't need changing.
+ */
+export async function updateSchoolAffiliation(
+  affiliationId: string,
+  data: { school_name?: string; school_location?: string; description?: string },
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (edits are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  // KAN-260 — belt-and-braces ownership: scope both the read and the write to
+  // the caller's own profile in code, not by RLS alone.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const { data: current } = await supabase
+    .from('school_affiliations')
+    .select('affiliation_type')
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id)
+    .maybeSingle();
+
+  if (!current) return { success: false, error: 'Affiliation not found' };
+
+  // KAN-404 — a school must still carry a postcode after an edit, so a member
+  // can't clear it by editing. Only checked when the caller is actually
+  // changing the location; the stored type decides, not a caller-supplied one.
+  const affiliationType = coerceAffiliationType(
+    (current as { affiliation_type?: string }).affiliation_type,
+  );
+  if (
+    data.school_location !== undefined
+    && requiresPostcode(affiliationType)
+    && !isSchoolPostcodeValid(data.school_location)
+  ) {
+    return {
+      success: false,
+      error: 'Schools need a postcode (full or partial) so people can tell schools with the same name apart.',
+    };
+  }
+
+  const updates: Record<string, string | null> = {};
+
+  if (data.school_name !== undefined) {
+    const sanitisedName = sanitiseText(data.school_name, 200);
+    if (sanitisedName.trim() === '') {
+      return { success: false, error: 'Name cannot be empty' };
+    }
+    const nameMod = await moderateAndAudit(supabase, {
+      text: sanitisedName,
+      fieldType: 'public',
+      field: 'school_affiliations.school_name',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!nameMod.ok) return { success: false, error: nameMod.error };
+    updates.school_name = sanitisedName;
+  }
+
+  if (data.school_location !== undefined) {
+    // Empty string clears the location to NULL (mirrors the add path, where an
+    // absent location is inserted as NULL).
+    const sanitisedLoc = data.school_location.trim() !== ''
+      ? sanitiseText(data.school_location, 200)
+      : null;
+    if (sanitisedLoc) {
+      const locMod = await moderateAndAudit(supabase, {
+        text: sanitisedLoc,
+        fieldType: 'public',
+        field: 'school_affiliations.school_location',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!locMod.ok) return { success: false, error: locMod.error };
+    }
+    updates.school_location = sanitisedLoc;
+  }
+
+  if (data.description !== undefined) {
+    const sanitisedDesc = data.description.trim() !== ''
+      ? sanitiseText(data.description, 200)
+      : null;
+    if (sanitisedDesc) {
+      const descMod = await moderateAndAudit(supabase, {
+        text: sanitisedDesc,
+        fieldType: 'public',
+        field: 'school_affiliations.description',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!descMod.ok) return { success: false, error: descMod.error };
+    }
+    updates.description = sanitisedDesc;
+  }
+
+  // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
+  if (Object.keys(updates).length === 0) return { success: true };
+
+  const { error } = await supabase
+    .from('school_affiliations')
+    .update(updates)
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
 export async function removeSchoolAffiliation(affiliationId: string): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -496,6 +618,9 @@ export async function addExternalLink(data: {
   title: string;
   url: string;
   link_type?: string;
+  // KAN-447 — `external_links.description` has existed since the first schema
+  // migration but nothing ever wrote it. Optional; absent or empty → NULL.
+  description?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -523,6 +648,21 @@ export async function addExternalLink(data: {
   });
   if (!linkTitleMod.ok) return { success: false, error: linkTitleMod.error };
 
+  // KAN-447 — the optional one-line description shown next to the title.
+  const sanitisedDesc = data.description && data.description.trim() !== ''
+    ? sanitiseText(data.description, 200)
+    : null;
+  if (sanitisedDesc) {
+    const descMod = await moderateAndAudit(supabase, {
+      text: sanitisedDesc,
+      fieldType: 'public',
+      field: 'external_links.description',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!descMod.ok) return { success: false, error: descMod.error };
+  }
+
   const { error } = await supabase
     .from('external_links')
     .insert({
@@ -530,7 +670,88 @@ export async function addExternalLink(data: {
       title: sanitisedLinkTitle,
       url: sanitisedUrl,
       link_type: data.link_type || 'general',
+      description: sanitisedDesc,
     });
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-447 — edit an existing link's title / description / url. Mirrors
+ * `addExternalLink` for sanitise + moderation and `updateProfileItem` for the
+ * partial-update shape: only the fields the caller passes are written, and an
+ * empty description clears it to NULL so a member can remove a description via
+ * edit, not only replace it. The URL is required on a link, so an empty one is
+ * an error rather than a clear. `link_type` is intentionally NOT editable here
+ * (text-only edit — changing the type is a separate concern).
+ */
+export async function updateExternalLink(
+  linkId: string,
+  data: { title?: string; url?: string; description?: string },
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (edits are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  // KAN-260 — belt-and-braces ownership: scope the write to the caller's own
+  // profile in code, not by RLS alone.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const updates: Record<string, string | null> = {};
+
+  if (data.title !== undefined) {
+    const sanitisedTitle = sanitiseText(data.title, 200);
+    if (sanitisedTitle.trim() === '') {
+      return { success: false, error: 'Title cannot be empty' };
+    }
+    const titleMod = await moderateAndAudit(supabase, {
+      text: sanitisedTitle,
+      fieldType: 'public',
+      field: 'external_links.title',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!titleMod.ok) return { success: false, error: titleMod.error };
+    updates.title = sanitisedTitle;
+  }
+
+  if (data.description !== undefined) {
+    const sanitisedDesc = data.description.trim() !== ''
+      ? sanitiseText(data.description, 200)
+      : null;
+    if (sanitisedDesc) {
+      const descMod = await moderateAndAudit(supabase, {
+        text: sanitisedDesc,
+        fieldType: 'public',
+        field: 'external_links.description',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!descMod.ok) return { success: false, error: descMod.error };
+    }
+    updates.description = sanitisedDesc;
+  }
+
+  if (data.url !== undefined) {
+    const cleaned = sanitiseUrl(data.url);
+    if (!cleaned) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+    updates.url = cleaned;
+  }
+
+  // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
+  if (Object.keys(updates).length === 0) return { success: true };
+
+  const { error } = await supabase
+    .from('external_links')
+    .update(updates)
+    .eq('id', linkId)
+    .eq('profile_id', profile.id);
 
   if (error) return { success: false, error: error.message };
   revalidatePath('/dashboard/profile');

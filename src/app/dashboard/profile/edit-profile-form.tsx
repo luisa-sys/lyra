@@ -27,6 +27,7 @@ import {
   updateProfileItemVisibility,
   addExternalLink,
   removeExternalLink,
+  updateExternalLink,
   publishProfile,
 } from './actions';
 import {
@@ -371,6 +372,15 @@ export function EditProfileForm({
                           onRemove={(id) => {
                             runSectionSave(s.id, () => removeExternalLink(id));
                           }}
+                          // KAN-447: inline edit — same shape as the items
+                          // section. Awaited directly so a moderation block
+                          // surfaces on the row rather than in the section
+                          // status; router.refresh() re-pulls the saved row.
+                          onEdit={async (id, data) => {
+                            const res = await updateExternalLink(id, data);
+                            if (res.success) router.refresh();
+                            return { success: res.success, error: res.success ? undefined : res.error };
+                          }}
                           showContinue={false}
                           onNext={() => toggleSection(s.id)}
                           isPending={isPending}
@@ -388,8 +398,14 @@ export function EditProfileForm({
                           onAdd={(input) => {
                             runSectionSave(s.id, () => addConversationStarter(input));
                           }}
-                          onUpdate={(id, answer) => {
-                            runSectionSave(s.id, () => updateConversationStarter(id, answer));
+                          // KAN-448: awaited directly, like the items and links
+                          // edits, so a moderation block surfaces on the answer
+                          // being edited instead of only flipping the section
+                          // status to error.
+                          onUpdate={async (id, answer) => {
+                            const res = await updateConversationStarter(id, answer);
+                            if (res.success) router.refresh();
+                            return { success: res.success, error: res.success ? undefined : res.error };
                           }}
                           onRemove={(id) => {
                             runSectionSave(s.id, () => removeConversationStarter(id));

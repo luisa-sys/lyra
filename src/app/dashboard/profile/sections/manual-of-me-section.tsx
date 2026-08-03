@@ -74,8 +74,8 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
 
       <MoMField
         label="Good to know about me / Things I'm into"
-        helper="The little things that help people get you — and the things you're into."
-        placeholder="I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
+        helper="What you're into, and the little things that help people get you."
+        placeholder="Example: I'm a slow texter but I always reply. I think out loud, so half of what I say is me working it out."
         value={draft.good_to_know}
         onChange={(v) => set('good_to_know', v)}
         onBlur={flush}
@@ -86,7 +86,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       <MoMField
         label="My boundaries"
         helper="Anything you'd gently ask people to respect."
-        placeholder="Please don't drop by unannounced — I love seeing you, I just need a heads-up."
+        placeholder="Example: Please don't drop by unannounced — I love seeing you, I just need a heads-up."
         value={draft.boundaries}
         onChange={(v) => set('boundaries', v)}
         onBlur={flush}
@@ -97,7 +97,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       <MoMField
         label="How I find communication easier"
         helper="How you like people to reach you."
-        placeholder="Plain and direct, kindly meant. If something's off, just tell me — I'd rather know."
+        placeholder="Example: Plain and direct, kindly meant. If something's off, just tell me — I'd rather know."
         value={draft.communication_style}
         onChange={(v) => set('communication_style', v)}
         onBlur={flush}
@@ -108,7 +108,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       <MoMField
         label="If you ever come to my house"
         helper="Anything a visitor would love to know."
-        placeholder="Shoes off, the dog is friendly, help yourself to tea — the good biscuits are behind the cereal."
+        placeholder="Example: Shoes off, the dog is friendly, help yourself to tea — the good biscuits are behind the cereal."
         value={draft.working_preferences}
         onChange={(v) => set('working_preferences', v)}
         onBlur={flush}
@@ -119,7 +119,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       <MoMField
         label="What gives me energy"
         helper="The things that fill you up."
-        placeholder="A morning with no plans, a full pot of coffee, and live music in the evening."
+        placeholder="Example: A morning with no plans, a full pot of coffee, and live music in the evening."
         value={draft.energises_me}
         onChange={(v) => set('energises_me', v)}
         onBlur={flush}
@@ -130,7 +130,7 @@ export function ManualOfMeSection({ manualOfMe }: { manualOfMe: ManualOfMe }) {
       <MoMField
         label="What drains me"
         helper="The things that wear you out."
-        placeholder="Open-plan noise and small talk about the weather."
+        placeholder="Example: Open-plan noise and small talk about the weather."
         value={draft.drains_me}
         onChange={(v) => set('drains_me', v)}
         onBlur={flush}

@@ -36,7 +36,10 @@ export function ConversationStartersStep({
   prompts: ConversationPrompt[];
   answers: ConversationAnswer[];
   onAdd: (input: { promptId: string; answer: string }) => void;
-  onUpdate: (id: string, answer: string) => void;
+  // KAN-448 — the caller awaits the update action and hands back its result so
+  // a moderation rejection surfaces on the row it belongs to, rather than
+  // disappearing into a transition. Same shape as ItemsStep's onEdit.
+  onUpdate: (id: string, answer: string) => Promise<{ success: boolean; error?: string }>;
   onRemove: (id: string) => void;
   onNext: () => void;
   isPending: boolean;
@@ -48,6 +51,8 @@ export function ConversationStartersStep({
   const [newAnswer, setNewAnswer] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingAnswer, setEditingAnswer] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const answeredPromptIds = new Set(answers.map((a) => a.prompt_id));
   const unanswered = prompts.filter((p) => !answeredPromptIds.has(p.id));
@@ -68,11 +73,19 @@ export function ConversationStartersStep({
   function handleStartEdit(answer: ConversationAnswer) {
     setEditingId(answer.id);
     setEditingAnswer(answer.answer);
+    setEditError(null);
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     if (!editingId || !editingAnswer.trim()) return;
-    onUpdate(editingId, editingAnswer.trim());
+    setEditSaving(true);
+    setEditError(null);
+    const res = await onUpdate(editingId, editingAnswer.trim());
+    setEditSaving(false);
+    if (!res.success) {
+      setEditError(res.error ?? 'Could not save. Please try again.');
+      return;
+    }
     setEditingId(null);
     setEditingAnswer('');
   }
@@ -105,13 +118,14 @@ export function ConversationStartersStep({
                     rows={3}
                     className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
+                  {editError && <p role="alert" className="text-xs text-red-600">{editError}</p>}
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[var(--color-muted)]">{editingAnswer.length} / {ANSWER_MAX}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => { setEditingId(null); setEditingAnswer(''); }}
-                        disabled={isPending}
+                        onClick={() => { setEditingId(null); setEditingAnswer(''); setEditError(null); }}
+                        disabled={editSaving}
                         className="text-[var(--color-muted)] hover:text-[var(--color-ink)]"
                       >
                         Cancel
@@ -119,10 +133,10 @@ export function ConversationStartersStep({
                       <button
                         type="button"
                         onClick={handleSaveEdit}
-                        disabled={isPending || !editingAnswer.trim()}
+                        disabled={editSaving || isPending || !editingAnswer.trim()}
                         className="px-3 py-1 rounded-full bg-[var(--color-sage)] text-white disabled:opacity-50"
                       >
-                        Save
+                        {editSaving ? 'Saving…' : 'Save'}
                       </button>
                     </div>
                   </div>
@@ -188,7 +202,7 @@ export function ConversationStartersStep({
                     value={newAnswer}
                     onChange={(e) => setNewAnswer(e.target.value.slice(0, ANSWER_MAX))}
                     rows={3}
-                    placeholder="Write a short, honest answer — a few sentences."
+                    placeholder="Example: I'd take one battered paperback and a very large pot of coffee."
                     className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
                   <div className="flex items-center justify-between text-xs">

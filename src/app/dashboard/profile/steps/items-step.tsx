@@ -153,14 +153,14 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
                 /* KAN-404 (#12): inline edit mode — reuses the add-form input
                    styling. Save runs onEdit; a moderation block shows in place. */
                 <div className="space-y-3">
-                  <Field label="Title" value={editTitle} onChange={setEditTitle} placeholder="e.g. Dark chocolate, hiking boots" />
+                  <Field label="Title" value={editTitle} onChange={setEditTitle} placeholder="Example: Dark chocolate, hiking boots" />
                   <div>
                     <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Description (optional)</label>
                     <input
                       value={editDesc}
                       onChange={(e) => setEditDesc(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
-                      placeholder="Any extra detail"
+                      placeholder="Example: the really dark one with sea salt"
                     />
                   </div>
                   <div>
@@ -173,7 +173,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
                       value={editUrl}
                       onChange={(e) => setEditUrl(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
-                      placeholder="https://example.com/this-book"
+                      placeholder="Example: https://example.com/this-book"
                     />
                   </div>
                   {editError && <p role="alert" className="text-sm text-red-600">{editError}</p>}
@@ -277,12 +277,12 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
             </select>
           </div>
         )}
-        <Field label="Title" value={itemTitle} onChange={setItemTitle} placeholder="e.g. Dark chocolate, hiking boots" />
+        <Field label="Title" value={itemTitle} onChange={setItemTitle} placeholder="Example: Dark chocolate, hiking boots" />
         <div>
           <label className="block text-sm font-medium text-[var(--color-ink)] mb-1">Description (optional)</label>
           <input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
-            placeholder="Any extra detail" />
+            placeholder="Example: the really dark one with sea salt" />
         </div>
         {/* KAN-219: optional URL on items (Python lyra-app parity).
             Server-side sanitiseUrl rejects anything that's not http(s);
@@ -297,7 +297,7 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
             value={itemUrl}
             onChange={(e) => setItemUrl(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-sage)]"
-            placeholder="https://example.com/this-book"
+            placeholder="Example: https://example.com/this-book"
           />
         </div>
         {!hideVisibility && (
