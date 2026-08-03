@@ -30,6 +30,10 @@ export interface WizardItem {
   // Older rows from before KAN-221 always had an explicit value; new items
   // default to NULL when the form chooses "Use section default".
   visibility: string | null;
+  // KAN-444: the member's own heading for a custom favourites group. Only
+  // meaningful for category 'favourite_custom'; optional because every other
+  // caller (and every row written before the column existed) simply omits it.
+  group_label?: string | null;
 }
 
 export interface WizardSchool {

@@ -54,9 +54,22 @@ describe('Public Profile', () => {
   // KAN-404: Play (🎭) favourites are addable in the editor but were not being
   // rendered on the public profile (FAV_DEFS had no 'plays' entry, so Play items
   // saved but never showed). Guard that the public favourites grid includes it.
-  test("public profile renders the 'plays' favourites category (KAN-404)", () => {
-    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
+  //
+  // KAN-444 folded plays into the merged "Movies, plays & TV" group and moved
+  // the table into the shared favourites module, so the standalone heading
+  // 'Favourite plays' no longer exists anywhere — a deliberate copy change,
+  // not a dropped category. What KAN-404 was actually protecting (a saved
+  // Play still reaches the public profile) is asserted BEHAVIOURALLY over the
+  // real grouping function in kan444-favourites-groups.test.ts, which is
+  // strictly stronger than either string match: it fails if 'plays' is
+  // dropped from the group, whereas a source scan cannot tell a rendered
+  // category from a mentioned one.
+  test("public profile renders the 'plays' favourites category (KAN-404/KAN-444)", () => {
+    const content = fs.readFileSync(path.join(root, SRC.profile, 'favourites.ts'), 'utf8');
     expect(content).toContain("'plays'");
-    expect(content).toContain('Favourite plays');
+    // Assert the group DEFINITION, not its heading: the heading text also
+    // appears in that module's explanatory comment, so matching it would
+    // survive deleting the group (CTL-039 flags exactly that shape).
+    expect(content).toContain("categories: ['favourite_media', 'plays', 'favourite_tv']");
   });
 });
