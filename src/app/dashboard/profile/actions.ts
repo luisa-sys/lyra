@@ -144,6 +144,9 @@ export async function addProfileItem(data: {
   description?: string;
   url?: string;
   visibility?: string;
+  // KAN-444 — the member's own heading for a custom favourites group. Public
+  // text, so it is sanitised and moderated exactly like a title.
+  groupLabel?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -200,6 +203,30 @@ export async function addProfileItem(data: {
     if (!descMod.ok) return { success: false, error: descMod.error };
   }
 
+  // KAN-444 — a member-named favourites group. The heading is shown on the
+  // public profile, so it goes through the same sanitise + moderation path
+  // as the item's own text rather than straight into the row.
+  const sanitisedGroupLabel = data.groupLabel && data.groupLabel.trim() !== ''
+    ? sanitiseText(data.groupLabel, 60)
+    : null;
+  if (sanitisedGroupLabel) {
+    const groupMod = await moderateAndAudit(supabase, {
+      text: sanitisedGroupLabel,
+      fieldType: 'public',
+      field: 'profile_items.group_label',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!groupMod.ok) return { success: false, error: groupMod.error };
+  }
+
+  // Only send group_label when there is one. PostgREST builds the INSERT
+  // column list from the payload keys, so an unknown key fails the WHOLE
+  // request with PGRST204 even when the value is null — which would break
+  // every add path here (9 editor sections + 6 legacy wizard steps) on any
+  // environment where 20260803114500_favourites_custom_group.sql has not run
+  // yet. Omitting the key keeps existing adds byte-identical to before, so
+  // only the new add-your-own path depends on the new column.
   const { error } = await supabase
     .from('profile_items')
     .insert({
@@ -209,6 +236,7 @@ export async function addProfileItem(data: {
       description: sanitisedDesc,
       url: sanitisedUrl,
       visibility,
+      ...(sanitisedGroupLabel ? { group_label: sanitisedGroupLabel } : {}),
     });
 
   if (error) return { success: false, error: error.message };

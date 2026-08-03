@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 173 entries.
+// 174 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -115,6 +115,7 @@ export const SRC = {
   conversationStartersActions: 'src/app/dashboard/profile/conversation-starters-actions.ts',
   deliveryCountryActions: 'src/app/dashboard/profile/delivery-country-actions.ts',
   editProfileForm: 'src/app/dashboard/profile/edit-profile-form.tsx',
+  favourites: 'src/app/dashboard/profile/favourites.ts',
   filesActions: 'src/app/dashboard/profile/files-actions.ts',
   legacyPage: 'src/app/dashboard/profile/legacy/page.tsx',
   manualOfMeActions: 'src/app/dashboard/profile/manual-of-me-actions.ts',

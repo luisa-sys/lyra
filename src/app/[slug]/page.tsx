@@ -15,6 +15,7 @@ import {
   isManualOfMeEmpty,
   type ManualOfMe,
 } from '@/app/dashboard/profile/manual-of-me-fields';
+import { groupFavourites } from '@/app/dashboard/profile/favourites';
 import { getRecommendations } from '@/lib/recommend';
 import RecommendationsSection from './recommendations-section';
 import V2RecommendationsSection from './v2-recommendations-section';
@@ -56,6 +57,8 @@ interface ProfileItem {
   description: string | null;
   url: string | null;
   visibility: string | null;
+  // KAN-444: only set on custom favourites — the heading the member chose.
+  group_label?: string | null;
 }
 
 interface SchoolAffiliation {
@@ -343,21 +346,11 @@ export default async function PublicProfilePage({ params }: Props) {
     ['drains_me', 'What drains me'],
   ];
 
-  // Favourites grid — one card per non-empty list.
-  const FAV_DEFS: Array<[string, string]> = [
-    ['favourite_media', 'Favourite films'],
-    ['favourite_books', 'Favourite books'],
-    ['favourite_tv', 'Favourite TV shows'],
-    ['plays', 'Favourite plays'],
-    ['quotes', 'Favourite quotes'],
-    ['favourite_places', 'Favourite places'],
-    ['favourite_music', 'Favourite music & bands'],
-  ];
-  const favCards = FAV_DEFS.filter(([cat]) => has(cat)).map(([cat, label]) => ({
-    key: cat,
-    label,
-    items: groupedItems[cat] ?? [],
-  }));
+  // KAN-444: favourites grid — one card per non-empty group, built by the
+  // SAME function the editor groups by (see dashboard/profile/favourites).
+  // Sharing it is the point: the groups a member arranges while editing are
+  // by construction the groups their visitors see, so the two cannot drift.
+  const favCards = groupFavourites(typedItems);
 
   // Affiliations — hidden by default, shown only where the owner opted in.
   const affGroups: Array<{ key: string; label: string }> = [
