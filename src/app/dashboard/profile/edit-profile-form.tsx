@@ -166,10 +166,10 @@ const SECTIONS: SectionDef[] = [
   },
   {
     id: 'starters',
-    label: 'A few more things about me',
+    label: 'A bit more about me',
     icon: '💬',
     kind: 'starters',
-    description: 'Pick a question and answer it in your own words.',
+    description: 'Random things about you — answer any that take your fancy, or write your own.',
   },
   {
     id: 'extras',
@@ -451,8 +451,8 @@ export function EditProfileForm({
                           // edits, so a moderation block surfaces on the answer
                           // being edited instead of only flipping the section
                           // status to error.
-                          onUpdate={async (id, answer) => {
-                            const res = await updateConversationStarter(id, answer);
+                          onUpdate={async (id, answer, customPrompt) => {
+                            const res = await updateConversationStarter(id, answer, customPrompt);
                             if (res.success) router.refresh();
                             return { success: res.success, error: res.success ? undefined : res.error };
                           }}

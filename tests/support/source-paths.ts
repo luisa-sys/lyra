@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 174 entries.
+// 175 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -189,6 +189,7 @@ export const SRC = {
   migrations20260707193000Sec76OauthClientsIsFirstParty: 'supabase/migrations/20260707193000_sec76_oauth_clients_is_first_party.sql',
   migrations20260712033000Sec74AffiliateClicksRetentionPurge: 'supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql',
   migrations20260717033000Sec74GatheringsRetentionPurge: 'supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql',
+  migrations20260803160000Kan445CustomConversationPrompts: 'supabase/migrations/20260803160000_kan445_custom_conversation_prompts.sql',
   schemaDriftBaseline: 'supabase/schema-drift-baseline.json',
 } as const;
 

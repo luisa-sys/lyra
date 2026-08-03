@@ -85,9 +85,12 @@ export interface ConversationPrompt {
 
 export interface ConversationAnswer {
   id: string;
-  prompt_id: string;
+  // KAN-445: null when the member wrote the question themselves.
+  prompt_id: string | null;
   answer: string;
-  prompt: string; // joined for display
+  prompt: string; // the seeded prompt joined for display, or the member's own
+  /** The member's own question text; null for a seeded prompt. */
+  custom_prompt: string | null;
 }
 
 export function Field({ label, value, onChange, placeholder }: {

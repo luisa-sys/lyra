@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
 
 /**
  * KAN-181: server actions for `profile_conversation_starters`.
@@ -21,9 +22,26 @@ import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
  *
  * The answer cap is enforced by the DB trigger `pcs_cap`; we surface
  * it as a user-facing error instead of a raw Postgres exception.
+ *
+ * KAN-445 — a row is now EITHER a seeded prompt (`prompt_id`) OR a question
+ * the member wrote themselves (`custom_prompt`), never both and never
+ * neither. The database enforces that with `pcs_prompt_source_xor`; these
+ * actions enforce it first so the member gets a sentence rather than a 23514.
+ *
+ * A member-written question renders on the PUBLIC profile exactly like a
+ * seeded one, so it goes through the same `sanitiseText` + `moderateAndAudit`
+ * pipeline as the answer. Sanitising only the answer would leave the question
+ * as an unmoderated public text field.
+ *
+ * ⚠️ `custom_prompt` is a column added by 20260803160000, and code reaches an
+ * environment before its migration runs. PostgREST builds the INSERT/UPDATE
+ * column list from the payload KEYS, so sending `custom_prompt: null` against
+ * a database that lacks the column fails the WHOLE request with PGRST204 —
+ * the value being null does not save you. Every write below therefore adds the
+ * key ONLY when there is something to write. `npm run type-check` cannot catch
+ * this: `src/lib/supabase-server.ts` builds an untyped client. Pinned by
+ * `tests/unit/conversation-starters-custom-prompts.test.ts`.
  */
-
-const ANSWER_MAX = 500;
 
 interface AuthedRequest {
   supabase: Awaited<ReturnType<typeof createClient>>;
@@ -44,8 +62,45 @@ async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
   return { supabase, profileId: profile.id as string, userId: user.id };
 }
 
+/**
+ * Map a Postgres error from either cap trigger onto member-facing copy.
+ *
+ * Order matters: the custom-cap message ('Custom question limit (3) reached')
+ * also matches the generic `limit (\d+) reached` pattern, so it has to be
+ * tested first or a member who filled their three own questions would be told
+ * to remove one of their ten answers.
+ */
+function capErrorCopy(message: string): string | null {
+  if (/custom question limit \(\d+\) reached/i.test(message)) {
+    return 'You can write up to 3 of your own questions. Remove one to add another.';
+  }
+  // The DB trigger raises a custom message for the answer cap; surface
+  // it as a clean toast. Match the limit generically (any digits) so the
+  // copy survives future cap changes without a code edit.
+  if (/limit \(\d+\) reached/.test(message)) {
+    return 'You can answer up to 10 prompts. Remove one to add another.';
+  }
+  return null;
+}
+
+/**
+ * Validate + clean the question a member wrote themselves.
+ *
+ * Returns the cleaned text, or an error string. Kept separate from the answer
+ * so both the add and the update path use identical rules — the sibling-drift
+ * shape that BUGS-74 and the eight suspension-guard tickets all share.
+ */
+function cleanCustomPrompt(raw: string): { text: string } | { error: string } {
+  const cleaned = sanitiseText(raw ?? '').slice(0, CUSTOM_PROMPT_MAX);
+  if (cleaned.trim().length === 0) {
+    return { error: 'Your question cannot be empty' };
+  }
+  return { text: cleaned };
+}
+
 export async function addConversationStarter(input: {
-  promptId: string;
+  promptId?: string;
+  customPrompt?: string;
   answer: string;
 }): Promise<ActionResult> {
   const authed = await getAuthedRequest();
@@ -56,10 +111,25 @@ export async function addConversationStarter(input: {
   const rl = await checkProfileWriteRateLimit(userId);
   if (!rl.allowed) return rl.result;
 
+  // KAN-445 — mirror the DB's `pcs_prompt_source_xor`: a seeded prompt or a
+  // question of your own, never both and never neither.
+  const hasPromptId = typeof input.promptId === 'string' && input.promptId.length > 0;
+  const hasCustom = typeof input.customPrompt === 'string' && input.customPrompt.trim().length > 0;
+  if (hasPromptId === hasCustom) {
+    return { success: false, error: 'Choose a prompt, or write a question of your own' };
+  }
+
   // UUID-ish sanity check on the prompt_id — DB will FK-validate either
   // way, but a clear application-level error is friendlier than a 22P02.
-  if (typeof input.promptId !== 'string' || !/^[0-9a-f-]{36}$/i.test(input.promptId)) {
+  if (hasPromptId && !/^[0-9a-f-]{36}$/i.test(input.promptId as string)) {
     return { success: false, error: 'Invalid prompt' };
+  }
+
+  let customPrompt: string | null = null;
+  if (hasCustom) {
+    const res = cleanCustomPrompt(input.customPrompt as string);
+    if ('error' in res) return { success: false, error: res.error };
+    customPrompt = res.text;
   }
 
   const cleaned = sanitiseText(input.answer ?? '').slice(0, ANSWER_MAX);
@@ -67,9 +137,10 @@ export async function addConversationStarter(input: {
     return { success: false, error: 'Answer cannot be empty' };
   }
 
-  // KAN-241 + KAN-244 — content moderation + audit log.
+  // KAN-241 + KAN-244 — content moderation + audit log. A member-written
+  // question is public text too, so it is moderated alongside the answer.
   const mod = await moderateAndAudit(supabase, {
-    text: cleaned,
+    text: customPrompt ? `${customPrompt}\n${cleaned}` : cleaned,
     fieldType: 'public',
     field: 'profile_conversation_starters.answer',
     profileId,
@@ -81,17 +152,17 @@ export async function addConversationStarter(input: {
     .from('profile_conversation_starters')
     .insert({
       profile_id: profileId,
-      prompt_id: input.promptId,
       answer: cleaned,
+      // Spread-when-present, NOT `?? null`: a key for a column that does not
+      // exist yet fails the whole request with PGRST204 even when its value is
+      // null (see the module header).
+      ...(hasPromptId ? { prompt_id: input.promptId } : {}),
+      ...(customPrompt ? { custom_prompt: customPrompt } : {}),
     });
 
   if (error) {
-    // The DB trigger raises a custom message for the answer cap; surface
-    // it as a clean toast. Match the limit generically (any digits) so the
-    // copy survives future cap changes without a code edit.
-    if (/limit \(\d+\) reached/.test(error.message)) {
-      return { success: false, error: 'You can answer up to 10 prompts. Remove one to add another.' };
-    }
+    const capCopy = capErrorCopy(error.message);
+    if (capCopy) return { success: false, error: capCopy };
     // 23505 = unique_violation on (profile_id, prompt_id)
     if (error.code === '23505') {
       return { success: false, error: 'You already answered this prompt — edit your existing answer instead.' };
@@ -106,6 +177,7 @@ export async function addConversationStarter(input: {
 export async function updateConversationStarter(
   id: string,
   answer: string,
+  customPrompt?: string,
 ): Promise<ActionResult> {
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
@@ -115,6 +187,17 @@ export async function updateConversationStarter(
   const rl = await checkProfileWriteRateLimit(userId);
   if (!rl.allowed) return rl.result;
 
+  // KAN-445 — `undefined` means "the caller did not edit the question", which
+  // must leave the column ALONE. Coercing it to null here would blank a
+  // member's own question every time they edited only the answer — BUGS-74's
+  // exact shape, on a column that is half of an XOR check.
+  let cleanedPrompt: string | null = null;
+  if (customPrompt !== undefined) {
+    const res = cleanCustomPrompt(customPrompt);
+    if ('error' in res) return { success: false, error: res.error };
+    cleanedPrompt = res.text;
+  }
+
   const cleaned = sanitiseText(answer ?? '').slice(0, ANSWER_MAX);
   if (cleaned.trim().length === 0) {
     return { success: false, error: 'Answer cannot be empty' };
@@ -122,7 +205,7 @@ export async function updateConversationStarter(
 
   // KAN-241 + KAN-244 — content moderation + audit, same as the add path.
   const mod = await moderateAndAudit(supabase, {
-    text: cleaned,
+    text: cleanedPrompt ? `${cleanedPrompt}\n${cleaned}` : cleaned,
     fieldType: 'public',
     field: 'profile_conversation_starters.answer',
     profileId,
@@ -132,11 +215,18 @@ export async function updateConversationStarter(
 
   const { error } = await supabase
     .from('profile_conversation_starters')
-    .update({ answer: cleaned })
+    .update({
+      answer: cleaned,
+      // Same PGRST204 rule as the insert: the key exists only when there is a
+      // value for it.
+      ...(cleanedPrompt ? { custom_prompt: cleanedPrompt } : {}),
+    })
     .eq('id', id)
     .eq('profile_id', profileId);
 
   if (error) {
+    const capCopy = capErrorCopy(error.message);
+    if (capCopy) return { success: false, error: capCopy };
     return { success: false, error: error.message };
   }
 
