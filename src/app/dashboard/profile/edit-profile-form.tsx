@@ -51,8 +51,10 @@ import {
   BioSection,
   ManualOfMeSection,
   AffiliationsSection,
+  GiftExtrasSection,
   AutoSaveStatusLabel,
   type AutoSaveStatus,
+  type GiftSuggestionView,
 } from './sections';
 import type { ManualOfMe } from './manual-of-me-fields';
 import {
@@ -77,6 +79,14 @@ interface SectionDef {
   categoryOptions?: ReadonlyArray<{ value: string; label: string }>;
   groupLabelCategory?: string;
   labelForItem?: (item: WizardItem) => string | null;
+  // KAN-443: 'inline' drops the per-row category prefix and puts the item's
+  // description on the same line as its name, with any link underneath —
+  // matching how the public profile renders a list. Omitted everywhere else, so
+  // the other eleven sections keep the labelled layout exactly as it was.
+  rowLayout?: 'label' | 'inline';
+  // KAN-443: extra controls rendered after the list. Only the gifts section has
+  // any (the voucher hint + dismissable suggestions).
+  extras?: 'gifts';
 }
 
 // KAN-266: section order + headings mirror the public profile (the redesign's
@@ -94,6 +104,10 @@ const SECTIONS: SectionDef[] = [
     kind: 'items',
     categories: ['gift_ideas'],
     description: "The things you'd genuinely love — to receive, to do, or to be surprised by.",
+    // KAN-443: one category, so the per-row "🎁 Gift idea —" prefix said the
+    // same thing on every line and pushed the name off the start of it.
+    rowLayout: 'inline',
+    extras: 'gifts',
   },
   {
     id: 'notforme',
@@ -177,6 +191,7 @@ export function EditProfileForm({
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
+  giftSuggestions = [],
 }: {
   profile: WizardProfile;
   items: WizardItem[];
@@ -186,6 +201,9 @@ export function EditProfileForm({
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
   conveneEnabled?: boolean;
+  // KAN-443: computed by the page (getRecommendations is pure), each already
+  // flagged with whether the member has said "not for me" to it.
+  giftSuggestions?: GiftSuggestionView[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -249,6 +267,7 @@ export function EditProfileForm({
       categoryOptions={s.categoryOptions}
       groupLabelCategory={s.groupLabelCategory}
       labelForItem={s.labelForItem}
+      rowLayout={s.rowLayout}
       items={items.filter((i) => (s.categories ?? []).includes(i.category))}
       // KAN-266: redesign drops per-item visibility.
       hideVisibility
@@ -276,6 +295,14 @@ export function EditProfileForm({
       onNext={() => toggleSection(s.id)}
       isPending={isPending}
     />
+    {/* KAN-443: the gifts section carries two extras the other list sections
+        have no equivalent of — the optional "I'd rather choose" line, and the
+        auto-generated suggestions the member can dismiss one at a time. */}
+    {s.extras === 'gifts' && (
+      <div className="pt-2 border-t border-[#ece7df]">
+        <GiftExtrasSection profile={profile} suggestions={giftSuggestions} />
+      </div>
+    )}
     </div>
   );
 

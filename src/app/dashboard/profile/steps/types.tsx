@@ -14,6 +14,11 @@ export interface WizardProfile {
   delivery_country_code: string | null;
   is_published: boolean;
   avatar_url: string | null;
+  // KAN-443: optional one-liner for people who would rather choose their own
+  // gift. OPTIONAL on the type as well as nullable in the DB — the row is read
+  // with select('*'), so an environment that has not yet run
+  // 20260803170000_kan443_gift_redesign.sql simply returns no such key.
+  gift_voucher_hint?: string | null;
   // KAN-234 / KAN-221: hybrid visibility. Per-section default ({} when
   // unset) that items inherit when their own `visibility` is NULL.
   // Keys live in `section-visibility.ts → CONTROLLABLE_SECTION_KEYS`.

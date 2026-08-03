@@ -203,10 +203,11 @@ All operations run via GitHub Actions — no local machine needed:
 ## Database Schema
 
 ### Tables
-- **profiles**: User profiles (display_name, slug, headline, bio, location, is_published)
+- **profiles**: User profiles (display_name, slug, headline, bio, location, is_published, gift_voucher_hint)
 - **profile_items**: Items on profiles (category: likes, dislikes, gift_ideas, boundaries, etc.)
 - **external_links**: Links attached to profiles (website, social, etc.)
 - **school_affiliations**: School connections (school_name, location, relationship)
+- **gift_suggestion_dismissals**: _(KAN-443)_ gift suggestions a member has said "not for me" to — `(profile_id, suggestion_key)`, owner-scoped by RLS. `suggestion_key` identifies a recommender CONCEPT, not a product, so a dismissal survives the catalogue resolving a different product for the same idea. Filters both the V1 concept list and the V2 pipeline output on the public profile.
 
 ### Custom Types
 - item_category: likes, dislikes, gift_ideas, gifts_to_avoid, boundaries, helpful_to_know, hobbies, allergies

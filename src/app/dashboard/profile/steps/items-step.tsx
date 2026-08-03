@@ -28,7 +28,7 @@ const visibilityShort: Record<string, string> = {
 // KAN-234: short label for the NULL/inherit case in the per-item selector.
 const INHERIT_SHORT = '↗ Inherit';
 
-export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onEdit, onNext, isPending, hideVisibility = false, showContinue = true, categoryOptions, groupLabelCategory, labelForItem }: {
+export function ItemsStep({ title, description, categories, items, onAdd, onRemove, onUpdateVisibility, onEdit, onNext, isPending, hideVisibility = false, showContinue = true, categoryOptions, groupLabelCategory, labelForItem, rowLayout = 'label' }: {
   title: string; description: string; categories: string[]; items: WizardItem[];
   // KAN-219 — items now carry an optional URL (Python `lyra-app` parity).
   // Server-side `addProfileItem` runs the value through `sanitiseUrl`, which
@@ -71,6 +71,16 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
   // public profile instead of the raw per-category label. Returning null
   // falls back to the built-in category labels below.
   labelForItem?: (item: WizardItem) => string | null;
+  // KAN-443: how an existing row is laid out.
+  //   'label'  (default) — "🎁 Gift idea — Dark chocolate", description on a
+  //                        second line, link as a ↗ chip after the title.
+  //   'inline'           — "Dark chocolate — the really dark one", no category
+  //                        prefix, and the link on its own line underneath.
+  // The gifts section uses 'inline' because it holds ONE category, so the
+  // prefix repeated the section heading on every row and pushed the thing the
+  // member actually wrote off the start of the line. Everything else keeps the
+  // default, so no other section changes.
+  rowLayout?: 'label' | 'inline';
 }) {
   const [category, setCategory] = useState(categoryOptions ? categoryOptions[0].value : categories[0]);
   const [itemTitle, setItemTitle] = useState('');
@@ -226,25 +236,54 @@ export function ItemsStep({ title, description, categories, items, onAdd, onRemo
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-ink)]">
-                      {/* KAN-444: label the row with the heading it will
-                          appear under publicly, when the section knows it. */}
-                      <span className="opacity-60">{labelForItem?.(item) ?? categoryLabels[item.category] ?? item.category}</span> — {item.title}
-                      {/* KAN-219: ↗ chip when an item has a URL. Open in new tab
-                          with noopener+noreferrer to prevent tab-nabbing. */}
-                      {item.url && (
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-1.5 text-xs text-[var(--color-sage)] hover:underline"
-                          aria-label={`Open link for ${item.title}`}
-                        >
-                          ↗
-                        </a>
-                      )}
-                    </p>
-                    {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
+                    {rowLayout === 'inline' ? (
+                      /* KAN-443: name and note on ONE line, same weight
+                         relationship as the public profile's list sections,
+                         with any link underneath. No category prefix — this
+                         layout is only used by single-category sections, where
+                         it just repeated the heading. */
+                      <>
+                        <p className="text-sm text-[var(--color-ink)]">
+                          <span className="font-medium">{item.title}</span>
+                          {item.description && (
+                            <span className="text-[var(--color-muted)]"> — {item.description}</span>
+                          )}
+                        </p>
+                        {item.url && (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block mt-0.5 text-xs text-[var(--color-sage)] hover:underline"
+                            aria-label={`Open link for ${item.title}`}
+                          >
+                            🔗 view link
+                          </a>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-[var(--color-ink)]">
+                          {/* KAN-444: label the row with the heading it will
+                              appear under publicly, when the section knows it. */}
+                          <span className="opacity-60">{labelForItem?.(item) ?? categoryLabels[item.category] ?? item.category}</span> — {item.title}
+                          {/* KAN-219: ↗ chip when an item has a URL. Open in new tab
+                              with noopener+noreferrer to prevent tab-nabbing. */}
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1.5 text-xs text-[var(--color-sage)] hover:underline"
+                              aria-label={`Open link for ${item.title}`}
+                            >
+                              ↗
+                            </a>
+                          )}
+                        </p>
+                        {item.description && <p className="text-xs text-[var(--color-muted)] mt-0.5">{item.description}</p>}
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 ml-3">
                     {!hideVisibility && (
