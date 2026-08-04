@@ -31,5 +31,10 @@ export const env = {
   // comparison site uses (/join, signup, actions, resolveBetaAccess); a
   // whitespace-only value collapses to '' = feature off.
   inviteCode: () => optionalEnv('LYRA_INVITE_CODE', '').trim(),
+  // KAN-451 — the same Google Places key the KAN-341 town/city lookup already
+  // uses. Optional on purpose: with no key the school type-ahead simply returns
+  // nothing and members type their school in themselves, so an unset value
+  // degrades the feature rather than breaking it.
+  placesApiKey: () => optionalEnv('GOOGLE_PLACES_API_KEY', '').trim(),
 };
 // Force rebuild 20260329011858

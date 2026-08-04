@@ -243,7 +243,11 @@ export function ProfileWizard({
             prompts={conversationPrompts}
             answers={conversationAnswers}
             onAdd={(input) => { startTransition(async () => { await addConversationStarter(input); router.refresh(); }); }}
-            onUpdate={(id, answer) => { startTransition(async () => { await updateConversationStarter(id, answer); router.refresh(); }); }}
+            onUpdate={async (id, answer, customPrompt) => {
+              const res = await updateConversationStarter(id, answer, customPrompt);
+              if (res.success) router.refresh();
+              return { success: res.success, error: res.success ? undefined : res.error };
+            }}
             onRemove={(id) => { startTransition(async () => { await removeConversationStarter(id); router.refresh(); }); }}
             onNext={next} isPending={isPending}
           />

@@ -88,11 +88,40 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // left-rule on each heading, a favourites grid, a Q&A block). Every category is
   // still rendered — these guards prove each is referenced so a future refactor
   // can't silently drop one (which would make those items vanish from profiles).
+  // KAN-444 moved the favourites category table out of [slug]/page.tsx and
+  // into the shared `favourites` module that the public page and the editor
+  // now BOTH render from. The guarantee these guards exist for is unchanged
+  // — every category is still rendered on the public profile — but the
+  // render path is now two files, so they read both. Reading the module
+  // would prove nothing on its own, so the import is pinned separately
+  // below: if page.tsx stopped importing it, that assertion goes red and
+  // the concatenation stops being a fair reading of the render path.
   const profilePath = path.join(root, SRC.slugPage);
+  // Built from the manifest's profile-directory entry rather than a raw repo
+  // path, so this adds no new path coupling to the KAN-414 F4 ratchet.
+  const favouritesPath = path.join(root, SRC.profile, 'favourites.ts');
+  let pageContent;
   let content;
 
+  // KAN-459: strip comments before matching. `expect(pageContent).toContain(
+  // 'A few of my favourite things')` was satisfied by the JSX comment sitting
+  // above the real heading, so the entire favourites grid could be disabled
+  // and the heading renamed with this suite still fully green. The prose
+  // documenting a fix is what conceals its removal — same shape as SEC-100.
+  const stripComments = (source) =>
+    source
+      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ') // JSX {/* ... */}
+      .replace(/\/\*[\s\S]*?\*\//g, ' ') //           block /* ... */
+      .replace(/(^|[^:])\/\/.*$/gm, '$1'); //         line   // ...
+
   beforeAll(() => {
-    content = fs.readFileSync(profilePath, 'utf8');
+    pageContent = stripComments(fs.readFileSync(profilePath, 'utf8'));
+    content = pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'));
+  });
+
+  test('public page renders favourites through the shared groups module (KAN-444)', () => {
+    expect(pageContent).toContain("from '@/app/dashboard/profile/favourites'");
+    expect(pageContent).toContain('groupFavourites(typedItems)');
   });
 
   test.each(NEW_CATEGORIES)('page renders category: %s', (cat) => {
@@ -100,7 +129,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   });
 
   test('favourites render in a dedicated favourites grid', () => {
-    expect(content).toContain('A few of my favourite things');
+    expect(pageContent).toContain('A few of my favourite things');
     expect(content).toContain("['favourite_books'");
     expect(content).toContain("['favourite_media'");
     expect(content).toContain("['quotes'");
@@ -108,7 +137,8 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
 
   test('questions + conversation starters render as a Q&A section', () => {
     expect(content).toContain("groupedItems['questions']");
-    expect(content).toContain('A few more things about me');
+    // KAN-445 renamed the heading to the founder's wording.
+    expect(content).toContain('A bit more about me');
   });
 
   test('billboard has special large-quote rendering', () => {

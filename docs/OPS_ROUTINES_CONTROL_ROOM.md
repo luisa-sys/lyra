@@ -2,8 +2,12 @@
 
 > **KAN-350 / KAN-361 / KAN-362 / KAN-363.** This file is the **version-controlled
 > mirror** of the Confluence page *"Lyra — Ops Routines Control Room"* (space TWC,
-> child of *System Documentation* 19922947). Per the KAN-363 source-of-truth
-> direction, **the wiki is definitive; this repo doc is the CI/offline mirror.**
+> **page 34275370**, child of *System Documentation* 19922947). Per the KAN-363
+> source-of-truth direction, **the wiki is definitive; this repo doc is the
+> CI/offline mirror.** **Do not confuse 34275370 with 33554434** — the latter is
+> the unrelated *Backlog Autopilot* Control Room (BUGS-81); this doc's own
+> Heartbeat / Run-ledger table lives on 34275370, and that is the page the
+> routine-watchdog reads.
 > If the two differ, the wiki wins and this mirror is regenerated. The
 > Confluence page carries the live **Heartbeat / Run-ledger** table (routines
 > append to it every run); this repo mirror carries the *stable* parts — the
@@ -22,7 +26,8 @@ A single index of every scheduled Lyra ops routine and a single place each
 routine records that it ran. It replaces the situation where liveness was
 probed four different ways, security three ways, and one routine (doc-sync
 health-check) had no run-log at all. Modelled on the **Backlog Autopilot
-Control Room** (Confluence 33554434): Config + Registry + Heartbeat ledger +
+Control Room** (a *different*, unrelated Confluence page, 33554434 — never
+this doc's own page, 34275370): Config + Registry + Heartbeat ledger +
 verbatim House rules.
 
 **One concern → one owner.** Every routine that touches a shared concern

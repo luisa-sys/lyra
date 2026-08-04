@@ -198,7 +198,7 @@ test.describe('Redesign — populated public profile structure', () => {
     const humanised = [
       /A few of my favourite things/i,
       /To understand me a little better/i,
-      /A few more things about me/i,
+      /A bit more about me/i,
       /Things I love/i,
     ];
     const matches = await Promise.all(

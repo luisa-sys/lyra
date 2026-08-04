@@ -107,7 +107,13 @@ jest.mock('@/app/dashboard/profile/edit-profile-form', () => ({
 
 import ProfilePage from '@/app/dashboard/profile/page';
 
-type Answer = { id: string; prompt_id: string; answer: string; prompt: string };
+type Answer = {
+  id: string;
+  prompt_id: string | null;
+  answer: string;
+  prompt: string;
+  custom_prompt: string | null;
+};
 
 async function renderProps(): Promise<Record<string, unknown>> {
   const el = (await ProfilePage()) as ReactElement;
@@ -168,8 +174,17 @@ describe('profile editor page — conversation starters (behavioural, KAN-414 F4
 
     const answers = (await renderProps()).conversationAnswers as Answer[];
 
+    // KAN-445 added `custom_prompt` to the shape the page hands the editor.
+    // Kept as an exact `toEqual` — asserting the WHOLE object is what makes a
+    // silently dropped field fail, so it is not relaxed to a subset match.
     expect(answers).toEqual([
-      { id: 'a1', prompt_id: 'p1', answer: 'Middlemarch', prompt: 'What are you reading?' },
+      {
+        id: 'a1',
+        prompt_id: 'p1',
+        answer: 'Middlemarch',
+        prompt: 'What are you reading?',
+        custom_prompt: null,
+      },
     ]);
   });
 
@@ -198,5 +213,79 @@ describe('profile editor page — conversation starters (behavioural, KAN-414 F4
     // take it down.
     expect(answers.map((a) => a.prompt)).toEqual(['', '']);
     expect(answers.map((a) => a.answer)).toEqual(['Middlemarch', 'Solaris']);
+  });
+});
+
+// ===========================================================================
+// KAN-445 — questions the member wrote themselves, and the migration-ordering
+// hazard on the READ side.
+//
+// The write-side hazard (a payload KEY for a column that does not exist yet)
+// is pinned in tests/unit/conversation-starters-custom-prompts.test.ts. The
+// read side is the mirror of it and is arguably worse: PostgREST rejects the
+// WHOLE query with 42703 when a SELECT names a column it does not know, so
+// naming `custom_prompt` before 20260803160000 lands would blank the profile
+// editor for every member on that environment.
+// ===========================================================================
+describe('profile editor page — member-written questions (KAN-445)', () => {
+  it('never NAMES custom_prompt in the select, so a pre-migration read still works', async () => {
+    await renderProps();
+
+    const selects = argsFor('profile_conversation_starters', 'select').map((a) => String(a[0]));
+    expect(selects).toHaveLength(1);
+    // Asserted on the query the code actually ISSUES, not on the source text —
+    // a comment mentioning the column cannot satisfy this.
+    expect(selects[0]).not.toContain('custom_prompt');
+    // …and it is a real read, not an empty one: the prompt join must survive.
+    expect(selects[0]).toContain('conversation_starter_prompts');
+  });
+
+  it('shows the member’s own question as the question, with prompt_id null', async () => {
+    tables.profile_conversation_starters = [
+      {
+        id: 'a1',
+        prompt_id: null,
+        answer: 'A very old kettle.',
+        custom_prompt: 'What is in my kitchen?',
+        prompt: null,
+      },
+    ];
+
+    const answers = (await renderProps()).conversationAnswers as Answer[];
+
+    // There is no seeded prompt to join to, so falling back to the join would
+    // render the answer under a blank heading.
+    expect(answers[0].prompt).toBe('What is in my kitchen?');
+    expect(answers[0].custom_prompt).toBe('What is in my kitchen?');
+    expect(answers[0].prompt_id).toBeNull();
+  });
+
+  it('renders a row from a database that has no custom_prompt column at all', async () => {
+    // Exactly the shape a pre-migration environment returns: the key is simply
+    // absent from the row.
+    tables.profile_conversation_starters = [
+      { id: 'a1', prompt_id: 'p1', answer: 'Middlemarch', prompt: { prompt: 'What are you reading?' } },
+    ];
+
+    const answers = (await renderProps()).conversationAnswers as Answer[];
+
+    expect(answers[0].custom_prompt).toBeNull();
+    expect(answers[0].prompt).toBe('What are you reading?');
+  });
+
+  it('keeps a seeded prompt winning over an absent custom question', async () => {
+    tables.profile_conversation_starters = [
+      {
+        id: 'a1',
+        prompt_id: 'p1',
+        answer: 'Middlemarch',
+        custom_prompt: null,
+        prompt: { prompt: 'What are you reading?' },
+      },
+    ];
+
+    const answers = (await renderProps()).conversationAnswers as Answer[];
+
+    expect(answers[0].prompt).toBe('What are you reading?');
   });
 });
