@@ -91,6 +91,7 @@ processing). Founder is the accountable data-protection lead.
 - **Retention:** logs/backups per RETENTION_SCHEDULE.md (encrypted WORM backups per DISASTER_RECOVERY.md).
 - **Recipients/processors:** Supabase, Cloudflare, Vercel, Railway, R2 (backups).
 
+
 ## C. International transfers
 
 Lyra's processors are predominantly US-headquartered. Transfers outside the UK
@@ -108,6 +109,72 @@ admin via a separate audited admin MCP. Full detail in ARCHITECTURE.md and the
 SEC epic.
 
 ---
+
+## E. Data location inventory — person-keyed tables
+
+**Added 2026-08-04 (SEC-117).** Sections A–D describe *categories* of personal
+data. They did not say where any of it lives, so a DSAR worked by hand from this
+document had no locate-checklist — the same gap the code had, where the export
+queried 18 tables while the deletion cascade erased 32.
+
+This table is the checklist. It is **kept honest by a test**:
+`tests/unit/ropa-table-inventory.test.ts` asserts that every table in
+`src/lib/gdpr/person-keyed-tables.ts` appears below, so the manifest and this
+document cannot drift apart. Adding a person-keyed table to a migration without
+recording it here is a red build.
+
+| Table | Activity | Keyed by | SAR treatment |
+|---|---|---|---|
+| `profiles` | P1 | `user_id` | exported |
+| `api_keys` | P1 | `user_id` | exported (hashes redacted) |
+| `consent_log` | P1 | `user_id` | exported |
+| `feature_entitlements` | P1 | `profile_id` | exported |
+| `profile_items` | P2 | `profile_id` | exported |
+| `school_affiliations` | P2 | `profile_id` | exported |
+| `external_links` | P2 | `profile_id` | exported |
+| `profile_manual_of_me` | P2 | `profile_id` | exported |
+| `profile_conversation_starters` | P2 | `profile_id` | exported |
+| `profile_files` | P2 | `profile_id` | exported |
+| `contacts` | P4 | `owner_user_id` | exported |
+| `contact_methods` | P4 | via `contact_id` | exported (join) |
+| `tribes` | P4 | `owner_user_id` | exported |
+| `tribe_members` | P4 | via `tribe_id` | exported (join) |
+| `gatherings` | P4 | `host_user_id` | exported |
+| `gathering_invitees` | P4 | via `gathering_id` | exported (join) |
+| `gathering_proposed_slots` | P4 | via `gathering_id` | exported (join) |
+| `gathering_invite_messages` | P4 | via `gathering_id` | exported (join) |
+| `gathering_events_log` | P4 | `actor_user_id` | exported |
+| `relationship_signals` | P4 | `user_id` | exported — **inferred** data; Art.15 covers inferences |
+| `venue_ratings` | P4 | `user_id` | exported |
+| `venue_visits` | P4 | via `gathering_id` | exported (join) |
+| `oauth_connections` | P4 | `owner_user_id` | exported (token refs redacted) |
+| `oauth_consents` | P4 | `user_id` | exported |
+| `oauth_scopes_granted` | P4 | via `oauth_connection_id` | exported (join) |
+| `affiliate_clicks` | P6 | `user_id` | exported |
+| `recommendation_events` | P6 | `user_id` | exported |
+| `content_moderation_flags` | P8 | `profile_id` | exported |
+| `reports` | P8 | `reporter_user_id` | exported (reports the subject *filed*) |
+| `moderation_logs` | P8 | `actor_user_id` | **withheld** — Art.17(3)(b), `ON DELETE RESTRICT` |
+| `erasure_obligations` | P8 | `subject_user_id` | **withheld** — Art.17(3)(b); the record *of* the erasure |
+| `oauth_access_tokens` | P8 | `user_id` | **withheld** — live credential (SEC-71) |
+| `oauth_refresh_tokens` | P8 | `user_id` | **withheld** — live credential (SEC-71) |
+| `oauth_authorization_codes` | P8 | `user_id` | **withheld** — short-lived credential (SEC-71) |
+| `oauth_connect_state` | P8 | `user_id` | **withheld** — transient CSRF state, not personal data |
+
+### On the withheld rows
+
+Four are live credentials: returning them in a downloadable file would turn an
+access request into a credential-disclosure vector, and the subject gains
+nothing — the tokens are opaque and revocable from Settings.
+
+Two are retained under **Art. 17(3)(b)**. `moderation_logs` is
+`ON DELETE RESTRICT` precisely so it survives an erasure, and
+`erasure_obligations` is the record that the erasure happened. Erasing either on
+request would defeat its purpose.
+
+**If a subject disputes a withholding**, the answer is not to widen the export —
+it is to confirm the lawful basis above still applies to their specific case, and
+to say so in the response. See `DSAR_BREACH_COMPLAINTS.md`.
 
 ### Cross-references
 - Sub-processors + transfer mechanisms → `SUBPROCESSORS.md`
