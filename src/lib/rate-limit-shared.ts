@@ -70,15 +70,14 @@ export async function sharedRateLimit(
   }
 }
 
+import { clientIp } from '@/lib/client-ip';
+
 /**
  * Extract the best-effort client IP from proxy headers (Cloudflare → Vercel).
  * Shared by the OAuth route handlers so they bucket consistently.
  */
 export function clientIpFromHeaders(headers: Headers): string {
-  return (
-    headers.get('cf-connecting-ip') ??
-    headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headers.get('x-real-ip') ??
-    'unknown'
-  );
+  // SEC-120: delegates to the single shared implementation. Kept as a named
+  // export so the OAuth routes' import sites do not churn.
+  return clientIp(headers);
 }
