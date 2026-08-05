@@ -1,6 +1,6 @@
 # Lyra Platform Architecture
 
-> Last updated: 2026-03-29 — Auto-updated with each major feature change.
+> Last updated: 2026-08-04 (design system added, KAN-441) — Auto-updated with each major feature change. Sections carrying their own date (e.g. Security Posture, 29 March 2026) have not been re-verified since that date.
 
 ## Overview
 
@@ -27,6 +27,14 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Auth**: Supabase Auth (email/password, Google OAuth, email confirmation). Apple Sign-In deferred.
 - **Google OAuth**: Client ID 381290542304-46avld4uoubqd259nrf8ssp8pj2h73kn (same across all 3 projects, **In production / brand-verified 2026-06-28**, basic scopes openid/email/profile)
 - **Security**: Row Level Security on all tables
+
+### Design system (lyra-design-system)
+- **Repository**: https://github.com/luisa-sys/lyra-design-system — **separate from the app repo**
+- **Purpose**: the design-change loop that every UI change passes through before it reaches code (KAN-441). Canonical spec: `BUILD-LOOP.md`; repo mirror in this repo: `docs/DESIGN_CHANGE_WORKFLOW.md`
+- **Design surface**: two Claude Design projects — *Lyra Design System* (`e4682889-26bd-4a88-a7ae-4a9be9cd1632`, tokens/fonts/colours) and *Lyra Web Design* (`c179aa52-22a7-4dd2-bd9d-682f21d2a76c`, one `<TICKET>.dc.html` before/after card per change), both written via the `DesignSync` MCP tool
+- **Key contents**: `rebuild/sync-manifest.json` (per-ticket state), `rebuild/cards/` (git mirror of the cards), `foundations/tokens.css` (a superset of `src/app/globals.css` — every token plus a block of recurring inline literals not yet promoted)
+- **Checkers**: `rebuild/check-design-sync.py` (gates G0–G5: version control, design-first, no-close-until-BASELINED, promote-verified by tree SHA, baseline-current, no-lost-work) and `check-token-drift.py` (design tokens vs `src/app/globals.css`)
+- **Note**: both checkers run in *that* repo — this repo's CI cannot see them. Whether the two repos should merge is open (KAN-427 / KAN-457)
 
 ### DNS & CDN
 - **Provider**: Cloudflare
@@ -269,6 +277,7 @@ All operations run via GitHub Actions — no local machine needed:
 | Railway | MCP server hosting | lyra-mcp-server |
 | GitHub | Source code, CI/CD, secrets | luisa-sys |
 | Atlassian/Jira | Project management | checklyra.atlassian.net |
+| Claude Design | Design source of truth for UI changes — tokens + per-ticket before/after cards (KAN-441) | Projects `e4682889-…` (Lyra Design System) and `c179aa52-…` (Lyra Web Design) |
 
 
 ## Security Posture (updated 29 March 2026)
@@ -309,6 +318,21 @@ All operations run via GitHub Actions — no local machine needed:
 
 ### Service inventory for security lockdown
 GitHub, Vercel, Supabase (x3), Cloudflare, Railway, Google Cloud Console, Atlassian/Jira
+
+**Claude Design is deliberately NOT in the list above (KAN-441)** — even though it
+now holds the design source of truth (see "Design system (lyra-design-system)"
+and "External Services"). `docs/CYBER_LOCKDOWN.md` carries a per-service section
+for **every** entry in this inventory and **none** for Claude Design, and nothing
+was added to `docs/SECURITY_ROTATION.md`. Listing a service as in-scope for
+lockdown with no checklist behind it is a presence badge, not coverage — and it
+would also put this line out of step with the "7 services to verify (KAN-24)"
+gap recorded above.
+
+> **Follow-up needed.** Write the `docs/CYBER_LOCKDOWN.md` section for Claude
+> Design (account owner, 2FA, session/access policy, who can write to the two
+> projects) and record any credential it holds in `docs/SECURITY_ROTATION.md`;
+> then add it here and move the KAN-24 count to 8. **No ticket tracks this yet —
+> one needs raising.**
 
 
 ### Token rotation
