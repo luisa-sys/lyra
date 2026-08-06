@@ -632,17 +632,12 @@ export default async function PublicProfilePage({ params }: Props) {
             </section>
           )}
 
-          {/* Billboard */}
-          {(groupedItems['billboard']?.length ?? 0) > 0 && (
-            <section className="mt-11">
-              <div className="bg-[var(--color-sage)] rounded-[12px] p-8 text-center">
-                <p className="text-xs uppercase tracking-wide text-white/70 mb-3">If I had a giant billboard, it would say&hellip;</p>
-                <p className="text-xl sm:text-2xl font-[family-name:var(--font-serif)] text-white leading-relaxed">
-                  &ldquo;{groupedItems['billboard']?.[0]?.title}&rdquo;
-                </p>
-              </div>
-            </section>
-          )}
+          {/* KAN-469: the standalone sage-green quote section that used to sit
+              here is gone. The prompt it rendered is now an ordinary
+              conversation starter, so its answer appears in the Q&A section
+              above with everything else. The wording it used is not repeated
+              in this comment on purpose — CTL-039: a removed string that
+              survives in prose keeps every text-scan assertion green. */}
 
           {/* Links */}
           {typedLinks.length > 0 && (
