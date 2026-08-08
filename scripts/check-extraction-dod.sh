@@ -331,7 +331,7 @@ attest() {
 }
 
 attest out-of-repo "EXTRACTION-DOD-DESIGN-SYSTEM" \
-  "If this PR moves src/app/globals.css or any ui-kit file, the source pointer in ~/lyra-design-system/build.py must be updated and the generator re-run before merge (KAN-419 §5.1). Answer 'done' or 'n/a — <reason>'. CI cannot check this: build.py is on Luisa's machine and in no git repo."
+  "If this PR moves src/app/globals.css or any ui-kit file, the design-system source pointer must be updated and the generator re-run before merge (KAN-419 §5.1). Answer 'done' or 'n/a — <reason>'. CI cannot check this: the design system is in git at github.com/luisa-sys/lyra-design-system, but that is a different repo this CI cannot read (KAN-441)."
 
 attest out-of-repo "EXTRACTION-DOD-ROUTINE-PROMPTS" \
   "If this PR renames a script or changes a protected-surface path list named verbatim in a claude.ai routine prompt, the prompt must be updated in the same session (KAN-419 §5.2). Answer 'done' or 'n/a — <reason>'. CI cannot check this: routine prompts are not in git."
