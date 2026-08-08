@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 175,
+  "count": 176,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -47,6 +47,7 @@
     "routineWatchdog": "scripts/routine-watchdog.sh",
     "securityAlertEmail": "scripts/security-alert-email.sh",
     "weeklyHealthRegression": "scripts/weekly-health-regression.sh",
+    "app": "src/app",
     "actions": "src/app/(auth)/actions.ts",
     "authErrors": "src/app/(auth)/auth-errors.ts",
     "page": "src/app/(auth)/forgot-password/page.tsx",

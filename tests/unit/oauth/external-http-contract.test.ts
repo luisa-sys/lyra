@@ -40,9 +40,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { oauthConfig } from '@/lib/oauth/config';
+import { SRC } from '../../support/source-paths';
 
 const ROOT = resolve(__dirname, '../../..');
-const APP = 'src/app';
+const APP = SRC.app;
 const NEXT_CONFIG = 'next.config.ts';
 
 /** The path part of an advertised absolute endpoint URL. */
