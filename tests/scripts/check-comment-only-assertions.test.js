@@ -28,8 +28,12 @@ const REGISTRY = 'controls/registry.json';
 const SCRIPT = resolve(ROOT, SRC.checkCommentOnlyAssertions);
 const BASELINE = resolve(ROOT, 'tests/support/comment-assertion-baseline.json');
 
-const run = (args = []) =>
-  spawnSync('python3', [SCRIPT, ...args], { cwd: ROOT, encoding: 'utf-8' });
+const run = (args = [], opts = {}) =>
+  spawnSync('python3', [SCRIPT, ...args], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+    ...opts,
+  });
 
 describe('CTL-039 — comment-satisfied assertion ratchet', () => {
   it('passes its own self-test', () => {
@@ -94,45 +98,42 @@ describe('CTL-039 — comment-satisfied assertion ratchet', () => {
   });
 
   it('FIRES on a newly-introduced comment-satisfied assertion', () => {
-    // The control must be seen to fail. The fixture is shaped like the real
-    // files — a describe wrapping a test that does its own readFileSync —
-    // because the first implementation passed a single-line self-test while
+    // The control must be seen to fail, against a fixture shaped like the real
+    // files — the first implementation passed a single-line self-test while
     // finding nothing at all in the repo.
+    //
+    // Staged into a THROWAWAY index via GIT_INDEX_FILE, not the real one. This
+    // suite and CTL-038's both used to `git add` into the shared index and
+    // collided on .git/index.lock under CI's worker count. The real index is
+    // never touched, so there is nothing to contend over.
     const rel = 'tests/unit/__ctl039_probe__.test.js';
     const abs = resolve(ROOT, rel);
+    const idx = resolve(os.tmpdir(), `ctl039-index-${process.pid}`);
+    fs.copyFileSync(resolve(ROOT, '.git/index'), idx);
+    const withIndex = { ...process.env, GIT_INDEX_FILE: idx };
+
     fs.writeFileSync(
       abs,
       "const fs = require('fs');\n" +
         "describe('probe', () => {\n" +
         "  test('comment-satisfied', () => {\n" +
-        // DOUBLE quotes, deliberately. This probe is briefly `git add
-        // --intent-to-add`ed, so it is visible to `git ls-files` while it
-        // exists — and the F4 raw-literal ratchet in
-        // tests/scripts/source-paths-manifest.test.js counts SINGLE-quoted repo
-        // paths across every tracked test file. Jest runs suites in parallel
-        // workers, so a single-quoted path here intermittently pushed that
-        // ratchet from 40 to 41 and reddened CI on unrelated PRs. CTL-039's own
-        // PATH_LIT accepts either quote style, so detection is unaffected.
         `    const c = fs.readFileSync("${SRC.sanitise}", 'utf8');\n` +
-        // `<scr<script>ipt>` appears in sanitise.ts only inside a block comment
-        // describing a nested-tag bypass.
         "    expect(c).toContain('<scr<script>ipt>');\n" +
         '  });\n' +
         '});\n',
     );
     try {
-      spawnSync('git', ['add', '--intent-to-add', rel], { cwd: ROOT });
-      const r = run();
+      spawnSync('git', ['add', '--intent-to-add', rel], {
+        cwd: ROOT,
+        env: withIndex,
+      });
+      const r = run([], { env: withIndex });
       expect(r.status).toBe(1);
-      // The severity is part of the message on purpose: a single hardcoded
-      // "appears ONLY in a comment" was wrong for the commoner
-      // `comment-shadowed` kind and would send a reader hunting for code that
-      // is in fact still there.
       expect(r.stdout).toContain('NEW [comment-only]:');
       expect(r.stdout).toContain('__ctl039_probe__');
     } finally {
-      spawnSync('git', ['rm', '-q', '--cached', '--force', rel], { cwd: ROOT });
       if (fs.existsSync(abs)) fs.unlinkSync(abs);
+      if (fs.existsSync(idx)) fs.unlinkSync(idx);
     }
 
     expect(run().status).toBe(0);
