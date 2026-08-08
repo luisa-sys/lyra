@@ -32,8 +32,8 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@lhci/cli": "^0.15.1",
-    "@playwright/test": "^1.62.0",
-    "@swc/core": "^1.15.46",
+    "@playwright/test": "^1.62.1",
+    "@swc/core": "^1.15.47",
     "@swc/jest": "^0.2.39",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
