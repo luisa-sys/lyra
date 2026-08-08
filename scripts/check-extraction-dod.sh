@@ -179,7 +179,12 @@ is_valid_check() {
 }
 
 HATCH_BAD=0
-for line in "${HATCH_LINES[@]}"; do
+# bash 3.2 (macOS) errors on expanding an EMPTY array under `set -u`; bash 4.4+
+# does not. Every run with no escape hatch therefore died here on a developer
+# machine while passing in CI — 18 permanently-red tests that trained everyone
+# to stop reading this suite (gotcha #28). The `+` form expands to nothing when
+# the array is empty and is identical on both.
+for line in ${HATCH_LINES[@]+"${HATCH_LINES[@]}"}; do
   # strip trailing CR / whitespace
   line="${line%$'\r'}"
   if ! grep -Eq "$HATCH_RE" <<<"$line"; then

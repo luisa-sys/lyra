@@ -17,7 +17,7 @@
  * real finding. Exempting the file is correct; exempting a file that genuinely
  * scans source would not be.
  */
-const { spawnSync } = require('node:child_process');
+const { spawnSync, execFileSync } = require('node:child_process');
 const { resolve } = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -109,7 +109,16 @@ describe('CTL-039 — comment-satisfied assertion ratchet', () => {
     const rel = 'tests/unit/__ctl039_probe__.test.js';
     const abs = resolve(ROOT, rel);
     const idx = resolve(os.tmpdir(), `ctl039-index-${process.pid}`);
-    fs.copyFileSync(resolve(ROOT, '.git/index'), idx);
+    // `.git` is a DIRECTORY in a normal clone but a FILE in a git worktree,
+    // so resolve(ROOT, '.git/index') is ENOTDIR there. CLAUDE.md *mandates*
+    // worktrees for parallel sessions, so hardcoding the path meant this guard
+    // could not run for anyone following the house rule — green in CI, absent
+    // where the work actually happens. Ask git for the real git dir instead.
+    const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    fs.copyFileSync(resolve(ROOT, gitDir, 'index'), idx);
     const withIndex = { ...process.env, GIT_INDEX_FILE: idx };
 
     fs.writeFileSync(
