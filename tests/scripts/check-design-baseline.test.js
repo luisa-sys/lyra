@@ -28,7 +28,12 @@ const { SRC } = require('../support/source-paths.json');
 const ROOT = resolve(__dirname, '../..');
 const REGISTRY = 'controls/registry.json';
 const SCRIPT = resolve(ROOT, SRC.checkDesignBaseline);
-const BASELINE = 'design/BASELINE.json';
+const BASELINE = SRC.baseline;
+// Fixture paths are the REAL design surfaces on purpose: this test asserts that
+// `src/components/**` is design-bearing, so if that path ever moves, this file
+// must be revisited. Naming them through the manifest is what makes that true.
+const CARD = `${SRC.components}/card.tsx`;
+const CARD_MOVED = `${SRC.components}/card-new.tsx`;
 
 const git = (cwd, ...args) =>
   execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], {
@@ -45,16 +50,16 @@ function makeRepo() {
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'ctl040-'));
   fs.mkdirSync(join(dir, 'scripts'), { recursive: true });
   fs.mkdirSync(join(dir, 'design'), { recursive: true });
-  fs.mkdirSync(join(dir, 'src/components'), { recursive: true });
-  fs.mkdirSync(join(dir, 'src/lib/oauth'), { recursive: true });
+  fs.mkdirSync(join(dir, SRC.components), { recursive: true });
+  fs.mkdirSync(join(dir, SRC.libOauth), { recursive: true });
 
   fs.copyFileSync(SCRIPT, join(dir, SRC.checkDesignBaseline));
   fs.writeFileSync(
     join(dir, BASELINE),
     JSON.stringify({ baseline_ref: 'aaaaaaaaaaaa1111' }),
   );
-  fs.writeFileSync(join(dir, 'src/components/card.tsx'), 'export const C = 1;\n');
-  fs.writeFileSync(join(dir, 'src/lib/oauth/jwt.ts'), 'export const j = 1;\n');
+  fs.writeFileSync(join(dir, CARD), 'export const C = 1;\n');
+  fs.writeFileSync(join(dir, SRC.jwt), 'export const j = 1;\n');
 
   git(dir, 'init', '-q', '.');
   git(dir, 'add', '-A');
@@ -93,18 +98,18 @@ describe('CTL-040 — design re-baseline gate', () => {
     // The case the prose attestation could not catch: the move happened, the
     // human typed nothing, and nothing in the repo records a re-baseline.
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     git(dir, 'commit', '-qm', 'move card');
 
     const r = run(dir);
     expect(r.status).toBe(1);
     expect(r.stdout).toContain('still points at aaaaaaaaaaaa');
-    expect(r.stdout).toContain('src/components/card.tsx');
+    expect(r.stdout).toContain(CARD);
   });
 
   it('passes when the same PR records a new baseline_ref', () => {
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     setBaseline(dir, 'bbbbbbbbbbbb2222');
     git(dir, 'add', '-A');
     git(dir, 'commit', '-qm', 'move card + re-baseline');
@@ -119,7 +124,7 @@ describe('CTL-040 — design re-baseline gate', () => {
     // and people would reach for the escape hatch by reflex — which is how a
     // gate becomes noise and then becomes ignored.
     dir = makeRepo();
-    git(dir, 'mv', 'src/lib/oauth/jwt.ts', 'src/lib/oauth/tokens.ts');
+    git(dir, 'mv', SRC.jwt, `${SRC.libOauth}/tokens.ts`);
     git(dir, 'commit', '-qm', 'move lib');
 
     const r = run(dir);
@@ -132,7 +137,7 @@ describe('CTL-040 — design re-baseline gate', () => {
     // still resolves. This gate is about relocation; claiming more than that
     // would be a scope it cannot actually verify.
     dir = makeRepo();
-    fs.writeFileSync(join(dir, 'src/components/card.tsx'), 'export const C = 2;\n');
+    fs.writeFileSync(join(dir, CARD), 'export const C = 2;\n');
     git(dir, 'add', '-A');
     git(dir, 'commit', '-qm', 'edit card');
 
@@ -141,7 +146,7 @@ describe('CTL-040 — design re-baseline gate', () => {
 
   it('honours an attributed escape hatch, and prints it loudly', () => {
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     git(dir, 'commit', '-qm', 'move card\n\nDesign-Baseline-Ok: KAN-457 test-only helper');
 
     const r = run(dir);
@@ -155,7 +160,7 @@ describe('CTL-040 — design re-baseline gate', () => {
     // it worked, the gate would degrade back into the prose attestation it
     // replaced.
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     git(dir, 'commit', '-qm', 'move card\n\nDesign-Baseline-Ok: KAN-457');
 
     expect(run(dir).status).toBe(1);
@@ -163,7 +168,7 @@ describe('CTL-040 — design re-baseline gate', () => {
 
   it('fails CLOSED (exit 2) when the baseline is unparseable', () => {
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     fs.writeFileSync(join(dir, BASELINE), 'not json');
     git(dir, 'add', '-A');
     git(dir, 'commit', '-qm', 'move card + break baseline');
@@ -177,7 +182,7 @@ describe('CTL-040 — design re-baseline gate', () => {
     // Blanking the field is the cheapest way to make a ref "change". It must
     // read as unverifiable, not as a fresh baseline.
     dir = makeRepo();
-    git(dir, 'mv', 'src/components/card.tsx', 'src/components/card-new.tsx');
+    git(dir, 'mv', CARD, CARD_MOVED);
     setBaseline(dir, '');
     git(dir, 'add', '-A');
     git(dir, 'commit', '-qm', 'move card + empty ref');
