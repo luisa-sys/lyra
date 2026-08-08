@@ -2,6 +2,15 @@
 
 **Date:** 29 March 2026 (updated)
 
+> ⚠️ **POINT-IN-TIME SNAPSHOT — 29 Mar 2026. Do not treat as current.**
+> Superseded in part by **KAN-441**: this file's statement that there is *"no
+> formal design system yet"* has been false since 2026-08. Lyra now has a design
+> system in git (`github.com/luisa-sys/lyra-design-system`), two Claude Design
+> projects, and a gated design-change loop that every UI change passes through
+> before it reaches code. **Current process of record:
+> `docs/DESIGN_CHANGE_WORKFLOW.md`.** Kept for the endpoint/auth baseline and the
+> historical record only.
+
 ## Environment status
 
 | Endpoint | Status | Notes |
@@ -87,7 +96,7 @@
 
 ## What the designer needs to know
 
-- **Design system:** No formal design system yet — this is part of what the designer will establish
+- **Design system:** No formal design system yet — this is part of what the designer will establish. ⚠️ **Superseded 2026-08-04 (KAN-441):** there is now a design system (`github.com/luisa-sys/lyra-design-system`) and a gated design-change loop — `docs/DESIGN_CHANGE_WORKFLOW.md`
 - **Tailwind CSS:** All styling is utility-first Tailwind. No component library (no shadcn, no MUI)
 - **Colour palette:** Currently uses CSS custom properties (`--color-sage`, etc.) — designer can propose changes
 - **Responsive:** Basic responsive layout in place but not thoroughly tested across breakpoints

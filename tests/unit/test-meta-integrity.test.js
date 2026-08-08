@@ -104,6 +104,15 @@ const EXEMPT_BLOCKS = new Set([
 // meta-check doesn't flag its own documentation.
 const SELF_FILENAME = path.basename(__filename);
 
+// The CTL-038 and CTL-039 guard suites each prove their checker detects a NEW
+// finding by writing a probe file into tests/unit/, running the checker, then
+// deleting it. Jest runs suites in parallel, so `--listTests` above can observe
+// a probe that is gone by the time we read it — an ENOENT that has nothing to
+// do with what this file asserts, and which failed five unrelated PRs in a row.
+// Excluding the naming convention is the fix; the readFileSync guard below
+// closes the remaining window between listing and reading.
+const TRANSIENT_PROBE_RE = /^__.*_probe__.*\.test\.js$/;
+
 describe('KAN-168: every test block must make at least one assertion', () => {
   // Discover all unit test files (excluding self — see SELF_FILENAME above).
   const listOutput = execSync('npx jest --testPathPatterns=tests/unit --listTests', {
@@ -114,16 +123,38 @@ describe('KAN-168: every test block must make at least one assertion', () => {
     .trim()
     .split('\n')
     .filter(Boolean)
-    .filter((f) => path.basename(f) !== SELF_FILENAME);
+    .filter((f) => path.basename(f) !== SELF_FILENAME)
+    .filter((f) => !TRANSIENT_PROBE_RE.test(path.basename(f)));
 
   test('discovered at least one test file to scan', () => {
     expect(testFiles.length).toBeGreaterThan(0);
   });
 
+  // Pins the exclusion by NAME against the two suites that actually create
+  // probes, so renaming a probe without updating this pattern fails here rather
+  // than resurfacing as an intermittent ENOENT on an unrelated PR. Asserted both
+  // ways: a real test filename must NOT be excluded, or a too-greedy pattern
+  // could quietly drop the whole suite and this file would still pass.
+  test('transient guard probes are excluded, real test files are not', () => {
+    expect(TRANSIENT_PROBE_RE.test('__ctl038_probe__.test.js')).toBe(true);
+    expect(TRANSIENT_PROBE_RE.test('__ctl039_probe__.test.js')).toBe(true);
+    expect(TRANSIENT_PROBE_RE.test('test-meta-integrity.test.js')).toBe(false);
+    expect(TRANSIENT_PROBE_RE.test('rate-limit.test.js')).toBe(false);
+    expect(testFiles.some((f) => TRANSIENT_PROBE_RE.test(path.basename(f)))).toBe(false);
+  });
+
   test('every test() / it() block contains expect(', () => {
     const violations = [];
     for (const file of testFiles) {
-      const source = fs.readFileSync(file, 'utf8');
+      let source;
+      try {
+        source = fs.readFileSync(file, 'utf8');
+      } catch (err) {
+        // Narrow on purpose: a file that no longer exists cannot be a committed
+        // test, so skipping it hides nothing. Any other error still throws.
+        if (err.code === 'ENOENT') continue;
+        throw err;
+      }
       const blocks = extractTestBlocks(source);
       const fileName = path.basename(file);
       for (const block of blocks) {
