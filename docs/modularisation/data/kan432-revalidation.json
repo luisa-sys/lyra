@@ -1,5 +1,5 @@
 {
- "generatedFrom": "674f0a7f47c73d5673f2550f589b7f3fc4d086e0",
+ "generatedFrom": "81f44c3b824024fc288e172c4e68679cf1db478c",
  "methodNotes": [
   "Import graph built by regex scan of src/**, resolving the tsconfig alias '@/* -> ./src/*', relative specifiers and directory index files. Static import, re-export, bare side-effect import and dynamic import()/require() all count as edges. Bare package specifiers are excluded (the plan counted the internal src/ graph).",
   "'Group' = src/<area>/<first-segment> (e.g. src/lib/convene, src/app/dashboard). 'App segment' = top-level route segment under src/app, with a Next route group '(x)' collapsed onto its child so '(legal)/about' is one segment.",
@@ -7,9 +7,9 @@
   "dependency-cruiser was unavailable (node_modules absent), so these figures are an independent derivation rather than a re-run of the plan's tool. Deltas of +/-1 on graph counts may be method, not drift; deltas larger than that are drift."
  ],
  "graph": {
-  "plan_nodes_273": 274,
-  "plan_nodesWithAtLeastOneEdge": 251,
-  "plan_edges_525": 527,
+  "plan_nodes_273": 289,
+  "plan_nodesWithAtLeastOneEdge": 262,
+  "plan_edges_525": 555,
   "plan_libToApp_1": 0,
   "libToApp_detail": [],
   "plan_appSegToAppSeg_5": 3,
@@ -20,45 +20,38 @@
   ],
   "appSegments_total": 19,
   "appSegments_zeroFanIn": 16,
-  "plan_cycles_1": 1,
-  "cycles_detail": [
-   {
-    "files": [
-     "src/app/dashboard/convene/organise/organise-wizard.tsx",
-     "src/app/dashboard/convene/organise/page.tsx"
-    ],
-    "allTypeOnly": false
-   }
-  ],
-  "plan_crossGroupEdges_328": 336,
-  "plan_deepImports_145": 142,
-  "deepImportPct": 42.3,
-  "crossGroupEdgesNotViaBarrel": 326,
-  "plan_barrels_4": 5,
+  "plan_cycles_1": 0,
+  "cycles_detail": [],
+  "plan_crossGroupEdges_328": 349,
+  "plan_deepImports_145": 149,
+  "deepImportPct": 42.7,
+  "crossGroupEdgesNotViaBarrel": 338,
+  "plan_barrels_4": 6,
   "barrels_detail": [
    "src/app/dashboard/profile/sections/index.ts",
    "src/app/dashboard/profile/steps/index.ts",
    "src/lib/access-model/index.ts",
    "src/lib/convene/calendar/index.ts",
-   "src/lib/recommend/index.ts"
+   "src/lib/recommend/index.ts",
+   "src/types/database/index.ts"
   ],
-  "plan_crossGroupViaBarrel_9": 10
+  "plan_crossGroupViaBarrel_9": 11
  },
  "kernel": {
   "src/lib/supabase-server.ts": {
    "planFanIn": 46,
-   "actualFanIn": 46,
-   "actualTransitiveDependants": 89
+   "actualFanIn": 47,
+   "actualTransitiveDependants": 92
   },
   "src/lib/supabase-service.ts": {
    "planFanIn": 39,
    "actualFanIn": 39,
-   "actualTransitiveDependants": 114
+   "actualTransitiveDependants": 115
   },
   "src/lib/env.ts": {
    "planFanIn": 17,
-   "actualFanIn": 17,
-   "actualTransitiveDependants": 142
+   "actualFanIn": 19,
+   "actualTransitiveDependants": 148
   },
   "src/lib/admin.ts": {
    "planFanIn": 17,
@@ -72,10 +65,10 @@
   }
  },
  "dataBoundary": {
-  "plan_fromSites_280": 277,
-  "plan_tables_33": 33,
-  "plan_inRoutePageAction_199": 194,
-  "inRoutePageActionPct": 70.0,
+  "plan_fromSites_280": 296,
+  "plan_tables_33": 41,
+  "plan_inRoutePageAction_199": 213,
+  "inRoutePageActionPct": 72.0,
   "plan_serviceRoleImporters_40": 39,
   "serviceRoleImporters_detail": [
    "src/app/[slug]/page.tsx",
@@ -142,20 +135,20 @@
   "generatedDatabaseType_present": false
  },
  "duplicatedRules": {
-  "plan_authGetUserFiles_37": 41,
-  "authGetUser_totalCallSites": 49,
+  "plan_authGetUserFiles_37": 42,
+  "authGetUser_totalCallSites": 50,
   "plan_redirectLoginFiles_8": 8,
   "plan_conveneGateCallSites_16": 58,
   "conveneGate_files": 24
  },
  "testEstate": {
-  "plan_testFiles_213": 220,
-  "unitFiles": 203,
-  "scriptsFiles": 17,
-  "plan_readFileSyncFiles_98": 116,
-  "plan_distinctSrcPathLiterals_112": 125,
-  "plan_pureSourceTextScans_70": 92,
-  "plan_testBlocks_2401": 2439,
+  "plan_testFiles_213": 259,
+  "unitFiles": 229,
+  "scriptsFiles": 30,
+  "plan_readFileSyncFiles_98": 136,
+  "plan_distinctSrcPathLiterals_112": 21,
+  "plan_pureSourceTextScans_70": 110,
+  "plan_testBlocks_2401": 2963,
   "regressionGuardFloors": {
    "files": 29,
    "allNumericConstants": [
@@ -174,12 +167,12 @@
    "stryker.config.mjs": true
   },
   "plan_blockingStaticGuards_11": null,
-  "controlsRegistered_now": 32,
+  "controlsRegistered_now": 39,
   "ticketAssumed_31": 31,
   "controlsAdvisoryVsBlocking": {
    "registrySchemaHasBlockingField": false,
    "byKind": {
-    "ci-gate": 22,
+    "ci-gate": 29,
     "scheduled": 6,
     "test": 4
    },
@@ -206,7 +199,13 @@
     "CTL-019",
     "CTL-020",
     "CTL-022",
-    "CTL-032"
+    "CTL-032",
+    "CTL-033",
+    "CTL-035",
+    "CTL-037",
+    "CTL-036",
+    "CTL-038",
+    "CTL-039"
    ],
    "schemaKeys": [
     "added",
