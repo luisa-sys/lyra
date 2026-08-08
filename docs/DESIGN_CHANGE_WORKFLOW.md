@@ -5,8 +5,8 @@
 > **repo mirror**, so the process is readable from the app repo, in CI and
 > offline. **If the two differ, `BUILD-LOOP.md` wins and this mirror is
 > regenerated.** Registered in `docs/DOC_SOURCE_OF_TRUTH.md`. Epic **KAN-441**;
-> loop enforcement **KAN-456**; the canonical-home question is **open** — see
-> "Still open" below.
+> loop enforcement **KAN-456**; the canonical-home question is **open but no
+> longer blocking** — see "Still open" below and the CTL-040 note beneath it.
 
 Lyra's UI changes go through **Claude Design** before they reach code. A change
 is designed, approved by Luisa, then implemented, promoted, re-imported and
@@ -247,11 +247,41 @@ One trap this makes concrete:
 
 | Question | Ticket | Status |
 |---|---|---|
-| **Canonical home.** Should `lyra-design-system` fold into the `lyra` monorepo, so CI can diff design against `src/` directly instead of relying on a human attestation? | **KAN-427**, **KAN-457** | **Open.** Until it is decided, the two checkers cannot run in this repo's CI. |
+| **Canonical home.** Should `lyra-design-system` fold into the `lyra` monorepo, so CI can diff design against `src/` directly instead of relying on a human attestation? | **KAN-427** | **Open — but no longer blocking.** The two checkers still cannot run in this repo's CI, and that is unchanged. What changed (2026-08-08, KAN-457) is that it is no longer a prerequisite for having *any* control here: **CTL-040** gates the app side from inside this repo. Folding the repos would buy a genuinely stronger check; it is now an improvement rather than an unblock. |
 | **Documentation class.** This doc is registered in `docs/DOC_SOURCE_OF_TRUTH.md` as its own class (canonical = the `lyra-design-system` spec). The alternative is to treat it as an Ops/runbook narrative with a Confluence page as canonical — which would make `BUILD-LOOP.md` a *second* mirror, i.e. three surfaces for one process. | **Unspecified — needs a ticket.** Surfaced by epic KAN-441, but no ticket tracks the decision. | **Open.** The table currently records what is true today. |
 | **Which surface performs the `DesignSync` writes.** `docs/CLAUDE_SURFACE_POLICY.md` is a strict binary — Claude Code is the auditable surface, chat is the discussion surface — and its "What requires Claude Code" table has no row for Claude Design. Writing a card is a persisted state change. `DesignSync` **is** available in Claude Code, so routing writes through it would satisfy the policy, but the rule is not written down. | **Unspecified — needs a ticket.** KAN-456 tracks loop *enforcement*, not this question; `docs/ADR.md` (ADR-009) raises it with no key attached either. | **Open** — needs a row in that table. |
 
-**CTL-040** (registering `check-design-sync.py` as a control) is **pending on
-KAN-457** and is deliberately *not* in `controls/registry.json`:
+### CTL-040 — what shipped, and what it is not
+
+**Updated 2026-08-08 (KAN-457).** The paragraph that stood here said CTL-040 was
+pending, because registering `check-design-sync.py` is impossible from this repo:
 `scripts/check-control-registry.py` fails when a registered control's
-implementation file is missing, and that file lives in the other repo.
+implementation file is missing, and that file lives in the other repo. **That
+constraint is real and has not gone away.**
+
+So **CTL-040 as shipped is a different control**, and the distinction matters
+enough to state rather than let the ID paper over:
+
+| | `check-design-sync.py` | **CTL-040** (`scripts/check-design-baseline.py`) |
+|---|---|---|
+| Repo | `lyra-design-system` | **this one** |
+| Checks | the loop's G0–G4 gates across both repos and all four envs | that a PR moving a design-bearing file also moves `design/BASELINE.json`'s `baseline_ref` |
+| Registered | no — cannot be | **yes** |
+| Runs in this CI | no | **yes, on every PR** |
+
+CTL-040 does **not** verify the design system was re-pointed or regenerated —
+this CI still cannot read that repo. It verifies that whoever moved the file
+opened it, took its head commit, and recorded it. That raises the cost of a
+false `EXTRACTION-DOD-DESIGN-SYSTEM: done` from *typing a word* to *going and
+looking*, which is the most an in-repo check can do across a boundary it cannot
+cross.
+
+The human attestation therefore **still stands**. CTL-040 backs it; it does not
+replace it, and it does not close the canonical-home question — it removes that
+question as a *blocker* for having any control at all. Registering
+`check-design-sync.py` itself remains available only if the repos ever fold
+together.
+
+> The `lyra-design-system` side of this — running `check-design-sync.py` in that
+> repo's own CI, which currently has **no workflows at all** — is the other half
+> and is not done. Tracked on KAN-457.
