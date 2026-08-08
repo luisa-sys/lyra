@@ -39,7 +39,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { oauthConfig } from '@/lib/oauth/config';
+import { oauthConfig } from '@/modules/oauth-as/lib/config';
 import { SRC } from '../../support/source-paths';
 
 const ROOT = resolve(__dirname, '../../..');

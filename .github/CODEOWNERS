@@ -33,7 +33,7 @@
 # Auth, OAuth 2.1 server, beta-access/entitlements, admin, RLS migrations.
 /src/app/(auth)/                    @luisa-sys
 /src/app/oauth/                     @luisa-sys
-/src/lib/oauth/                     @luisa-sys
+/src/modules/oauth-as/lib/          @luisa-sys
 /src/lib/beta-access/               @luisa-sys
 /src/app/admin/                     @luisa-sys
 /src/lib/cookie-domain.ts           @luisa-sys

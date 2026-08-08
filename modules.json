@@ -1541,7 +1541,7 @@
     "oauth-as": {
       "layer": 3,
       "paths": [
-        "src/lib/oauth/",
+        "src/modules/oauth-as/lib/",
         "src/app/oauth/",
         "src/app/api/well-known/"
       ],
@@ -2871,11 +2871,11 @@
         "src/lib/convene/vault.ts"
       ],
       "oauth-as": [
-        "src/lib/oauth/access-tokens.ts",
-        "src/lib/oauth/clients.ts",
-        "src/lib/oauth/codes.ts",
-        "src/lib/oauth/consents.ts",
-        "src/lib/oauth/refresh.ts"
+        "src/modules/oauth-as/lib/access-tokens.ts",
+        "src/modules/oauth-as/lib/clients.ts",
+        "src/modules/oauth-as/lib/codes.ts",
+        "src/modules/oauth-as/lib/consents.ts",
+        "src/modules/oauth-as/lib/refresh.ts"
       ],
       "recommendations": [
         "src/app/api/recommendations/[slug]/route.ts",

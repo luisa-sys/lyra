@@ -17,10 +17,10 @@
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
-import { issueAuthCode } from '@/lib/oauth/codes';
-import { recordConsent } from '@/lib/oauth/consents';
-import { getOauthClient } from '@/lib/oauth/clients';
-import { buildSuccessRedirect, buildErrorRedirect } from '@/lib/oauth/authorize';
+import { issueAuthCode } from '@/modules/oauth-as/lib/codes';
+import { recordConsent } from '@/modules/oauth-as/lib/consents';
+import { getOauthClient } from '@/modules/oauth-as/lib/clients';
+import { buildSuccessRedirect, buildErrorRedirect } from '@/modules/oauth-as/lib/authorize';
 import type { DecideInput } from './types';
 
 /**
