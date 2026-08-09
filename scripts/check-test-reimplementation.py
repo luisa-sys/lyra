@@ -252,12 +252,38 @@ def compare(found: list[dict], baseline: list[dict]) -> tuple[list[str], list[st
                 f"WORSE: {f['test']} vs {f['subject']} went "
                 f"{b['severity']} -> {f['severity']}."
             )
+        elif RANK[f["severity"]] < RANK[b["severity"]]:
+            # The docstring promised this and the code did not do it. A
+            # baselined finding that has PARTLY been fixed (vacuous -> partial)
+            # left the baseline saying 'vacuous' forever, and the guard printed
+            # "none new, none stale" — a verdict disagreeing with the file it
+            # ratchets against.
+            #
+            # It errs safe, which is why it is low severity and not high: it
+            # over-states the problem rather than hiding one. But an over-stated
+            # baseline is still a baseline nobody can read, and the severity
+            # word is the only remaining signal of how bad a known finding is.
+            failures.append(
+                f"IMPROVED: {f['test']} vs {f['subject']} went "
+                f"{b['severity']} -> {f['severity']}. Lower the baseline in this "
+                f"commit — a ratchet that ignores progress stops describing reality."
+            )
         else:
             extra = sorted(set(f["shared"]) - set(b.get("shared", [])))
             if extra:
                 failures.append(
                     f"WORSE: {f['test']} vs {f['subject']} now also "
                     f"duplicates {', '.join(extra)}."
+                )
+            gone = sorted(set(b.get("shared", [])) - set(f["shared"]))
+            if gone:
+                # Same shape one level down: a symbol that stopped being
+                # duplicated must leave the baseline, or the list slowly becomes
+                # a description of the past.
+                failures.append(
+                    f"IMPROVED: {f['test']} vs {f['subject']} no longer "
+                    f"duplicates {', '.join(gone)}. Remove it from the baseline "
+                    f"in this commit."
                 )
 
     for k, b in sorted(base.items()):
