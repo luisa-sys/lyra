@@ -53,6 +53,12 @@ export const PERSON_KEYED_TABLES = {
   recommendation_events: 'user_id',
   relationship_signals: 'user_id',
   venue_ratings: 'user_id',
+  // KAN-443. A member's own editorial decisions about their own profile —
+  // which auto-generated gift suggestions they said "not for me" to. Personal
+  // data about them, and something they would expect to see in an Art.15
+  // response. Added 2026-08-09, at the same time as its migration, precisely
+  // so it never exists in the schema without a SAR decision attached.
+  gift_suggestion_dismissals: 'profile_id',
 } as const;
 
 /**
