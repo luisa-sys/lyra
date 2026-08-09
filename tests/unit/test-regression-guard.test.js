@@ -18,49 +18,63 @@ const fs = require('fs');
 const REPO_ROOT = path.join(__dirname, '../..');
 
 describe('KAN-110 + KAN-168: Test count regression guard', () => {
-  test('test file count meets minimum floor', () => {
-    // KAN-168 refresh 2026-05-05: now 30 unit/script test files (was 22).
-    // Floor at 29 catches single-file deletion; raise this when adding
-    // new test files.
-    const TEST_FILE_FLOOR = 29;
+  // The floor is a GENERATED BASELINE, not two hand-typed constants.
+  //
+  // It used to be constants with a comment saying "update the floors when
+  // consolidating tests intentionally". That was done once, on 2026-05-05, and
+  // never again: by 2026-08-09 it enforced 29 files / 320 blocks against an
+  // actual 260 / 2963, so ~89% OF THE TEST ESTATE COULD HAVE BEEN DELETED
+  // WITHOUT TRIPPING CI. A floor that far below reality is indistinguishable
+  // from no floor.
+  //
+  // It was independently flagged in four places and fixed in none, so more
+  // flagging was never going to work — the number had to stop depending on
+  // someone remembering.
+  //
+  // Regenerate with: npm run gen:test-floor
+  const baseline = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'tests/support/test-floor-baseline.json'), 'utf8'),
+  );
 
-    const result = execSync(
+  /** Same measurement the generator uses, so the two cannot disagree. */
+  function measure() {
+    const listed = execSync(
       "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
-      { cwd: REPO_ROOT, encoding: 'utf8' }
+      { cwd: REPO_ROOT, encoding: 'utf8' },
     );
+    const files = listed.trim().split('\n').filter(Boolean);
+    let blocks = 0;
+    for (const f of files) {
+      const content = fs.readFileSync(f, 'utf8');
+      blocks += (content.match(/^[ \t]*(test|it)\(/gm) || []).length;
+    }
+    return { files: files.length, blocks };
+  }
 
-    const testFiles = result.trim().split('\n').filter(Boolean);
-    expect(testFiles.length).toBeGreaterThanOrEqual(TEST_FILE_FLOOR);
+  test('the baseline is not vacuous', () => {
+    // If the baseline were ever regenerated against an empty or broken jest
+    // run, every assertion below would pass over nothing — which is precisely
+    // the failure this whole guard exists to prevent, one level up.
+    expect(baseline.test_files).toBeGreaterThan(100);
+    expect(baseline.test_blocks).toBeGreaterThan(1000);
   });
 
-  test('total test count meets minimum floor', () => {
-    // KAN-168 refresh 2026-05-05: now 327 test()/it() blocks at line starts
-    // across tests/unit + tests/scripts (Jest reports 319 unit + scripts,
-    // 330 incl. e2e). Floor at 320 leaves a small headroom for legitimate
-    // refactors but catches large deletions. Increase this floor in the
-    // same PR as any net-new-test addition.
-    const TEST_COUNT_FLOOR = 320;
+  test('no test FILE was deleted', () => {
+    expect(measure().files).toBeGreaterThanOrEqual(baseline.test_files);
+  });
 
-    // KAN-168: include tests/scripts (uptimerobot bootstrap test) which
-    // is now part of the test:unit run via the broadened jest pattern in
-    // package.json.
-    const listOutput = execSync(
-      "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
-      { cwd: REPO_ROOT, encoding: 'utf8' }
-    );
-    const testFiles = listOutput.trim().split('\n').filter(Boolean);
+  test('no test BLOCK was deleted', () => {
+    expect(measure().blocks).toBeGreaterThanOrEqual(baseline.test_blocks);
+  });
 
-    let totalTests = 0;
-    for (const file of testFiles) {
-      const content = fs.readFileSync(file, 'utf8');
-      // Count test()/it() blocks at line starts (allows for indentation).
-      // Approximate — doesn't expand `test.each([...])`. Matches Section 6
-      // of weekly-report.yml's test-count heuristic so the two stay aligned.
-      const matches = content.match(/^[ \t]*(test|it)\(/gm) || [];
-      totalTests += matches.length;
-    }
-
-    expect(totalTests).toBeGreaterThanOrEqual(TEST_COUNT_FLOOR);
+  test('the baseline is not STALE — it must rise when tests are added', () => {
+    // The half that actually fixes the 50-day drift. Without it the baseline
+    // silently falls behind again and quietly overstates how much of the
+    // estate is protected, which is exactly how it reached 89% headroom.
+    // Adding a test means running `npm run gen:test-floor` in the same commit.
+    const now = measure();
+    expect(now.files).toBe(baseline.test_files);
+    expect(now.blocks).toBe(baseline.test_blocks);
   });
 
   test('jest config has coverage collection configured', () => {
