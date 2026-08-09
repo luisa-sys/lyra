@@ -13,6 +13,12 @@
 
 const { execSync } = require('child_process');
 const path = require('path');
+
+// One definition, shared with tests/unit/test-meta-integrity.test.js and
+// scripts/gen-test-floor.mjs. See tests/support/transient-probes.json.
+const TRANSIENT_PROBE_RE = new RegExp(
+  require('../support/transient-probes.json').pattern,
+);
 const fs = require('fs');
 
 const REPO_ROOT = path.join(__dirname, '../..');
@@ -42,10 +48,31 @@ describe('KAN-110 + KAN-168: Test count regression guard', () => {
       "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
       { cwd: REPO_ROOT, encoding: 'utf8' },
     );
-    const files = listed.trim().split('\n').filter(Boolean);
+    // Exclude TRANSIENT PROBES. Several guard suites prove their subject by
+    // writing a probe file into tests/unit/, running the checker, and deleting
+    // it. Jest runs suites in PARALLEL, so `--listTests` can observe a probe
+    // that is gone by the time we read it — an ENOENT with nothing to do with
+    // the test floor. That exact flake already 'failed five unrelated PRs in a
+    // row' once (see tests/unit/test-meta-integrity.test.js) and was
+    // reproduced here because the pattern was a private const rather than a
+    // shared fact. It is now one definition, in transient-probes.json.
+    const files = listed
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .filter((f) => !TRANSIENT_PROBE_RE.test(path.basename(f)));
     let blocks = 0;
     for (const f of files) {
-      const content = fs.readFileSync(f, 'utf8');
+      let content;
+      try {
+        content = fs.readFileSync(f, 'utf8');
+      } catch (err) {
+        // Closes the remaining window between listing and reading. Only ENOENT
+        // — anything else is a real problem and must not be swallowed, because
+        // silently skipping files is how a floor guard stops guarding.
+        if (err.code === 'ENOENT') continue;
+        throw err;
+      }
       blocks += (content.match(/^[ \t]*(test|it)\(/gm) || []).length;
     }
     return { files: files.length, blocks };
