@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 183,
+  "count": 186,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -52,6 +52,7 @@
     "securityAlertEmail": "scripts/security-alert-email.sh",
     "weeklyHealthRegression": "scripts/weekly-health-regression.sh",
     "app": "src/app",
+    "srcApp": "src/app/",
     "actions": "src/app/(auth)/actions.ts",
     "authErrors": "src/app/(auth)/auth-errors.ts",
     "page": "src/app/(auth)/forgot-password/page.tsx",
@@ -144,6 +145,7 @@
     "sitemap": "src/app/sitemap.ts",
     "statusPage": "src/app/status/page.tsx",
     "components": "src/components",
+    "lib": "src/lib",
     "providerGate": "src/lib/age/provider-gate.ts",
     "postLoginRedirect": "src/lib/auth/post-login-redirect.ts",
     "authBearer": "src/lib/convene/auth-bearer.ts",
@@ -163,6 +165,7 @@
     "flags": "src/lib/retention/flags.ts",
     "sweep": "src/lib/retention/sweep.ts",
     "middleware": "src/middleware.ts",
+    "modules": "src/modules",
     "fileMagicBytes": "src/modules/guards/file-magic-bytes.ts",
     "sanitise": "src/modules/guards/sanitise.ts",
     "turnstile": "src/modules/guards/turnstile.ts",
