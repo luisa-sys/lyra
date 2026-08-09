@@ -31,5 +31,15 @@ export const env = {
   // comparison site uses (/join, signup, actions, resolveBetaAccess); a
   // whitespace-only value collapses to '' = feature off.
   inviteCode: () => optionalEnv('LYRA_INVITE_CODE', '').trim(),
+  // KAN-451 — the same Google Places key the KAN-341 town/city lookup already
+  // uses. Optional on purpose: with no key the school type-ahead simply returns
+  // nothing and members type their school in themselves, so an unset value
+  // degrades the feature rather than breaking it.
+  placesApiKey: () => optionalEnv('GOOGLE_PLACES_API_KEY', '').trim(),
+  // SEC-120: shared secret a Cloudflare Transform Rule stamps on every request
+  // it proxies, proving the request came through our edge. Empty until the
+  // founder configures the rule — see src/lib/client-ip.ts for why the
+  // unconfigured branch keeps legacy behaviour rather than failing to XFF.
+  cfProxySecret: () => optionalEnv('CF_PROXY_SECRET', '').trim(),
 };
 // Force rebuild 20260329011858

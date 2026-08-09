@@ -291,3 +291,193 @@ with `html` is a bug.
 open SEC-109 branch, including the assertion that had to move to
 `oauth-connections.ts:158`. Converting it here would collide. It should ride
 SEC-109's merge instead.
+
+
+---
+
+## How much of group 3 is actually left (measured 2026-08-02)
+
+The triage headline is **105 files / 239 behavioural blocks**. That number has
+never survived contact with the files, and it does not here either.
+
+| Bucket | Files |
+|---|---:|
+| classified + adversarially refuted (tranche 1) | 8 |
+| classified (tranche 2) | 8 |
+| converted, or deliberately deferred | 7 |
+| **never inspected** | **82** (134 blocks) |
+
+### The untouched tail is thinner than its block count
+
+**50 of the 82 files have exactly ONE behavioural block**, 17 have two, and only
+15 have three or more. A single `toContain` is overwhelmingly a copy pin, an
+assertion already covered behaviourally elsewhere, or structural — which is what
+tranche 1 kept demonstrating (11 of 25 conversion claims refuted outright).
+
+### A mechanical filter that turned out to be reassuring
+
+Cross-referencing the untouched tail against **CTL-039**'s baseline finds
+**7 comment-satisfied assertions across 5 files**. Those are, by construction,
+assertions a text scan cannot make load-bearing — so they looked like the most
+promising place to find another BUGS-85.
+
+**Every one was checked, and none is a coverage gap:**
+
+| Assertion | Verdict |
+|---|---|
+| `revoke-route` → `/Unknown token — return 200/` (RFC 7009 §2.2) | already behavioural — the suite calls `POST(req)` and asserts real statuses |
+| `gdpr` → `deleteAccount` | already behavioural — `account-deletion.test.ts` invokes it |
+| `section-visibility` → `/coerceSectionVisibility/` | already behavioural — the same file invokes it |
+| `retention` → `/security definer/`, `/cutoff >= now()/` | migration SQL — structural, needs a database |
+| `dcr-anti-phishing` → `/drop column if exists …/` | migration rollback note — structural |
+
+They are decorative redundancy sitting **alongside** real tests, not holes. That
+is a materially different picture from `maintenance-page.test.js` and
+`rate-limit.test.js`, where the scan was the *only* thing present.
+
+### Revised estimate
+
+Expect roughly **two more classification tranches** over the 15 files with three
+or more blocks, then a single cheap sweep across the ~67 one-and-two-block
+files. The genuinely convertible remainder is likely nearer **10-15 blocks than
+134**.
+
+**A units warning for whoever continues.** The classifier agents report every
+`test` in a file, while the triage script reports only blocks it bucketed as
+behavioural. `convene/microsoft-calendar.test.ts` is 5 blocks by the triage and
+22 tests by the agent, which reported 20 "convertible". Those two numbers are
+not comparable, and quoting the agent's figure as progress would overstate the
+remaining work by roughly four times.
+
+
+---
+
+## Tranche 2 results (2026-08-02) — ready for the next batch
+
+8 files classified, every convertible verdict given to a skeptic:
+**8 refuted, 16 survived.** (The synthesis agent died on a session limit; this
+section is the hand-written replacement, from `journal.jsonl`.)
+
+### TWO INCIDENTAL FINDINGS — worth more than the conversions
+
+Both came out of the microsoft-calendar refutation and are **not** group-3 work.
+
+**1. `tests/unit/convene/google-oauth.test.ts:37-43` is itself partially vacuous.**
+It asserts the scopes like this:
+
+```ts
+for (const s of GOOGLE_SCOPES) expect(scope).toContain(s);
+```
+
+The oracle is the constant under test. **Delete an entry from `GOOGLE_SCOPES`
+and it stays green** (the loop iterates whatever remains); **empty the constant
+and it passes with zero assertions executed.** That is CTL-038's shape in an
+existing *behavioural* test, and CTL-038 cannot see it — the test imports its
+subject, so it is not a reimplementation.
+
+Losing `offline_access` is the mutation that matters: without it Google/Microsoft
+return no refresh token and every calendar connection dies at the first access-
+token expiry. **Do not copy this pattern when converting the Microsoft one** —
+hardcode the literals and assert set equality on
+`new URL(url).searchParams.get('scope').split(' ')`, which also catches
+*over*-requesting Graph permissions. A presence-only loop is structurally
+incapable of that, on a service holding minors' data.
+
+**2. SEC-76 error masking does not cover the `initiate` routes.**
+`src/app/api/convene/oauth/microsoft/initiate/route.ts:39` returns
+`detail: error.message`. The guard at
+`tests/unit/convene/oauth-callback-error-masking.test.ts:28` covers only the two
+**callback** routes.
+
+Both need their own tickets; neither is a KAN-414 conversion.
+
+### The 16 survivors, grouped
+
+| Group | Survivors | Note |
+|---|---|---|
+| **microsoft-calendar** | 4 — Graph scopes, `grant_type`, v2.0 `/common` endpoints, PKCE params | The scopes one is security-relevant and the strongest of the tranche |
+| **public-profile** | 3 — hybrid visibility filter, published-only, JSON-LD | Visibility filter is the valuable one |
+| **legal-pages / privacy-complaints** | 6 — footer links to `/privacy`, `/terms`, `/complaints`, Companies Act line, complaints links | Borderline: these are link-presence pins, close to copy pins |
+| **convene gathering-ui** | 1 — per-user convene gate on the list page | |
+| **current-problems** | 2 — category label, public heading | Founder-gated UI copy; likely Group 4 |
+
+**Recommended order:** microsoft-calendar scopes first (security-relevant, and
+carries the google-oauth lesson), then the public-profile visibility filter.
+The legal-pages and current-problems ones are weak — link/label presence — and
+should be re-examined against the copy-pin rule before any work.
+
+### A units warning, restated with numbers
+
+The classifier called `convene/microsoft-calendar.test.ts` **20 convertible**.
+The triage counts **5** behavioural blocks in that file, and the file has 22
+tests total. The agents classify every `test`; the triage counts only blocks it
+bucketed behavioural. **Do not add the agent figures to the triage figures.**
+
+### Next batch — PREPARED, NOT LAUNCHED
+
+Script ready at
+`.../workflows/scripts/kan-414-f4-group3-classify-v2-…-tranche2.js`; change the
+`FILES` array to the next 8 and re-invoke. The remaining multi-block candidates
+after tranche 2 are the ~15 files with three or more behavioural blocks; after
+those, the ~67 one-and-two-block files want a single cheap sweep rather than
+per-file agents.
+
+
+---
+
+## Tranche 2 — what was converted, and what the refuters got wrong
+
+**Converted: 1 of 16 survivors.** That ratio is the finding, not a shortfall.
+
+### `microsoft-calendar` → `microsoft-oauth-behaviour` (done)
+
+The strongest survivor of the tranche, and a clean sweep — the old scan stayed
+**22/22 green under all four mutations**:
+
+| mutation to `src/lib/convene/microsoft/oauth.ts` | new suite | old scan |
+|---|---|---|
+| delete the `scope:` entry from the authorize params | 3 failed | 22 PASS |
+| `MICROSOFT_SCOPES.join(',')` instead of `' '` | 2 failed | 22 PASS |
+| **add** `'Mail.Read'` to `MICROSOFT_SCOPES` | 2 failed | 22 PASS |
+| `fetch(TOKEN_URL)` → `fetch(AUTHORIZE_URL)` | 1 failed | 22 PASS |
+
+Row 1 is the security case: Microsoft is asked for **no permissions at all** —
+no calendar access and no refresh token — while all three scope regexes match,
+because they grep the *array declaration*, never the URL.
+
+Row 3 only fails because the assertion is **set equality**, not `toContain`.
+Presence-only assertions are structurally incapable of catching over-requested
+Graph permissions.
+
+The literals are hardcoded rather than derived from `MICROSOFT_SCOPES`,
+deliberately — see **BUGS-86**.
+
+### Three survivors that should NOT have survived
+
+The refuters were told to default to refuting and still let these through. Each
+was checked by hand afterwards:
+
+| Survivor | Why it should have been refuted |
+|---|---|
+| `[slug]/page.tsx uses the hybrid filter` | **Already covered.** `isItemVisibleUnderHybridModel` is exercised directly at `tests/unit/section-visibility.test.ts:177+` across public / members-only / private and both auth states. The refuter checked whether the *page* was covered and missed the *helper's* own suite. |
+| `landing page includes JSON-LD` / `public profile page includes JSON-LD` | Structured-data **presence** pins. Rendering the page to assert the same `<script type="application/ld+json">` is the same pin with more machinery — the copy-pin rule, one step removed. |
+
+**Refutation rate understates the true structural share.** Tranche 2 reported
+8 refuted / 16 survived; hand-checking moves at least 3 more into the refuted
+column, so the real rate is nearer 11/16. Treat "survived" as *worth a human
+look*, never as *approved for conversion*.
+
+### The remaining survivors, and why they are parked
+
+- **legal-pages / privacy-complaints (6)** — footer links to `/privacy`,
+  `/terms`, `/complaints`, and the Companies Act line. These are link- and
+  copy-presence pins on founder-owned pages. Group 4 by the copy-pin rule.
+- **current-problems (2)** — a category label and a public heading. Founder-gated
+  UI copy.
+- **convene gathering-ui (1)** — the per-user convene gate. Worth doing when the
+  Convene work is next touched; not worth a standalone render harness now.
+- **public-profile published-only (1)** — `[slug]/page.tsx` filters
+  `is_published` in **two** queries (l.93, l.188). The wiring is genuinely
+  untested and this is the SEC-100 family, but driving the page needs a heavy
+  server-component harness. Left as the best remaining candidate in this
+  tranche, not as a rejection.

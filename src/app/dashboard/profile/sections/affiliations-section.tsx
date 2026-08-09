@@ -22,7 +22,13 @@ import {
   isSchoolPostcodeValid,
   type AffiliationType,
 } from '../affiliation-fields';
-import { addSchoolAffiliation, removeSchoolAffiliation, updateAffiliationVisibility } from '../actions';
+import {
+  addSchoolAffiliation,
+  removeSchoolAffiliation,
+  updateAffiliationVisibility,
+  updateSchoolAffiliation,
+} from '../actions';
+import { AffiliationNamePicker } from './affiliation-name-picker';
 import { useRouter } from 'next/navigation';
 
 const AFFILIATION_ORDER: AffiliationType[] = ['school', 'organisation', 'community'];
@@ -58,11 +64,13 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
           key={type}
           type={type}
           items={grouped[type]}
-          onAdd={(name, location) => {
+          onAdd={(name, location, description) => {
             startTransition(async () => {
               const result = await addSchoolAffiliation({
                 school_name: name,
                 school_location: location || undefined,
+                // KAN-451 — sent even when empty; the action treats '' as null.
+                description,
                 affiliation_type: type,
               });
               if (result.success) router.refresh();
@@ -73,6 +81,14 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
               const result = await removeSchoolAffiliation(id);
               if (result.success) router.refresh();
             });
+          }}
+          // KAN-448: inline edit is awaited directly rather than fired into the
+          // transition, so a moderation or postcode rejection comes back to the
+          // row and is shown in place instead of being swallowed.
+          onEdit={async (id, data) => {
+            const result = await updateSchoolAffiliation(id, data);
+            if (result.success) router.refresh();
+            return result;
           }}
           onToggleVisibility={(id, show) => {
             startTransition(async () => {
@@ -88,35 +104,103 @@ export function AffiliationsSection({ schools }: { schools: WizardSchool[] }) {
 }
 
 function AffiliationGroup({
-  type, items, onAdd, onRemove, onToggleVisibility, isPending,
+  type, items, onAdd, onRemove, onToggleVisibility, onEdit, isPending,
 }: {
   type: AffiliationType;
   items: WizardSchool[];
-  onAdd: (name: string, location: string) => void;
+  onAdd: (name: string, location: string, description: string) => void;
   onRemove: (id: string) => void;
   onToggleVisibility: (id: string, show: boolean) => void;
+  // KAN-448 — edit an existing row's name / location / description. Returns
+  // the action result so the row can surface a rejection in place.
+  onEdit: (
+    id: string,
+    data: { school_name?: string; school_location?: string; description?: string },
+  ) => Promise<{ success: boolean; error?: string }>;
   isPending: boolean;
 }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [locationError, setLocationError] = useState('');
+  // KAN-451: a short note captured at the same time as the row, so a member
+  // doesn't have to add the affiliation and then edit it to say what they do.
+  const [description, setDescription] = useState('');
+
+  // KAN-448: inline edit state. Only one row edits at a time.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const needsPostcode = requiresPostcode(type);
   const postcodeInvalid = needsPostcode && !isSchoolPostcodeValid(location);
+  const editPostcodeInvalid = needsPostcode && !isSchoolPostcodeValid(editLocation);
+
+  const namePlaceholder =
+    type === 'school' ? 'Example: Greenfield Primary' :
+    type === 'organisation' ? 'Example: Acme Ltd' :
+    'Example: Local running club';
+  const locationPlaceholder = needsPostcode ? 'Example: SW1A 1AA' : 'Example: London';
+  const descriptionPlaceholder =
+    type === 'school' ? 'Example: Year 2 teacher' :
+    type === 'organisation' ? 'Example: Ops team' :
+    'Example: Saturday runner';
+  const POSTCODE_HINT =
+    'Enter a postcode (full or partial) so people can tell schools with the same name apart.';
 
   const handleAdd = () => {
     if (!name.trim()) return;
     // KAN-404 — schools require a valid postcode before we add the row.
     if (postcodeInvalid) {
-      setLocationError(
-        'Enter a postcode (full or partial) so people can tell schools with the same name apart.',
-      );
+      setLocationError(POSTCODE_HINT);
       return;
     }
-    onAdd(name.trim(), location.trim());
+    onAdd(name.trim(), location.trim(), description.trim());
     setName('');
     setLocation('');
+    setDescription('');
     setLocationError('');
+  };
+
+  const startEdit = (s: WizardSchool) => {
+    setEditingId(s.id);
+    setEditName(s.school_name);
+    setEditLocation(s.school_location ?? '');
+    setEditDescription(s.description ?? '');
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!editName.trim()) return;
+    // KAN-404 — the postcode rule applies to an edit too, so a school can't
+    // lose its postcode by being edited. The server enforces it as well.
+    if (editPostcodeInvalid) {
+      setEditError(POSTCODE_HINT);
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    const result = await onEdit(id, {
+      school_name: editName.trim(),
+      // Send location and description even when empty so the member can CLEAR
+      // them (the action treats '' as null).
+      school_location: editLocation.trim(),
+      description: editDescription,
+    });
+    setEditSaving(false);
+    if (result.success) {
+      setEditingId(null);
+      setEditError(null);
+    } else {
+      setEditError(result.error ?? 'Could not save. Please try again.');
+    }
   };
 
   return (
@@ -128,47 +212,114 @@ function AffiliationGroup({
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((s) => (
-            <div key={s.id} className="flex items-center justify-between bg-white rounded-lg border border-[var(--color-border)] px-4 py-3 gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[var(--color-ink)] truncate">{s.school_name}</p>
-                {s.school_location && (
-                  <p className="text-xs text-[var(--color-muted)] truncate">{s.school_location}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <label className="flex items-center gap-1.5 text-xs text-[var(--color-muted)] cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={s.show_on_profile}
-                    onChange={(e) => onToggleVisibility(s.id, e.target.checked)}
-                    disabled={isPending}
-                    className="w-4 h-4 accent-[var(--color-sage)]"
+            <div key={s.id} className="bg-white rounded-lg border border-[var(--color-border)] px-4 py-3">
+              {editingId === s.id ? (
+                /* KAN-448: inline edit mode — reuses the add-form inputs. */
+                <div className="space-y-3">
+                  <Field
+                    label="Name"
+                    value={editName}
+                    onChange={setEditName}
+                    placeholder={namePlaceholder}
                   />
-                  Show on my profile
-                </label>
-                <button
-                  onClick={() => onRemove(s.id)}
-                  disabled={isPending}
-                  className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
-                >
-                  Remove
-                </button>
-              </div>
+                  <Field
+                    label={needsPostcode ? 'Postcode' : 'Location (optional)'}
+                    value={editLocation}
+                    onChange={(v) => {
+                      setEditLocation(v);
+                      if (editError) setEditError(null);
+                    }}
+                    placeholder={locationPlaceholder}
+                  />
+                  <Field
+                    label="Description (optional)"
+                    value={editDescription}
+                    onChange={setEditDescription}
+                    placeholder="Example: Class of 2008"
+                  />
+                  {editError && <p role="alert" className="text-xs text-red-600">{editError}</p>}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(s.id)}
+                      disabled={editSaving || isPending || !editName.trim()}
+                      className="px-4 py-2 rounded-lg bg-[var(--color-sage)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                    >
+                      {editSaving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={editSaving}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-ink)] truncate">
+                      {s.school_name}
+                      {s.description && (
+                        <span className="ml-2 text-xs font-normal text-[var(--color-muted)]">{s.description}</span>
+                      )}
+                    </p>
+                    {s.school_location && (
+                      <p className="text-xs text-[var(--color-muted)] truncate">{s.school_location}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <label className="flex items-center gap-1.5 text-xs text-[var(--color-muted)] cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={s.show_on_profile}
+                        onChange={(e) => onToggleVisibility(s.id, e.target.checked)}
+                        disabled={isPending}
+                        className="w-4 h-4 accent-[var(--color-sage)]"
+                      />
+                      Show on my profile
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(s)}
+                      disabled={isPending}
+                      className="text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] disabled:opacity-40"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onRemove(s.id)}
+                      disabled={isPending}
+                      className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
       <div className="space-y-3 bg-white rounded-lg border border-[var(--color-border)] p-4">
-        <Field
+        {/* KAN-451: type-ahead with an explicit "add your own" row, so a name
+            that isn't in the list can still be entered by hand. */}
+        <AffiliationNamePicker
           label={`${AFFILIATION_LABELS[type].slice(0, -1)} name`}
           value={name}
           onChange={setName}
-          placeholder={
-            type === 'school' ? 'Greenfield Primary' :
-            type === 'organisation' ? 'Acme Ltd' :
-            'Local running club'
-          }
+          onPick={(pickedName, pickedLocation) => {
+            setName(pickedName);
+            setLocation(pickedLocation);
+            if (locationError) setLocationError('');
+          }}
+          placeholder={namePlaceholder}
+          affiliationType={type}
+          location={location}
+          disabled={isPending}
         />
         <div>
           <Field
@@ -178,12 +329,20 @@ function AffiliationGroup({
               setLocation(v);
               if (locationError) setLocationError('');
             }}
-            placeholder={needsPostcode ? 'SW1A 1AA' : 'London'}
+            placeholder={locationPlaceholder}
           />
           {locationError && (
             <p className="mt-1 text-xs text-red-500">{locationError}</p>
           )}
         </div>
+        {/* KAN-451: short description on add — the edit path has had one since
+            KAN-448, so adding then editing was the only way to set it. */}
+        <Field
+          label="Description (optional)"
+          value={description}
+          onChange={setDescription}
+          placeholder={descriptionPlaceholder}
+        />
         <button
           onClick={handleAdd}
           disabled={isPending || !name.trim() || postcodeInvalid}

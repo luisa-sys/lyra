@@ -15,7 +15,9 @@ import {
   isManualOfMeEmpty,
   type ManualOfMe,
 } from '@/app/dashboard/profile/manual-of-me-fields';
+import { groupFavourites } from '@/app/dashboard/profile/favourites';
 import { getRecommendations } from '@/lib/recommend';
+import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/lib/recommend/dismissals';
 import RecommendationsSection from './recommendations-section';
 import V2RecommendationsSection from './v2-recommendations-section';
 import ReportButton from './report-button';
@@ -47,6 +49,11 @@ interface ProfileData {
   is_published: boolean;
   avatar_url: string | null;
   section_visibility: Record<string, string> | null;
+  // KAN-443: optional one-liner for people who would rather choose their own
+  // gift. Optional on the type as well as nullable in the DB, because the row
+  // is read with select('*') and an environment that has not yet run
+  // 20260803170000_kan443_gift_redesign.sql simply returns no such key.
+  gift_voucher_hint?: string | null;
 }
 
 interface ProfileItem {
@@ -56,6 +63,8 @@ interface ProfileItem {
   description: string | null;
   url: string | null;
   visibility: string | null;
+  // KAN-444: only set on custom favourites — the heading the member chose.
+  group_label?: string | null;
 }
 
 interface SchoolAffiliation {
@@ -172,6 +181,41 @@ function CardSection({ heading, items }: { heading: string; items: ProfileItem[]
   );
 }
 
+/**
+ * KAN-443 — the gift list reads as a LIST.
+ *
+ * Every other list section on this page (favourites, affiliations) puts the
+ * name and its note on one line — name semibold, note in muted text — inside a
+ * single card. Gifts were the exception: one full-width card per item, the
+ * description on a second line, and the link as a pill, so a five-item list
+ * read as five separate announcements. Same font-weight relationship as those
+ * sections now, with any link on its own line underneath so it stays tappable.
+ */
+function GiftLines({ items }: { items: ProfileItem[] }) {
+  return (
+    <div className="bg-white border border-[#ece7df] rounded-[10px] px-[18px] py-[15px] mt-3">
+      {items.map((it) => (
+        <div key={it.id} className="py-2 border-b border-dashed border-[#ece7df] last:border-0">
+          <div className="text-[14.5px] leading-snug">
+            <b className="font-semibold text-[var(--color-ink)]">{it.title}</b>
+            {it.description && <span className="text-[var(--color-muted)]"> — {it.description}</span>}
+          </div>
+          {it.url && (
+            <a
+              href={it.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-1.5 text-[12.5px] text-[var(--color-sage)] bg-[#e9efea] rounded-full px-[11px] py-[3px] no-underline hover:underline"
+            >
+              🔗 view link
+            </a>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default async function PublicProfilePage({ params }: Props) {
   const { slug: rawSlug } = await params;
   // The dynamic route param arrives PERCENT-ENCODED for any non-ASCII slug
@@ -225,7 +269,12 @@ export default async function PublicProfilePage({ params }: Props) {
       .maybeSingle(),
     getSupabase()
       .from('profile_conversation_starters')
-      .select('id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
+      // KAN-445: `*` rather than a column list. `custom_prompt` arrives with
+      // migration 20260803160000, and code reaches an environment before its
+      // migration runs — naming a column PostgREST does not know 42703s the
+      // whole read, which here would take the public profile down entirely
+      // (the section-read errors below throw).
+      .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt, sort_order)')
       .eq('profile_id', typedProfile.id)
       .order('created_at', { ascending: true }),
   ]);
@@ -275,11 +324,14 @@ export default async function PublicProfilePage({ params }: Props) {
     const joined = Array.isArray(promptCandidate)
       ? (promptCandidate[0] as { prompt: string; sort_order: number } | undefined)
       : (promptCandidate as { prompt: string; sort_order: number } | null);
+    // KAN-445: a question the member wrote themselves has no seeded prompt to
+    // join to. It sorts after the offered set, in the order they added them.
+    const customPrompt = (r.custom_prompt as string | null | undefined) ?? null;
     return {
       id: r.id as string,
       answer: r.answer as string,
-      prompt: joined?.prompt ?? '',
-      sort_order: joined?.sort_order ?? 0,
+      prompt: customPrompt ?? joined?.prompt ?? '',
+      sort_order: customPrompt ? Number.MAX_SAFE_INTEGER : (joined?.sort_order ?? 0),
     };
   }).sort((a, b) => a.sort_order - b.sort_order);
 
@@ -287,14 +339,48 @@ export default async function PublicProfilePage({ params }: Props) {
   const typedSchools = (schools || []) as SchoolAffiliation[];
   const typedLinks = (links || []) as ExternalLink[];
 
-  // Recommendations (V1 concepts → V2 monetisable). Unchanged from before.
-  const recommendations = getRecommendations(
-    {
-      bio: typedProfile.bio_short,
-      headline: typedProfile.headline,
-      items: typedItems.map((i) => ({ category: i.category, title: i.title, description: i.description })),
-    },
-    { limit: 8 },
+  // KAN-443 — suggestions this member has said "not for me" to.
+  //
+  // Read SEPARATELY from the Promise.all above, and deliberately NOT added to
+  // the fail-loud `sectionReadErrors` set. This table is created by
+  // 20260803170000_kan443_gift_redesign.sql, and code reaches an environment
+  // before its migration does — so on a not-yet-migrated environment this read
+  // errors. Failing loud there would 500 EVERY published profile over a filter
+  // whose absence merely shows a few more suggestions. That is the wrong trade,
+  // so the error is captured to Sentry (never swallowed) and the page degrades
+  // to "nothing dismissed" rather than not rendering at all.
+  const dismissalsRes = await getSupabase()
+    .from('gift_suggestion_dismissals')
+    .select('suggestion_key')
+    .eq('profile_id', typedProfile.id);
+
+  if (dismissalsRes.error) {
+    Sentry.captureException(dismissalsRes.error, {
+      tags: { area: 'public-profile', table: 'gift_suggestion_dismissals' },
+      extra: { slug, profileId: typedProfile.id },
+    });
+  }
+
+  const dismissedKeys = new Set(
+    ((dismissalsRes.data ?? []) as { suggestion_key: string }[]).map((r) => r.suggestion_key),
+  );
+
+  // Recommendations (V1 concepts → V2 monetisable).
+  //
+  // KAN-443: dismissed concepts are dropped BEFORE the V2 pipeline runs, so a
+  // dismissal frees its slot for the next-best concept rather than leaving a
+  // gap — the member loses the idea they rejected, not one of their five
+  // suggestions.
+  const recommendations = withoutDismissedRecommendations(
+    getRecommendations(
+      {
+        bio: typedProfile.bio_short,
+        headline: typedProfile.headline,
+        items: typedItems.map((i) => ({ category: i.category, title: i.title, description: i.description })),
+      },
+      { limit: 8 },
+    ),
+    dismissedKeys,
   );
 
   const requestHeaders = await headers();
@@ -323,7 +409,11 @@ export default async function PublicProfilePage({ params }: Props) {
     recommendationId: `web-${typedProfile.id}`,
     limit: 5,
   });
-  const v2Recommendations = v2Result.recommendations;
+  // KAN-443: filter the pipeline OUTPUT too, not only its input. When a profile
+  // is sparse the pipeline substitutes its own evergreen concepts, which never
+  // passed through the V1 list above — without this second pass a dismissed
+  // evergreen suggestion would come straight back.
+  const v2Recommendations = withoutDismissedV2(v2Result.recommendations, dismissedKeys);
   const v2FellBackToEvergreen = v2Result.fellBackToEvergreen;
 
   // Group items by category for the redesign sections.
@@ -343,21 +433,11 @@ export default async function PublicProfilePage({ params }: Props) {
     ['drains_me', 'What drains me'],
   ];
 
-  // Favourites grid — one card per non-empty list.
-  const FAV_DEFS: Array<[string, string]> = [
-    ['favourite_media', 'Favourite films'],
-    ['favourite_books', 'Favourite books'],
-    ['favourite_tv', 'Favourite TV shows'],
-    ['plays', 'Favourite plays'],
-    ['quotes', 'Favourite quotes'],
-    ['favourite_places', 'Favourite places'],
-    ['favourite_music', 'Favourite music & bands'],
-  ];
-  const favCards = FAV_DEFS.filter(([cat]) => has(cat)).map(([cat, label]) => ({
-    key: cat,
-    label,
-    items: groupedItems[cat] ?? [],
-  }));
+  // KAN-444: favourites grid — one card per non-empty group, built by the
+  // SAME function the editor groups by (see dashboard/profile/favourites).
+  // Sharing it is the point: the groups a member arranges while editing are
+  // by construction the groups their visitors see, so the two cannot drift.
+  const favCards = groupFavourites(typedItems);
 
   // Affiliations — hidden by default, shown only where the owner opted in.
   const affGroups: Array<{ key: string; label: string }> = [
@@ -471,7 +551,27 @@ export default async function PublicProfilePage({ params }: Props) {
           )}
 
           {/* Things I love + not for me */}
-          <CardSection heading="💛 Things I love, can't get enough of, or have been dreaming about" items={groupedItems['gift_ideas']} />
+          {/* KAN-443: the section also carries the optional voucher hint, so it
+              shows even when the list itself is empty — "I'd rather choose my
+              own" is a complete answer to the question this heading asks. */}
+          {((groupedItems['gift_ideas']?.length ?? 0) > 0 || Boolean(typedProfile.gift_voucher_hint)) && (
+            <section className="mt-11">
+              <SectionQ>💛 Things I love, can&apos;t get enough of, or have been dreaming about</SectionQ>
+              {(groupedItems['gift_ideas']?.length ?? 0) > 0 && (
+                <GiftLines items={groupedItems['gift_ideas'] ?? []} />
+              )}
+              {typedProfile.gift_voucher_hint && (
+                <div className="bg-white border border-[#ece7df] rounded-[10px] px-[18px] py-[15px] mt-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                  <div className="text-xs uppercase tracking-wide text-[var(--color-muted)] mb-1">
+                    If you&apos;d rather I chose
+                  </div>
+                  <div className="text-[14.5px] text-[#544f49] leading-relaxed">
+                    {typedProfile.gift_voucher_hint}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
           {notForMe.length > 0 && (
             <section className="mt-11">
               <SectionQ>🙅 Things that aren&apos;t really for me</SectionQ>
@@ -505,10 +605,14 @@ export default async function PublicProfilePage({ params }: Props) {
           <CardSection heading="🧰 Tips & life hacks I can share" items={groupedItems['life_hacks']} />
           <CardSection heading="🧩 Problems I'm trying to solve — ideas welcome" items={groupedItems['current_problems']} />
 
-          {/* A few more things about me (Q&A) */}
+          {/* Q&A — answered prompts, the member's own questions, and the
+              "questions I wish people asked" items. The heading is NOT
+              repeated in this comment on purpose: CTL-039 recorded the old
+              wording here as a comment-shadowed assertion, so the guard was
+              matching the prose rather than the rendered heading. */}
           {(typedStarters.length > 0 || has('questions')) && (
             <section className="mt-11">
-              <SectionQ>💬 A few more things about me</SectionQ>
+              <SectionQ>💬 A bit more about me</SectionQ>
               <div className="mt-3 space-y-5">
                 {typedStarters.map((s) => (
                   <div key={s.id}>

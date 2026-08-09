@@ -157,6 +157,82 @@ export async function exportUserData(): Promise<string> {
     .from('gathering_events_log').select('*').eq('actor_user_id', user.id);
   record('gathering_events_log', eventsErr);
 
+  // SEC-117: the nine person-keyed tables below were absent from this export
+  // while the deletion cascade erased them, so a SAR response was incomplete
+  // and — because nothing errored — indistinguishable from a complete one.
+  // Membership of this list is now checked against the schema by
+  // tests/unit/sar-export-completeness.test.js; see
+  // src/lib/gdpr/person-keyed-tables.ts.
+
+  // Per-user feature grants (KAN-309). Personal data: it records what this
+  // member is permitted to do.
+  const { data: entitlements, error: entitlementsErr } = await admin
+    .from('feature_entitlements').select('*').eq('profile_id', profileId);
+  record('feature_entitlements', entitlementsErr);
+
+  // Consent history — what they agreed to and when. Central to an Art.15
+  // response, since it is the record of the lawful basis itself.
+  const { data: consents, error: consentsErr } = await admin
+    .from('consent_log').select('*').eq('user_id', user.id);
+  record('consent_log', consentsErr);
+
+  // OAuth consents granted to third-party clients (distinct from the token
+  // material, which stays redacted per SEC-71).
+  const { data: oauthConsents, error: oauthConsentsErr } = await admin
+    .from('oauth_consents').select('*').eq('user_id', user.id);
+  record('oauth_consents', oauthConsentsErr);
+
+  // Contact groups the user owns, and their membership.
+  const { data: tribes, error: tribesErr } = await admin
+    .from('tribes').select('*').eq('owner_user_id', user.id);
+  record('tribes', tribesErr);
+  const tribeIds = (tribes || []).map((t) => t.id);
+  let tribeMembers: unknown[] = [];
+  if (tribeIds.length) {
+    const { data, error } = await admin
+      .from('tribe_members').select('*').in('tribe_id', tribeIds);
+    record('tribe_members', error);
+    tribeMembers = data || [];
+  }
+
+  // Behavioural / affiliate telemetry keyed to the user.
+  const { data: affiliateClicks, error: clicksErr } = await admin
+    .from('affiliate_clicks').select('*').eq('user_id', user.id);
+  record('affiliate_clicks', clicksErr);
+
+  const { data: recommendationEvents, error: recErr } = await admin
+    .from('recommendation_events').select('*').eq('user_id', user.id);
+  record('recommendation_events', recErr);
+
+  // Derived relationship strength — inferred personal data, and Art.15 covers
+  // inferences as much as it covers what the member typed in.
+  const { data: relationshipSignals, error: signalsErr } = await admin
+    .from('relationship_signals').select('*').eq('user_id', user.id);
+  record('relationship_signals', signalsErr);
+
+  const { data: venueRatings, error: ratingsErr } = await admin
+    .from('venue_ratings').select('*').eq('user_id', user.id);
+  record('venue_ratings', ratingsErr);
+
+  // Venue visits hang off the user's own gatherings.
+  let venueVisits: unknown[] = [];
+  if (gatheringIds.length) {
+    const { data, error } = await admin
+      .from('venue_visits').select('*').in('gathering_id', gatheringIds);
+    record('venue_visits', error);
+    venueVisits = data || [];
+  }
+
+  // Scopes granted per OAuth connection.
+  const connectionIds = (oauthConnections || []).map((c) => c.id);
+  let oauthScopes: unknown[] = [];
+  if (connectionIds.length) {
+    const { data, error } = await admin
+      .from('oauth_scopes_granted').select('*').in('oauth_connection_id', connectionIds);
+    record('oauth_scopes_granted', error);
+    oauthScopes = data || [];
+  }
+
   return JSON.stringify({
     exported_at: new Date().toISOString(),
     account: { email: user.email, created_at: user.created_at },
@@ -178,6 +254,17 @@ export async function exportUserData(): Promise<string> {
     gathering_proposed_slots: proposedSlots,
     gathering_invite_messages: inviteMessages,
     gathering_events_log: gatheringEvents || [],
+    feature_entitlements: entitlements || [],
+    consent_log: consents || [],
+    oauth_consents: oauthConsents || [],
+    tribes: tribes || [],
+    tribe_members: tribeMembers,
+    affiliate_clicks: affiliateClicks || [],
+    recommendation_events: recommendationEvents || [],
+    relationship_signals: relationshipSignals || [],
+    venue_ratings: venueRatings || [],
+    venue_visits: venueVisits,
+    oauth_scopes_granted: oauthScopes,
     // Present only when one or more sections failed to fetch — the export is
     // then known-incomplete and must not be treated as a full SAR response.
     ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
