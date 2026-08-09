@@ -5,7 +5,13 @@ import { withParentCookieDomain } from '@/modules/platform/cookie-domain';
 import { cfAccessEnabled, verifyCfAccessToken } from '@/modules/guards/cf-access';
 import { buildCspReportOnly } from '@/modules/guards/security-headers';
 import { generateCspNonce, stampCspReportOnly } from '@/modules/access/csp';
-import { buildDeployContext, type MiddlewareEnvRaw } from '@/modules/access/context';
+import {
+  buildDeployContext,
+  createEdgeContext,
+  type MiddlewareEnvRaw,
+} from '@/modules/access/context';
+import { runGates } from '@/modules/access/gate';
+import { PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
 import { clientIp } from '@/modules/guards/client-ip';
 
 // SEC-120: the precedence rule lives in ONE place now — see
@@ -66,74 +72,29 @@ export async function middleware(request: NextRequest) {
     return cspCache;
   };
 
-  // ---------------------------------------------------------------------
-  // SEC-36: beta has no OAuth authorization server. Turn it OFF, don't key it.
+  // ── PRE-AUTHENTICATION GATES ───────────────────────────────────────────
+  // Three gates, in an order that is behaviour rather than style: the SEC-36
+  // beta-OAuth 404 must not be reachable by staying under a rate limit and must
+  // not depend on auth state; the PKCE redirect must precede anything that
+  // could bounce a user mid-exchange. Each carries its own reasoning in
+  // src/modules/access/gates/, and the order is asserted from the outside in
+  // tests/unit/middleware-gate-order.test.ts.
   //
-  // Beta advertised ITSELF as the issuer and answered on /oauth/token,
-  // /register and /revoke, while /.well-known/jwks.json returned 500 — it has
-  // no RS256 keypair on the beta scope and never has. Verified 2026-08-09:
-  // NOTHING points at it. Both resource servers derive the AS from
-  // LYRA_SITE_URL — prod MCP leaves it unset (defaults to checklyra.com) and
-  // dev MCP sets dev.checklyra.com. That is the "confirm unused" question
-  // SEC-36 asked in June, answered with evidence.
-  //
-  // Giving beta a keypair would have been the WRONG fix. Beta runs on the
-  // PRODUCTION Supabase project (gotcha #19), so a working beta AS would mint
-  // tokens whose `sub` is a real production user and write jti rows into
-  // production's oauth_access_tokens — a token factory for production
-  // identities in the deliberately less-hardened environment, separated from
-  // prod only by an `iss` string comparison in the verifier.
-  //
-  // 404, not 403: beta genuinely has no authorization server, and that is what
-  // a client should discover. It also closes the unauthenticated DCR write
-  // into production's oauth_clients via /oauth/register, which the beta gate
-  // further down CANNOT reach because that one only runs for authenticated
-  // requests.
-  // ---------------------------------------------------------------------
-  if (deploy.isBetaDeploy && isOauthServerPath(pathname)) {
-    return new NextResponse(null, { status: 404 });
-  }
-
-
-  // KAN-309: admin.checklyra.com host routing. Enforced only when
-  // ADMIN_HOST_ENFORCED=true (set on prod once the DNS + Cloudflare Access app
-  // are live) — until then /admin keeps working on every host, so shipping this
-  // code is non-breaking.
+  // They run against an EdgeContext, which has no `user` and no Supabase
+  // client — so "check the user first" is not an edit that can be written here.
+  // KAN-309 / SEC-34 / SEC-37 admin-host facts. Derived here rather than in a
+  // gate because three later blocks read them; they move with the admin gate in
+  // C7. `cfEnabled` is inert until CF_ACCESS_* are configured.
   const adminHost = deploy.adminHost;
   const adminHostEnforced = deploy.adminHostEnforced;
   const requestHost =
     request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
   const isAdminHost = requestHost === adminHost;
-  // SEC-34/SEC-37: app-layer Cloudflare Access verification is enforced once
-  // CF_ACCESS_TEAM_DOMAIN + CF_ACCESS_AUD are set (inert before that).
   const cfEnabled = cfAccessEnabled();
 
-  // Supabase PKCE: redirect code param to /auth/callback for session exchange
-  const code = request.nextUrl.searchParams.get('code');
-  if (code && pathname === '/') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/auth/callback';
-    return NextResponse.redirect(url);
-  }
-
-  // Rate limit auth endpoints (login, signup, auth callback)
-  if (
-    pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname.startsWith('/auth/')
-  ) {
-    // Only rate limit POST requests (form submissions)
-    if (request.method === 'POST') {
-      const ip = getClientIp(request);
-      const { limited, retryAfter } = rateLimit(`auth:${ip}`, RATE_LIMITS.auth);
-      if (limited) {
-        return NextResponse.json(
-          { error: 'Too many attempts. Please try again later.' },
-          { status: 429, headers: { 'Retry-After': String(retryAfter) } }
-        );
-      }
-    }
-  }
+  const edge = createEdgeContext(request, deploy, csp);
+  const preAuth = await runGates(PRE_AUTH_PIPELINE, edge);
+  if (preAuth !== null) return preAuth;
 
   // Skip Supabase auth if env vars not configured
   const supabaseUrl = deploy.supabaseUrl;
