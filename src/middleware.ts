@@ -4,6 +4,8 @@ import { rateLimit, RATE_LIMITS } from '@/modules/guards/rate-limit';
 import { withParentCookieDomain } from '@/modules/platform/cookie-domain';
 import { cfAccessEnabled, verifyCfAccessToken } from '@/modules/guards/cf-access';
 import { buildCspReportOnly } from '@/modules/guards/security-headers';
+import { generateCspNonce, stampCspReportOnly } from '@/modules/access/csp';
+import { buildDeployContext, type MiddlewareEnvRaw } from '@/modules/access/context';
 import { clientIp } from '@/modules/guards/client-ip';
 
 // SEC-120: the precedence rule lives in ONE place now — see
@@ -11,28 +13,6 @@ import { clientIp } from '@/modules/guards/client-ip';
 // rate-limit-shared.ts, and the duplication was the recurrence mechanism.
 function getClientIp(request: NextRequest): string {
   return clientIp(request.headers);
-}
-
-// SEC-63: per-request CSP nonce, base64 of 16 random bytes. Edge runtime
-// provides Web Crypto (crypto.getRandomValues) + btoa globally.
-function generateCspNonce(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
-
-// SEC-63: stamp the staged nonce CSP as Report-Only on a document response.
-// Report-Only NEVER blocks — browsers only surface violations — so this is a
-// zero-risk observation step ahead of enforcing the nonce policy (the follow-up
-// SEC-63 leg, which also wires the nonce into first-party scripts + flips to
-// the enforced `Content-Security-Policy` header + adds a deploy-time header
-// smoke). Applied only to document-serving responses; redirects/JSON errors
-// don't need a CSP.
-function stampCspReportOnly(res: NextResponse, csp: string): NextResponse {
-  res.headers.set('Content-Security-Policy-Report-Only', csp);
-  return res;
 }
 
 /**
@@ -52,8 +32,39 @@ function isOauthServerPath(pathname: string): boolean {
   );
 }
 
+/**
+ * The seven env reads, in one place, as data.
+ *
+ * They stay in THIS file deliberately. CTL-037's baseline
+ * (env-access-baseline.json) records `src/middleware.ts` with exactly these
+ * seven variables; relocating the reads would change that baseline without
+ * changing anything about what is actually read. Handing the values on as a
+ * plain object also makes every consumer testable without the ambient environment.
+ */
+function readMiddlewareEnv(): MiddlewareEnvRaw {
+  return {
+    IS_BETA_DEPLOY: process.env.IS_BETA_DEPLOY,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    ADMIN_HOST: process.env.ADMIN_HOST,
+    ADMIN_HOST_ENFORCED: process.env.ADMIN_HOST_ENFORCED,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const deploy = buildDeployContext(readMiddlewareEnv());
+
+  // Lazy on purpose: the SEC-36 404 below returns before any document is
+  // served and must not pay for a nonce it will never use. A getRandomValues
+  // spy in middleware-response-contract.test.ts asserts exactly that.
+  let cspCache: string | undefined;
+  const csp = (): string => {
+    if (cspCache === undefined) cspCache = buildCspReportOnly(generateCspNonce());
+    return cspCache;
+  };
 
   // ---------------------------------------------------------------------
   // SEC-36: beta has no OAuth authorization server. Turn it OFF, don't key it.
@@ -79,20 +90,17 @@ export async function middleware(request: NextRequest) {
   // further down CANNOT reach because that one only runs for authenticated
   // requests.
   // ---------------------------------------------------------------------
-  if (process.env.IS_BETA_DEPLOY === 'true' && isOauthServerPath(pathname)) {
+  if (deploy.isBetaDeploy && isOauthServerPath(pathname)) {
     return new NextResponse(null, { status: 404 });
   }
 
-  // SEC-63: derive a per-request nonce + the Report-Only nonce CSP once, then
-  // stamp it on each document-serving response before it returns.
-  const cspReportOnly = buildCspReportOnly(generateCspNonce());
 
   // KAN-309: admin.checklyra.com host routing. Enforced only when
   // ADMIN_HOST_ENFORCED=true (set on prod once the DNS + Cloudflare Access app
   // are live) — until then /admin keeps working on every host, so shipping this
   // code is non-breaking.
-  const adminHost = process.env.ADMIN_HOST ?? 'admin.checklyra.com';
-  const adminHostEnforced = process.env.ADMIN_HOST_ENFORCED === 'true';
+  const adminHost = deploy.adminHost;
+  const adminHostEnforced = deploy.adminHostEnforced;
   const requestHost =
     request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
   const isAdminHost = requestHost === adminHost;
@@ -128,11 +136,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Skip Supabase auth if env vars not configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = deploy.supabaseUrl;
+  const supabaseAnonKey = deploy.supabaseAnonKey;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return stampCspReportOnly(NextResponse.next(), cspReportOnly);
+    return stampCspReportOnly(NextResponse.next(), csp());
   }
 
   let supabaseResponse = NextResponse.next({
@@ -193,11 +201,11 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/admin' + (pathname === '/' ? '' : pathname);
         const rewrite = NextResponse.rewrite(url);
         supabaseResponse.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
-        return stampCspReportOnly(rewrite, cspReportOnly);
+        return stampCspReportOnly(rewrite, csp());
       }
       // Already an /admin path (or passthrough) — serve it, and crucially skip
       // the beta gate below so an admin isn't bounced to /waitlist.
-      return stampCspReportOnly(supabaseResponse, cspReportOnly);
+      return stampCspReportOnly(supabaseResponse, csp());
     }
     // Any non-admin host must never serve /admin — send it to the subdomain.
     if (pathname.startsWith('/admin')) {
@@ -250,15 +258,7 @@ export async function middleware(request: NextRequest) {
   //                          promoted user always lands on the right site
   //                          (sessions carry via the shared .checklyra.com cookie).
   // The /waitlist page itself + auth pages are exempt to avoid redirect loops.
-  const isBetaDeploy = process.env.IS_BETA_DEPLOY === 'true';
-  const isProdSite =
-    process.env.NEXT_PUBLIC_SITE_URL === 'https://checklyra.com' &&
-    process.env.VERCEL_ENV === 'production';
-  const deployTier: 'beta' | 'prod' | null = isBetaDeploy
-    ? 'beta'
-    : isProdSite
-      ? 'prod'
-      : null;
+  const deployTier = deploy.deployTier;
   const exemptFromBetaGate =
     pathname === '/waitlist' ||
     pathname === '/suspended' || // KAN-319: suspended users land here, not /waitlist
@@ -316,7 +316,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return stampCspReportOnly(supabaseResponse, cspReportOnly);
+  return stampCspReportOnly(supabaseResponse, csp());
 }
 
 export const config = {
