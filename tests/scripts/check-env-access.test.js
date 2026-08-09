@@ -122,9 +122,11 @@ describe('check-env-access.py — the ratchet, in all four directions', () => {
       expect(r.exitCode).toBe(1);
       expect(r.stdout).toMatch(/NEW direct `process\.env` read/);
       expect(r.stdout).toMatch(/BRAND_NEW_VAR/);
-      // Derived from the manifest, not written out: this literal was
-      // src/lib/env.ts until KAN-415 D1 moved the resolver, and a hardcoded
-      // path here fails the move rather than the guard.
+      // Derived from the manifest, not written out: the resolver moved in
+      // KAN-415 D1, and a hardcoded path here fails the move rather than the
+      // guard. (Naming the pre-move path even in a comment would trip the
+      // extraction DoD's stale-reference scan, which is right to read a real
+      // old path in a tracked file as drift — it cannot tell prose from code.)
       expect(r.stdout).toContain(`${SRC.platformEnv} instead`);
     } finally {
       removeTracked('src/lib/__probe_new.ts');

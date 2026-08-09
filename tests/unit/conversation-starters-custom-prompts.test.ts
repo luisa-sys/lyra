@@ -14,7 +14,7 @@
  *    20260803160000 yet fails the WHOLE request — the null value does not
  *    save you. Code reaches an environment before its migration does, so this
  *    is the normal case, not the edge case. `npm run type-check` is blind to
- *    it: `src/lib/supabase-server.ts` builds an UNTYPED client, so no column
+ *    it: `src/modules/platform/supabase-server.ts` builds an UNTYPED client, so no column
  *    name in any payload is ever checked against a schema. The only thing that
  *    can catch it is a test that looks at the payload actually handed to the
  *    driver, which is what the first describe below does.

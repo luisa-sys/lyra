@@ -15,7 +15,7 @@ name: E2E Tests (PR gate)
 # row — see tests/e2e/profile-redesign.spec.ts) and run in the staging job
 # instead. The authenticated editor test is a deferred test.fixme.
 #
-# Dummy Supabase env: src/lib/env.ts reads these lazily per-request via
+# Dummy Supabase env: src/modules/platform/env.ts reads these lazily per-request via
 # requireEnv(). The surfaces exercised here never actually call Supabase, so
 # a syntactically-valid dummy value satisfies the env guard at build/serve
 # time without needing a real project. If a test ever hits a route that DOES
@@ -43,7 +43,7 @@ jobs:
       # `next start` and target localhost (KAN-271).
       E2E_LOCAL_SERVER: '1'
       # Dummy, syntactically-valid env so `next build`/`next start` and the
-      # lazy requireEnv() guards in src/lib/env.ts are satisfied. These point
+      # lazy requireEnv() guards in src/modules/platform/env.ts are satisfied. These point
       # at no real project — the DB-independent surfaces under test never call
       # Supabase. NOT secrets; safe to inline.
       NEXT_PUBLIC_SUPABASE_URL: 'https://e2e-dummy.supabase.co'

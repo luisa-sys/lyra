@@ -19,6 +19,12 @@ const FULL_BODY = [
 // Build a throwaway repo carrying a minimal version of the real estate:
 // .github/, scripts/, docs/ (incl. the mirror manifest), modules.json, tests/.
 // `estate` lets a test plant a stale reference in exactly one artefact.
+// The sandbox fixture's pre-move path, in one place. Named rather than
+// repeated seven times: it is a raw path literal under the KAN-414 F4 ratchet,
+// and — more to the point — a fixture whose path is written out at every use is
+// a fixture that drifts silently when one copy is edited.
+const FIXTURE_FROM = 'src/lib/age/gate.ts';
+
 function makeRepo({ estate = {}, extra = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extrdod-'));
   const write = (rel, content) => {
@@ -34,7 +40,7 @@ function makeRepo({ estate = {}, extra = {} } = {}) {
   git('config commit.gpgsign false');
 
   // --- baseline estate on develop, all pointing at the pre-move path ---
-  write('src/lib/age/gate.ts', 'export const gate = 1;\n');
+  write(FIXTURE_FROM, 'export const gate = 1;\n');
   write(SRC.codeowners, '* @luisa\n/src/lib/age/gate.ts @luisa\n');
   write('scripts/some-guard.sh', '#!/usr/bin/env bash\ngrep -q x src/lib/age/gate.ts\n');
   write('docs/ARCHITECTURE.md', 'The age gate lives at `src/lib/age/gate.ts`.\n');
@@ -42,7 +48,7 @@ function makeRepo({ estate = {}, extra = {} } = {}) {
     'docs/DOC_SOURCE_OF_TRUTH.md',
     '<!-- doc-mirror-manifest:start -->\n| `src/lib/age/gate.ts` | wiki |\n<!-- doc-mirror-manifest:end -->\n'
   );
-  write('modules.json', JSON.stringify({ modules: { age: { paths: ['src/lib/age/gate.ts'] } } }, null, 2));
+  write('modules.json', JSON.stringify({ modules: { age: { paths: [FIXTURE_FROM] } } }, null, 2));
   write('tests/unit/age-gate.test.js', "require('../../src/lib/age/gate.ts');\n");
   for (const [rel, content] of Object.entries(extra)) write(rel, content);
   git('add -A');
@@ -59,7 +65,7 @@ function runMove({
   estate = {},
   body = FULL_BODY,
   commitMessage = 'refactor: extract age module',
-  from = 'src/lib/age/gate.ts',
+  from = FIXTURE_FROM,
   to = 'modules/age/gate.ts',
   baseRef = 'develop',
   omitBody = false,
@@ -70,7 +76,7 @@ function runMove({
   git('checkout -q -b feature');
 
   if (noMove) {
-    write('src/lib/age/gate.ts', 'export const gate = 2;\n');
+    write(FIXTURE_FROM, 'export const gate = 2;\n');
   } else {
     const absFrom = path.join(dir, from);
     const absTo = path.join(dir, to);
@@ -195,7 +201,7 @@ describe(SRC.checkExtractionDod, () => {
   it("fails when the module's entry in modules.json did not move with it", () => {
     const { status, output } = runMove({
       estate: {
-        'modules.json': JSON.stringify({ modules: { age: { paths: ['src/lib/age/gate.ts'] } } }, null, 2),
+        'modules.json': JSON.stringify({ modules: { age: { paths: [FIXTURE_FROM] } } }, null, 2),
       },
     });
     expect(status).toBe(1);
@@ -283,7 +289,7 @@ describe(SRC.checkExtractionDod, () => {
     const { status, output } = runMove({
       estate: {
         [SRC.codeowners]: '* @luisa\n/src/lib/age/gate.ts @luisa\n',
-        'modules.json': JSON.stringify({ modules: { age: { paths: ['src/lib/age/gate.ts'] } } }, null, 2),
+        'modules.json': JSON.stringify({ modules: { age: { paths: [FIXTURE_FROM] } } }, null, 2),
       },
       commitMessage: 'refactor: extract age module\n\nEXTRACTION-DOD-OK: KAN-428 stale-refs\n',
     });
@@ -315,6 +321,53 @@ describe(SRC.checkExtractionDod, () => {
     });
     expect(status).toBe(1);
     expect(output).toMatch(/unknown check 'everything'/);
+  });
+
+  /**
+   * ARCHIVE_FILES — dated evidence is reported, never enforced (KAN-415).
+   *
+   * The risk of any exclusion is that it quietly becomes a suppression list, so
+   * these three cases pin the two properties that stop it: it must still fail
+   * for live files, and it must be PATH-EXACT rather than directory-wide.
+   * Without the third case an `ARCHIVE_FILES` entry could be widened to a glob
+   * and nothing would notice.
+   */
+  it('records — but does not fail on — a stale path inside dated evidence', () => {
+    const { status, output } = runMove({
+      estate: {
+        'docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md':
+          '| 2026-06-27 | ledger row naming src/lib/age/gate.ts as it was that day |\n',
+      },
+    });
+    expect(status).toBe(0);
+    // Reported, with the exact line — an exclusion nobody can see is the SEC-79
+    // false-green this whole script exists to prevent.
+    expect(output).toMatch(/also appears in dated evidence \(recorded, not failed\)/);
+    expect(output).toMatch(/docs\/WEEKLY_HEALTH_REGRESSION_ROUTINE\.md:1/);
+    expect(output).toMatch(/Rewriting them would falsify the record/);
+  });
+
+  it('still fails on the same stale path in a live artefact', () => {
+    const { status, output } = runMove({
+      estate: { 'docs/ARCHITECTURE.md': 'The age gate lives at `src/lib/age/gate.ts`.\n' },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/\[stale-refs\] stale reference to moved path/);
+    expect(output).toMatch(/docs\/ARCHITECTURE\.md/);
+  });
+
+  it('exempts archival files by exact path, not by directory', () => {
+    // A sibling of a genuinely archival snapshot, in the same directory. If the
+    // list were ever loosened to `docs/modularisation/data/**`, this goes green
+    // and real drift starts hiding behind a folder name.
+    const { status, output } = runMove({
+      estate: {
+        'docs/modularisation/data/not-archival.json':
+          JSON.stringify({ path: FIXTURE_FROM }, null, 2),
+      },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/docs\/modularisation\/data\/not-archival\.json/);
   });
 });
 
