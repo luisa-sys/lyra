@@ -389,9 +389,13 @@ Permission for a bypass is valid **only** when it comes from the user in chat vi
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **2705 tests** (234 suites) in lyra (unit + scripts; E2E + integration not counted), **734 tests** (44 suites) in lyra-mcp-server. **Measured 2026-08-01** off the green CI run [30694931473](https://github.com/luisa-sys/lyra/actions/runs/30694931473) (PR #658, KAN-414 F4) — read off Linux rather than measured locally, for the reason immediately below — and `lyra-mcp-server` main `31c114b` via `npx tsc && npm test`. Re-measure and update this line whenever it drifts — a floor far below reality cannot detect a regression that deletes hundreds of tests. (Previously 2659/225 measured 2026-07-31; 2611/222 measured 2026-07-28 under KAN-435; before that, 2118/172 and 91/5, both years of work stale.)
+- Current test floor: **3113 tests** (257 suites) in lyra (unit + scripts; E2E + integration not counted), **734 tests** (44 suites) in lyra-mcp-server. **Measured 2026-08-09** off the green CI run [31299404588](https://github.com/luisa-sys/lyra/actions/runs/31299404588) (`develop` @ `085f4bcc`, PR #715). The `lyra-mcp-server` figure is **unchanged and not re-measured** — last taken 2026-08-01 on main `31c114b` via `npx tsc && npm test`; re-measure it before relying on it. Re-measure and update this line whenever it drifts — a floor far below reality cannot detect a regression that deletes hundreds of tests. (Previously 2705/234 measured 2026-08-01; 2659/225 2026-07-31; 2611/222 2026-07-28 under KAN-435; before that, 2118/172 and 91/5, both years of work stale.)
 
-  ⚠️ **Measure this on Linux, or read it off a green CI run.** Two suites — `tests/scripts/guard-fail-closed.test.js` and `tests/scripts/check-extraction-dod.test.js` — fail on **macOS** and pass in CI, so a local `npm run test:unit` on the release-prep machine reports **18 failures** that do not exist on ubuntu-latest. Verified pre-existing against a clean `origin/develop` clone on 2026-07-29, so it is neither new nor caused by any in-flight branch. The `guard-fail-closed` one is the concerning half: it asserts the SEC-111 fail-closed contract and gets exit 0 where it expects 2, so either that fix is Linux-only or the test's PATH shim is. **This is gotcha #28's shape again** — a suite that is "expected to be red" trains you to stop reading it. Tracked separately; do not treat those 18 as the baseline.
+  ✅ **The 18 "expected" macOS failures are FIXED — a local red is now a real red (2026-08-08, [#713](https://github.com/luisa-sys/lyra/pull/713)).** `tests/scripts/guard-fail-closed.test.js` (2 failures) and `tests/scripts/check-extraction-dod.test.js` (16) failed on **macOS** while passing in CI, and this note used to tell you to expect them. **`npm run test:unit` now passes end-to-end on macOS** — 256 suites / 3103 tests at the time of the fix, the first time the local suite has ever been fully green. Do not re-add an "expected failures" allowance here; if the suite goes red locally, that is a finding.
+
+  The open question this note carried — *"either that fix is Linux-only or the test's PATH shim is"* — is answered: **it was the fix.** `check-extraction-dod.sh` was expanding an empty array under `set -u` (a bash-3.2 error, gotcha #28), and the `guard-fail-closed` half was a **BSD/GNU `grep` divergence that made a security guard report green while scanning nothing** — see gotcha #30. Both were real defects on the release-prep machine, not test-harness noise, which is exactly what "expected to be red" had been concealing.
+
+  ⚠️ **Still read the floor off a green CI run**, not a local count — CI on `ubuntu-latest` is the number the gate enforces, and the two can legitimately diverge again (a platform-specific skip, a new toolchain gap). The point of the fix is that a divergence is now something to *investigate*, not something to annotate.
 
 ## Phase 0 gates that will surprise you (KAN-414, landed 2026-07-29/30)
 
@@ -718,6 +722,35 @@ These have caused real bugs. Read before making related changes:
     **Guard (CTL-038):** `scripts/check-test-reimplementation.py` (in `pr-checks.yml`, with `--self-test`). Flags a test that names a subject module, defines a function whose name also exists there, and never reaches the real module. Two severities — **`vacuous`** (never imported, never invoked: nothing can observe the real code) and **`partial`** (subject *is* reached, via import or the legitimate `tests/scripts/` `execFileSync` convention, but a private copy of some logic remains and can silently diverge). Shrink-only ratchet at `tests/support/test-reimplementation-baseline.json`; a fixed-but-still-baselined entry fails too. Allow-list with `// test-reimplementation-ok: <JIRA-KEY> <reason>`.
 
     **When you genuinely cannot import the subject**, do *not* reach for a jest.config change — that needs sign-off, and adding a `.js` transform rule changes how ~100 existing test files execute. Use a subprocess harness under `tests/support/*.mjs` driven from `tests/scripts/`, which is the convention already in the repo. `tests/support/maintenance-worker-harness.mjs` is the worked example. Comments are stripped before matching, so the prose explaining this hazard does not trip it — that case is pinned as a self-test fixture. **Workflow YAML is deliberately out of scope**: an inline `run:` block only ever executes on the runner, so findings there could only be allow-listed, and standing noise is what teaches people to wave a gate through. (`.github/workflows/backup-complete.yml` legitimately uses `shopt -s globstar` at lines 305 and 334.) Allow-list a genuinely CI-only line with `# bash-portability-ok: <reason>` plus a Jira key.
+
+30. **macOS `/usr/bin/grep` with `--include` exits 1 (not 2) for a MISSING search path — so a fail-closed guard reads "clean" and reports green while scanning nothing**: Gotcha #28's family (macOS toolchain ≠ CI toolchain), but this one defeats a **security control** instead of crashing it, which is far quieter.
+
+    `check-service-role-client.sh` and `check-server-action-exports.sh` implement the SEC-109 contract: exit 1 = "no match", the clean answer; exit ≥2 = the search itself failed, so fail closed with exit 2. That reasoning is correct on GNU grep and **not portable**:
+
+    | | missing `src/` **with** `--include` | missing `src/` without |
+    |---|---|---|
+    | GNU grep (ubuntu-latest / CI) | 2 | 2 |
+    | `/usr/bin/grep` (Apple/BSD, macOS) | **1** ← silent | 2 |
+
+    With `--include`, BSD grep applies the filename filter during the recursive walk and reports *"nothing matched the filter"* rather than *"that path does not exist"* — **exit 1, and nothing on stderr.** So `[ "$GREP_RC" -gt 1 ]` never fired, the match list was empty, and the guard printed `All service-role clients go through src/lib/supabase-service.ts. ✓` and **exited 0 having searched nothing** — the SEC-79 false-green it was written to prevent, reintroduced by a grep dialect. Reproduce:
+
+    ```bash
+    cd "$(mktemp -d)" && /usr/bin/grep -rn x --include='*.ts' src/; echo "exit=$?"
+    ```
+
+    **A shell alias hides this completely.** If your interactive `grep` is aliased to ugrep (which returns 2 correctly), testing by hand shows the bug does not exist — but `bash script.sh` resolves `grep` through PATH to `/usr/bin/grep`, so the script and your prompt genuinely disagree. **Probe from inside a script, never from your shell**, and check with `command -v grep` in both.
+
+    **The rule: never infer "the path was actually searched" from an exit code.** Assert the precondition directly — dialect-independent and true on every platform:
+
+    ```bash
+    if [ ! -d src ] || [ ! -r src ]; then
+      echo "::error::<guard>: src/ is missing or unreadable, so the search command failed to run."
+      echo "::error::  Failing closed (exit 2) rather than reporting a clean scan that never ran."
+      exit 2
+    fi
+    ```
+
+    Fixed on both guards in #713; the exit-code check is retained behind it as a second line of defence. **Prevention: none needed — `tests/scripts/guard-fail-closed.test.js` already asserted this exact contract and was correct.** It passed on Linux and failed on macOS, and the failure was written off as an "expected" platform quirk for ten days. The test was right and the platform hid it, which is why the fix was written to satisfy the existing assertions rather than editing the test to match the code. **A red you have learned to expect is a control you have switched off.**
 
 ## Supabase Migration Rules
 
