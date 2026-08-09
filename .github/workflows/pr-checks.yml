@@ -119,6 +119,10 @@ jobs:
         # See docs/MODULARISATION_EXTRACTION_DOD.md.
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          # The mcp-repo check reads luisa-sys/lyra-mcp-server, which is PUBLIC —
+          # so the built-in token suffices and no secret is provisioned. Without
+          # this the check exits 2 (fail-closed) rather than passing silently.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
       - name: Design re-baseline gate (CTL-040, KAN-457)
         # Makes the DoD's design-system attestation load-bearing. That

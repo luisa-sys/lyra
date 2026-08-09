@@ -549,7 +549,7 @@
       "id": "CTL-030",
       "name": "Structural dependency rules (module/segment/cycle)",
       "defect_class": "regression-risk",
-      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/lib/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
+      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/modules/platform/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
       "implementation": "scripts/check-dependency-rules.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -632,7 +632,7 @@
       "id": "CTL-037",
       "name": "Env-access ratchet",
       "defect_class": "scattered-configuration",
-      "summary": "Freezes the set of DIRECT process.env reads under src/ (72 references across 37 files at 2026-07-29) in env-access-baseline.json and makes it shrink-only: a new file fails, a new variable in an already-listed file fails, and a listed file or variable that has STOPPED being read ALSO fails so the baseline cannot over-state the problem. src/lib/env.ts is exempt by design. Keyed on file plus variable-set rather than line number, so unrelated edits do not churn it. Exists because src/lib/deploy-env.ts proved that creating a canonical resolver is ~10% of the work - all six derivations it was meant to replace are still inline - and only CI retires call sites.",
+      "summary": "Freezes the set of DIRECT process.env reads under src/ (72 references across 37 files at 2026-07-29) in env-access-baseline.json and makes it shrink-only: a new file fails, a new variable in an already-listed file fails, and a listed file or variable that has STOPPED being read ALSO fails so the baseline cannot over-state the problem. src/modules/platform/env.ts is exempt by design. Keyed on file plus variable-set rather than line number, so unrelated edits do not churn it. Exists because src/modules/platform/deploy-env.ts proved that creating a canonical resolver is ~10% of the work - all six derivations it was meant to replace are still inline - and only CI retires call sites.",
       "implementation": "scripts/check-env-access.py",
       "kind": "ci-gate",
       "wired_in": [

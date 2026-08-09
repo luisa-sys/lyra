@@ -3,7 +3,7 @@
  * types, and every decision the UI makes about what to show.
  *
  * CLIENT-SAFE BY CONSTRUCTION. This module imports nothing — in particular not
- * `src/lib/env.ts` — so the picker component can use it without dragging the
+ * `src/modules/platform/env.ts` — so the picker component can use it without dragging the
  * environment accessor (or the Places client) into the browser bundle. The
  * network call lives next door in `places-schools-lookup.ts`, which only the
  * server action imports.

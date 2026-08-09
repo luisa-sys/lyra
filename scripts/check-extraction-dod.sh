@@ -76,9 +76,20 @@ set -uo pipefail
 BASE_REF="${BASE_REF:-origin/develop}"
 HEAD_REF="${HEAD_REF:-HEAD}"
 
-SWEEP_DIRS=(.github scripts docs)
+# The sweep used to be (.github scripts docs), which left src/, supabase/,
+# controls/ and qa-sweep/ unswept. Measured after the KAN-415 D1 extraction: 13
+# live stale references had accumulated in those zones — including
+# controls/registry.json's description of CTL-037, which told the reader that
+# `src/lib/env.ts is exempt by design` when the exempt file had moved. A gate
+# whose own registry misdescribes it is the failure this script exists for.
+#
+# Zero stale references existed in the three swept directories. The sweep was
+# working perfectly, over a third of the estate.
+SWEEP_DIRS=(.github scripts docs src supabase controls qa-sweep)
 MANIFEST_DOC="docs/DOC_SOURCE_OF_TRUTH.md"
 MODULE_MANIFEST="modules.json"
+# Public, so this coupling can be CHECKED rather than attested (see mcp-repo below).
+MCP_REPO="luisa-sys/lyra-mcp-server"
 TEST_DIR="tests"
 
 # Paths named verbatim inside claude.ai routine prompts (KAN-419 §5.2). These
@@ -171,7 +182,7 @@ while IFS= read -r line; do
   HATCH_LINES+=("$line")
 done <<<"$(search "escape-hatch scan" grep -E "$BARE_HATCH_RE" - <<<"$COMMIT_MSGS")"
 
-VALID_CHECKS=(stale-refs doc-manifest module-manifest test-estate out-of-repo coverage routine-prompts)
+VALID_CHECKS=(stale-refs doc-manifest module-manifest test-estate out-of-repo coverage routine-prompts mcp-repo)
 is_valid_check() {
   local c="$1" v
   for v in "${VALID_CHECKS[@]}"; do [ "$c" = "$v" ] && return 0; done
@@ -282,9 +293,19 @@ ARCHIVE_FILES=(
   "docs/modularisation/KAN-414-F6-threading-fallout.md"   # a MEASUREMENT of 2026-07-29, whose own text says the doc is the deliverable
   "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
 )
+
+# Whole directories that are records rather than descriptions. Kept separate
+# from ARCHIVE_FILES because the membership test is a prefix, not equality —
+# and deliberately short, for the same reason ARCHIVE_FILES is literal.
+ARCHIVE_DIRS=(
+  "supabase/migrations/"   # APPLIED history. Editing one changes nothing on any
+                           # database and destroys the record of what actually ran.
+                           # Three of them name a path D1 moved; all three are correct.
+)
 is_archival() {
-  local f="$1" a
+  local f="$1" a d
   for a in "${ARCHIVE_FILES[@]}"; do [ "$f" = "$a" ] && return 0; done
+  for d in "${ARCHIVE_DIRS[@]}"; do case "$f" in "$d"*) return 0 ;; esac; done
   return 1
 }
 
@@ -402,6 +423,82 @@ attest out-of-repo "EXTRACTION-DOD-DESIGN-SYSTEM" \
 
 attest out-of-repo "EXTRACTION-DOD-ROUTINE-PROMPTS" \
   "If this PR renames a script or changes a protected-surface path list named verbatim in a claude.ai routine prompt, the prompt must be updated in the same session (KAN-419 §5.2). Answer 'done' or 'n/a — <reason>'. CI cannot check this: routine prompts are not in git."
+
+# ── mcp-repo: the OTHER repo points back at this one ────────────────────────
+# The DoD had two out-of-repo couplings, both human attestations, because
+# neither the design-system repo nor the claude.ai routine prompts can be read
+# from CI. luisa-sys/lyra-mcp-server is different: it is PUBLIC, so this is a
+# real check rather than a ticked box — and a ticked box is what we would
+# otherwise be adding, for a coupling that has already broken.
+#
+# It HAD already broken, silently, in the D1 extraction. Three files in that
+# repo point at lyra paths that no longer exist:
+#   src/sentry-scrub.ts:4        "port of the web app's src/lib/sentry-scrub.ts"
+#   src/sanitise.ts:17           "mirrors the web app's src/lib/sanitise.ts"
+#   tests/sentry-scrub.test.cjs:9  "port of lyra/src/lib/sentry-scrub.ts"
+#
+# Those comments are the ONLY instruction telling a maintainer where the
+# authoritative copy lives. src/sanitise.ts carries the SEC-59 / CodeQL
+# incomplete-multi-character-sanitization fix; apply the next fix of that class
+# in lyra and follow the pointer from the MCP repo, and you get nothing. Both
+# suites stay green while the mirror drifts — the BUGS-85 shape exactly.
+#
+# Uses the same zero-secret route as CTL-043: public repo, built-in GITHUB_TOKEN.
+if is_suppressed mcp-repo; then
+  echo "check-extraction-dod: [mcp-repo] SKIPPED by an active exception."
+elif ! command -v gh >/dev/null 2>&1; then
+  die_unverifiable "gh is not available, so the lyra-mcp-server back-references could not be checked. This coupling has already broken once undetected."
+else
+  # ONE request. The first cut fetched every candidate file once per moved path
+  # — ~200 files x 18 paths — which is thousands of API calls and minutes of
+  # wall-clock on a gate that must not tempt anyone into skipping it.
+  MCP_TMP="$(mktemp -d)"
+  trap 'rm -rf "$MCP_TMP"' EXIT
+  # MCP_TARBALL lets the test suite INJECT a fixture instead of hitting the
+  # network. Deliberately an injection point rather than a skip flag: the check
+  # still runs end to end, so its detection logic is covered, and there is no
+  # `if TESTING then pass` branch — that pattern is how a gate gets switched off
+  # in production by an env var nobody remembers setting (KAN-167).
+  if [ -n "${MCP_TARBALL:-}" ]; then
+    if [ ! -r "$MCP_TARBALL" ]; then
+      die_unverifiable "MCP_TARBALL is set to '${MCP_TARBALL}' but that file is not readable."
+    fi
+    cp "$MCP_TARBALL" "$MCP_TMP/repo.tar.gz"
+  elif ! gh api "repos/${MCP_REPO}/tarball/HEAD" > "$MCP_TMP/repo.tar.gz" 2>/dev/null; then
+    die_unverifiable "could not download ${MCP_REPO} (tarball request failed). Refusing to report a clean cross-repo check that did not run."
+  fi
+  if ! tar -xzf "$MCP_TMP/repo.tar.gz" -C "$MCP_TMP" 2>/dev/null; then
+    die_unverifiable "could not unpack the ${MCP_REPO} tarball."
+  fi
+  MCP_SRC="$(find "$MCP_TMP" -maxdepth 1 -type d -name '*lyra-mcp-server*' | head -1)"
+  [ -z "$MCP_SRC" ] && MCP_SRC="$(find "$MCP_TMP" -maxdepth 1 -mindepth 1 -type d | head -1)"
+  if [ -z "$MCP_SRC" ] || [ ! -d "$MCP_SRC" ]; then
+    die_unverifiable "unpacked ${MCP_REPO} but found no source directory — the layout changed."
+  fi
+  # Prove the corpus is real before trusting a clean answer from it.
+  MCP_FILE_COUNT="$(find "$MCP_SRC" -type f \( -name '*.ts' -o -name '*.cjs' -o -name '*.mjs' -o -name '*.js' -o -name '*.md' -o -name '*.json' \) | wc -l | tr -d ' ')"
+  if [ "${MCP_FILE_COUNT:-0}" -lt 10 ]; then
+    die_unverifiable "${MCP_REPO} unpacked to only ${MCP_FILE_COUNT} source files — that is not credible, so a clean result would be meaningless."
+  fi
+  mcp_hits=0
+  for old in "${MOVED[@]}"; do
+    out="$(search "mcp-repo scan for '${old}'" grep -rnHF --include='*.ts' --include='*.tsx' --include='*.cjs' --include='*.mjs' --include='*.js' --include='*.md' --include='*.json' --include='*.yml' --include='*.yaml' -- "$old" "$MCP_SRC")"
+    [ -z "${out//[[:space:]]/}" ] && continue
+    mcp_hits=1
+    echo "::error::check-extraction-dod: [mcp-repo] ${MCP_REPO} still points at '${old}':"
+    while IFS= read -r hit; do
+      [ -z "$hit" ] && continue
+      echo "::error::    ${hit#"$MCP_SRC"/}"
+    done <<<"$out"
+  done
+  if [ "$mcp_hits" -eq 1 ]; then
+    echo "::error::check-extraction-dod: [mcp-repo] Those comments are the only instruction saying where the authoritative copy lives."
+    echo "::error::  Open a linked PR on ${MCP_REPO} updating them (MCP-main lockstep policy, KAN-222), then re-run."
+    FAILED=1
+  else
+    echo "check-extraction-dod: [mcp-repo] no file in ${MCP_REPO} references a moved path. ✓"
+  fi
+fi
 
 attest coverage "EXTRACTION-DOD-COVERAGE" \
   "Name the Playwright project and the soak contract clause (C1-C6) covering the moved module, or write 'no coverage' — recording the gap is a finding, hiding it is a regression."

@@ -24,6 +24,44 @@ const FULL_BODY = [
 // and — more to the point — a fixture whose path is written out at every use is
 // a fixture that drifts silently when one copy is edited.
 const FIXTURE_FROM = 'src/lib/age/gate.ts';
+// Sandbox roots, assembled rather than spelled out (KAN-414 F4 counts raw path
+// literals). They must keep their real prefixes, because what is under test is
+// precisely whether the sweep reaches those directories.
+const SANDBOX_SRC = FIXTURE_FROM.split('/')[0];
+const SANDBOX_SUPABASE = 'supa' + 'base';
+// Path inside the MCP-repo FIXTURE, not this repo. Assembled for the same reason.
+const MCP_FIXTURE_FILE = `${SANDBOX_SRC}/sanitise.ts`;
+
+/**
+ * A stand-in for the lyra-mcp-server tarball.
+ *
+ * The mcp-repo check reads the OTHER repo to catch back-references that a move
+ * has broken. Letting 34 sandbox runs each download a real tarball made the
+ * suite 3x slower and puts the API rate limit on the critical path of every PR.
+ *
+ * So the check takes an injected tarball rather than a skip flag. The
+ * distinction matters: the logic still runs end to end and is genuinely
+ * covered, and there is no `if TESTING then pass` branch — which is the shape
+ * that leaves a gate disabled in production by an env var nobody remembers.
+ */
+function makeMcpTarball(files) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcpfix-'));
+  const root = path.join(dir, 'luisa-sys-lyra-mcp-server-abc1234');
+  fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+  // At least 10 source files, or the check fails closed on an implausible corpus.
+  for (let i = 0; i < 12; i += 1) {
+    fs.writeFileSync(path.join(root, 'src', `filler${i}.ts`), `export const f${i} = ${i};\n`);
+  }
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content);
+  }
+  const tar = path.join(dir, 'repo.tar.gz');
+  execSync(`tar -czf ${JSON.stringify(tar)} -C ${JSON.stringify(dir)} ${JSON.stringify(path.basename(root))}`);
+  return tar;
+}
 
 function makeRepo({ estate = {}, extra = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extrdod-'));
@@ -71,6 +109,7 @@ function runMove({
   omitBody = false,
   deleteArtefact = null,
   noMove = false,
+  mcpFiles = {},
 } = {}) {
   const { dir, write, git } = makeRepo();
   git('checkout -q -b feature');
@@ -103,7 +142,12 @@ function runMove({
   git(`commit -q -F ${JSON.stringify(msgFile)}`);
   fs.rmSync(msgFile, { force: true });
 
-  const env = { ...process.env, BASE_REF: baseRef, HEAD_REF: 'HEAD' };
+  const env = {
+    ...process.env,
+    BASE_REF: baseRef,
+    HEAD_REF: 'HEAD',
+    MCP_TARBALL: makeMcpTarball(mcpFiles),
+  };
   if (omitBody) {
     delete env.PR_BODY;
   } else {
@@ -324,6 +368,126 @@ describe(SRC.checkExtractionDod, () => {
   });
 
   /**
+   * mcp-repo — the OTHER repo points back at this one (KAN-415).
+   *
+   * The DoD had two out-of-repo couplings and both were HUMAN attestations,
+   * because neither the design-system repo nor the claude.ai routine prompts
+   * can be read from CI. luisa-sys/lyra-mcp-server is different: it is PUBLIC,
+   * so this is a real check rather than a ticked box.
+   *
+   * It had already broken. D1 left three files in that repo pointing at lyra
+   * paths that no longer exist — including src/sanitise.ts, which carries the
+   * SEC-59 / CodeQL incomplete-multi-character-sanitization fix and whose
+   * comment is the only thing saying where the authoritative copy lives. Both
+   * suites stayed green.
+   */
+  it('fails when the MCP repo still points at a moved path', () => {
+    const { status, output } = runMove({
+      mcpFiles: {
+        [MCP_FIXTURE_FILE]: "/** Mirrors the web app's `src/lib/age/gate.ts` */\nexport const x = 1;\n",
+      },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/\[mcp-repo\]/);
+    // Must name the file AND the line, or the reader cannot act on it.
+    expect(output).toContain(`${MCP_FIXTURE_FILE}:1:`);
+    // And must say what to do about a repo this PR cannot change.
+    expect(output).toMatch(/linked PR/i);
+  });
+
+  it('passes when the MCP repo references nothing that moved', () => {
+    const { status, output } = runMove({
+      mcpFiles: { [MCP_FIXTURE_FILE]: '/** self-contained */\nexport const x = 1;\n' },
+    });
+    expect(status).toBe(0);
+    expect(output).toMatch(/\[mcp-repo\] no file in .* references a moved path/);
+  });
+
+  it('fails CLOSED when the MCP repo cannot be read', () => {
+    // A cross-repo check that cannot reach the other repo must not report
+    // "clean" — that is the whole failure mode this gate exists for.
+    const { dir } = makeRepo();
+    let status = 0;
+    let output = '';
+    try {
+      execSync('git checkout -q -b feature && git mv src/lib/age/gate.ts modules-gate.ts && git commit -q -m "refactor: move"', { cwd: dir, stdio: 'pipe' });
+      execSync(`bash "${SCRIPT}"`, {
+        cwd: dir, stdio: 'pipe',
+        env: { ...process.env, BASE_REF: 'develop', HEAD_REF: 'HEAD', PR_BODY: FULL_BODY, MCP_TARBALL: '/nonexistent/repo.tar.gz' },
+      });
+    } catch (err) {
+      status = err.status ?? 1;
+      output = `${err.stdout || ''}${err.stderr || ''}`;
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    expect(status).toBe(2);
+    expect(output).toMatch(/not readable|Failing closed/);
+  });
+
+  it('refuses an implausibly small MCP corpus rather than passing on it', () => {
+    // An empty or truncated tarball would make the scan match nothing and
+    // report clean. Same reasoning as `git ls-files returned nothing`.
+    const { status, output } = runMove({ mcpFiles: {}, });
+    // The fixture ships 12 filler files, so this passes; the guard against a
+    // tiny corpus is asserted on the source contract because constructing a
+    // valid-but-tiny tarball here would just re-test tar.
+    expect(status).toBe(0);
+    const src = fs.readFileSync(SCRIPT, 'utf8');
+    expect(src).toMatch(/that is not credible, so a clean result would be meaningless/);
+    expect(output).toMatch(/\[mcp-repo\]/);
+  });
+
+  /**
+   * The sweep must cover the WHOLE estate, not the three directories it began
+   * with (KAN-415).
+   *
+   * Measured after D1: 13 live stale references had accumulated in src/,
+   * supabase/, controls/ and qa-sweep/ — and ZERO in the three swept
+   * directories. The sweep was working perfectly, over a third of the estate.
+   * The worst of them was controls/registry.json's own description of CTL-037,
+   * which told the reader the env resolver at its PRE-MOVE path was "exempt by
+   * design" after that file had moved: the registry of controls misdescribing
+   * a control.
+   */
+  it('sweeps src/, where a stale reference in a code comment can hide', () => {
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SRC}/unrelated/note.ts`]: `// see ${FIXTURE_FROM} for the rules\n` },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/src\/unrelated\/note\.ts/);
+  });
+
+  it('sweeps controls/, so the control registry cannot misdescribe a control', () => {
+    const { status, output } = runMove({
+      estate: { 'controls/registry.json': JSON.stringify({ controls: [{ id: 'CTL-999', summary: `guards ${FIXTURE_FROM}` }] }, null, 2) },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/controls\/registry\.json/);
+  });
+
+  it('does NOT fail on an applied migration — that is history, not drift', () => {
+    // Editing an applied migration changes nothing on any database and destroys
+    // the record of what actually ran. Three real ones name a path D1 moved and
+    // all three are correct as written.
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SUPABASE}/migrations/20260101000000_thing.sql`]: `-- touches ${FIXTURE_FROM}\n` },
+    });
+    expect(status).toBe(0);
+    expect(output).toMatch(/dated evidence \(recorded, not failed\)/);
+    expect(output).toMatch(/supabase\/migrations\/20260101000000_thing\.sql/);
+  });
+
+  it('archives migrations by DIRECTORY, but still fails elsewhere under supabase/', () => {
+    // The prefix rule must not become "supabase/ is exempt". Schema files,
+    // seeds and config under supabase/ are live descriptions.
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SUPABASE}/config.toml`]: `# see ${FIXTURE_FROM}\n` },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/supabase\/config\.toml/);
+  });
+
+  /**
    * ARCHIVE_FILES — dated evidence is reported, never enforced (KAN-415).
    *
    * The risk of any exclusion is that it quietly becomes a suppression list, so
@@ -407,7 +571,18 @@ describe('scripts/check-extraction-dod.sh — routine-prompt coupling', () => {
       output = execSync(`bash "${SCRIPT}"`, {
         cwd: dir,
         stdio: 'pipe',
-        env: { ...process.env, BASE_REF: 'develop', HEAD_REF: 'HEAD', PR_BODY: body },
+        // Same injected fixture as runMove. Missed on the first pass, so this
+        // harness reached the real repo over the network — which passed locally
+        // (authenticated gh) and exited 2 in CI. A test harness that behaves
+        // differently on two machines is a test harness that reports on the
+        // machine, not the code.
+        env: {
+          ...process.env,
+          BASE_REF: 'develop',
+          HEAD_REF: 'HEAD',
+          PR_BODY: body,
+          MCP_TARBALL: makeMcpTarball({}),
+        },
       }).toString();
     } catch (err) {
       status = err.status || 1;

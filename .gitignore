@@ -94,3 +94,9 @@ __pycache__/
 * [2-9].yaml
 * [2-9].sh
 * [2-9]/
+
+# Local Claude Code worktrees. Never tracked — 807 MB of stale node_modules at
+# the time this was added, including a 116 MB binary that GitHub rejects
+# outright. Ignored so a stray `git add -A` cannot sweep it in, which is
+# exactly what happened once (KAN-415) and is why CLAUDE.md forbids `git add -A`.
+.claude/
