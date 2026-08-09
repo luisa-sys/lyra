@@ -608,8 +608,8 @@
     "observability": {
       "layer": 1,
       "paths": [
-        "src/lib/metrics.ts",
-        "src/lib/sentry-scrub.ts",
+        "src/modules/observability/metrics.ts",
+        "src/modules/observability/sentry-scrub.ts",
         "src/app/api/health/",
         "src/app/status/"
       ],
@@ -624,7 +624,7 @@
       "publicApi": [
         {
           "symbol": "getAnomalyWindowAdmin",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -633,7 +633,7 @@
         },
         {
           "symbol": "type:AnomalyWindowKey",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -642,7 +642,7 @@
         },
         {
           "symbol": "type:MetricsSnapshot",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2917,7 +2917,7 @@
         "src/lib/affiliate/link-service.ts"
       ],
       "observability": [
-        "src/lib/metrics.ts"
+        "src/modules/observability/metrics.ts"
       ],
       "guards": [
         "src/modules/guards/rate-limit-shared.ts"
