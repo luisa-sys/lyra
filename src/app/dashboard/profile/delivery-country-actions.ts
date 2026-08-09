@@ -26,6 +26,7 @@ import { revalidatePath } from 'next/cache';
 import { type ActionResult } from '@/lib/sanitise';
 import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
 import { normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
+import { dbErrorFor } from '@/lib/db-error-copy';
 
 export async function updateDeliveryCountry(
   input: string | null
@@ -59,7 +60,7 @@ export async function updateDeliveryCountry(
     .update({ delivery_country_code: normalised })
     .eq('user_id', user.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-delivery-country', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }

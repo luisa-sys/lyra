@@ -12,6 +12,7 @@ import {
   type AllowedMime,
 } from '@/lib/file-magic-bytes';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { dbErrorFor } from '@/lib/db-error-copy';
 
 /**
  * KAN-142: server actions for the profile_files surface.
@@ -194,7 +195,7 @@ export async function updateProfileFileVisibility(
     .eq('id', id)
     .eq('profile_id', profileId);
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: dbErrorFor('update-profile-file-visibility', error) };
   }
 
   revalidatePath('/dashboard/profile');

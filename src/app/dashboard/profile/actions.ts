@@ -18,6 +18,7 @@ import {
 } from './section-visibility';
 import { preflightUpload } from '@/lib/file-magic-bytes';
 import { MAX_SUGGESTION_KEY_LENGTH } from '@/lib/recommend/dismissals';
+import { dbErrorFor } from '@/lib/db-error-copy';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -134,7 +135,7 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     .update(sanitised)
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-fields', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -240,7 +241,7 @@ export async function addProfileItem(data: {
       ...(sanitisedGroupLabel ? { group_label: sanitisedGroupLabel } : {}),
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-profile-item', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -270,7 +271,7 @@ export async function updateProfileItemVisibility(
     .eq('id', itemId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-item-visibility', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -380,7 +381,7 @@ export async function updateProfileItem(
     .select('id, category, title, description, url, visibility')
     .single();
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-item', error) };
   if (!row) return { success: false, error: 'Item not found' };
   revalidatePath('/dashboard/profile');
   return { success: true, item: row as WizardItem };
@@ -400,7 +401,7 @@ export async function removeProfileItem(itemId: string): Promise<ActionResult> {
     .eq('id', itemId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-profile-item', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -448,7 +449,7 @@ export async function dismissGiftSuggestion(suggestionKey: string): Promise<Acti
       { onConflict: 'profile_id,suggestion_key', ignoreDuplicates: true },
     );
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('dismiss-gift-suggestion', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -478,7 +479,7 @@ export async function restoreGiftSuggestion(suggestionKey: string): Promise<Acti
     .eq('profile_id', profile.id)
     .eq('suggestion_key', key);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('restore-gift-suggestion', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -572,7 +573,7 @@ export async function addSchoolAffiliation(data: {
       affiliation_type: affiliationType,
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-school-affiliation', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -694,7 +695,7 @@ export async function updateSchoolAffiliation(
     .eq('id', affiliationId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-school-affiliation', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -713,7 +714,7 @@ export async function removeSchoolAffiliation(affiliationId: string): Promise<Ac
     .eq('id', affiliationId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-school-affiliation', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -737,7 +738,7 @@ export async function updateAffiliationVisibility(
     .eq('id', affiliationId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-affiliation-visibility', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -801,7 +802,7 @@ export async function addExternalLink(data: {
       description: sanitisedDesc,
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-external-link', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -881,7 +882,7 @@ export async function updateExternalLink(
     .eq('id', linkId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-external-link', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -900,7 +901,7 @@ export async function removeExternalLink(linkId: string): Promise<ActionResult> 
     .eq('id', linkId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-external-link', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -958,7 +959,7 @@ export async function updateSectionVisibility(
     .update({ section_visibility: nextSV })
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-section-visibility', error) };
   revalidatePath('/dashboard/profile');
   // Also revalidate the public profile path so the change shows up
   // immediately on the next visit.
@@ -993,7 +994,7 @@ export async function publishProfile(): Promise<ActionResult> {
     .update({ is_published: true, onboarding_complete: true })
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('publish-profile', error) };
   revalidatePath('/dashboard/profile');
   revalidatePath('/dashboard');
   return { success: true };
