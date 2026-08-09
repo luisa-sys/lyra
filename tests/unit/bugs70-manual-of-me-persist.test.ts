@@ -99,7 +99,12 @@ describe('BUGS-70: updateManualOfMe persistence', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/row-level security/i);
+      // BUGS-87: this asserted the member is shown 'row-level security policy
+      // for table "profile_manual_of_me"'. This test's stated intent is that a
+      // failed write is surfaced and NOT revalidated — that is untouched. What
+      // changes is that the member no longer reads the database's internals.
+      expect(result.error).toBe('Something went wrong saving that. Please try again.');
+      expect(result.error).not.toMatch(/row-level security/i);
     }
     // No false "Saved": the save path never claims success on a failed write,
     // and it must not revalidate a page whose data did not change.

@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 180 entries.
+// 181 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -166,6 +166,7 @@ export const SRC = {
   oauthConnections: 'src/lib/convene/oauth-connections.ts',
   postEvent: 'src/lib/convene/post-event.ts',
   resolveWidgets: 'src/lib/dashboard/resolve-widgets.ts',
+  dbErrorCopy: 'src/lib/db-error-copy.ts',
   libEnv: 'src/lib/env.ts',
   entitlementsService: 'src/lib/features/entitlements-service.ts',
   fileMagicBytes: 'src/lib/file-magic-bytes.ts',
