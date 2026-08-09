@@ -25,7 +25,7 @@
  */
 import * as Sentry from '@sentry/nextjs';
 // SEC-55: strip OAuth secrets / PII from events + breadcrumbs before they ship.
-import { scrubSentryEvent, scrubSentryBreadcrumb } from '@/lib/sentry-scrub';
+import { scrubSentryEvent, scrubSentryBreadcrumb } from '@/modules/observability/sentry-scrub';
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 

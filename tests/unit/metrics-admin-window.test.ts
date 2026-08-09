@@ -21,7 +21,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: (...args: unknown[]) => anonCreateClientSpy(...args),
 }));
 
-import { getAnomalyWindowAdmin } from '@/lib/metrics';
+import { getAnomalyWindowAdmin } from '@/modules/observability/metrics';
 
 const SNAPSHOT = {
   profile_signups: 3,

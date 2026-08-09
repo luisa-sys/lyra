@@ -71,8 +71,8 @@ MODULE_RULES = [
     ("src/modules/guards/cf-access.ts", "guards"),
     ("src/modules/guards/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
     # --- Layer 0: observability ---
-    ("src/lib/metrics.ts", "observability"),
-    ("src/lib/sentry-scrub.ts", "observability"),
+    ("src/modules/observability/metrics.ts", "observability"),
+    ("src/modules/observability/sentry-scrub.ts", "observability"),
     ("src/app/api/health/", "observability"),
     ("src/app/status/", "observability"),  # JUDGEMENT: live-probe status page (SEC-4)
     # --- Layer 0: ui-kit (to be BUILT; today exactly one file) ---
