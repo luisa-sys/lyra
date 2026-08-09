@@ -35,8 +35,53 @@ function stampCspReportOnly(res: NextResponse, csp: string): NextResponse {
   return res;
 }
 
+/**
+ * Paths that make up the OAuth authorization server surface (SEC-36).
+ *
+ * Both the public `/.well-known/*` paths and the internal `/api/well-known/*`
+ * they rewrite to are listed. Middleware sees the public path, but the rewrite
+ * targets are directly addressable too, so gating only one half would leave a
+ * back door.
+ */
+function isOauthServerPath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/oauth/') ||
+    pathname === '/.well-known/oauth-authorization-server' ||
+    pathname === '/.well-known/jwks.json' ||
+    pathname.startsWith('/api/well-known/')
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // ---------------------------------------------------------------------
+  // SEC-36: beta has no OAuth authorization server. Turn it OFF, don't key it.
+  //
+  // Beta advertised ITSELF as the issuer and answered on /oauth/token,
+  // /register and /revoke, while /.well-known/jwks.json returned 500 — it has
+  // no RS256 keypair on the beta scope and never has. Verified 2026-08-09:
+  // NOTHING points at it. Both resource servers derive the AS from
+  // LYRA_SITE_URL — prod MCP leaves it unset (defaults to checklyra.com) and
+  // dev MCP sets dev.checklyra.com. That is the "confirm unused" question
+  // SEC-36 asked in June, answered with evidence.
+  //
+  // Giving beta a keypair would have been the WRONG fix. Beta runs on the
+  // PRODUCTION Supabase project (gotcha #19), so a working beta AS would mint
+  // tokens whose `sub` is a real production user and write jti rows into
+  // production's oauth_access_tokens — a token factory for production
+  // identities in the deliberately less-hardened environment, separated from
+  // prod only by an `iss` string comparison in the verifier.
+  //
+  // 404, not 403: beta genuinely has no authorization server, and that is what
+  // a client should discover. It also closes the unauthenticated DCR write
+  // into production's oauth_clients via /oauth/register, which the beta gate
+  // further down CANNOT reach because that one only runs for authenticated
+  // requests.
+  // ---------------------------------------------------------------------
+  if (process.env.IS_BETA_DEPLOY === 'true' && isOauthServerPath(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   // SEC-63: derive a per-request nonce + the Report-Only nonce CSP once, then
   // stamp it on each document-serving response before it returns.
