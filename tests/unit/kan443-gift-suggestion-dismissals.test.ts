@@ -68,7 +68,7 @@ jest.mock('@/lib/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: () => Promise.resolve({ data: { user: mockUser } }),

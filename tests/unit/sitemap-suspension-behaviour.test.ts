@@ -52,9 +52,9 @@ const eqCalls: EqCall[] = [];
 let rows: Row[] = [];
 let clientThrows = false;
 
-jest.mock('@/lib/env', () => ({ env: { siteUrl: () => 'https://checklyra.com' } }));
+jest.mock('@/modules/platform/env', () => ({ env: { siteUrl: () => 'https://checklyra.com' } }));
 
-jest.mock('@/lib/supabase-service', () => ({
+jest.mock('@/modules/platform/supabase-service', () => ({
   createServiceRoleClient: () => {
     if (clientThrows) throw new Error('supabase unavailable');
     // A chainable that records each filter and resolves to whatever survives

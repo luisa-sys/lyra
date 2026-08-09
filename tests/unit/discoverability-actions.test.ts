@@ -38,7 +38,7 @@ let mockProfileRow: {
 };
 let mockUserId: string | null = 'test-user-id';
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: {
       getUser: jest.fn().mockImplementation(() =>

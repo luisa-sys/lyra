@@ -25,7 +25,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
+import { createClient as createSupabaseServerClient } from '@/modules/platform/supabase-server';
 import { getAdminServiceClient } from '@/lib/admin';
 
 const VALID_REASONS = ['spam', 'harassment', 'impersonation', 'inappropriate', 'other'] as const;

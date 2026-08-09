@@ -16,8 +16,8 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 
 /** Proposed default window from RETENTION_SCHEDULE.md (purge ~12 months after the event). */
 export const DEFAULT_GATHERINGS_RETENTION_MONTHS = 12;

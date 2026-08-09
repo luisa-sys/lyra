@@ -46,12 +46,12 @@ SRC = os.path.join(ROOT, "src")
 # ---------------------------------------------------------------------------
 MODULE_RULES = [
     # --- Layer 0: platform (leaf kernel) ---
-    ("src/lib/supabase-browser.ts", "platform"),
-    ("src/lib/supabase-server.ts", "platform"),
-    ("src/lib/supabase-service.ts", "platform"),
-    ("src/lib/env.ts", "platform"),
-    ("src/lib/deploy-env.ts", "platform"),
-    ("src/lib/cookie-domain.ts", "platform"),
+    ("src/modules/platform/supabase-browser.ts", "platform"),
+    ("src/modules/platform/supabase-server.ts", "platform"),
+    ("src/modules/platform/supabase-service.ts", "platform"),
+    ("src/modules/platform/env.ts", "platform"),
+    ("src/modules/platform/deploy-env.ts", "platform"),
+    ("src/modules/platform/cookie-domain.ts", "platform"),
     # --- Layer 0: contracts (pure rule-sets; zero deps, zero I/O; plan §3 P5) ---
     # DERIVED, flagged for founder confirmation: the `audit` module (layer 1)
     # cannot legally import a layer-3 module, so the pure moderation rules it
@@ -870,7 +870,7 @@ def main():
         key=lambda r: (-r["sites"], r["column"], r["accessor"]))
 
     # service-role privilege register
-    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/lib/supabase-service.ts"})
+    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/modules/platform/supabase-service.ts"})
     service_mods = defaultdict(list)
     for f in service_files:
         service_mods[file_mod[f]].append(f)

@@ -14,7 +14,7 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { sendInviteEmail, type SendResult } from './email';
 import { sendTwilioMessage, type SendResult as TwilioSendResult } from './twilio';
 import { buildICS } from './ics';

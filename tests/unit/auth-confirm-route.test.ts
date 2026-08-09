@@ -19,7 +19,7 @@ const ROOT = resolve(__dirname, '../..');
 const mockVerifyOtp = jest.fn();
 const mockGetUser = jest.fn();
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       verifyOtp: (args: unknown) => mockVerifyOtp(args),

@@ -32,7 +32,7 @@
  *      links work end-to-end.
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import {
   buildSubId,
   type AffiliateClickSource,

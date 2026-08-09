@@ -8,7 +8,7 @@
  * way the code is re-validated server-side before any grant — possessing the
  * link is the authorisation, and it only ever grants BETA.
  */
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import { isProdFamily } from '@/lib/beta-access/flow';
 
 export { INVITE_COOKIE, INVITE_COOKIE_MAX_AGE } from './invite-cookie';

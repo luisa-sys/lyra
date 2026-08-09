@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
 import { redeemWaitlistCode } from './actions';
 
 /**

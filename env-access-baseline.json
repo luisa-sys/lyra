@@ -1,5 +1,5 @@
 {
-  "$comment": "KAN-414 F8 \u2014 the frozen set of DIRECT `process.env` reads under src/, as measured 2026-07-29. Enforced by scripts/check-env-access.py in pr-checks.yml (CTL-037). SHRINK-ONLY: a new file, or a new variable in an already-listed file, fails the build; so does a listed file or variable that has stopped being read, because a baseline that only grows is a suppression list rather than a ratchet. Migrate a file by routing its configuration through src/lib/env.ts and deleting its entry here in the SAME PR. src/lib/env.ts itself is exempt by design \u2014 reading process.env is its job.",
+  "$comment": "KAN-414 F8 \u2014 the frozen set of DIRECT `process.env` reads under src/, as measured 2026-07-29. Enforced by scripts/check-env-access.py in pr-checks.yml (CTL-037). SHRINK-ONLY: a new file, or a new variable in an already-listed file, fails the build; so does a listed file or variable that has stopped being read, because a baseline that only grows is a suppression list rather than a ratchet. Migrate a file by routing its configuration through src/modules/platform/env.ts and deleting its entry here in the SAME PR. src/modules/platform/env.ts itself is exempt by design \u2014 reading process.env is its job.",
   "measured_at": "2026-07-29",
   "allowed": {
     "src/app/(auth)/signup/page.tsx": [

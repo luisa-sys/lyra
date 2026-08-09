@@ -84,7 +84,7 @@ function makeClient() {
 const mockModerate = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => makeClient()),
 }));
 jest.mock('@/lib/profile-rate-limit', () => ({

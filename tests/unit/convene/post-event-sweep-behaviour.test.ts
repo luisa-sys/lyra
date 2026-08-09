@@ -81,12 +81,12 @@ const GATHERING = {
   title: 'Dinner',
 };
 
-jest.mock('@/lib/supabase-service', () => ({
+jest.mock('@/modules/platform/supabase-service', () => ({
   createServiceRoleClient: jest.fn(),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { createServiceRoleClient } = require('@/lib/supabase-service');
+const { createServiceRoleClient } = require('@/modules/platform/supabase-service');
 
 function argsFor(table: string, op: string) {
   return calls.filter((c) => c.table === table && c.op === op).map((c) => c.args);

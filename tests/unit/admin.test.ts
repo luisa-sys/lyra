@@ -14,7 +14,7 @@
 // `jest` is the global injected by ts-jest / @swc/jest — don't import
 // it from @jest/globals or hoisting won't apply correctly.
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'https://test.supabase.co',
     supabaseServiceRoleKey: () => 'test-service-role-key',
@@ -23,7 +23,7 @@ jest.mock('@/lib/env', () => ({
 
 const authGetUser = jest.fn();
 const fromMock = jest.fn();
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: authGetUser },
     from: fromMock,

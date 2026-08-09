@@ -469,7 +469,7 @@ REGISTRY: list[Artefact] = [
              "founder UI/copy approval gate (KAN-411)"),
     Artefact("scripts/check-service-role-client.sh", "literal",
              _fixed("scripts/check-service-role-client.sh",
-                    ["src/", "src/lib/supabase-service.ts"]),
+                    ["src/", "src/modules/platform/supabase-service.ts"]),
              "RLS-bypass containment (KAN-352)"),
     Artefact("stryker.config.mjs", "literal", ex_stryker,
              "mutation coverage of security modules"),
@@ -686,7 +686,7 @@ def self_test() -> int:
     """Fixtures for the matcher semantics §7.3 says must not be got wrong."""
     files = [
         "src/app/page.tsx", "src/app/a/b/c.tsx", "src/lib/age/record.ts",
-        "src/lib/env.ts", "src/modules/x/env.ts", "tests/unit/a.ts",
+        "src/modules/platform/env.ts", "src/modules/x/env.ts", "tests/unit/a.ts",
         "tests/unit/deep/b.ts", "tests/e2e/authed/journey.authed.spec.ts",
     ]
     cases: list[tuple[str, bool]] = []
@@ -700,9 +700,9 @@ def self_test() -> int:
     # fnmatch would match only the top-level file — prove we are not fnmatch.
     cases.append(("bash-dbl-bracket * crosses /",
                   len(m_bash_dbl_bracket("src/app/*.tsx", files)) == 2))
-    # CODEOWNERS leading-'/' anchoring: /src/lib/env.ts is one file, not any nested env.ts.
+    # CODEOWNERS leading-'/' anchoring: /src/modules/platform/env.ts is one file, not any nested env.ts.
     cases.append(("codeowners root anchoring",
-                  m_codeowners("/src/lib/env.ts", files) == ["src/lib/env.ts"]))
+                  m_codeowners("/src/modules/platform/env.ts", files) == ["src/modules/platform/env.ts"]))
     # glob '**' vs '*' depth. The contrast is the point: `**` reaches every
     # nested .ts under tests/ (3 of them, including the 3-deep e2e spec), while
     # `*` stays inside one segment and therefore reaches none, since no .ts sits

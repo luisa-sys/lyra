@@ -49,7 +49,7 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } } })) },
   })),

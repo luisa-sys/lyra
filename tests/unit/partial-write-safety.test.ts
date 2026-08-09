@@ -324,7 +324,7 @@ jest.mock('next/cache', () => ({
 const mockUpdateCapture = jest.fn();
 const mockEqResolve = jest.fn().mockResolvedValue({ error: null });
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),

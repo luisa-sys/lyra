@@ -19,7 +19,7 @@ const mockState: { userId: string | null; mutationError: { message: string } | n
   mutationError: null,
 };
 
-jest.mock('@/lib/supabase-server', () => {
+jest.mock('@/modules/platform/supabase-server', () => {
   type Builder = {
     select: () => Builder;
     delete: () => Builder;

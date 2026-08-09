@@ -43,7 +43,7 @@ jest.mock('@/lib/profile-rate-limit', () => ({
 
 const storageFrom = jest.fn(() => ({ upload: jest.fn() }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } } })) },
     from: jest.fn(() => ({

@@ -12,7 +12,7 @@
  * Extracted from /auth/callback so /auth/confirm reuses it verbatim (KAN-276/278).
  */
 import { cookies } from 'next/headers';
-import type { createClient } from '@/lib/supabase-server';
+import type { createClient } from '@/modules/platform/supabase-server';
 import { resolveBetaAccess, betaRedirectUrl, isProdFamily } from '@/lib/beta-access/flow';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 import { AGE_DECLARATION_COOKIE } from '@/lib/age/self-declaration';

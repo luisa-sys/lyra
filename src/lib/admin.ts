@@ -20,8 +20,8 @@
  *      but-unlogged one.
  */
 
-import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createClient as createSupabaseServerClient } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 
 /**
  * The set of action strings we accept in moderation_logs. The DB column

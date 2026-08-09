@@ -6,7 +6,7 @@
  * caring about refresh mechanics.
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { refreshAccessToken as refreshGoogleAccessToken } from '@/lib/convene/google/oauth';
 import { refreshAccessToken as refreshMicrosoftAccessToken } from '@/lib/convene/microsoft/oauth';
 import {

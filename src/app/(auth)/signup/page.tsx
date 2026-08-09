@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cookies } from 'next/headers';
 import { SignupForm } from './signup-form';
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import { isProdFamily } from '@/lib/beta-access/flow';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 

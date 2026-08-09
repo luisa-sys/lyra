@@ -36,8 +36,8 @@
 /src/modules/oauth-as/lib/          @luisa-sys
 /src/lib/beta-access/               @luisa-sys
 /src/app/admin/                     @luisa-sys
-/src/lib/cookie-domain.ts           @luisa-sys
-/src/lib/env.ts                     @luisa-sys
+/src/modules/platform/cookie-domain.ts           @luisa-sys
+/src/modules/platform/env.ts                     @luisa-sys
 /supabase/migrations/               @luisa-sys
 
 # ── CI / release / infra (a bad change here ships to prod) ───────────────────

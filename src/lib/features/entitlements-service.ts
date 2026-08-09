@@ -9,7 +9,7 @@
  * is not the subject (paid gift links gate on the RECIPIENT; recommendation
  * reads are anonymous) and from admin/server-only code.
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { resolveEntitlements, type FeatureKey } from './registry';
 import { isFeatureGloballyEnabled } from './global-switches-service';
 
