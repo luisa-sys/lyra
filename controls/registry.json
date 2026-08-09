@@ -752,6 +752,24 @@
       "escape_hatch": "An entry in .github/scheduled-workflow-exceptions.json carrying BOTH a Jira key and a reason. An entry for a workflow that has since been re-enabled is a STALE exception and fails outright, so the list cannot only grow. Ships WARN-first (SCHEDULED_WORKFLOW_GATE_ENFORCE=1 to block) because the four live findings need a founder decision, and a gate that blocks every unrelated PR on something nobody can clear is a gate that gets switched off.",
       "self_test": "--self-test covers the seven parsing decisions, notably that a COMMENTED-OUT cron is not a live schedule (backup-complete.yml ships its cadence commented until commissioning, and reading that as scheduled would raise a permanent unresolvable finding). Verified live 2026-08-09: warn mode exits 0 naming all four inactive workflows, --enforce exits 1.",
       "added": "2026-08-09"
+    },
+    {
+      "id": "CTL-044",
+      "name": "Architecture rules span every library root",
+      "defect_class": "path-anchored-rule-quietly-narrows",
+      "summary": "Asserts that no-module-to-app's from-path covers every library root declared in modules.json, and every tracked file under each, enumerated from git ls-files rather than sampled. The rule is BLOCKING - library code may not import from a route tree, because that means shared logic is owned by a page (KAN-424 Defect 1). Its anchor read ^src/lib/ until 2026-08-09, when the KAN-415 D1 extraction moved 28 files into src/modules/ - every security guard and every Supabase client among them - and every one silently left the rule's scope. Nothing went red: the rule kept matching the files that had NOT moved, so it kept reporting a clean pass. Proven with a fixture, a src/modules -> src/app edge is an error under the widened anchor and NOTHING under the old one, with identical dependency counts cruised - the edge was seen and discarded. Neither existing control models this: CTL-035 detects DEAD paths and ^src/lib/ still matched 87 files (narrow, not dead), and CTL-033 greps exact moved file paths which cannot match a regex prefix, and sweeps only .github, scripts and docs while this config sits at the repo root. Writing the test also found src/components/ and src/middleware.ts were outside the rule too - widening on a guess would have missed both.",
+      "implementation": "tests/scripts/dependency-rules-cover-modules.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-424"
+      ],
+      "escape_hatch": "None by design. If a library root genuinely must be exempt from the boundary rule, remove it from modules.json's declared paths - which is a visible, argued change - rather than narrowing the anchor, which is invisible.",
+      "self_test": "Mutation-proven 2026-08-09: narrowing the anchor back to the pre-D1 value reddens 3 of the 7 assertions. Fixtures are enumerated from git ls-files, never sampled - a hand-picked list proves the rule covers the paths someone thought of, which is precisely how the original anchor looked correct.",
+      "added": "2026-08-09"
     }
   ]
 }
