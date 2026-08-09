@@ -96,7 +96,7 @@ MODULE_RULES = [
     ("src/app/confirm-age/", "age"),
     ("src/app/api/age/", "age"),
     # --- Layer 2: domains ---
-    ("src/lib/oauth/", "oauth-as"),
+    ("src/modules/oauth-as/lib/", "oauth-as"),
     ("src/app/oauth/", "oauth-as"),
     ("src/app/api/well-known/", "oauth-as"),
     ("src/app/(auth)/", "auth"),

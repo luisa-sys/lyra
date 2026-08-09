@@ -1,5 +1,5 @@
 {
- "generatedFrom": "81f44c3b824024fc288e172c4e68679cf1db478c",
+ "generatedFrom": "c3820605e8d12e86dc19db86366730574026660d",
  "methodNotes": [
   "Import graph built by regex scan of src/**, resolving the tsconfig alias '@/* -> ./src/*', relative specifiers and directory index files. Static import, re-export, bare side-effect import and dynamic import()/require() all count as edges. Bare package specifiers are excluded (the plan counted the internal src/ graph).",
   "'Group' = src/<area>/<first-segment> (e.g. src/lib/convene, src/app/dashboard). 'App segment' = top-level route segment under src/app, with a Next route group '(x)' collapsed onto its child so '(legal)/about' is one segment.",
@@ -101,15 +101,15 @@
    "src/lib/features/entitlements-service.ts",
    "src/lib/features/global-switches-service.ts",
    "src/lib/metrics.ts",
-   "src/lib/oauth/access-tokens.ts",
-   "src/lib/oauth/clients.ts",
-   "src/lib/oauth/codes.ts",
-   "src/lib/oauth/consents.ts",
-   "src/lib/oauth/refresh.ts",
    "src/lib/rate-limit-shared.ts",
    "src/lib/recommender/v2/candidate-sourcing.ts",
    "src/lib/retention/affiliate-clicks.ts",
-   "src/lib/retention/gatherings.ts"
+   "src/lib/retention/gatherings.ts",
+   "src/modules/oauth-as/lib/access-tokens.ts",
+   "src/modules/oauth-as/lib/clients.ts",
+   "src/modules/oauth-as/lib/codes.ts",
+   "src/modules/oauth-as/lib/consents.ts",
+   "src/modules/oauth-as/lib/refresh.ts"
   ],
   "plan_profilesCallSites_75": 77,
   "plan_profilesModuleGroups_15": 17,
@@ -143,12 +143,12 @@
  },
  "testEstate": {
   "plan_testFiles_213": 259,
-  "unitFiles": 229,
-  "scriptsFiles": 30,
+  "unitFiles": 230,
+  "scriptsFiles": 29,
   "plan_readFileSyncFiles_98": 136,
-  "plan_distinctSrcPathLiterals_112": 21,
-  "plan_pureSourceTextScans_70": 110,
-  "plan_testBlocks_2401": 2963,
+  "plan_distinctSrcPathLiterals_112": 22,
+  "plan_pureSourceTextScans_70": 109,
+  "plan_testBlocks_2401": 2959,
   "regressionGuardFloors": {
    "files": 29,
    "allNumericConstants": [
@@ -167,12 +167,12 @@
    "stryker.config.mjs": true
   },
   "plan_blockingStaticGuards_11": null,
-  "controlsRegistered_now": 39,
+  "controlsRegistered_now": 38,
   "ticketAssumed_31": 31,
   "controlsAdvisoryVsBlocking": {
    "registrySchemaHasBlockingField": false,
    "byKind": {
-    "ci-gate": 29,
+    "ci-gate": 28,
     "scheduled": 6,
     "test": 4
    },

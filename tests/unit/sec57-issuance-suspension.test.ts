@@ -52,18 +52,18 @@ jest.mock('@/lib/admin', () => ({
 
 // ── OAuth libs used by submitConsent. ──
 const mockGetOauthClient = jest.fn();
-jest.mock('@/lib/oauth/clients', () => ({
+jest.mock('@/modules/oauth-as/lib/clients', () => ({
   getOauthClient: (...a: unknown[]) => mockGetOauthClient(...a),
 }));
 const mockRecordConsent = jest.fn();
-jest.mock('@/lib/oauth/consents', () => ({
+jest.mock('@/modules/oauth-as/lib/consents', () => ({
   recordConsent: (...a: unknown[]) => mockRecordConsent(...a),
 }));
 const mockIssueAuthCode = jest.fn();
-jest.mock('@/lib/oauth/codes', () => ({
+jest.mock('@/modules/oauth-as/lib/codes', () => ({
   issueAuthCode: (...a: unknown[]) => mockIssueAuthCode(...a),
 }));
-jest.mock('@/lib/oauth/authorize', () => ({
+jest.mock('@/modules/oauth-as/lib/authorize', () => ({
   buildErrorRedirect: (uri: string, code: string) => `${uri}?error=${code}`,
   buildSuccessRedirect: (uri: string, code: string) => `${uri}?code=${code}`,
 }));

@@ -11,10 +11,10 @@
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/lib/supabase-server';
-import { validateAuthorizeRequest, buildErrorRedirect } from '@/lib/oauth/authorize';
+import { validateAuthorizeRequest, buildErrorRedirect } from '@/modules/oauth-as/lib/authorize';
 import { getAccountStanding } from '@/lib/account-status';
-import { getConsent } from '@/lib/oauth/consents';
-import { clientTrust, redirectHost } from '@/lib/oauth/client-trust';
+import { getConsent } from '@/modules/oauth-as/lib/consents';
+import { clientTrust, redirectHost } from '@/modules/oauth-as/lib/client-trust';
 import { submitConsent, switchAccountAndContinue } from './actions';
 import type { Metadata } from 'next';
 

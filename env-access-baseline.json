@@ -111,12 +111,12 @@
     "src/lib/invite-text.ts": [
       "NEXT_PUBLIC_SITE_URL"
     ],
-    "src/lib/oauth/config.ts": [
+    "src/modules/oauth-as/lib/config.ts": [
       "LYRA_SITE_URL",
       "NEXT_PUBLIC_SITE_URL",
       "VERCEL_URL"
     ],
-    "src/lib/oauth/jwt.ts": [
+    "src/modules/oauth-as/lib/jwt.ts": [
       "OAUTH_JWT_KID",
       "OAUTH_JWT_PRIVATE_KEY_B64",
       "OAUTH_JWT_PUBLIC_KEY_B64",

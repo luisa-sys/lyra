@@ -24,7 +24,7 @@ import {
   validateRegisterInput,
   createOauthClient,
   type RegistrationError,
-} from '@/lib/oauth/clients';
+} from '@/modules/oauth-as/lib/clients';
 
 export async function POST(req: NextRequest) {
   // SEC-19 / F-05: per-IP rate limit. DCR is unauthenticated and inserts an

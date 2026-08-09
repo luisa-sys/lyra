@@ -21,8 +21,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { decodeJwt } from 'jose';
-import { getRefreshToken, revokeFamily } from '@/lib/oauth/refresh';
-import { revokeAccessTokenJti, getAccessTokenJti } from '@/lib/oauth/access-tokens';
+import { getRefreshToken, revokeFamily } from '@/modules/oauth-as/lib/refresh';
+import { revokeAccessTokenJti, getAccessTokenJti } from '@/modules/oauth-as/lib/access-tokens';
 import { RATE_LIMITS } from '@/lib/rate-limit';
 import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
 
