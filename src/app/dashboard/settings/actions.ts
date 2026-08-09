@@ -214,6 +214,12 @@ export async function exportUserData(): Promise<string> {
     .from('venue_ratings').select('*').eq('user_id', user.id);
   record('venue_ratings', ratingsErr);
 
+  // KAN-443: the gift suggestions the member dismissed. Their own editorial
+  // decisions about their own profile — Art.15 data, keyed by profile_id.
+  const { data: giftDismissals, error: dismissalsErr } = await admin
+    .from('gift_suggestion_dismissals').select('*').eq('profile_id', profileId);
+  record('gift_suggestion_dismissals', dismissalsErr);
+
   // Venue visits hang off the user's own gatherings.
   let venueVisits: unknown[] = [];
   if (gatheringIds.length) {
@@ -265,6 +271,7 @@ export async function exportUserData(): Promise<string> {
     venue_ratings: venueRatings || [],
     venue_visits: venueVisits,
     oauth_scopes_granted: oauthScopes,
+    gift_suggestion_dismissals: giftDismissals || [],
     // Present only when one or more sections failed to fetch — the export is
     // then known-incomplete and must not be treated as a full SAR response.
     ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
