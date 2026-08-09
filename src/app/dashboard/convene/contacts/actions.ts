@@ -14,7 +14,7 @@
  * in lyra-mcp-server (KAN-307).
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { rateLimit } from '@/lib/rate-limit';
 import {

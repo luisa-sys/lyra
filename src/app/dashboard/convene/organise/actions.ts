@@ -19,8 +19,8 @@
  * lyra_propose_attendees, lyra_finalise_gathering. No new MCP tools needed.
  */
 
-import { createClient } from '@/lib/supabase-server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createClient } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import { scoreVenue } from '@/lib/recommend/convene/score-venue';
 import type { VenueCandidate, VenueContext } from '@/lib/recommend/convene/types';

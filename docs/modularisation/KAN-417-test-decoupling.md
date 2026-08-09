@@ -59,7 +59,7 @@ Classification rules (encoded in the script, deterministic): `tests/scripts/**` 
 export const SRC = {
   profileActions:   'src/app/dashboard/profile/actions.ts',
   filesActions:     'src/app/dashboard/profile/files-actions.ts',
-  supabaseServer:   'src/lib/supabase-server.ts',
+  supabaseServer:   'src/modules/platform/supabase-server.ts',
   // ... one symbolic name per file referenced by any (c)/(d) test
 } as const;
 ```

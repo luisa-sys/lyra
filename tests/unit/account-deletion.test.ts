@@ -13,7 +13,7 @@ jest.mock('next/navigation', () => ({
 // Cookie-auth client: only used for getUser + signOut here.
 const mockGetUser = jest.fn();
 const mockSignOut = jest.fn();
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: (...a: unknown[]) => mockGetUser(...a),

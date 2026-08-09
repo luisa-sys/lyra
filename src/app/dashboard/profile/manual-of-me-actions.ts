@@ -17,7 +17,7 @@
  *     cannot supply a profile_id.
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/lib/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';

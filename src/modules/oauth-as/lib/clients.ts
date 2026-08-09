@@ -10,7 +10,7 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { randomBytes, createHash } from 'crypto';
 
 function admin(): SupabaseClient {

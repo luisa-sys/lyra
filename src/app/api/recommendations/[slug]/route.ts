@@ -29,7 +29,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { getRecommendations, getProfileInsights } from '@/lib/recommend';
 
 interface ProfileRow {

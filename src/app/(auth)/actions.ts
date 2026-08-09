@@ -1,10 +1,10 @@
 'use server';
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
 import { isEmailResendCooldown } from './auth-errors';
 import {

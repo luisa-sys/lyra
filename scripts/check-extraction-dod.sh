@@ -254,6 +254,38 @@ sweep() {
   fi
 }
 
+# ── Dated evidence is not drift (KAN-415) ───────────────────────────────────
+# A handful of tracked files are RECORDS OF WHAT WAS TRUE ON A DATE, not
+# descriptions of the tree: generated scan snapshots, a superseded scanner, the
+# dated plan whose whole content is "these paths are about to move", and a
+# run-ledger row. Rewriting an old path inside one of those does not fix drift —
+# it falsifies the evidence, and the evidence is the reason the file exists.
+#
+# Without this, every remaining extraction (D2…D8) would have to waive
+# `stale-refs` wholesale via the escape hatch, which is far weaker: the hatch
+# turns the entire check off, including for the live artefacts that genuinely
+# must be updated. A narrow, named list keeps the check sharp everywhere else.
+#
+# Two rules keep this from becoming a suppression list:
+#   1. LITERAL PATHS ONLY, never globs or a directory. A glob would silently
+#      adopt future files nobody decided to archive.
+#   2. EVERY SUPPRESSED HIT IS PRINTED on every run. An exclusion that is
+#      silent is indistinguishable from a check that does not run — the exact
+#      SEC-79 failure this script exists to prevent. These are visible, they
+#      just do not fail the build.
+ARCHIVE_FILES=(
+  "docs/modularisation/data/kan422-dead-exports.json"     # KAN-422 dead-export scan output
+  "docs/modularisation/data/kan432-revalidation.json"     # KAN-432 plan-revalidation snapshot
+  "docs/modularisation/kan419-scan.py"                    # superseded by scripts/check-guard-path-drift.py
+  "docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md"  # dated plan: names the pre-move layout by design
+  "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
+)
+is_archival() {
+  local f="$1" a
+  for a in "${ARCHIVE_FILES[@]}"; do [ "$f" = "$a" ] && return 0; done
+  return 1
+}
+
 # `stale-refs` owns .github/ + scripts/ + docs/, minus the mirror manifest,
 # which `doc-manifest` owns so the two can be excepted independently.
 SWEEP_PRESENT=()
@@ -265,21 +297,49 @@ if is_suppressed stale-refs; then
   echo "check-extraction-dod: [stale-refs] SKIPPED by an active exception."
 else
   hits=0
+  archived=0
   for old in "${MOVED[@]}"; do
     out="$(search "stale-refs sweep for '${old}'" grep -rnHF --exclude-dir=node_modules -- "$old" "${SWEEP_PRESENT[@]}")"
     out="$(search "stale-refs manifest split" grep -vF "${MANIFEST_DOC}:" - <<<"$out")"
     [ -z "${out//[[:space:]]/}" ] && out=""
-    if [ -n "$out" ]; then
+    [ -z "$out" ] && continue
+
+    # Split the hits into live (fail) and archival (report only). Done per-line
+    # rather than by pre-filtering the search, so an archival file that stops
+    # being archival is one list edit away from failing again.
+    live=""
+    arch=""
+    while IFS= read -r hit; do
+      [ -z "$hit" ] && continue
+      if is_archival "${hit%%:*}"; then
+        arch="${arch}${hit}"$'\n'
+      else
+        live="${live}${hit}"$'\n'
+      fi
+    done <<<"$out"
+
+    if [ -n "${live//[[:space:]]/}" ]; then
       hits=1
       echo "::error::check-extraction-dod: [stale-refs] stale reference to moved path '${old}':"
       while IFS= read -r hit; do
         [ -z "$hit" ] && continue
         echo "::error::    ${hit}"
-      done <<<"$out"
+      done <<<"$live"
+    fi
+    if [ -n "${arch//[[:space:]]/}" ]; then
+      archived=1
+      echo "check-extraction-dod: [stale-refs] '${old}' also appears in dated evidence (recorded, not failed):"
+      while IFS= read -r hit; do
+        [ -z "$hit" ] && continue
+        echo "check-extraction-dod:     ${hit%%:*}:$(echo "${hit#*:}" | cut -d: -f1)"
+      done <<<"$arch"
     fi
   done
+  if [ "$archived" -eq 1 ]; then
+    echo "check-extraction-dod: [stale-refs] the lines above are in ARCHIVE_FILES — records of what was true on a date. Rewriting them would falsify the record, so they are printed rather than enforced."
+  fi
   if [ "$hits" -eq 1 ]; then FAILED=1; else
-    echo "check-extraction-dod: [stale-refs] clean — no moved path is still referenced in ${SWEEP_PRESENT[*]}."
+    echo "check-extraction-dod: [stale-refs] clean — no moved path is still referenced in ${SWEEP_PRESENT[*]} (outside dated evidence)."
   fi
 fi
 

@@ -10,7 +10,7 @@
  *   - recordRsvpResponse: invitee accepts/declines/tentative
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { randomBytes } from 'crypto';
 
 function admin() {

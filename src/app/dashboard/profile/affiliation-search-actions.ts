@@ -15,7 +15,7 @@
  * empty list is a success and not an error.
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { shouldSuggest, type PlaceSuggestion } from '@/lib/geo/places-schools';
 import { lookupPlaceSuggestions } from '@/lib/geo/places-schools-lookup';
 import { coerceAffiliationType } from './affiliation-fields';

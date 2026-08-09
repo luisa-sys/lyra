@@ -21,12 +21,12 @@
     "platform": {
       "layer": 0,
       "paths": [
-        "src/lib/supabase-browser.ts",
-        "src/lib/supabase-server.ts",
-        "src/lib/supabase-service.ts",
-        "src/lib/env.ts",
-        "src/lib/deploy-env.ts",
-        "src/lib/cookie-domain.ts"
+        "src/modules/platform/supabase-browser.ts",
+        "src/modules/platform/supabase-server.ts",
+        "src/modules/platform/supabase-service.ts",
+        "src/modules/platform/env.ts",
+        "src/modules/platform/deploy-env.ts",
+        "src/modules/platform/cookie-domain.ts"
       ],
       "owns": {
         "files": 6,
@@ -37,7 +37,7 @@
       "publicApi": [
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-server.ts",
+          "file": "src/modules/platform/supabase-server.ts",
           "importingFiles": 46,
           "consumingModules": [
             "access",
@@ -58,7 +58,7 @@
         },
         {
           "symbol": "createServiceRoleClient",
-          "file": "src/lib/supabase-service.ts",
+          "file": "src/modules/platform/supabase-service.ts",
           "importingFiles": 39,
           "consumingModules": [
             "access",
@@ -79,7 +79,7 @@
         },
         {
           "symbol": "env",
-          "file": "src/lib/env.ts",
+          "file": "src/modules/platform/env.ts",
           "importingFiles": 14,
           "consumingModules": [
             "access",
@@ -93,7 +93,7 @@
         },
         {
           "symbol": "getDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 4,
           "consumingModules": [
             "admin",
@@ -104,7 +104,7 @@
         },
         {
           "symbol": "manageableEnvironments",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -113,7 +113,7 @@
         },
         {
           "symbol": "type:DeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -123,7 +123,7 @@
         },
         {
           "symbol": "isDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -132,7 +132,7 @@
         },
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-browser.ts",
+          "file": "src/modules/platform/supabase-browser.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -141,7 +141,7 @@
         },
         {
           "symbol": "withParentCookieDomain",
-          "file": "src/lib/cookie-domain.ts",
+          "file": "src/modules/platform/cookie-domain.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"

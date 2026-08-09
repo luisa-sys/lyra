@@ -10,7 +10,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { createClient as createSupabaseServer } from '@/lib/supabase-server';
+import { createClient as createSupabaseServer } from '@/modules/platform/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/modules/oauth-as/lib/authorize';
 import { getAccountStanding } from '@/lib/account-status';
 import { getConsent } from '@/modules/oauth-as/lib/consents';

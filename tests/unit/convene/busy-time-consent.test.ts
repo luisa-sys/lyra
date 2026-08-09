@@ -30,7 +30,7 @@ jest.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'http://supabase.test',
     supabaseServiceRoleKey: () => 'service-role-key',

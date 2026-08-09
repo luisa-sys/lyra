@@ -25,7 +25,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 
 /**
  * Returns a fresh service-role Supabase client with the hardened options above.

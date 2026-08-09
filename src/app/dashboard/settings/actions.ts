@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { getAdminServiceClient } from '@/lib/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';

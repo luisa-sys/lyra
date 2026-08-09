@@ -219,7 +219,7 @@ One trap this makes concrete:
 > **PGRST204.** PostgREST derives the INSERT column list from the payload's
 > **keys**, so sending a key for a not-yet-migrated column fails the **whole**
 > request — even when the value is `null`. `type-check` cannot catch it, because
-> `src/lib/supabase-server.ts` builds an **untyped** client. So a UI change whose
+> `src/modules/platform/supabase-server.ts` builds an **untyped** client. So a UI change whose
 > migration has reached `dev-lyra` but not `prod-lyra` breaks at run time on
 > **beta and production alike** — both read the production database — even while
 > the code promote itself looks healthy. Promote the migration ahead of the

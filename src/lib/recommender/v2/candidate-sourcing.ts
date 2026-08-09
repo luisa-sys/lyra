@@ -13,7 +13,7 @@
  * latency budget is tight — but at MVP only Tier 1 returns data.
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import type { ConceptInput, ProductCandidate } from './types';
 
 /** Service-role client — bypasses RLS for fast reads. */

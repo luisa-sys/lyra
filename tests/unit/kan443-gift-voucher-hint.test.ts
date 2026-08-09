@@ -12,7 +12,7 @@
  *    20260803170000_kan443_gift_redesign.sql has not run yet fails the WHOLE
  *    request with PGRST204, EVEN WHEN THE VALUE IS NULL. Code reaches an
  *    environment before its migration does. `npm run type-check` cannot see
- *    this: src/lib/supabase-server.ts builds an UNTYPED client. So the tests
+ *    this: src/modules/platform/supabase-server.ts builds an UNTYPED client. So the tests
  *    below assert on the payload KEYS, not on the values.
  *
  * The mock dispatches by table and captures the UPDATE payload specifically, so
@@ -49,7 +49,7 @@ jest.mock('@/lib/moderation-audit', () => ({
     mockModerate(args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),

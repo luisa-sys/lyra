@@ -18,7 +18,7 @@
  * the fallback for callers that want to log it.
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { rateLimit, type RateLimitConfig } from '@/lib/rate-limit';
 
 export interface SharedRateLimitResult {

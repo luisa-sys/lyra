@@ -140,7 +140,7 @@ Three structural import rules run on every PR, from `.dependency-cruiser.cjs` vi
 | `no-cross-segment-app/<segment>` | One top-level `src/app` segment may not import another. |
 | `no-circular` | No import cycles. |
 
-**Why a gate and not a convention.** `src/lib/deploy-env.ts` was created to be the
+**Why a gate and not a convention.** `src/modules/platform/deploy-env.ts` was created to be the
 single environment resolver — pure, tested, documented — and all six of the
 derivations it was meant to replace are still inline, because nothing stopped new
 ones being written. Creating the canonical thing is the easy 10%; the gate is the

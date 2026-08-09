@@ -39,7 +39,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { getRecommendations } from '@/lib/recommend';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
 import type { ConceptInput } from '@/lib/recommender/v2/types';

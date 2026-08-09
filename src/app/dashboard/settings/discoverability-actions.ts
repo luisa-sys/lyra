@@ -32,7 +32,7 @@
  * ./discoverability-helpers.ts. See BUGS-12 and
  * scripts/check-server-action-exports.sh.
  */
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/lib/sanitise';
 import { rateLimit } from '@/lib/rate-limit';

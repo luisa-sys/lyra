@@ -14,7 +14,7 @@
  */
 
 import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
-import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/lib/deploy-env';
+import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/modules/platform/deploy-env';
 import {
   GLOBAL_FEATURE_KEYS,
   GLOBAL_FEATURE_CONFIG,

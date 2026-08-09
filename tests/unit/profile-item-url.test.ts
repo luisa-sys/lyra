@@ -39,7 +39,7 @@ jest.mock('next/cache', () => ({
 //   .from('profiles').select('id').eq('user_id', x).single() → look up profile_id
 //   .from('profile_items').insert({...})                     → write the item
 // Dispatch on the table name so each chain returns the right shape.
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({

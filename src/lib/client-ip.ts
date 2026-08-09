@@ -43,7 +43,7 @@
  * `cf-connecting-ip` can forge `cf-ray` in the same breath. Only a secret the
  * attacker does not hold distinguishes the two paths.
  */
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 
 /** Header a Cloudflare Transform Rule stamps with the shared secret. */
 export const CF_PROXY_HEADER = 'x-lyra-edge';

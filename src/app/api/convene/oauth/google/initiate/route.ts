@@ -8,8 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { createClient as createSupabaseServer } from '@/lib/supabase-server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createClient as createSupabaseServer } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { buildAuthorizeUrl } from '@/lib/convene/google/oauth';
 

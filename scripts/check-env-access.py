@@ -5,7 +5,7 @@ WHY THIS EXISTS
 ---------------
 "Modules can be configured independently" is currently false. There are 49
 distinct environment variables read from 38 files under `src/`, and only a
-handful pass through `src/lib/env.ts`, the module built to be the single
+handful pass through `src/modules/platform/env.ts`, the module built to be the single
 resolver. Every other call site re-reads `process.env` directly, so:
 
   * a missing variable surfaces as `undefined` deep inside a request rather
@@ -15,7 +15,7 @@ resolver. Every other call site re-reads `process.env` directly, so:
   * a rename or a typo is invisible until the code path runs in production.
 
 The plan's own precedent is the reason this is a GATE and not a refactor:
-`src/lib/deploy-env.ts` was created to be the single environment resolver. It is
+`src/modules/platform/deploy-env.ts` was created to be the single environment resolver. It is
 pure, tested and self-documenting — and **all six of the derivations it was
 meant to replace are still inline.** Creating the canonical module is ~10% of
 the work. Retiring the call sites and preventing new ones is the other 90%, and
@@ -45,7 +45,7 @@ otherwise would let an arbitrary read hide behind a computed key.
 
 SANCTIONED READERS
 ------------------
-`src/lib/env.ts` is the canonical resolver and is exempt by design — it is
+`src/modules/platform/env.ts` is the canonical resolver and is exempt by design — it is
 where `process.env` is SUPPOSED to be read. Anything else needs a baseline
 entry or an escape hatch.
 
@@ -79,8 +79,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 BASELINE = REPO / "env-access-baseline.json"
 
-# src/lib/env.ts is the resolver: reading process.env is its entire job.
-SANCTIONED = {"src/lib/env.ts"}
+# src/modules/platform/env.ts is the resolver: reading process.env is its entire job.
+SANCTIONED = {"src/modules/platform/env.ts"}
 
 DYNAMIC = "<dynamic>"
 
@@ -201,7 +201,7 @@ def main() -> int:
             problems += 1
             print(f"::error file={rel}::env-access: NEW direct `process.env` read in a file "
                   f"that is not baselined ({', '.join(vars_)}). Resolve configuration "
-                  f"through src/lib/env.ts instead. If this read genuinely belongs here, "
+                  f"through src/modules/platform/env.ts instead. If this read genuinely belongs here, "
                   f"add `// env-access-ok: <JIRA-KEY> <reason>`.")
             continue
         extra = sorted(set(vars_) - set(allowed[rel]))
@@ -209,7 +209,7 @@ def main() -> int:
             problems += 1
             print(f"::error file={rel}::env-access: this file already reads env directly, "
                   f"and now reads MORE ({', '.join(extra)}). A known-bad file may shrink, "
-                  f"never grow — route new configuration through src/lib/env.ts.")
+                  f"never grow — route new configuration through src/modules/platform/env.ts.")
 
     for rel, vars_ in allowed.items():
         if rel not in found:

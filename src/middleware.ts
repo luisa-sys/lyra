@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
-import { withParentCookieDomain } from '@/lib/cookie-domain';
+import { withParentCookieDomain } from '@/modules/platform/cookie-domain';
 import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
 import { buildCspReportOnly } from '@/lib/security-headers';
 import { clientIp } from '@/lib/client-ip';

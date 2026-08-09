@@ -13,7 +13,7 @@
  * degrade-never-block rule this serves.
  */
 
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import {
   MAX_SUGGESTIONS,
   extractSuggestion,

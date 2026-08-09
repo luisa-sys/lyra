@@ -4,8 +4,8 @@
  * authoritative async path; this gives immediate UX). No biometric is received.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
 import { fetchAgeDecision, normaliseDecision, mapDecisionToAgeStatus } from '@/lib/age/didit';
 import { profileIdForUser, setProfileAgeStatus } from '@/lib/age/age-service';
 

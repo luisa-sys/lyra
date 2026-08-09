@@ -16,8 +16,8 @@
  * gates remain the hard, fail-closed layer. (An admin-driven OFF is a written
  * row, which we DO honour.)
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { getDeployEnv, type DeployEnv } from '@/lib/deploy-env';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { getDeployEnv, type DeployEnv } from '@/modules/platform/deploy-env';
 import {
   resolveGlobalSwitches,
   type GlobalFeatureKey,

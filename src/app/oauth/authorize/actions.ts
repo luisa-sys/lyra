@@ -15,7 +15,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { createClient as createSupabaseServer } from '@/lib/supabase-server';
+import { createClient as createSupabaseServer } from '@/modules/platform/supabase-server';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { issueAuthCode } from '@/modules/oauth-as/lib/codes';
 import { recordConsent } from '@/modules/oauth-as/lib/consents';
