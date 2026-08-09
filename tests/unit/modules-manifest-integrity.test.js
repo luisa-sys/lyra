@@ -146,6 +146,43 @@ describe('modules.json integrity (KAN-415)', () => {
     expect(bad).toEqual([]);
   });
 
+  /**
+   * A module marked BLOCKED must stay marked, and must say why.
+   *
+   * Convene was taken out of the modularisation programme on 2026-08-09
+   * (KAN-470). The risk being guarded against is not that someone disagrees —
+   * it is that the marker gets dropped in passing, by a regeneration script or
+   * a merge, and the next person to enumerate modules sees an ordinary layer-3
+   * module with 55 files and starts moving it. A sign that can vanish silently
+   * is not a sign.
+   *
+   * The assertion is on the SHAPE, not on convene specifically, so the same
+   * protection applies to anything blocked later.
+   */
+  test('a module marked BLOCKED carries a ticket, a reason and an unblock condition', () => {
+    const blocked = Object.entries(MODULES).filter(
+      ([, m]) => m && typeof m === 'object' && m.modularisationStatus?.state === 'BLOCKED',
+    );
+    for (const [name, mod] of blocked) {
+      const s = mod.modularisationStatus;
+      expect(`${name}:${s.jira}`).toMatch(/:[A-Z][A-Z0-9]+-[0-9]+$/);
+      expect(String(s.unblockCondition || '').trim().length).toBeGreaterThan(20);
+      expect(String(s.reason || '').trim().length).toBeGreaterThan(40);
+      expect(String(s.decidedOn || '')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      // The doc must exist, not merely be named — a pointer to a deleted file
+      // is how a decision becomes folklore.
+      expect(fs.existsSync(path.join(ROOT, s.doc))).toBe(true);
+    }
+  });
+
+  test('convene specifically is still marked BLOCKED (KAN-470)', () => {
+    // Named explicitly as well as by shape. The generic test above passes
+    // vacuously if the marker is removed altogether, which is exactly the
+    // failure mode that matters here.
+    expect(MODULES.convene?.modularisationStatus?.state).toBe('BLOCKED');
+    expect(MODULES.convene.modularisationStatus.jira).toBe('KAN-470');
+  });
+
   test('cross-module path nesting resolves to the more specific module', () => {
     // Derived from the manifest, not typed: this pins the RULE (most specific
     // declaration wins), not two particular filenames. The real case is
