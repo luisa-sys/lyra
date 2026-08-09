@@ -24,16 +24,24 @@
  * outage. So the hardening activates when the edge is configured, and until
  * then this is explicitly no worse than before. Case 1 pins that promise.
  */
-import { clientIp, transitedCloudflare, CF_PROXY_HEADER } from '@/lib/client-ip';
+import {
+  clientIp,
+  transitedCloudflare,
+  trustedProxyMode,
+  CF_PROXY_HEADER,
+} from '@/lib/client-ip';
 
 const SECRET = 'edge-secret-abc';
 const REAL = '203.0.113.9';
 const SPOOF = '198.51.100.7';
 
 const ORIGINAL = process.env.CF_PROXY_SECRET;
+const ORIGINAL_ENFORCE = process.env.CF_PROXY_ENFORCE;
 afterEach(() => {
   if (ORIGINAL === undefined) delete process.env.CF_PROXY_SECRET;
   else process.env.CF_PROXY_SECRET = ORIGINAL;
+  if (ORIGINAL_ENFORCE === undefined) delete process.env.CF_PROXY_ENFORCE;
+  else process.env.CF_PROXY_ENFORCE = ORIGINAL_ENFORCE;
 });
 
 function headers(h: Record<string, string>): Headers {
@@ -62,9 +70,10 @@ describe('clientIp — unconfigured edge (legacy behaviour preserved)', () => {
   });
 });
 
-describe('clientIp — configured edge', () => {
+describe('clientIp — configured edge, ENFORCING', () => {
   beforeEach(() => {
     process.env.CF_PROXY_SECRET = SECRET;
+    process.env.CF_PROXY_ENFORCE = '1';
   });
 
   it('trusts cf-connecting-ip when the shared secret matches', () => {
@@ -116,5 +125,59 @@ describe('clientIp — configured edge', () => {
 
     expect(keys.size).toBe(1);
     expect([...keys][0]).toBe(REAL);
+  });
+});
+
+describe('clientIp — MONITOR mode (secret set, enforcement off)', () => {
+  beforeEach(() => {
+    process.env.CF_PROXY_SECRET = SECRET;
+    delete process.env.CF_PROXY_ENFORCE;
+  });
+
+  it('does NOT change behaviour — a spoofed header is still trusted', () => {
+    // This is the whole point of monitor mode. Setting the secret must be a
+    // no-op for traffic, so a mis-built Transform Rule cannot take the site
+    // down before anyone has seen a log line.
+    const h = headers({ 'cf-connecting-ip': SPOOF, 'x-forwarded-for': REAL });
+
+    expect(clientIp(h)).toBe(SPOOF);
+  });
+
+  it('warns when a request arrives without a valid secret', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      clientIp(headers({ 'cf-connecting-ip': SPOOF }));
+
+      // The signal the operator watches before flipping enforcement on.
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('SEC-120'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('monitor mode'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('is silent when the request DOES carry the secret', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      clientIp(headers({ [CF_PROXY_HEADER]: SECRET, 'cf-connecting-ip': REAL }));
+
+      // A monitor that logs on every request teaches people to ignore it.
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('reports its posture as monitor, not enforce', () => {
+    expect(trustedProxyMode()).toBe('monitor');
+  });
+
+  it('reports off when no secret is set, and enforce when both are', () => {
+    delete process.env.CF_PROXY_SECRET;
+    expect(trustedProxyMode()).toBe('off');
+
+    process.env.CF_PROXY_SECRET = SECRET;
+    process.env.CF_PROXY_ENFORCE = '1';
+    expect(trustedProxyMode()).toBe('enforce');
   });
 });
