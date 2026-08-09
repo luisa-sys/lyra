@@ -461,7 +461,7 @@ jobs:
           
           # Check if any key files changed
           KEY_CHANGE=false
-          echo "$CHANGED" | grep -qE "^(src/app/|src/middleware|supabase/migrations/|\.github/workflows/|public/\.well-known/|scripts/)" && KEY_CHANGE=true
+          echo "$CHANGED" | grep -qE "^(src/app/|src/middleware|src/modules/|supabase/migrations/|\.github/workflows/|public/\.well-known/|scripts/)" && KEY_CHANGE=true
           
           # If key files changed, check if ARCHITECTURE.md was also updated
           if [ "$KEY_CHANGE" = true ]; then
