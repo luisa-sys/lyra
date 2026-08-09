@@ -13,12 +13,13 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 181 entries.
+// 183 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
   pullRequestTemplate: '.github/PULL_REQUEST_TEMPLATE.md',
   dependabot: '.github/dependabot.yml',
+  scheduledWorkflowExceptions: '.github/scheduled-workflow-exceptions.json',
   signupSurface: '.github/signup-surface.paths',
   workflows: '.github/workflows',
   backupComplete: '.github/workflows/backup-complete.yml',
@@ -49,6 +50,7 @@ export const SRC = {
   checkFixOnlyPromote: 'scripts/check-fix-only-promote.sh',
   checkGuardPathDrift: 'scripts/check-guard-path-drift.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
+  checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',

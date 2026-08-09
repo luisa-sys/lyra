@@ -735,6 +735,23 @@
       "escape_hatch": "Add the path to UNOWNED_BY_DESIGN in the test, with a comment arguing why it belongs to no module. Deliberately a literal list, never a glob - a pattern would silently adopt whatever lands next to it.",
       "self_test": "Mutation-proven 2026-08-09, all four directions: removing client-ip from guards' paths, overstating profile's owns.files, declaring a path that does not exist, and deleting convene's more specific nested path each turn the suite red; the clean manifest is green.",
       "added": "2026-08-09"
+    },
+    {
+      "id": "CTL-042",
+      "name": "Scheduled workflows are actually active",
+      "defect_class": "disabled-but-looks-configured",
+      "summary": "Queries the GitHub API for every workflow's state and fails when one that declares a cron schedule is not active. A DISABLED workflow still has a perfect file on disk, and every other check in this repo reasons about .github/workflows/*.yml as TEXT - check-workflow-integrity.sh greps it, CTL-023 confirms the file exists and that something invokes it, CTL-035 confirms its path literals still match - so all of them pass for a workflow GitHub will never run again, because `state: disabled_manually` lives in the API and nowhere in the repository. Found 2026-08-09: 4 of the 20 workflows declaring a cron schedule were inactive and had been since mid-June, including anomaly-detect on */15. Two things hid it - CLAUDE.md still documented 'Sunday 04:00 Stryker mutation testing' and a Sunday 23:00 staging auto-promote as live cadences, and Dependabot kept bumping all four files (#474), so they kept appearing in diffs looking maintained. This is SEC-79 exactly, and the lesson taken from SEC-79 does not cover it, because existence and invocation were never what broke.",
+      "implementation": "scripts/check-scheduled-workflows-active.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-79"
+      ],
+      "escape_hatch": "An entry in .github/scheduled-workflow-exceptions.json carrying BOTH a Jira key and a reason. An entry for a workflow that has since been re-enabled is a STALE exception and fails outright, so the list cannot only grow. Ships WARN-first (SCHEDULED_WORKFLOW_GATE_ENFORCE=1 to block) because the four live findings need a founder decision, and a gate that blocks every unrelated PR on something nobody can clear is a gate that gets switched off.",
+      "self_test": "--self-test covers the seven parsing decisions, notably that a COMMENTED-OUT cron is not a live schedule (backup-complete.yml ships its cadence commented until commissioning, and reading that as scheduled would raise a permanent unresolvable finding). Verified live 2026-08-09: warn mode exits 0 naming all four inactive workflows, --enforce exits 1.",
+      "added": "2026-08-09"
     }
   ]
 }

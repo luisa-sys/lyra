@@ -16,6 +16,9 @@ defaults:
 
 permissions:
   contents: read
+  # CTL-042 reads /actions/workflows to learn each workflow's STATE, which is
+  # the one fact about a workflow that does not live in the repository. Read-only.
+  actions: read
 
 jobs:
   checks:
@@ -290,6 +293,30 @@ jobs:
           set -euo pipefail
           python3 scripts/check-control-registry.py --self-test
           python3 scripts/check-control-registry.py
+      - name: Scheduled workflows are actually ACTIVE (CTL-042, SEC-79 family)
+        # A DISABLED workflow still has a perfect file on disk. Every other
+        # check in this repo reasons about .github/workflows/*.yml as TEXT -
+        # the step above confirms a control's file exists and that something
+        # invokes it - and all of them pass for a workflow GitHub will never
+        # run again, because `state: disabled_manually` lives in the API and
+        # nowhere in the repository.
+        #
+        # Found 2026-08-09: 4 of the 20 workflows declaring a cron schedule
+        # were inactive and had been since mid-June, including anomaly-detect
+        # on */15. Dependabot kept bumping all four (#474), so they kept
+        # appearing in diffs looking maintained.
+        #
+        # WARN-ONLY until the four are re-enabled or excepted - same warn->block
+        # path as the KAN-413 signup gate. Blocking now would fail every
+        # unrelated PR pending a founder-only decision, and a gate that blocks
+        # work nobody can unblock is a gate that gets switched off. Flip via
+        # SCHEDULED_WORKFLOW_GATE_ENFORCE=1.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-scheduled-workflows-active.py --self-test
+          python3 scripts/check-scheduled-workflows-active.py
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and
