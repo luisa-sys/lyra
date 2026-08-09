@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 175 entries.
+// 176 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -60,6 +60,7 @@ export const SRC = {
   routineWatchdog: 'scripts/routine-watchdog.sh',
   securityAlertEmail: 'scripts/security-alert-email.sh',
   weeklyHealthRegression: 'scripts/weekly-health-regression.sh',
+  app: 'src/app',
   actions: 'src/app/(auth)/actions.ts',
   authErrors: 'src/app/(auth)/auth-errors.ts',
   page: 'src/app/(auth)/forgot-password/page.tsx',
