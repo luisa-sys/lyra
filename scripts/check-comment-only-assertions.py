@@ -196,8 +196,35 @@ PATH_LIT = re.compile(
 # that happens to read a file reported `expect(ctl.prevents).toContain('SEC-100')`
 # — an assertion about a parsed JSON array — against a workflow file. A guard
 # whose own first run produces false positives teaches people to ignore it.
+#
+# KAN-459: the declarator is OPTIONAL. The commonest shape in this repo splits
+# the declaration from the assignment —
+#
+#     let content;
+#     beforeAll(() => { content = fs.readFileSync(profilePath, 'utf8'); });
+#
+# so requiring `const|let|var` on the assignment line missed it entirely. The
+# `(?:^|[;{\n])\s*` prefix keeps this anchored to a statement start, so a
+# property write (`obj.src = readFileSync(...)`) still does not match — that
+# would attribute an assertion to a receiver nobody asserts on.
 RECEIVER = re.compile(
-    r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;]*?readFileSync"
+    r"(?:^|[;{\n])\s*(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*=\s*[^;]*?readFileSync",
+    re.M,
+)
+
+# A path held in a VARIABLE rather than passed inline:
+#
+#     const profilePath = path.join(root, SRC.slugPage);
+#     ... fs.readFileSync(profilePath, 'utf8')
+#
+# Without this, `resolve_subject` sees the identifier `profilePath`, finds
+# neither an `SRC.<key>` nor a path literal, and skips the block — which is how
+# KAN-459's instance went unreported. Every CTL-039 blind spot so far has been
+# attribution, never comment syntax; this closes the fourth.
+PATH_VAR = re.compile(
+    r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*"
+    r"([^;\n]*?(?:SRC\.[A-Za-z_$][\w$]*"
+    r"|['\"](?:\.{1,2}/)*(?:src|scripts|supabase|public|controls)/[^'\"]+['\"])[^;\n]*)"
 )
 
 
@@ -224,12 +251,33 @@ def _assert_re(var: str) -> re.Pattern:
 SCOPE = re.compile(r"\n\s*(?:test|it)\s*\(")
 
 
-def resolve_subject(expr: str, manifest: dict) -> str | None:
+def path_vars(text: str, manifest: dict) -> dict[str, str]:
+    """Map variables that hold a subject path to the subject they resolve to."""
+    out: dict[str, str] = {}
+    for m in PATH_VAR.finditer(text):
+        subject = _direct_subject(m.group(2), manifest)
+        if subject:
+            out[m.group(1)] = subject
+    return out
+
+
+def _direct_subject(expr: str, manifest: dict) -> str | None:
     m = SRC_KEY.search(expr)
     if m:
         return manifest.get(m.group(1))
     m = PATH_LIT.search(expr)
     return m.group(1) if m else None
+
+
+def resolve_subject(expr: str, manifest: dict, pvars: dict | None = None) -> str | None:
+    direct = _direct_subject(expr, manifest)
+    if direct:
+        return direct
+    # Fall back to a variable that holds the path (KAN-459).
+    for name, subject in (pvars or {}).items():
+        if re.search(rf"\b{re.escape(name)}\b", expr):
+            return subject
+    return None
 
 
 def scopes_of(text: str) -> tuple[str, list[str]]:
@@ -296,13 +344,17 @@ def analyse(root: Path, rel: str, manifest: dict) -> list[dict]:
         return []
 
     preamble, blocks = scopes_of(text)
+    # File-wide, because a path variable is declared once at describe level and
+    # used inside a beforeAll several blocks later (KAN-459).
+    pvars = path_vars(text, manifest)
 
     def subjects_in(chunk: str) -> list[str]:
         return sorted(
             {
                 x
                 for x in (
-                    resolve_subject(m.group(1), manifest) for m in READ.finditer(chunk)
+                    resolve_subject(m.group(1), manifest, pvars)
+                    for m in READ.finditer(chunk)
                 )
                 if x
             }
@@ -585,6 +637,53 @@ def self_test() -> int:
         if got:
             check("  ...and is comment-shadowed, not comment-only",
                   1 if got[0]["severity"] == "comment-shadowed" else 0, 1)
+
+    # --- KAN-459: indirected read (path in a var + bare assignment) ----------
+    with tempfile.TemporaryDirectory() as td:
+        r = Path(td)
+        (r / "src").mkdir(parents=True)
+        (r / "src" / "page.tsx").write_text(
+            "export default function P() {\n"
+            "  return (\n"
+            "    {/* A few of my favourite things */}\n"
+            "    <h2>Favourites</h2>\n"
+            "  );\n"
+            "}\n"
+        )
+        (r / "tests" / "unit").mkdir(parents=True)
+        (r / "tests" / "unit" / "t.test.js").write_text(
+            "const profilePath = path.join(root, 'src/page.tsx');\n"
+            "let content;\n"
+            "describe('d', () => {\n"
+            "  beforeAll(() => { content = fs.readFileSync(profilePath, 'utf8'); });\n"
+            "  test('t', () => {\n"
+            "    expect(content).toContain('A few of my favourite things');\n"
+            "  });\n"
+            "});\n"
+        )
+        got = scan(r, ["tests/unit/t.test.js"], {})
+        # Path held in a variable AND assigned without a declarator. Requiring
+        # either to be inline missed this, and it is the commonest shape in
+        # tests/scripts/ — the control was blind to that whole directory.
+        check("KAN-459: path-in-variable + bare assignment is seen", len(got), 1)
+
+    # A property write must still NOT be treated as a receiver — otherwise the
+    # optional declarator would attribute assertions to things nobody asserts on.
+    with tempfile.TemporaryDirectory() as td:
+        r = Path(td)
+        (r / "src").mkdir(parents=True)
+        (r / "src" / "a.ts").write_text("// marker text\nconst x = 1;\n")
+        (r / "tests" / "unit").mkdir(parents=True)
+        (r / "tests" / "unit" / "t.test.js").write_text(
+            "describe('d', () => {\n"
+            "  test('t', () => {\n"
+            "    obj.src = fs.readFileSync('src/a.ts', 'utf8');\n"
+            "    expect(unrelated).toContain('marker text');\n"
+            "  });\n"
+            "});\n"
+        )
+        got = scan(r, ["tests/unit/t.test.js"], {})
+        check("a property write is not a receiver", len(got), 0)
 
     # --- (2) scoped subject attribution --------------------------------------
     with tempfile.TemporaryDirectory() as td:

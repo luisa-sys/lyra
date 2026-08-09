@@ -4,14 +4,13 @@ import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { withParentCookieDomain } from '@/lib/cookie-domain';
 import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
 import { buildCspReportOnly } from '@/lib/security-headers';
+import { clientIp } from '@/lib/client-ip';
 
+// SEC-120: the precedence rule lives in ONE place now — see
+// src/lib/client-ip.ts. It used to be duplicated here and in
+// rate-limit-shared.ts, and the duplication was the recurrence mechanism.
 function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get('cf-connecting-ip') ??
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
-    'unknown'
-  );
+  return clientIp(request.headers);
 }
 
 // SEC-63: per-request CSP nonce, base64 of 16 random bytes. Edge runtime

@@ -3,6 +3,96 @@
   "ticket": "KAN-440",
   "findings": [
     {
+      "test": "tests/scripts/check-extraction-dod.test.js",
+      "subject": "scripts/check-extraction-dod.sh",
+      "assertion": "/EXTRACTION-DOD-OK/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-extraction-dod.test.js",
+      "subject": "scripts/check-extraction-dod.sh",
+      "assertion": "/exit 2/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/LYRA_RELEASE_PAT/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/Pattern 5/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/Pattern 6/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/git push origin main/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/sec-66/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/check-workflow-integrity.test.js",
+      "subject": "scripts/check-workflow-integrity.sh",
+      "assertion": "/sec-86/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/daily-security-check.test.js",
+      "subject": "scripts/daily-security-check.sh",
+      "assertion": "/UNVERIFIED/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/daily-security-check.test.js",
+      "subject": "scripts/daily-security-check.sh",
+      "assertion": "/\\bFAIL\\b/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/daily-security-check.test.js",
+      "subject": "scripts/daily-security-check.sh",
+      "assertion": "/\\bPASS\\b/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/weekly-health-regression.test.js",
+      "subject": "scripts/weekly-health-regression.sh",
+      "assertion": "/UNVERIFIED/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/scripts/weekly-health-regression.test.js",
+      "subject": "scripts/weekly-health-regression.sh",
+      "assertion": "/exit 1/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/affiliate-badge.test.js",
+      "subject": "src/components/AffiliateBadge.tsx",
+      "assertion": "/no commission/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/affiliate-badge.test.js",
+      "subject": "src/components/AffiliateBadge.tsx",
+      "assertion": "commission",
+      "severity": "comment-shadowed"
+    },
+    {
       "test": "tests/unit/affiliations-and-autosave.test.ts",
       "subject": "src/app/dashboard/profile/page.tsx",
       "assertion": "/conversation_starter_prompts/",
@@ -33,16 +123,88 @@
       "severity": "comment-shadowed"
     },
     {
-      "test": "tests/unit/conversation-starters.test.ts",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "/A few more things about me/",
+      "test": "tests/unit/auth-confirm-route.test.ts",
+      "subject": "src/app/auth/confirm/route.ts",
+      "assertion": "/token_hash/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/auth-confirm-route.test.ts",
+      "subject": "src/app/auth/confirm/route.ts",
+      "assertion": "/verifyOtp/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/auth.test.js",
+      "subject": "src/app/(auth)/actions.ts",
+      "assertion": "// export async function signInWithApple",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/auth.test.js",
+      "subject": "src/app/(auth)/actions.ts",
+      "assertion": "KAN-37",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/auth.test.js",
+      "subject": "src/app/(auth)/actions.ts",
+      "assertion": "export async function signIn",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/auth.test.js",
+      "subject": "src/middleware.ts",
+      "assertion": "/dashboard",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/auth.test.js",
+      "subject": "src/middleware.ts",
+      "assertion": "/login",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/backup.test.js",
+      "subject": ".github/workflows/backup-database.yml",
+      "assertion": "SUPABASE_DB_URL",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/convene/connections-page.test.ts",
+      "subject": "src/app/api/convene/cron/token-health/route.ts",
+      "assertion": "/Bearer/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/convene/connections-page.test.ts",
+      "subject": "src/app/api/convene/cron/token-health/route.ts",
+      "assertion": "/CRON_SECRET/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/convene/connections-page.test.ts",
+      "subject": "src/app/dashboard/convene/connections/page.tsx",
+      "assertion": "/isConveneEnabled\\(\\)/",
+      "severity": "comment-only"
+    },
+    {
+      "test": "tests/unit/convene/dispatch.test.ts",
+      "subject": "src/app/api/convene/cron/send-invites/route.ts",
+      "assertion": "/CRON_SECRET/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/convene/gathering-ui.test.ts",
+      "subject": "src/app/dashboard/convene/gatherings/[id]/actions.ts",
+      "assertion": "/calendar_event_added/",
       "severity": "comment-shadowed"
     },
     {
       "test": "tests/unit/conversation-starters.test.ts",
       "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
       "assertion": "/500/",
-      "severity": "comment-shadowed"
+      "severity": "comment-only"
     },
     {
       "test": "tests/unit/conversation-starters.test.ts",
@@ -69,15 +231,93 @@
       "severity": "comment-shadowed"
     },
     {
+      "test": "tests/unit/examples-page.test.js",
+      "subject": "src/app/examples/page.tsx",
+      "assertion": "LYRA_FORCE_WAITLIST",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/examples-page.test.js",
+      "subject": "src/app/examples/page.tsx",
+      "assertion": "isProdDeploy",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/examples-page.test.js",
+      "subject": "src/app/examples/page.tsx",
+      "assertion": "is_homepage_example",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/examples-page.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "See example profiles",
+      "severity": "comment-shadowed"
+    },
+    {
       "test": "tests/unit/forgot-reset-password.test.ts",
       "subject": "src/app/(auth)/actions.ts",
       "assertion": "/resetPasswordForEmail/",
       "severity": "comment-shadowed"
     },
     {
+      "test": "tests/unit/forgot-reset-password.test.ts",
+      "subject": "src/app/(auth)/reset-password/page.tsx",
+      "assertion": "/updateRecoveryPassword/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/gdpr-settings.test.js",
+      "subject": "src/app/dashboard/settings/actions.ts",
+      "assertion": "user.email",
+      "severity": "comment-shadowed"
+    },
+    {
       "test": "tests/unit/gdpr.test.js",
       "subject": "src/app/dashboard/settings/actions.ts",
       "assertion": "deleteAccount",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "A few people to meet",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "Be understood.",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "Find someone",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "See example profiles",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "is_homepage_example",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/homepage-content.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "is_published",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/kan351-public-profile-data-integrity.test.ts",
+      "subject": "src/app/[slug]/page.tsx",
+      "assertion": "/sectionReadErrors/",
       "severity": "comment-shadowed"
     },
     {
@@ -105,9 +345,51 @@
       "severity": "comment-only"
     },
     {
+      "test": "tests/unit/photo-upload.test.js",
+      "subject": "src/app/dashboard/profile/steps/identity-step.tsx",
+      "assertion": "preview",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/photo-upload.test.js",
+      "subject": "supabase/migrations/20260330120000_add_avatar_url_and_storage.sql",
+      "assertion": "avatar_url",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/photo-upload.test.js",
+      "subject": "supabase/migrations/20260330120000_add_avatar_url_and_storage.sql",
+      "assertion": "profile-photos",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/profile-items-visibility-migration.test.js",
+      "subject": "src/app/dashboard/profile/actions.ts",
+      "assertion": "coerceVisibility",
+      "severity": "comment-shadowed"
+    },
+    {
       "test": "tests/unit/public-profile.test.js",
       "subject": "src/app/[slug]/page.tsx",
       "assertion": "notFound",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/pwa-manifest.test.ts",
+      "subject": "src/app/install-prompt.tsx",
+      "assertion": "/Share/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/pwa-manifest.test.ts",
+      "subject": "src/app/install-prompt.tsx",
+      "assertion": "beforeinstallprompt",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/pwa-manifest.test.ts",
+      "subject": "src/app/install-prompt.tsx",
+      "assertion": "display-mode",
       "severity": "comment-shadowed"
     },
     {
@@ -138,6 +420,30 @@
       "test": "tests/unit/retention/gatherings-retention.test.ts",
       "subject": "supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql",
       "assertion": "/security definer/",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/search-page.test.js",
+      "subject": "src/app/page.tsx",
+      "assertion": "Find someone",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/search-page.test.js",
+      "subject": "src/app/search/page.tsx",
+      "assertion": "found",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/search-page.test.js",
+      "subject": "src/app/search/page.tsx",
+      "assertion": "is_published",
+      "severity": "comment-shadowed"
+    },
+    {
+      "test": "tests/unit/search-page.test.js",
+      "subject": "src/app/search/page.tsx",
+      "assertion": "true",
       "severity": "comment-shadowed"
     },
     {

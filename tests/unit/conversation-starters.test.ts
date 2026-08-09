@@ -117,8 +117,12 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
       'utf-8',
     );
     expect(src).toMatch(/profile_conversation_starters/);
-    // KAN-265 redesign renamed the public heading to "A few more things about me".
-    expect(src).toMatch(/A few more things about me/);
+    // KAN-265 named the public heading; KAN-445 renamed it again, to the
+    // founder's wording. The old literal also appeared in the JSX comment two
+    // lines above the heading, which is why CTL-039 had this assertion
+    // baselined as comment-shadowed — the comment no longer repeats the
+    // heading, so this now matches the rendered text and nothing else.
+    expect(src).toMatch(/A bit more about me/);
   });
 
   test('dashboard profile page fetches conversation starter data', () => {

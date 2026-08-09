@@ -14,6 +14,11 @@ export interface WizardProfile {
   delivery_country_code: string | null;
   is_published: boolean;
   avatar_url: string | null;
+  // KAN-443: optional one-liner for people who would rather choose their own
+  // gift. OPTIONAL on the type as well as nullable in the DB — the row is read
+  // with select('*'), so an environment that has not yet run
+  // 20260803170000_kan443_gift_redesign.sql simply returns no such key.
+  gift_voucher_hint?: string | null;
   // KAN-234 / KAN-221: hybrid visibility. Per-section default ({} when
   // unset) that items inherit when their own `visibility` is NULL.
   // Keys live in `section-visibility.ts → CONTROLLABLE_SECTION_KEYS`.
@@ -30,6 +35,10 @@ export interface WizardItem {
   // Older rows from before KAN-221 always had an explicit value; new items
   // default to NULL when the form chooses "Use section default".
   visibility: string | null;
+  // KAN-444: the member's own heading for a custom favourites group. Only
+  // meaningful for category 'favourite_custom'; optional because every other
+  // caller (and every row written before the column existed) simply omits it.
+  group_label?: string | null;
 }
 
 export interface WizardSchool {
@@ -76,9 +85,12 @@ export interface ConversationPrompt {
 
 export interface ConversationAnswer {
   id: string;
-  prompt_id: string;
+  // KAN-445: null when the member wrote the question themselves.
+  prompt_id: string | null;
   answer: string;
-  prompt: string; // joined for display
+  prompt: string; // the seeded prompt joined for display, or the member's own
+  /** The member's own question text; null for a seeded prompt. */
+  custom_prompt: string | null;
 }
 
 export function Field({ label, value, onChange, placeholder }: {

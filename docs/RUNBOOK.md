@@ -228,11 +228,19 @@ no literal reference to a moved-from path may remain in `.github/`, `scripts/`,
 `docs/`, `docs/DOC_SOURCE_OF_TRUTH.md`, `modules.json` or `tests/`.
 
 Attested in the PR body, because CI can never check them (`out-of-repo`,
-`coverage`, `routine-prompts`): `~/lyra-design-system/build.py` and the claude.ai
+`coverage`, `routine-prompts`): the design-system generator and the claude.ai
 routine prompts live outside every repository this CI can read, and the covering
 Playwright project + soak clause must be named or `no coverage` recorded as a
 finding. The PR template supplies the three `EXTRACTION-DOD-*` lines, shipped
 with a `FILL-IN` placeholder that fails the gate until it is replaced.
+
+> ⚠️ **Corrected 2026-08-04 (KAN-441).** The design-system half of that
+> attestation used to read *"lives outside every repository"*. The design system
+> **is** now in git — `github.com/luisa-sys/lyra-design-system` — but it is a
+> **different repo, which this repo's CI still cannot read**, so the attestation
+> is unchanged and only its reason is narrower. Process:
+> `docs/DESIGN_CHANGE_WORKFLOW.md`. Whether the two repos should merge, which
+> would let CI check this mechanically, is open (KAN-427 / KAN-457).
 
 **Why the estate needs a gate at all:** KAN-419 measured `docs/**/*.md` at 110
 path literals, **20 of them (18%) matching nothing**, before a single file was
