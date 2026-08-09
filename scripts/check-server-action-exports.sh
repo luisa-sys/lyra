@@ -43,6 +43,20 @@ search_or_die() {
 # (Some `'use server'` directives appear inline in client files for actions —
 # we restrict to module-level by checking the first ~5 lines.)
 # Written portably for bash 3.2 (macOS) and bash 5.x (Ubuntu CI).
+# ---------------------------------------------------------------------------
+# Portability precondition (SEC-109). The exit-code check below cannot carry
+# this on its own: GNU grep (Linux/CI) returns 2 when a search path does not
+# exist, but BSD grep (macOS) returns 1 — indistinguishable from "no match".
+# So on a developer Mac an absent src/ read as a CLEAN SCAN and this control
+# reported green while searching nothing: exactly the SEC-79 false-green it
+# exists to prevent. Verified 2026-08-08 against /usr/bin/grep. Testing the
+# path directly is dialect-independent and true on both platforms.
+if [ ! -d src ] || [ ! -r src ]; then
+  echo "::error::check-server-action-exports: src/ is missing or unreadable, so the search command failed to run."
+  echo "::error::  Failing closed (exit 2) rather than reporting a clean scan that never ran."
+  exit 2
+fi
+
 search_or_die "listing 'use server' files under src/" \
   grep -rl --include='*.ts' --include='*.tsx' "'use server'" src/
 CANDIDATE_FILES="$SEARCH_OUT"

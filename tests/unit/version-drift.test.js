@@ -67,4 +67,41 @@ describe('KAN-166: package.json version aligns with git tags', () => {
     const expectedTag = `v${pkgVersion}`;
     expect(allTags).toContain(expectedTag);
   });
+
+  // Regression guard: the test above is deliberately tolerant of pkgVersion
+  // matching ANY existing tag, not just the latest, so a release-in-progress
+  // doesn't break CI. But because old tags are never deleted, that tolerance
+  // means once pkgVersion matches a tag once, this file can never re-detect
+  // further drift — which is exactly how develop's package.json sat at
+  // 0.1.37 while tags advanced to v0.1.94 (57 releases) with this suite
+  // green the entire time. This test bounds how far pkgVersion may lag the
+  // latest tag, so that class of drift fails loud again.
+  test('package.json version is not more than 20 releases behind the latest git tag', () => {
+    if (allTags.length === 0) {
+      return;
+    }
+
+    const parseSemver = (v) => {
+      const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(v);
+      return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+    };
+
+    const parsedTags = allTags.map(parseSemver).filter(Boolean);
+    if (parsedTags.length === 0) {
+      return;
+    }
+
+    const compare = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    const latest = parsedTags.reduce((best, t) => (compare(t, best) > 0 ? t : best));
+
+    const pkg = parseSemver(pkgVersion);
+    expect(pkg).not.toBeNull();
+
+    // Only bound drift within the same major.minor line — a deliberate
+    // major/minor bump is not drift and shouldn't fail this guard.
+    if (pkg[0] === latest[0] && pkg[1] === latest[1]) {
+      const releasesBehind = latest[2] - pkg[2];
+      expect(releasesBehind).toBeLessThanOrEqual(20);
+    }
+  });
 });

@@ -43,6 +43,7 @@ Before starting any task, Claude must:
 5. **Check the surface** — confirm this is Claude Code, not chat. See "Editing the environment: Claude Code only" above.
 6. **Confirm working-tree isolation** — if Luisa might be running other Claude Code instances against this repo, this session MUST be in its own git worktree (see "Parallel Claude sessions" below). Verify with `git branch --show-current` at the start of work AND right before every `git add` / `git commit`. If HEAD switched unexpectedly, stop and recover per BUGS-17.
 7. **Plan the doc footprint** — identify up front which system-map / wiki pages the work will touch (Architecture & Infrastructure, Data Model & Security) per the **Documentation Definition-of-Done** below. Docs are part of "done", not a follow-up ticket.
+8. **Check the design state first if the work changes the look or wording of a user-facing page** — the approved design card comes **before** the code, not after it (`docs/DESIGN_CHANGE_WORKFLOW.md`; the ticket must reach `DESIGN_APPROVED` before `DEV_IMPL`). Confirm which state the ticket is in, and remember that such work is founder-initiated — see "LOOK AND TEXT" below. Restoring intended design or fixing a plain text/rendering error is not gated and needs no card.
 
 ## Documentation Definition-of-Done (KAN-359)
 
@@ -272,6 +273,56 @@ Failure to do one of the above is a blocking review comment.
 Before KAN-222, MCP tools shipped opportunistically and the surfaces drifted. File uploads (KAN-142), conversation-starter prompts (KAN-181), problem-tracking (KAN-182) all landed in the main app first; MCP coverage was opened as separate follow-ups that sat in the backlog for weeks. By the time the Convene epic (KAN-203) arrives — with its 14+ planned MCP tools — drift would have been intractable. Make the lockstep explicit before the gap reopens.
 
 Mirror in `lyra-mcp-server/CLAUDE.md` — that file points back here as the source of truth.
+
+## LOOK AND TEXT — founder-owned UI/copy, and the design loop that approves it (KAN-411 / KAN-441)
+
+**The look and text of Lyra's user-facing pages belong to Luisa.** Any change to them must be **founder-approved and founder-initiated** — Claude does not originate design or copy changes, and the Backlog Autopilot must skip them (`ui-approval-required` label; autopilot House rules 9/10 on Confluence Control Room 33554434).
+
+**The test is change-vs-restore:**
+
+- **CHANGING** the intended design or wording → founder-gated. Needs an approved design card first.
+- **RESTORING** the intended design, or fixing a plain **text error** (typo, wrong or stale string) or **rendering error** (blank page, broken layout, styling regression) → **not** gated.
+
+### The trailer
+
+A PR touching founder-owned UI/copy paths must carry one of these trailers on a commit in its range:
+
+```
+UI-Change-Approved: <JIRA-KEY>   # Luisa-initiated design/copy change
+UI-Bugfix-Only:     <JIRA-KEY>   # fix limited to a text or rendering error
+```
+
+The founder-owned surface is defined in `scripts/check-ui-copy-ownership.sh` (`is_protected`), which is the authority — it is mirrored 1:1 from the autopilot's protected-surface list so the guard and the robot agree. What it actually matches: every `.tsx` page/layout/component under `src/app`, all of `src/components/**`, any `.css` under `src/` (including `globals.css`), `postcss.config.*`, the named user-facing copy modules (`src/lib/invite-text.ts`, the Convene invite/SMS templates, `src/lib/beta-access/email.ts`, the profile and organise field-label modules), and exactly **five named paths under `public/`** — `public/lyra-logo*`, `public/lyra-icon-*`, `public/og-image.png`, `public/manifest.webmanifest`, `public/offline.html`. Carve-outs that are **not** gated: `src/app/admin/**`, `src/app/api/**`, any `*/route.ts`, `src/middleware.ts`.
+
+**Two things about that list are easy to get wrong, and both make the surface narrower than it sounds:**
+
+- **`public/` is not protected as a class.** Only the five patterns above match. `public/robots.txt`, `public/llms.txt`, `public/sw.js`, the `.svg` files and everything under `public/.well-known/` are outside the guard — and two of the five (`manifest.webmanifest`, `offline.html`) are not brand assets at all.
+- **`tailwind.config.*` matches nothing.** Tailwind v4 is CSS-first and this repo has no Tailwind config file, so that pattern is a **defensive stub** for a config that may return — it is registered as a known dead pattern in `scripts/check-guard-path-drift.py` (`DECLARED_EXCEPTIONS`, KAN-419). Do not cite it as live cover; the styling that *is* covered is the `src/**/*.css` rule.
+
+### The design loop is what produces the approval (KAN-441)
+
+The trailer is a *claim* that Luisa approved the change. The **design-change loop** is where that approval is actually produced: a before/after card in Claude Design, approved by Luisa, then implemented, promoted, re-imported and baselined. Full process: **`docs/DESIGN_CHANGE_WORKFLOW.md`** (repo mirror; canonical spec is `BUILD-LOOP.md` in the separate `lyra-design-system` repo).
+
+The loop in one line: **design first, close last.** A ticket moves `TODO → DESIGN → DESIGN_APPROVED → DEV_IMPL → PROMOTED → REIMPORT_VERIFIED → BASELINED → DONE`, and **may not be closed until BASELINED** — the change live on all four environments *and* the Claude Design baseline updated to match. Design approval is **not** a release approval: SEC-98 applies unchanged, and the **code** rides `develop → staging → beta → main` inside `DEV_IMPL → PROMOTED`.
+
+⚠️ **The database does not ride that chain — it has three environments, not four.** There are three Supabase projects (`dev-lyra`, `stage-lyra`, `prod-lyra`) and **`beta.checklyra.com` runs against the PRODUCTION Supabase** (see Deployment Pipeline above and gotcha #19); the Supabase Migration Rules below name the three in order — dev, then staging, then production. **So a migration must land on PRODUCTION before the `staging → beta` promote, not before `beta → main`.** Schedule it against `beta → main` and you are one promote too late: beta then runs new code against a production database missing the column (PGRST204 fails the whole request, even for a `null` value, and `type-check` cannot catch it). Full table: `docs/DESIGN_CHANGE_WORKFLOW.md` → "Database migrations".
+
+The gates, in summary — this table is **not** the full set:
+
+| Gate | Fails when | Escape hatch |
+|---|---|---|
+| **KAN-411 `check-ui-copy-ownership.sh`** (`pr-checks.yml`) | a PR changes a founder-owned UI/copy path with no `UI-Change-Approved:` / `UI-Bugfix-Only:` trailer in range | none in CI — add the trailer, or add the path to the carve-out list in the script if it genuinely is not UI/copy |
+| **G0 version control** (`check-design-sync.py`, `lyra-design-system` repo) | the design source is not in git. **Blocking** — unsynced design work is work that can be lost outright, not merely drift | none — commit the design source |
+| **G1 design-first** (same) | a ticket enters `DEV_IMPL` without passing `DESIGN_APPROVED` | none — get the card approved |
+| **G2 no-close** (same) | a ticket goes `DONE` while not `BASELINED` | none |
+| **G3 promote-verified** (same) | `PROMOTED` claimed while `main` ≠ `beta` ≠ `staging` **by tree SHA**, or the ticket's `dev_paths` change is absent from `main` | none — finish the promote |
+
+**G4** (baseline current) and **G5** (no lost work) also run and are not listed above. All six — G0–G5 — are defined in `docs/DESIGN_CHANGE_WORKFLOW.md` → "The gates"; read that before relying on this summary.
+
+**Two traps:**
+
+1. **The trailer is a string, not evidence.** `UI-Bugfix-Only: KAN-1234` on a commit that actually changes intended design passes the gate and bypasses the founder entirely — the gate reads a commit message, it cannot read a design. (Any key matching `[A-Z][A-Z0-9]+-[0-9]+` satisfies it. Note the **digits are required**: a literal placeholder like `KAN-xxx` does *not* match, so that one fails the gate rather than sneaking past it.) Only the approved card proves approval, which is why the loop exists alongside the trailer rather than instead of it. If you are unsure whether your change is a restore or a change, it is a change.
+2. **A green tick does not prove the gate ran.** `check-ui-copy-ownership.sh` fails **open** when the diff base cannot be resolved (shallow or detached CI history): it emits a `::warning::` and exits 0, leaning on CODEOWNERS. Deliberate — a git hiccup must not block every unrelated PR — but it means the absence of a red X is not the presence of a check. Separately, **this repo's CI cannot run `check-design-sync.py` at all**, because that checker lives in the `lyra-design-system` repo; G0–G5 are enforced there, not here. Whether to fold the two repos together so CI can diff design against `src/` directly is **open** — KAN-427 / KAN-457, Luisa decides.
 
 ## Deployment Pipeline
 
