@@ -216,10 +216,11 @@
       "layer": 0,
       "paths": [
         "src/lib/content-moderation.ts",
-        "src/lib/moderation-policy.ts"
+        "src/lib/moderation-policy.ts",
+        "src/lib/gdpr/person-keyed-tables.ts"
       ],
       "owns": {
-        "files": 2,
+        "files": 3,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -340,10 +341,11 @@
         "src/modules/guards/file-magic-bytes.ts",
         "src/modules/guards/security-headers.ts",
         "src/modules/guards/cf-access.ts",
-        "src/modules/guards/json-ld.ts"
+        "src/modules/guards/json-ld.ts",
+        "src/modules/guards/client-ip.ts"
       ],
       "owns": {
-        "files": 9,
+        "files": 10,
         "tables": [],
         "rpcs": [
           "rate_limit_hit"
@@ -1725,10 +1727,11 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
-        "src/lib/geo/"
+        "src/lib/geo/",
+        "src/lib/db-error-copy.ts"
       ],
       "owns": {
-        "files": 35,
+        "files": 43,
         "tables": [
           "conversation_starter_prompts",
           "external_links",
@@ -2260,7 +2263,7 @@
         "src/app/api/recommendations/"
       ],
       "owns": {
-        "files": 17,
+        "files": 18,
         "tables": [
           "recommender_catalogue"
         ],
@@ -3039,6 +3042,17 @@
     "ci/boundaries": {
       "owns": "enforcement machinery (dependency-cruiser config, allowlist, gates)",
       "allowlistSeed": "docs/modularisation/KAN-416-boundaries-allowlist.seed.json"
+    }
+  },
+  "unownedByDesign": {
+    "$comment": "Tracked files under src/ that legitimately belong to no module. A literal list, never globs \u2014 a pattern would silently adopt whatever lands beside these, which is the drift tests/unit/modules-manifest-integrity.test.js (CTL-041) exists to catch. Adding an entry should require an argument.",
+    "paths": {
+      "src/app/favicon.ico": "asset",
+      "src/app/globals.css": "founder-owned design surface, not module code (KAN-411)",
+      "src/types/database/dev.ts": "generated schema snapshot; cross-cutting by construction, drift guarded by CTL-036",
+      "src/types/database/staging.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/prod.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/index.ts": "selects which generated snapshot the app compiles against"
     }
   }
 }

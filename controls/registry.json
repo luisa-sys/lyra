@@ -718,6 +718,23 @@
       "escape_hatch": "Design-Baseline-Ok: <JIRA-KEY> <reason>  (commit trailer; key AND reason both required)",
       "self_test": "scripts/check-design-baseline.py --self-test",
       "added": "2026-08-08"
+    },
+    {
+      "id": "CTL-041",
+      "name": "Module manifest integrity",
+      "defect_class": "manifest-describes-a-tree-that-moved",
+      "summary": "Asserts modules.json against the actual tree via git ls-files: every tracked file under src/ is owned by exactly one module (longest-prefix wins, as in CODEOWNERS), every declared path still exists, and owns.files matches the real count. modules.json is the input to every boundary rule in the modularisation programme - layers, mayDependOn, mustNot, the dependency-cruiser config, the extraction DoD - and nothing validated it. Three defects were live when this was added: client-ip.ts had been MOVED into src/modules/guards/ but never DECLARED there so it stayed unowned (the very gap the moving commit claimed to close); owns.files had drifted on three modules whose paths are DIRECTORIES, profile declaring 35 against an actual 43, because a file added inside a directory never bumps a hand-typed count; and a nested path across two modules read as an ambiguous boundary when it was in fact correct. A module whose declared path no longer exists owns nothing, and every rule written about it is inert while still reading as configured.",
+      "implementation": "tests/unit/modules-manifest-integrity.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415"
+      ],
+      "escape_hatch": "Add the path to UNOWNED_BY_DESIGN in the test, with a comment arguing why it belongs to no module. Deliberately a literal list, never a glob - a pattern would silently adopt whatever lands next to it.",
+      "self_test": "Mutation-proven 2026-08-09, all four directions: removing client-ip from guards' paths, overstating profile's owns.files, declaring a path that does not exist, and deleting convene's more specific nested path each turn the suite red; the clean manifest is green.",
+      "added": "2026-08-09"
     }
   ]
 }
