@@ -2253,7 +2253,16 @@
         "testFiles": 11,
         "testBlocks": 164
       },
-      "enforced": false
+      "enforced": false,
+      "modularisationStatus": {
+        "state": "BLOCKED",
+        "decidedOn": "2026-08-09",
+        "decidedBy": "Luisa",
+        "jira": "KAN-470",
+        "unblockCondition": "Convene is turned back on (CONVENE_ENABLED=true). Nothing else unblocks it.",
+        "reason": "Convene is dark - every src/app/api/convene route 404s behind CONVENE_ENABLED, which is not true on any environment. Extracting 55 files / ~7000 LOC of unexecuted code carries the full risk of a large refactor with none of the payoff, and because the feature is off there is no E2E or soak coverage that would catch a mistake.",
+        "doc": "docs/modularisation/CONVENE-DEFERRED.md"
+      }
     },
     "recommendations": {
       "layer": 3,
