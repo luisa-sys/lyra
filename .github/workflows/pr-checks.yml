@@ -117,6 +117,26 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
+      - name: Design re-baseline gate (CTL-040, KAN-457)
+        # Makes the DoD's design-system attestation load-bearing. That
+        # attestation is prose — a human types `done` — because the Claude
+        # Design source is in a different, PRIVATE repo this CI cannot read.
+        # An attestation satisfied by typing a word is indistinguishable from
+        # no control: the comment-satisfied-assertion shape (CTL-039) one layer
+        # up. So when a PR MOVES a design-bearing file, design/BASELINE.json's
+        # `baseline_ref` must change in the same PR — the claim then rests on a
+        # diff rather than a promise.
+        #
+        # Deliberately narrow: it cannot prove the design system was really
+        # re-pointed (CI still cannot read that repo), only that someone opened
+        # it and recorded its head. Stating that limit is the point; a control
+        # read as broader than it is gets mistaken for coverage.
+        # Escape hatch: `Design-Baseline-Ok: <JIRA-KEY> <reason>` — key AND
+        # reason both required, printed on every run.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-design-baseline.py --self-test
+          BASE_REF="origin/${{ github.base_ref }}" python3 scripts/check-design-baseline.py
       - name: Guard-path-drift check (KAN-414 F1)
         # Guard #12, and the companion to #13 above. Where the DoD gate looks at
         # THIS PR's diff, this one audits the WHOLE registry on every run: every

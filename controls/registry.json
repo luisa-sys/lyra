@@ -698,6 +698,26 @@
       ],
       "escape_hatch": "// comment-assertion-ok: <JIRA-KEY> <reason>",
       "added": "2026-08-02"
+    },
+    {
+      "id": "CTL-040",
+      "name": "Design re-baseline gate",
+      "defect_class": "self-certified-attestation",
+      "summary": "Requires design/BASELINE.json's baseline_ref to change in the SAME PR that moves a design-bearing file (src/app/globals.css, src/components/**, or any src/app/**/*.tsx). Exists because the Claude Design build loop's source lives in a different, PRIVATE repo (github.com/luisa-sys/lyra-design-system) that this CI cannot read, so the extraction DoD could only ask a human to attest 'EXTRACTION-DOD-DESIGN-SYSTEM: done' - and an attestation satisfied by typing a word is indistinguishable from no control, the same defect shape as a comment-satisfied assertion (CTL-039) one layer up. The concrete failure it covers is KAN-419 5.1: build.py reads globals.css and reconstructs 21 @dsCard previews from page sources, so a move breaks its source pointer loudly but on the founder's machine, hours later, with nothing warning the agent that moved it. SCOPE LIMIT, stated deliberately: this does NOT prove the design system was re-pointed or regenerated - CI cannot read that repo. It proves someone opened it, took its head and recorded it here, raising a false attestation's cost from 'type a word' to 'go and look'. Fires only on relocation (D/R), not edits, because an edit leaves the pointer resolving; widening it would make every extraction PR demand a meaningless re-baseline and drive people to the hatch by reflex.",
+      "implementation": "scripts/check-design-baseline.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-457",
+        "KAN-441",
+        "KAN-419",
+        "KAN-415"
+      ],
+      "escape_hatch": "Design-Baseline-Ok: <JIRA-KEY> <reason>  (commit trailer; key AND reason both required)",
+      "self_test": "scripts/check-design-baseline.py --self-test",
+      "added": "2026-08-08"
     }
   ]
 }

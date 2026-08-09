@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 177 entries.
+// 180 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -27,6 +27,7 @@ export const SRC = {
   prChecks: '.github/workflows/pr-checks.yml',
   securityAudit: '.github/workflows/security-audit.yml',
   weeklyReport: '.github/workflows/weekly-report.yml',
+  baseline: 'design/BASELINE.json',
   mcp: 'public/.well-known/mcp.json',
   llms: 'public/llms.txt',
   manifest: 'public/manifest.webmanifest',
@@ -40,6 +41,7 @@ export const SRC = {
   checkCommentOnlyAssertions: 'scripts/check-comment-only-assertions.py',
   checkCompleteBackup: 'scripts/check-complete-backup.sh',
   checkDependencyRules: 'scripts/check-dependency-rules.sh',
+  checkDesignBaseline: 'scripts/check-design-baseline.py',
   checkDocMirrorContent: 'scripts/check-doc-mirror-content.sh',
   checkDocMirrorManifest: 'scripts/check-doc-mirror-manifest.sh',
   checkEnvAccess: 'scripts/check-env-access.py',
@@ -152,6 +154,7 @@ export const SRC = {
   serviceWorkerRegister: 'src/app/service-worker-register.tsx',
   sitemap: 'src/app/sitemap.ts',
   statusPage: 'src/app/status/page.tsx',
+  components: 'src/components',
   providerGate: 'src/lib/age/provider-gate.ts',
   postLoginRedirect: 'src/lib/auth/post-login-redirect.ts',
   authBearer: 'src/lib/convene/auth-bearer.ts',
