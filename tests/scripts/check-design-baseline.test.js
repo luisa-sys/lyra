@@ -33,6 +33,12 @@ const BASELINE = SRC.baseline;
 // `src/components/**` is design-bearing, so if that path ever moves, this file
 // must be revisited. Naming them through the manifest is what makes that true.
 const CARD = `${SRC.components}/card.tsx`;
+// A NON-design-bearing file, named through the manifest so it stays real. It
+// used to be `src/lib/oauth/jwt.ts`; the oauth-as extraction (KAN-415) moved
+// that path out of existence and this test went red — the F4 coupling doing
+// exactly its job, loudly and at the right moment.
+const LIB_DIR = SRC.clientTrust.replace(/\/[^/]+$/, '');
+const LIB_FILE = SRC.clientTrust;
 const CARD_MOVED = `${SRC.components}/card-new.tsx`;
 
 const git = (cwd, ...args) =>
@@ -51,7 +57,7 @@ function makeRepo() {
   fs.mkdirSync(join(dir, 'scripts'), { recursive: true });
   fs.mkdirSync(join(dir, 'design'), { recursive: true });
   fs.mkdirSync(join(dir, SRC.components), { recursive: true });
-  fs.mkdirSync(join(dir, SRC.libOauth), { recursive: true });
+  fs.mkdirSync(join(dir, LIB_DIR), { recursive: true });
 
   fs.copyFileSync(SCRIPT, join(dir, SRC.checkDesignBaseline));
   fs.writeFileSync(
@@ -59,7 +65,7 @@ function makeRepo() {
     JSON.stringify({ baseline_ref: 'aaaaaaaaaaaa1111' }),
   );
   fs.writeFileSync(join(dir, CARD), 'export const C = 1;\n');
-  fs.writeFileSync(join(dir, SRC.jwt), 'export const j = 1;\n');
+  fs.writeFileSync(join(dir, LIB_FILE), 'export const j = 1;\n');
 
   git(dir, 'init', '-q', '.');
   git(dir, 'add', '-A');
@@ -124,7 +130,7 @@ describe('CTL-040 — design re-baseline gate', () => {
     // and people would reach for the escape hatch by reflex — which is how a
     // gate becomes noise and then becomes ignored.
     dir = makeRepo();
-    git(dir, 'mv', SRC.jwt, `${SRC.libOauth}/tokens.ts`);
+    git(dir, 'mv', LIB_FILE, `${LIB_DIR}/tokens.ts`);
     git(dir, 'commit', '-qm', 'move lib');
 
     const r = run(dir);
