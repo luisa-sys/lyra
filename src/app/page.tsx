@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createServiceRoleClient } from "@/modules/platform/supabase-service";
 import { isProdDeploy } from "@/lib/beta-access/flow";
-import { jsonLdSafe } from "@/lib/json-ld";
+import { jsonLdSafe } from "@/modules/guards/json-ld";
 
 /**
  * KAN-272 — minimal, Google-like homepage (June-2026 redesign).

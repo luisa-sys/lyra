@@ -18,8 +18,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RATE_LIMITS } from '@/lib/rate-limit';
-import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/modules/guards/rate-limit-shared';
 import {
   validateRegisterInput,
   createOauthClient,

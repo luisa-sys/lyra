@@ -1,13 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { rateLimit, RATE_LIMITS } from '@/modules/guards/rate-limit';
 import { withParentCookieDomain } from '@/modules/platform/cookie-domain';
-import { cfAccessEnabled, verifyCfAccessToken } from '@/lib/cf-access';
-import { buildCspReportOnly } from '@/lib/security-headers';
-import { clientIp } from '@/lib/client-ip';
+import { cfAccessEnabled, verifyCfAccessToken } from '@/modules/guards/cf-access';
+import { buildCspReportOnly } from '@/modules/guards/security-headers';
+import { clientIp } from '@/modules/guards/client-ip';
 
 // SEC-120: the precedence rule lives in ONE place now — see
-// src/lib/client-ip.ts. It used to be duplicated here and in
+// src/modules/guards/client-ip.ts. It used to be duplicated here and in
 // rate-limit-shared.ts, and the duplication was the recurrence mechanism.
 function getClientIp(request: NextRequest): string {
   return clientIp(request.headers);

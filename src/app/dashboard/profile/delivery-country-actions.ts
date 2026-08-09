@@ -23,8 +23,8 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { type ActionResult } from '@/lib/sanitise';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { type ActionResult } from '@/modules/guards/sanitise';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
 import { dbErrorFor } from '@/lib/db-error-copy';
 

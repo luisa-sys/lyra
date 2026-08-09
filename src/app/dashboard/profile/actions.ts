@@ -2,10 +2,10 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
+import { sanitiseText, sanitiseUrl, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import type { WizardItem } from './steps/types';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/provider-gate';
 import { isAllowedProfileField } from './profile-fields';
@@ -16,7 +16,7 @@ import {
   isControllableSectionKey,
   type SectionVisibility,
 } from './section-visibility';
-import { preflightUpload } from '@/lib/file-magic-bytes';
+import { preflightUpload } from '@/modules/guards/file-magic-bytes';
 import { MAX_SUGGESTION_KEY_LENGTH } from '@/lib/recommend/dismissals';
 import { dbErrorFor } from '@/lib/db-error-copy';
 

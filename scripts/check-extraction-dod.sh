@@ -278,6 +278,7 @@ ARCHIVE_FILES=(
   "docs/modularisation/data/kan432-revalidation.json"     # KAN-432 plan-revalidation snapshot
   "docs/modularisation/kan419-scan.py"                    # superseded by scripts/check-guard-path-drift.py
   "docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md"  # dated plan: names the pre-move layout by design
+  "docs/modularisation/KAN-414-F4-HANDOVER-2026-08-01.md" # dated handover: a snapshot of that day's findings
   "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
 )
 is_archival() {

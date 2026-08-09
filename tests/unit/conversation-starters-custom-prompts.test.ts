@@ -87,7 +87,7 @@ jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => makeClient()),
 }));
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
 jest.mock('@/lib/moderation-audit', () => ({

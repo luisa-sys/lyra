@@ -21,7 +21,7 @@ THREE VERIFIED INSTANCES (mutation-proven 2026-08-01):
      SATISFY THE SCAN. Deleting all three real data-fetch lines (71, 76, 77)
      leaves 11/11 green.
 
-  3. src/lib/rate-limit.ts — a variant of the same root, not comment-based:
+  3. src/modules/guards/rate-limit.ts — a variant of the same root, not comment-based:
      `toContain('limit: 10')` survives raising the auth preset to 1000, because
      the string still appears in the other presets. Out of scope for this
      control, recorded so nobody expects it to be caught here. (SEC-113.)

@@ -34,8 +34,8 @@ import {
   revokeFamily,
 } from '@/modules/oauth-as/lib/refresh';
 import { oauthConfig } from '@/modules/oauth-as/lib/config';
-import { RATE_LIMITS } from '@/lib/rate-limit';
-import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/modules/guards/rate-limit-shared';
 
 function errorJson(error: string, description?: string, status = 400) {
   return NextResponse.json(

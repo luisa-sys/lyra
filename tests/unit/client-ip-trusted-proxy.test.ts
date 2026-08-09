@@ -29,7 +29,7 @@ import {
   transitedCloudflare,
   trustedProxyMode,
   CF_PROXY_HEADER,
-} from '@/lib/client-ip';
+} from '@/modules/guards/client-ip';
 
 const SECRET = 'edge-secret-abc';
 const REAL = '203.0.113.9';

@@ -19,7 +19,7 @@
  */
 
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
-import { rateLimit, type RateLimitConfig } from '@/lib/rate-limit';
+import { rateLimit, type RateLimitConfig } from '@/modules/guards/rate-limit';
 
 export interface SharedRateLimitResult {
   /** True when this request is over the cap and should be refused (429). */
@@ -70,7 +70,7 @@ export async function sharedRateLimit(
   }
 }
 
-import { clientIp } from '@/lib/client-ip';
+import { clientIp } from '@/modules/guards/client-ip';
 
 /**
  * Extract the best-effort client IP from proxy headers (Cloudflare → Vercel).

@@ -36,7 +36,7 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
 
     test('imports checkProfileWriteRateLimit', () => {
       expect(src).toMatch(
-        /import\s*\{\s*checkProfileWriteRateLimit\s*\}\s*from\s*['"]@\/lib\/profile-rate-limit['"]/,
+        /import\s*\{\s*checkProfileWriteRateLimit\s*\}\s*from\s*['"]@\/modules\/guards\/profile-rate-limit['"]/,
       );
     });
 

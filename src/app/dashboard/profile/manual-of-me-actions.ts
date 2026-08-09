@@ -19,9 +19,9 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { dbErrorFor } from '@/lib/db-error-copy';
 import {
   MANUAL_OF_ME_FIELDS,

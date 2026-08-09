@@ -38,11 +38,11 @@ export const env = {
   placesApiKey: () => optionalEnv('GOOGLE_PLACES_API_KEY', '').trim(),
   // SEC-120: shared secret a Cloudflare Transform Rule stamps on every request
   // it proxies, proving the request came through our edge. Empty until the
-  // founder configures the rule — see src/lib/client-ip.ts for why the
+  // founder configures the rule — see src/modules/guards/client-ip.ts for why the
   // unconfigured branch keeps legacy behaviour rather than failing to XFF.
   cfProxySecret: () => optionalEnv('CF_PROXY_SECRET', '').trim(),
   // SEC-120: enforcement is a SECOND switch so the secret can be rolled out in
-  // monitor mode first. See the rollout order in src/lib/client-ip.ts.
+  // monitor mode first. See the rollout order in src/modules/guards/client-ip.ts.
   cfProxyEnforce: () => optionalEnv('CF_PROXY_ENFORCE', '').trim() === '1',
 };
 // Force rebuild 20260329011858
