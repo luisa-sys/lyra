@@ -472,8 +472,35 @@ WARNING: This drops all existing tables before restoring.
 
 1. Run `./scripts/backup-database.sh` to create a backup
 2. Review the SQL in `supabase/migrations/`
-3. Test on dev environment first
-4. Apply with `supabase db push`
+3. Test on **dev** first, then **staging**, then **production**
+4. Apply with the Supabase MCP `apply_migration` tool — **not `supabase db push`**
+
+> ### ⛔ DO NOT run `supabase db push` on this project (verified 2026-08-09)
+>
+> It would attempt to **re-run every migration in the repo**, including old DDL.
+>
+> Migrations here are applied with the MCP `apply_migration` tool, which stamps
+> the row in `supabase_migrations.schema_migrations` with a **fresh timestamp**
+> rather than the version in the filename. So the repo's versions and the
+> database's recorded versions have never matched, and the CLI sees every local
+> migration as unapplied. Check for yourself with `supabase migration list
+> --linked`: the local and remote columns barely overlap. Example — repo
+> `20260727120000_security_invariants_report_v2.sql`, database
+> `20260727123637 security_invariants_report_v2`: same migration, same name,
+> different version.
+>
+> Consequences beyond the footgun: migration parity cannot be checked by
+> version, and DR restore-from-lineage cannot be proven (BUGS-75, SEC-23).
+> Reconciling this needs a decision — **do not hand-edit
+> `supabase_migrations.schema_migrations`.**
+
+> ### ⚠️ `beta` runs on the PRODUCTION database
+>
+> There are three Supabase projects for four environments. A migration must
+> reach **production before the `staging → beta` promote**, not before
+> `beta → main` — schedule it against `beta → main` and you are one promote too
+> late, and beta serves new code against a production database missing the
+> column. See CLAUDE.md "Deployment Pipeline" and gotcha #19.
 
 ### Rolling back a migration
 
