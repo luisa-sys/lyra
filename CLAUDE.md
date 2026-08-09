@@ -408,7 +408,7 @@ Five new blocking behaviours. All are **ratchets**: each has a committed baselin
 | Gate | Fails when | Escape hatch |
 |---|---|---|
 | **`no-circular` / `no-module-to-app`** are now `severity: error` (F3) | any import cycle, or any `src/lib/**` → `src/app/**` edge | none — fix the import. `no-cross-segment-app` stays `warn`: 3 of its 4 edges belong to D8/KAN-422, and `dashboard/page.tsx → (auth)/actions.ts` is **routed nowhere** and needs an owner before it can flip |
-| **CTL-037 env-access** | a NEW file reads `process.env`, or a baselined file reads MORE. `src/lib/env.ts` is exempt — reading env is its job | `// env-access-ok: <JIRA-KEY> <reason>` |
+| **CTL-037 env-access** | a NEW file reads `process.env`, or a baselined file reads MORE. `src/modules/platform/env.ts` is exempt — reading env is its job | `// env-access-ok: <JIRA-KEY> <reason>` |
 | **CTL-036 schema-drift** | the three committed `src/types/database/{dev,staging,prod}.ts` diverge beyond `supabase/schema-drift-baseline.json` | none — add the drift to the baseline with a ticket |
 | **CTL-035 guard-path-drift** | any path pattern in 18 registered artefacts matches no **tracked** file | `# guard-path-ok: <JIRA-KEY> <reason>` |
 | **Coverage floor** (F5) | global coverage drops below statements 45 / branches 37 / functions 32 / lines 46 | none — it may be **raised**, never lowered to make a red build pass |
@@ -736,7 +736,7 @@ These have caused real bugs. Read before making related changes:
     | GNU grep (ubuntu-latest / CI) | 2 | 2 |
     | `/usr/bin/grep` (Apple/BSD, macOS) | **1** ← silent | 2 |
 
-    With `--include`, BSD grep applies the filename filter during the recursive walk and reports *"nothing matched the filter"* rather than *"that path does not exist"* — **exit 1, and nothing on stderr.** So `[ "$GREP_RC" -gt 1 ]` never fired, the match list was empty, and the guard printed `All service-role clients go through src/lib/supabase-service.ts. ✓` and **exited 0 having searched nothing** — the SEC-79 false-green it was written to prevent, reintroduced by a grep dialect. Reproduce:
+    With `--include`, BSD grep applies the filename filter during the recursive walk and reports *"nothing matched the filter"* rather than *"that path does not exist"* — **exit 1, and nothing on stderr.** So `[ "$GREP_RC" -gt 1 ]` never fired, the match list was empty, and the guard printed `All service-role clients go through src/modules/platform/supabase-service.ts. ✓` and **exited 0 having searched nothing** — the SEC-79 false-green it was written to prevent, reintroduced by a grep dialect. Reproduce:
 
     ```bash
     cd "$(mktemp -d)" && /usr/bin/grep -rn x --include='*.ts' src/; echo "exit=$?"

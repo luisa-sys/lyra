@@ -76,7 +76,16 @@ set -uo pipefail
 BASE_REF="${BASE_REF:-origin/develop}"
 HEAD_REF="${HEAD_REF:-HEAD}"
 
-SWEEP_DIRS=(.github scripts docs)
+# The sweep used to be (.github scripts docs), which left src/, supabase/,
+# controls/ and qa-sweep/ unswept. Measured after the KAN-415 D1 extraction: 13
+# live stale references had accumulated in those zones — including
+# controls/registry.json's description of CTL-037, which told the reader that
+# `src/lib/env.ts is exempt by design` when the exempt file had moved. A gate
+# whose own registry misdescribes it is the failure this script exists for.
+#
+# Zero stale references existed in the three swept directories. The sweep was
+# working perfectly, over a third of the estate.
+SWEEP_DIRS=(.github scripts docs src supabase controls qa-sweep)
 MANIFEST_DOC="docs/DOC_SOURCE_OF_TRUTH.md"
 MODULE_MANIFEST="modules.json"
 TEST_DIR="tests"
@@ -282,9 +291,19 @@ ARCHIVE_FILES=(
   "docs/modularisation/KAN-414-F6-threading-fallout.md"   # a MEASUREMENT of 2026-07-29, whose own text says the doc is the deliverable
   "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
 )
+
+# Whole directories that are records rather than descriptions. Kept separate
+# from ARCHIVE_FILES because the membership test is a prefix, not equality —
+# and deliberately short, for the same reason ARCHIVE_FILES is literal.
+ARCHIVE_DIRS=(
+  "supabase/migrations/"   # APPLIED history. Editing one changes nothing on any
+                           # database and destroys the record of what actually ran.
+                           # Three of them name a path D1 moved; all three are correct.
+)
 is_archival() {
-  local f="$1" a
+  local f="$1" a d
   for a in "${ARCHIVE_FILES[@]}"; do [ "$f" = "$a" ] && return 0; done
+  for d in "${ARCHIVE_DIRS[@]}"; do case "$f" in "$d"*) return 0 ;; esac; done
   return 1
 }
 

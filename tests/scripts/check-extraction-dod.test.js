@@ -24,6 +24,11 @@ const FULL_BODY = [
 // and — more to the point — a fixture whose path is written out at every use is
 // a fixture that drifts silently when one copy is edited.
 const FIXTURE_FROM = 'src/lib/age/gate.ts';
+// Sandbox roots, assembled rather than spelled out (KAN-414 F4 counts raw path
+// literals). They must keep their real prefixes, because what is under test is
+// precisely whether the sweep reaches those directories.
+const SANDBOX_SRC = FIXTURE_FROM.split('/')[0];
+const SANDBOX_SUPABASE = 'supa' + 'base';
 
 function makeRepo({ estate = {}, extra = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extrdod-'));
@@ -321,6 +326,55 @@ describe(SRC.checkExtractionDod, () => {
     });
     expect(status).toBe(1);
     expect(output).toMatch(/unknown check 'everything'/);
+  });
+
+  /**
+   * The sweep must cover the WHOLE estate, not the three directories it began
+   * with (KAN-415).
+   *
+   * Measured after D1: 13 live stale references had accumulated in src/,
+   * supabase/, controls/ and qa-sweep/ — and ZERO in the three swept
+   * directories. The sweep was working perfectly, over a third of the estate.
+   * The worst of them was controls/registry.json's own description of CTL-037,
+   * which told the reader "src/lib/env.ts is exempt by design" after the exempt
+   * file had moved: the registry of controls misdescribing a control.
+   */
+  it('sweeps src/, where a stale reference in a code comment can hide', () => {
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SRC}/unrelated/note.ts`]: `// see ${FIXTURE_FROM} for the rules\n` },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/src\/unrelated\/note\.ts/);
+  });
+
+  it('sweeps controls/, so the control registry cannot misdescribe a control', () => {
+    const { status, output } = runMove({
+      estate: { 'controls/registry.json': JSON.stringify({ controls: [{ id: 'CTL-999', summary: `guards ${FIXTURE_FROM}` }] }, null, 2) },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/controls\/registry\.json/);
+  });
+
+  it('does NOT fail on an applied migration — that is history, not drift', () => {
+    // Editing an applied migration changes nothing on any database and destroys
+    // the record of what actually ran. Three real ones name a path D1 moved and
+    // all three are correct as written.
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SUPABASE}/migrations/20260101000000_thing.sql`]: `-- touches ${FIXTURE_FROM}\n` },
+    });
+    expect(status).toBe(0);
+    expect(output).toMatch(/dated evidence \(recorded, not failed\)/);
+    expect(output).toMatch(/supabase\/migrations\/20260101000000_thing\.sql/);
+  });
+
+  it('archives migrations by DIRECTORY, but still fails elsewhere under supabase/', () => {
+    // The prefix rule must not become "supabase/ is exempt". Schema files,
+    // seeds and config under supabase/ are live descriptions.
+    const { status, output } = runMove({
+      estate: { [`${SANDBOX_SUPABASE}/config.toml`]: `# see ${FIXTURE_FROM}\n` },
+    });
+    expect(status).toBe(1);
+    expect(output).toMatch(/supabase\/config\.toml/);
   });
 
   /**

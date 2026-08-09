@@ -40,7 +40,7 @@ import { dbErrorFor } from '@/lib/db-error-copy';
  * a database that lacks the column fails the WHOLE request with PGRST204 —
  * the value being null does not save you. Every write below therefore adds the
  * key ONLY when there is something to write. `npm run type-check` cannot catch
- * this: `src/lib/supabase-server.ts` builds an untyped client. Pinned by
+ * this: `src/modules/platform/supabase-server.ts` builds an untyped client. Pinned by
  * `tests/unit/conversation-starters-custom-prompts.test.ts`.
  */
 
