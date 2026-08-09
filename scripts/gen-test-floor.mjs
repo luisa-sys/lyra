@@ -29,11 +29,15 @@
  */
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'tests/support/test-floor-baseline.json');
+/** Shared with both guard suites — see tests/support/transient-probes.json. */
+const TRANSIENT_PROBE_RE = new RegExp(
+  JSON.parse(readFileSync(join(ROOT, 'tests/support/transient-probes.json'), 'utf8')).pattern,
+);
 
 /** The measurement the guard uses. Kept here so the two cannot disagree. */
 export function measure() {
@@ -41,11 +45,24 @@ export function measure() {
     "npx jest --testPathPatterns='tests/(unit|scripts)' --listTests",
     { cwd: ROOT, encoding: 'utf8' },
   );
-  const files = listed.trim().split('\n').filter(Boolean);
+  // Same transient-probe exclusion as the guard. If these two ever disagree the
+  // baseline is measured against a different set than the gate enforces, which
+  // is a silent, permanent off-by-N.
+  const files = listed
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .filter((f) => !TRANSIENT_PROBE_RE.test(basename(f)));
 
   let blocks = 0;
   for (const f of files) {
-    const content = readFileSync(f, 'utf8');
+    let content;
+    try {
+      content = readFileSync(f, 'utf8');
+    } catch (err) {
+      if (err.code === 'ENOENT') continue;
+      throw err;
+    }
     // test()/it() at line start, allowing indentation. Approximate — does not
     // expand `test.each([...])` — and deliberately matches the heuristic in
     // weekly-report.yml so the two stay aligned.
