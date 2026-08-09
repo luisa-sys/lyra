@@ -132,7 +132,10 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
     const r = runSandbox();
     expect(r.exitCode).toBe(1);
     expect(r.stdout).toMatch(/guard-path-drift: pattern matches no tracked file/);
-    expect(r.stdout).toMatch(/src\/lib\/supabase-service\.ts/);
+    // The pre-move location, taken from the manifest rather than typed: the
+    // assertion is 'it names the path that stopped matching', which is a
+    // property of the move above, not of any particular directory.
+    expect(r.stdout).toContain(SRC.supabaseService);
     expect(r.stdout).toMatch(/This control is not operating/);
     // The remedy must be in the message, not just the failure.
     expect(r.stdout).toMatch(/guard-path-ok: <JIRA-KEY>/);

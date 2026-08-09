@@ -683,10 +683,22 @@ def main() -> int:
 
 
 def self_test() -> int:
-    """Fixtures for the matcher semantics §7.3 says must not be got wrong."""
+    """Fixtures for the matcher semantics §7.3 says must not be got wrong.
+
+    ⚠️ THESE PATHS ARE SYNTHETIC AND MUST NOT BE UPDATED WHEN REAL FILES MOVE.
+    They are a hand-built corpus for exercising the seven matchers, not a
+    description of the repo — `src/modules/x/env.ts` has never existed. Several
+    cases depend on the *shape* of this list (e.g. "literal dir prefix" asserts
+    that exactly two entries sit under `src/lib`), so rewriting a path here
+    silently changes what is being asserted.
+
+    KAN-415 D1: a blanket `src/lib/* -> src/modules/platform/*` rewrite did
+    exactly that, dropping `src/lib` to one match and turning "literal dir
+    prefix" red. The self-test caught it, which is the system working.
+    """
     files = [
         "src/app/page.tsx", "src/app/a/b/c.tsx", "src/lib/age/record.ts",
-        "src/modules/platform/env.ts", "src/modules/x/env.ts", "tests/unit/a.ts",
+        "src/lib/env.ts", "src/modules/x/env.ts", "tests/unit/a.ts",
         "tests/unit/deep/b.ts", "tests/e2e/authed/journey.authed.spec.ts",
     ]
     cases: list[tuple[str, bool]] = []
@@ -700,9 +712,9 @@ def self_test() -> int:
     # fnmatch would match only the top-level file — prove we are not fnmatch.
     cases.append(("bash-dbl-bracket * crosses /",
                   len(m_bash_dbl_bracket("src/app/*.tsx", files)) == 2))
-    # CODEOWNERS leading-'/' anchoring: /src/modules/platform/env.ts is one file, not any nested env.ts.
+    # CODEOWNERS leading-'/' anchoring: /src/lib/env.ts is one file, not any nested env.ts.
     cases.append(("codeowners root anchoring",
-                  m_codeowners("/src/modules/platform/env.ts", files) == ["src/modules/platform/env.ts"]))
+                  m_codeowners("/src/lib/env.ts", files) == ["src/lib/env.ts"]))
     # glob '**' vs '*' depth. The contrast is the point: `**` reaches every
     # nested .ts under tests/ (3 of them, including the 3-deep e2e spec), while
     # `*` stays inside one segment and therefore reaches none, since no .ts sits

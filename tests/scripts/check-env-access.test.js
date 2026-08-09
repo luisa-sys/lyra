@@ -90,11 +90,19 @@ describe('check-env-access.py — against the real tree', () => {
     expect(r.stdout).toMatch(/Direct env reads: \d+ references across \d+ files/);
   });
 
-  test('src/lib/env.ts is exempt and therefore absent from the baseline', () => {
+  test('the env resolver itself is exempt and therefore absent from the baseline', () => {
     // The resolver reading process.env is the point; baselining it would imply
     // it should eventually stop.
+    //
+    // The key is asserted to RESOLVE first. This assertion is negative, and a
+    // negative assertion against `undefined` passes no matter what the code
+    // does: it read `SRC.libEnv` — a key that has never existed in the manifest
+    // — so from the day it was written until KAN-415 D1 it proved nothing. A
+    // missing manifest key is the vacuous-test failure mode of CTL-038 arriving
+    // through the back door, and only a positive assertion elsewhere exposed it.
+    expect(typeof SRC.platformEnv).toBe('string');
     const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE_REL), 'utf-8'));
-    expect(Object.keys(baseline.allowed)).not.toContain(SRC.libEnv);
+    expect(Object.keys(baseline.allowed)).not.toContain(SRC.platformEnv);
   });
 
   test('--show emits a valid baseline shape, so one can be regenerated', () => {
@@ -114,7 +122,10 @@ describe('check-env-access.py — the ratchet, in all four directions', () => {
       expect(r.exitCode).toBe(1);
       expect(r.stdout).toMatch(/NEW direct `process\.env` read/);
       expect(r.stdout).toMatch(/BRAND_NEW_VAR/);
-      expect(r.stdout).toMatch(/src\/lib\/env\.ts instead/);
+      // Derived from the manifest, not written out: this literal was
+      // src/lib/env.ts until KAN-415 D1 moved the resolver, and a hardcoded
+      // path here fails the move rather than the guard.
+      expect(r.stdout).toContain(`${SRC.platformEnv} instead`);
     } finally {
       removeTracked('src/lib/__probe_new.ts');
     }
