@@ -34,8 +34,8 @@
  */
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import type { ActionResult } from '@/lib/sanitise';
-import { rateLimit } from '@/lib/rate-limit';
+import type { ActionResult } from '@/modules/guards/sanitise';
+import { rateLimit } from '@/modules/guards/rate-limit';
 import {
   hashPhoneInput,
   SEARCH_RATE_LIMIT,

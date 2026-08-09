@@ -153,7 +153,7 @@ direction. If `src/` becomes `src/modules/`, the grep root still covers it.
 
 #### A5 · `stryker.config.mjs` — 2 literals, 2 LIVE
 
-`mutate: ['src/app/(auth)/actions.ts', 'src/lib/sanitise.ts']`.
+`mutate: ['src/app/(auth)/actions.ts', 'src/modules/guards/sanitise.ts']`.
 
 **Move-exposure: both, and this one is the quietest failure in the estate.**
 Stryker with a `mutate` list that matches nothing does not error — it reports a
@@ -212,7 +212,7 @@ documented as removed (`src/app/dashboard/loading.tsx`, `src/app/**/loading.*` �
 BUGS-63/66), cross-repo MCP paths cited in a lyra doc (`src/index.ts`,
 `tests/mcp-rate-limit.test.cjs`), or package names that look like paths
 (`supabase/ssr`). A handful are real drift (`src/sanitise.ts` in
-`docs/ARCHITECTURE.md` — the file is `src/lib/sanitise.ts`; `src/lib/age/gate.ts`
+`docs/ARCHITECTURE.md` — the file is `src/modules/guards/sanitise.ts`; `src/lib/age/gate.ts`
 in `docs/TEST_RUNBOOK_SIGNUP_ACCESS_AGE_PUBLISH.md`).
 
 This is the empirical case for the guard: **an unguarded path reference layer

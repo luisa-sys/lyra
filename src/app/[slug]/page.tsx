@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { env } from '@/modules/platform/env';
-import { jsonLdSafe } from '@/lib/json-ld';
+import { jsonLdSafe } from '@/modules/guards/json-ld';
 import { createClient as createSupabaseServerClient } from '@/modules/platform/supabase-server';
 import {
   coerceSectionVisibility,

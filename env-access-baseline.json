@@ -77,7 +77,7 @@
       "LYRA_BETA_NOTIFY_EMAIL",
       "RESEND_API_KEY"
     ],
-    "src/lib/cf-access.ts": [
+    "src/modules/guards/cf-access.ts": [
       "CF_ACCESS_AUD",
       "CF_ACCESS_TEAM_DOMAIN"
     ],
@@ -135,7 +135,7 @@
     "src/lib/retention/gatherings.ts": [
       "RETENTION_GATHERINGS_MONTHS"
     ],
-    "src/lib/turnstile.ts": [
+    "src/modules/guards/turnstile.ts": [
       "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
       "TURNSTILE_SECRET_KEY"
     ],

@@ -46,7 +46,7 @@ import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
 

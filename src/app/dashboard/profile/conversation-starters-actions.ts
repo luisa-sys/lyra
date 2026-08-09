@@ -2,9 +2,9 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
 import { dbErrorFor } from '@/lib/db-error-copy';
 

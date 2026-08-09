@@ -107,7 +107,7 @@ IMPORT = re.compile(
 INVOKE = re.compile(r"\b(?:execFileSync|execSync|spawnSync|spawn|execa)\s*\(")
 SRC_KEY = re.compile(r"SRC\.([A-Za-z_$][\w$]*)")
 # The `(?:\.{1,2}/)*` prefix is load-bearing. Anchoring the repo path directly
-# to the opening quote missed `path.join(__dirname, '../../src/lib/rate-limit.ts')`
+# to the opening quote missed `path.join(__dirname, '../../src/modules/guards/rate-limit.ts')`
 # — the single most common way a test names its subject — and that blind spot
 # hid a VACUOUS suite on the auth rate limiter, where three clean compiling
 # mutations (off-by-one on the limit, auth limit 10 -> 1000, counter never

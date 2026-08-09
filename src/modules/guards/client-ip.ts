@@ -4,7 +4,7 @@
  * WHY THIS FILE EXISTS
  * --------------------
  * The precedence rule used to live in two places — `getClientIp` in
- * `src/middleware.ts` and `clientIpFromHeaders` in `src/lib/rate-limit-shared.ts`
+ * `src/middleware.ts` and `clientIpFromHeaders` in `src/modules/guards/rate-limit-shared.ts`
  * — and both preferred `cf-connecting-ip`, a header any client can set:
  *
  *     cf-connecting-ip ?? x-forwarded-for ?? x-real-ip ?? 'unknown'

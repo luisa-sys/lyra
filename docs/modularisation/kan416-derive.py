@@ -61,15 +61,15 @@ MODULE_RULES = [
     ("src/lib/content-moderation.ts", "contracts"),
     ("src/lib/moderation-policy.ts", "contracts"),
     # --- Layer 0: guards (request/output guarding utilities) JUDGEMENT ---
-    ("src/lib/rate-limit.ts", "guards"),
-    ("src/lib/rate-limit-shared.ts", "guards"),
-    ("src/lib/profile-rate-limit.ts", "guards"),
-    ("src/lib/turnstile.ts", "guards"),
-    ("src/lib/sanitise.ts", "guards"),
-    ("src/lib/file-magic-bytes.ts", "guards"),
-    ("src/lib/security-headers.ts", "guards"),
-    ("src/lib/cf-access.ts", "guards"),
-    ("src/lib/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
+    ("src/modules/guards/rate-limit.ts", "guards"),
+    ("src/modules/guards/rate-limit-shared.ts", "guards"),
+    ("src/modules/guards/profile-rate-limit.ts", "guards"),
+    ("src/modules/guards/turnstile.ts", "guards"),
+    ("src/modules/guards/sanitise.ts", "guards"),
+    ("src/modules/guards/file-magic-bytes.ts", "guards"),
+    ("src/modules/guards/security-headers.ts", "guards"),
+    ("src/modules/guards/cf-access.ts", "guards"),
+    ("src/modules/guards/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
     # --- Layer 0: observability ---
     ("src/lib/metrics.ts", "observability"),
     ("src/lib/sentry-scrub.ts", "observability"),

@@ -332,15 +332,15 @@
     "guards": {
       "layer": 1,
       "paths": [
-        "src/lib/rate-limit.ts",
-        "src/lib/rate-limit-shared.ts",
-        "src/lib/profile-rate-limit.ts",
-        "src/lib/turnstile.ts",
-        "src/lib/sanitise.ts",
-        "src/lib/file-magic-bytes.ts",
-        "src/lib/security-headers.ts",
-        "src/lib/cf-access.ts",
-        "src/lib/json-ld.ts"
+        "src/modules/guards/rate-limit.ts",
+        "src/modules/guards/rate-limit-shared.ts",
+        "src/modules/guards/profile-rate-limit.ts",
+        "src/modules/guards/turnstile.ts",
+        "src/modules/guards/sanitise.ts",
+        "src/modules/guards/file-magic-bytes.ts",
+        "src/modules/guards/security-headers.ts",
+        "src/modules/guards/cf-access.ts",
+        "src/modules/guards/json-ld.ts"
       ],
       "owns": {
         "files": 9,
@@ -353,7 +353,7 @@
       "publicApi": [
         {
           "symbol": "sanitiseText",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 6,
           "consumingModules": [
             "convene",
@@ -364,7 +364,7 @@
         },
         {
           "symbol": "type:ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -373,7 +373,7 @@
         },
         {
           "symbol": "checkProfileWriteRateLimit",
-          "file": "src/lib/profile-rate-limit.ts",
+          "file": "src/modules/guards/profile-rate-limit.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -382,7 +382,7 @@
         },
         {
           "symbol": "RATE_LIMITS",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 4,
           "consumingModules": [
             "access",
@@ -392,7 +392,7 @@
         },
         {
           "symbol": "rateLimit",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 3,
           "consumingModules": [
             "access",
@@ -403,7 +403,7 @@
         },
         {
           "symbol": "clientIpFromHeaders",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -412,7 +412,7 @@
         },
         {
           "symbol": "sharedRateLimit",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -421,7 +421,7 @@
         },
         {
           "symbol": "jsonLdSafe",
-          "file": "src/lib/json-ld.ts",
+          "file": "src/modules/guards/json-ld.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal",
@@ -431,7 +431,7 @@
         },
         {
           "symbol": "preflightUpload",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 2,
           "consumingModules": [
             "profile"
@@ -440,7 +440,7 @@
         },
         {
           "symbol": "verifyTurnstile",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -449,7 +449,7 @@
         },
         {
           "symbol": "turnstileSiteKey",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -458,7 +458,7 @@
         },
         {
           "symbol": "sanitiseUrl",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -467,7 +467,7 @@
         },
         {
           "symbol": "ALLOWED_MIMES",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -476,7 +476,7 @@
         },
         {
           "symbol": "extensionForMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -485,7 +485,7 @@
         },
         {
           "symbol": "type:AllowedMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -494,7 +494,7 @@
         },
         {
           "symbol": "ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "account"
@@ -503,7 +503,7 @@
         },
         {
           "symbol": "sanitiseSearchTerm",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -512,7 +512,7 @@
         },
         {
           "symbol": "cfAccessEnabled",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -521,7 +521,7 @@
         },
         {
           "symbol": "verifyCfAccessToken",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -530,7 +530,7 @@
         },
         {
           "symbol": "buildCspReportOnly",
-          "file": "src/lib/security-headers.ts",
+          "file": "src/modules/guards/security-headers.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -2917,7 +2917,7 @@
         "src/lib/metrics.ts"
       ],
       "guards": [
-        "src/lib/rate-limit-shared.ts"
+        "src/modules/guards/rate-limit-shared.ts"
       ]
     },
     "totalFiles": 39
