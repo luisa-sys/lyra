@@ -329,7 +329,7 @@ The gates, in summary — this table is **not** the full set:
 The pipeline is: **develop → staging → beta → main** (promotion-based, four envs since KAN-175).
 
 - All feature work goes to `develop` via PR
-- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote` (also auto-runs Sunday 23:00 UTC — see KAN-173 / `docs/RELEASE_POLICY.md`)
+- Promotion to staging: `gh workflow run promote-to-staging.yml -f confirm=promote`. ⚠️ **The Sunday 23:00 UTC auto-promote is OFF** (decided 2026-08-09). `auto-promote-to-staging.yml` is `disabled_manually` and is recorded as a deliberate exception in `.github/scheduled-workflow-exceptions.json` under SEC-98 — an unattended promote sits awkwardly beside manual-only production change control. This line previously said it auto-ran, and had said so for the ~8 weeks the workflow was actually dark; **documentation describing a schedule is indistinguishable from a schedule**, which is half of why CTL-042 exists. See KAN-173 / `docs/RELEASE_POLICY.md` for the original cadence.
 - Promotion to beta: `gh workflow run promote-staging-to-beta.yml -f confirm=promote` (manual — gate for `beta.checklyra.com`, which uses prod Supabase + the in-app beta gate; see KAN-175)
 - Promotion to production: `gh workflow run promote-to-production.yml -f confirm=PRODUCTION` (merges `beta → main`). **Default: manual — no exception currently active.** **WITHDRAWN 2026-07-23:** the fix-only auto-promote-to-production exception (originally owner-authorized 2026-06-21, allowing the weekly health/regression routine — SEC-22 / `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md` — to auto-promote when every pending change was a bug-fix) was revoked by Luisa on 2026-07-23. Production promote is manual-only again; the routine prepares + reports release-readiness only and must NOT run `promote-to-production.yml` or `promote-staging-to-beta.yml` under any auto-fix-only condition. The historical exception text below (and in `docs/RELEASE_POLICY.md` / `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`) is retained for context only — do not act on it unless Luisa explicitly reinstates it in writing, here, with a new date. <details><summary>Historical exception text (inactive)</summary>
 
@@ -824,7 +824,7 @@ See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
 
 - Sunday 02:00 — Database backup
 - Sunday 02:30 — Platform backup (repos, DNS, schema to R2)
-- Sunday 04:00 — Stryker mutation testing
+- Sunday 04:00 — Stryker mutation testing. **Re-enabled 2026-08-09** after being `disabled_manually` and silently dark since 2026-06-14; this line kept describing it as live throughout (CTL-042).
 - Sunday 05:00 — Backup restore test
 - Monday 07:00 — Weekly report (emails via Resend)
 - Wednesday 07:00 — Security audit (npm audit + email alerts via Resend)

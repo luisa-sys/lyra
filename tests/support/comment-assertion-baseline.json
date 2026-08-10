@@ -153,18 +153,6 @@
       "severity": "comment-shadowed"
     },
     {
-      "test": "tests/unit/auth.test.js",
-      "subject": "src/middleware.ts",
-      "assertion": "/dashboard",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/auth.test.js",
-      "subject": "src/middleware.ts",
-      "assertion": "/login",
-      "severity": "comment-shadowed"
-    },
-    {
       "test": "tests/unit/backup.test.js",
       "subject": ".github/workflows/backup-database.yml",
       "assertion": "SUPABASE_DB_URL",

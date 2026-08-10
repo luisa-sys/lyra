@@ -494,7 +494,7 @@ REGISTRY: list[Artefact] = [
              "silent-skip on drift: a moved worker file means the deploy never runs"),
     Artefact(".github/workflows/pr-checks.yml", "regex",
              _fixed(".github/workflows/pr-checks.yml",
-                    [r"^(src/app/|src/middleware|supabase/migrations/|\.github/workflows/"
+                    [r"^(src/app/|src/middleware|src/modules/|supabase/migrations/|\.github/workflows/"
                      r"|public/\.well-known/|scripts/)"]),
              "architecture-doc freshness check"),
     # --- build / test tooling ------------------------------------------------

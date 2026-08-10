@@ -317,6 +317,13 @@ jobs:
         # SCHEDULED_WORKFLOW_GATE_ENFORCE=1.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # FLIPPED TO BLOCKING 2026-08-09. It shipped warn-only because four
+          # workflows were dark pending a founder decision, and a gate that
+          # blocks every unrelated PR on something nobody can clear is a gate
+          # that gets switched off. That decision is made: two re-enabled, two
+          # excepted with reasons. Nothing is left unaccounted for, so the
+          # warn->block path completes here.
+          SCHEDULED_WORKFLOW_GATE_ENFORCE: '1'
         run: |
           set -euo pipefail
           python3 scripts/check-scheduled-workflows-active.py --self-test
@@ -399,7 +406,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run ESLint
-        run: npm run lint
+        # CTL-046 lives in eslint.config.mjs — a no-restricted-syntax rule scoped
+        # to the access gates. Naming the config here is what connects the
+        # control to its invoker in controls/registry.json; `npm run lint` alone
+        # reaches it only by convention, and a convention is precisely what the
+        # registry exists to stop us relying on.
+        run: npm run lint  # uses eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)
@@ -461,7 +473,7 @@ jobs:
           
           # Check if any key files changed
           KEY_CHANGE=false
-          echo "$CHANGED" | grep -qE "^(src/app/|src/middleware|supabase/migrations/|\.github/workflows/|public/\.well-known/|scripts/)" && KEY_CHANGE=true
+          echo "$CHANGED" | grep -qE "^(src/app/|src/middleware|src/modules/|supabase/migrations/|\.github/workflows/|public/\.well-known/|scripts/)" && KEY_CHANGE=true
           
           # If key files changed, check if ARCHITECTURE.md was also updated
           if [ "$KEY_CHANGE" = true ]; then
