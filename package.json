@@ -17,6 +17,7 @@
     "db:migrate": "echo 'No migrations configured yet'",
     "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js",
     "gen:test-paths": "node scripts/gen-test-paths.mjs",
+    "gen:test-floor": "node scripts/gen-test-floor.mjs",
     "qa:preflight": "python3 qa-sweep/preflight.py",
     "qa:inventory": "python3 qa-sweep/inventory.py",
     "qa:coverage": "python3 qa-sweep/coverage.py"

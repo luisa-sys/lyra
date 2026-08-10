@@ -17,11 +17,12 @@
  *     cannot supply a profile_id.
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
+import { dbErrorFor } from '@/lib/db-error-copy';
 import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
@@ -134,7 +135,7 @@ export async function updateManualOfMe(
       { onConflict: 'profile_id' }
     );
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-manual-of-me', error) };
 
   revalidatePath('/dashboard/profile');
   return { success: true };

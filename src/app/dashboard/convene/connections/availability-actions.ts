@@ -9,7 +9,7 @@
  * profiles.share_availability_with_contacts (paired SEC-18 change).
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 export async function setAvailabilitySharing(

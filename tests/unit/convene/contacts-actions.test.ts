@@ -14,8 +14,8 @@ jest.mock('next/cache', () => ({
 }));
 
 const mockRateLimit = jest.fn();
-jest.mock('@/lib/rate-limit', () => {
-  const actual = jest.requireActual('@/lib/rate-limit');
+jest.mock('@/modules/guards/rate-limit', () => {
+  const actual = jest.requireActual('@/modules/guards/rate-limit');
   return {
     ...actual,
     rateLimit: (key: string, config: { limit: number; windowSeconds: number }) => mockRateLimit(key, config),
@@ -97,7 +97,7 @@ function fromImpl(table: string) {
   };
 }
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: {
       getUser: jest.fn().mockImplementation(() =>

@@ -1,12 +1,12 @@
 /**
- * Real coverage for src/lib/rate-limit.ts — the first test that executes it.
+ * Real coverage for src/modules/guards/rate-limit.ts — the first test that executes it.
  *
  * WHY THIS EXISTS
  * ---------------
  * `tests/unit/rate-limit.test.js` is titled *"Real unit tests for
- * src/lib/rate-limit.ts"* and its line 8 reads:
+ * src/modules/guards/rate-limit.ts"* and its line 8 reads:
  *
- *     // --- Replicated from src/lib/rate-limit.ts ---
+ *     // --- Replicated from src/modules/guards/rate-limit.ts ---
  *
  * It then re-declares `store`, `CLEANUP_INTERVAL`, `cleanup()` and
  * `rateLimit()` and asserts against those copies. Its only contact with the
@@ -16,7 +16,7 @@
  * PROVEN VACUOUS (2026-08-01) — three mutations of the REAL module, each of
  * which compiles cleanly and each of which left all 8 of its tests green:
  *
- *   | Mutation to src/lib/rate-limit.ts        | rate-limit.test.js |
+ *   | Mutation to src/modules/guards/rate-limit.ts        | rate-limit.test.js |
  *   |------------------------------------------|--------------------|
  *   | `entry.count > config.limit + 1`         | 8/8 PASS           |
  *   | auth preset `limit: 10` -> `limit: 1000` | 8/8 PASS           |
@@ -30,7 +30,7 @@
  * WHAT WAS UNGUARDED
  * ------------------
  * `rateLimit()` is the brute-force control behind `src/middleware.ts`,
- * `src/lib/profile-rate-limit.ts`, `src/lib/rate-limit-shared.ts` (the SEC-62
+ * `src/modules/guards/profile-rate-limit.ts`, `src/modules/guards/rate-limit-shared.ts` (the SEC-62
  * durable-degradation fallback) and the OAuth `token`, `revoke` and `register`
  * routes. An off-by-one or a raised preset there is a silent weakening of auth
  * protection on a service holding minors' personal data.
@@ -43,13 +43,13 @@
  * kind of vacuous.
  */
 
-type RateLimitModule = typeof import('@/lib/rate-limit');
+type RateLimitModule = typeof import('@/modules/guards/rate-limit');
 
 /** Load a pristine copy of the module, so `store` starts empty. */
 async function freshModule(): Promise<RateLimitModule> {
   let mod!: RateLimitModule;
   await jest.isolateModulesAsync(async () => {
-    mod = await import('@/lib/rate-limit');
+    mod = await import('@/modules/guards/rate-limit');
   });
   return mod;
 }

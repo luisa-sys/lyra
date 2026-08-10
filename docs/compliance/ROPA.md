@@ -146,6 +146,7 @@ recording it here is a red build.
 | `gathering_events_log` | P4 | `actor_user_id` | exported |
 | `relationship_signals` | P4 | `user_id` | exported — **inferred** data; Art.15 covers inferences |
 | `venue_ratings` | P4 | `user_id` | exported |
+| `gift_suggestion_dismissals` | P4 | `profile_id` | exported — the member's own editorial decisions about their profile (KAN-443) |
 | `venue_visits` | P4 | via `gathering_id` | exported (join) |
 | `oauth_connections` | P4 | `owner_user_id` | exported (token refs redacted) |
 | `oauth_consents` | P4 | `user_id` | exported |

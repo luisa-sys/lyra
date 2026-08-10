@@ -11,7 +11,7 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { randomBytes, createHash, randomUUID } from 'crypto';
 import { oauthConfig } from './config';
 import { issueAccessTokenJti } from './access-tokens';

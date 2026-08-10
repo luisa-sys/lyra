@@ -18,13 +18,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RATE_LIMITS } from '@/lib/rate-limit';
-import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/modules/guards/rate-limit-shared';
 import {
   validateRegisterInput,
   createOauthClient,
   type RegistrationError,
-} from '@/lib/oauth/clients';
+} from '@/modules/oauth-as/lib/clients';
 
 export async function POST(req: NextRequest) {
   // SEC-19 / F-05: per-IP rate limit. DCR is unauthenticated and inserts an

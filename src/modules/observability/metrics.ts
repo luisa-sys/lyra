@@ -10,8 +10,8 @@
  * if they fire a batch of RPC calls in parallel.
  */
 
-import { createClient } from '@/lib/supabase-server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createClient } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 
 export interface MetricsSnapshot {
   profile_signups: number;

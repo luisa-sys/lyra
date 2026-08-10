@@ -15,8 +15,8 @@ jest.mock('next/headers', () => ({
   headers: () => headersMock(),
 }));
 
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
-import { RATE_LIMITS } from '@/lib/rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
 
 describe('KAN-231: checkProfileWriteRateLimit', () => {
   beforeEach(() => {

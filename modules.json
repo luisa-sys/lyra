@@ -21,12 +21,12 @@
     "platform": {
       "layer": 0,
       "paths": [
-        "src/lib/supabase-browser.ts",
-        "src/lib/supabase-server.ts",
-        "src/lib/supabase-service.ts",
-        "src/lib/env.ts",
-        "src/lib/deploy-env.ts",
-        "src/lib/cookie-domain.ts"
+        "src/modules/platform/supabase-browser.ts",
+        "src/modules/platform/supabase-server.ts",
+        "src/modules/platform/supabase-service.ts",
+        "src/modules/platform/env.ts",
+        "src/modules/platform/deploy-env.ts",
+        "src/modules/platform/cookie-domain.ts"
       ],
       "owns": {
         "files": 6,
@@ -37,7 +37,7 @@
       "publicApi": [
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-server.ts",
+          "file": "src/modules/platform/supabase-server.ts",
           "importingFiles": 46,
           "consumingModules": [
             "access",
@@ -58,7 +58,7 @@
         },
         {
           "symbol": "createServiceRoleClient",
-          "file": "src/lib/supabase-service.ts",
+          "file": "src/modules/platform/supabase-service.ts",
           "importingFiles": 39,
           "consumingModules": [
             "access",
@@ -79,7 +79,7 @@
         },
         {
           "symbol": "env",
-          "file": "src/lib/env.ts",
+          "file": "src/modules/platform/env.ts",
           "importingFiles": 14,
           "consumingModules": [
             "access",
@@ -93,7 +93,7 @@
         },
         {
           "symbol": "getDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 4,
           "consumingModules": [
             "admin",
@@ -104,7 +104,7 @@
         },
         {
           "symbol": "manageableEnvironments",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -113,7 +113,7 @@
         },
         {
           "symbol": "type:DeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -123,7 +123,7 @@
         },
         {
           "symbol": "isDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -132,7 +132,7 @@
         },
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-browser.ts",
+          "file": "src/modules/platform/supabase-browser.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -141,7 +141,7 @@
         },
         {
           "symbol": "withParentCookieDomain",
-          "file": "src/lib/cookie-domain.ts",
+          "file": "src/modules/platform/cookie-domain.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -216,10 +216,11 @@
       "layer": 0,
       "paths": [
         "src/lib/content-moderation.ts",
-        "src/lib/moderation-policy.ts"
+        "src/lib/moderation-policy.ts",
+        "src/lib/gdpr/person-keyed-tables.ts"
       ],
       "owns": {
-        "files": 2,
+        "files": 3,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -332,18 +333,19 @@
     "guards": {
       "layer": 1,
       "paths": [
-        "src/lib/rate-limit.ts",
-        "src/lib/rate-limit-shared.ts",
-        "src/lib/profile-rate-limit.ts",
-        "src/lib/turnstile.ts",
-        "src/lib/sanitise.ts",
-        "src/lib/file-magic-bytes.ts",
-        "src/lib/security-headers.ts",
-        "src/lib/cf-access.ts",
-        "src/lib/json-ld.ts"
+        "src/modules/guards/rate-limit.ts",
+        "src/modules/guards/rate-limit-shared.ts",
+        "src/modules/guards/profile-rate-limit.ts",
+        "src/modules/guards/turnstile.ts",
+        "src/modules/guards/sanitise.ts",
+        "src/modules/guards/file-magic-bytes.ts",
+        "src/modules/guards/security-headers.ts",
+        "src/modules/guards/cf-access.ts",
+        "src/modules/guards/json-ld.ts",
+        "src/modules/guards/client-ip.ts"
       ],
       "owns": {
-        "files": 9,
+        "files": 10,
         "tables": [],
         "rpcs": [
           "rate_limit_hit"
@@ -353,7 +355,7 @@
       "publicApi": [
         {
           "symbol": "sanitiseText",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 6,
           "consumingModules": [
             "convene",
@@ -364,7 +366,7 @@
         },
         {
           "symbol": "type:ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -373,7 +375,7 @@
         },
         {
           "symbol": "checkProfileWriteRateLimit",
-          "file": "src/lib/profile-rate-limit.ts",
+          "file": "src/modules/guards/profile-rate-limit.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -382,7 +384,7 @@
         },
         {
           "symbol": "RATE_LIMITS",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 4,
           "consumingModules": [
             "access",
@@ -392,7 +394,7 @@
         },
         {
           "symbol": "rateLimit",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 3,
           "consumingModules": [
             "access",
@@ -403,7 +405,7 @@
         },
         {
           "symbol": "clientIpFromHeaders",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -412,7 +414,7 @@
         },
         {
           "symbol": "sharedRateLimit",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -421,7 +423,7 @@
         },
         {
           "symbol": "jsonLdSafe",
-          "file": "src/lib/json-ld.ts",
+          "file": "src/modules/guards/json-ld.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal",
@@ -431,7 +433,7 @@
         },
         {
           "symbol": "preflightUpload",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 2,
           "consumingModules": [
             "profile"
@@ -440,7 +442,7 @@
         },
         {
           "symbol": "verifyTurnstile",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -449,7 +451,7 @@
         },
         {
           "symbol": "turnstileSiteKey",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -458,7 +460,7 @@
         },
         {
           "symbol": "sanitiseUrl",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -467,7 +469,7 @@
         },
         {
           "symbol": "ALLOWED_MIMES",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -476,7 +478,7 @@
         },
         {
           "symbol": "extensionForMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -485,7 +487,7 @@
         },
         {
           "symbol": "type:AllowedMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -494,7 +496,7 @@
         },
         {
           "symbol": "ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "account"
@@ -503,7 +505,7 @@
         },
         {
           "symbol": "sanitiseSearchTerm",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -512,7 +514,7 @@
         },
         {
           "symbol": "cfAccessEnabled",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -521,7 +523,7 @@
         },
         {
           "symbol": "verifyCfAccessToken",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -530,7 +532,7 @@
         },
         {
           "symbol": "buildCspReportOnly",
-          "file": "src/lib/security-headers.ts",
+          "file": "src/modules/guards/security-headers.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -606,8 +608,8 @@
     "observability": {
       "layer": 1,
       "paths": [
-        "src/lib/metrics.ts",
-        "src/lib/sentry-scrub.ts",
+        "src/modules/observability/metrics.ts",
+        "src/modules/observability/sentry-scrub.ts",
         "src/app/api/health/",
         "src/app/status/"
       ],
@@ -622,7 +624,7 @@
       "publicApi": [
         {
           "symbol": "getAnomalyWindowAdmin",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -631,7 +633,7 @@
         },
         {
           "symbol": "type:AnomalyWindowKey",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -640,7 +642,7 @@
         },
         {
           "symbol": "type:MetricsSnapshot",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1541,7 +1543,7 @@
     "oauth-as": {
       "layer": 3,
       "paths": [
-        "src/lib/oauth/",
+        "src/modules/oauth-as/lib/",
         "src/app/oauth/",
         "src/app/api/well-known/"
       ],
@@ -1725,10 +1727,11 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
-        "src/lib/geo/"
+        "src/lib/geo/",
+        "src/lib/db-error-copy.ts"
       ],
       "owns": {
-        "files": 35,
+        "files": 43,
         "tables": [
           "conversation_starter_prompts",
           "external_links",
@@ -2250,7 +2253,16 @@
         "testFiles": 11,
         "testBlocks": 164
       },
-      "enforced": false
+      "enforced": false,
+      "modularisationStatus": {
+        "state": "BLOCKED",
+        "decidedOn": "2026-08-09",
+        "decidedBy": "Luisa",
+        "jira": "KAN-470",
+        "unblockCondition": "Convene is turned back on (CONVENE_ENABLED=true). Nothing else unblocks it.",
+        "reason": "Convene is dark - every src/app/api/convene route 404s behind CONVENE_ENABLED, which is not true on any environment. Extracting 55 files / ~7000 LOC of unexecuted code carries the full risk of a large refactor with none of the payoff, and because the feature is off there is no E2E or soak coverage that would catch a mistake.",
+        "doc": "docs/modularisation/CONVENE-DEFERRED.md"
+      }
     },
     "recommendations": {
       "layer": 3,
@@ -2260,7 +2272,7 @@
         "src/app/api/recommendations/"
       ],
       "owns": {
-        "files": 17,
+        "files": 18,
         "tables": [
           "recommender_catalogue"
         ],
@@ -2871,11 +2883,11 @@
         "src/lib/convene/vault.ts"
       ],
       "oauth-as": [
-        "src/lib/oauth/access-tokens.ts",
-        "src/lib/oauth/clients.ts",
-        "src/lib/oauth/codes.ts",
-        "src/lib/oauth/consents.ts",
-        "src/lib/oauth/refresh.ts"
+        "src/modules/oauth-as/lib/access-tokens.ts",
+        "src/modules/oauth-as/lib/clients.ts",
+        "src/modules/oauth-as/lib/codes.ts",
+        "src/modules/oauth-as/lib/consents.ts",
+        "src/modules/oauth-as/lib/refresh.ts"
       ],
       "recommendations": [
         "src/app/api/recommendations/[slug]/route.ts",
@@ -2914,10 +2926,10 @@
         "src/lib/affiliate/link-service.ts"
       ],
       "observability": [
-        "src/lib/metrics.ts"
+        "src/modules/observability/metrics.ts"
       ],
       "guards": [
-        "src/lib/rate-limit-shared.ts"
+        "src/modules/guards/rate-limit-shared.ts"
       ]
     },
     "totalFiles": 39
@@ -3039,6 +3051,17 @@
     "ci/boundaries": {
       "owns": "enforcement machinery (dependency-cruiser config, allowlist, gates)",
       "allowlistSeed": "docs/modularisation/KAN-416-boundaries-allowlist.seed.json"
+    }
+  },
+  "unownedByDesign": {
+    "$comment": "Tracked files under src/ that legitimately belong to no module. A literal list, never globs \u2014 a pattern would silently adopt whatever lands beside these, which is the drift tests/unit/modules-manifest-integrity.test.js (CTL-041) exists to catch. Adding an entry should require an argument.",
+    "paths": {
+      "src/app/favicon.ico": "asset",
+      "src/app/globals.css": "founder-owned design surface, not module code (KAN-411)",
+      "src/types/database/dev.ts": "generated schema snapshot; cross-cutting by construction, drift guarded by CTL-036",
+      "src/types/database/staging.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/prod.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/index.ts": "selects which generated snapshot the app compiles against"
     }
   }
 }

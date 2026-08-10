@@ -9,8 +9,8 @@
  * so the read costs one indexed lookup and needs no service-role credentials on
  * the login path. Only the WRITE escalates to the service role.
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import type { createClient as createServerClient } from '@/lib/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import type { createClient as createServerClient } from '@/modules/platform/supabase-server';
 
 type ServerClient = Awaited<ReturnType<typeof createServerClient>>;
 

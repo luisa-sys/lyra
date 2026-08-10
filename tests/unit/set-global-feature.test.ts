@@ -19,7 +19,7 @@ jest.mock('@/lib/admin', () => ({
 
 // Deterministic environment context: this "deployment" is dev, so only 'dev'
 // is manageable. Keeps the real isDeployEnv shape.
-jest.mock('@/lib/deploy-env', () => ({
+jest.mock('@/modules/platform/deploy-env', () => ({
   isDeployEnv: (v: string) => ['dev', 'staging', 'beta', 'prod'].includes(v),
   manageableEnvironments: () => ['dev'],
   getDeployEnv: () => 'dev',

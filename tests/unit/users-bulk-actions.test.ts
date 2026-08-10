@@ -35,7 +35,7 @@ jest.mock('@/lib/admin', () => ({
   logModerationActionsBatch: (...a: unknown[]) => mockLogBatch(...a),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({ rpc: (...a: unknown[]) => mockRpc(...a) }),
 }));
 

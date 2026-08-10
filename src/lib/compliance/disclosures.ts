@@ -19,7 +19,7 @@
  * each key's default, so a DB hiccup falls back to the default disclosure state.
  */
 import { getGlobalSwitches } from '@/lib/features/global-switches-service';
-import { getDeployEnv } from '@/lib/deploy-env';
+import { getDeployEnv } from '@/modules/platform/deploy-env';
 import type { GlobalFeatureKey } from '@/lib/features/global-features';
 
 export interface DisclosureFlags {

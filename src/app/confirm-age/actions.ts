@@ -8,8 +8,8 @@
  */
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
 import { recordAgeDeclaration } from '@/lib/age/record-declaration';
 import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
 

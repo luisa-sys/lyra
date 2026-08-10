@@ -16,6 +16,9 @@ defaults:
 
 permissions:
   contents: read
+  # CTL-042 reads /actions/workflows to learn each workflow's STATE, which is
+  # the one fact about a workflow that does not live in the repository. Read-only.
+  actions: read
 
 jobs:
   checks:
@@ -48,7 +51,7 @@ jobs:
         run: bash scripts/check-server-action-exports.sh
       - name: Service-role client centralisation check (KAN-352)
         # Static scan forbidding any call to env.supabaseServiceRoleKey()
-        # outside src/lib/supabase-service.ts. The service-role client
+        # outside src/modules/platform/supabase-service.ts. The service-role client
         # bypasses all RLS; centralising its construction in one hardened
         # factory means a hardening change lands once, not ~30 times.
         # Allow-list with # service-role-ok: <reason>.
@@ -116,7 +119,31 @@ jobs:
         # See docs/MODULARISATION_EXTRACTION_DOD.md.
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          # The mcp-repo check reads luisa-sys/lyra-mcp-server, which is PUBLIC —
+          # so the built-in token suffices and no secret is provisioned. Without
+          # this the check exits 2 (fail-closed) rather than passing silently.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-extraction-dod.sh
+      - name: Design re-baseline gate (CTL-040, KAN-457)
+        # Makes the DoD's design-system attestation load-bearing. That
+        # attestation is prose — a human types `done` — because the Claude
+        # Design source is in a different, PRIVATE repo this CI cannot read.
+        # An attestation satisfied by typing a word is indistinguishable from
+        # no control: the comment-satisfied-assertion shape (CTL-039) one layer
+        # up. So when a PR MOVES a design-bearing file, design/BASELINE.json's
+        # `baseline_ref` must change in the same PR — the claim then rests on a
+        # diff rather than a promise.
+        #
+        # Deliberately narrow: it cannot prove the design system was really
+        # re-pointed (CI still cannot read that repo), only that someone opened
+        # it and recorded its head. Stating that limit is the point; a control
+        # read as broader than it is gets mistaken for coverage.
+        # Escape hatch: `Design-Baseline-Ok: <JIRA-KEY> <reason>` — key AND
+        # reason both required, printed on every run.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-design-baseline.py --self-test
+          BASE_REF="origin/${{ github.base_ref }}" python3 scripts/check-design-baseline.py
       - name: Guard-path-drift check (KAN-414 F1)
         # Guard #12, and the companion to #13 above. Where the DoD gate looks at
         # THIS PR's diff, this one audits the WHOLE registry on every run: every
@@ -129,7 +156,7 @@ jobs:
         # untracked or gitignored file must FAIL, because CI checks out tracked
         # content and the pattern would be inert there.
         #
-        # Proven by mutation (KAN-414): moving src/lib/supabase-service.ts into
+        # Proven by mutation (KAN-414): moving src/modules/platform/supabase-service.ts into
         # a module — literally D1's work — disarms TWO controls at once, the
         # signup E2E gate and the service-role containment. Before this guard
         # that move was green.
@@ -142,7 +169,7 @@ jobs:
         run: python3 scripts/check-guard-path-drift.py
       - name: Env-access ratchet (KAN-414 F8)
         # 49 distinct environment variables are read from 38 files under src/,
-        # and src/lib/env.ts — the module built to be the single resolver — sees
+        # and src/modules/platform/env.ts — the module built to be the single resolver — sees
         # almost none of them. A missing variable therefore surfaces as
         # `undefined` deep inside a request instead of failing loudly at boot,
         # and no module can state its own configuration surface.
@@ -154,7 +181,7 @@ jobs:
         # grows is a suppression list.
         #
         # The precedent is why this is a gate and not a refactor:
-        # src/lib/deploy-env.ts was created to be the single environment
+        # src/modules/platform/deploy-env.ts was created to be the single environment
         # resolver, and all six of the derivations it was meant to replace are
         # still inline. Creating the module is 10% of the work; retiring the
         # call sites and preventing new ones is the other 90%, and only CI does
@@ -270,6 +297,52 @@ jobs:
           set -euo pipefail
           python3 scripts/check-control-registry.py --self-test
           python3 scripts/check-control-registry.py
+      - name: Scheduled workflows are actually ACTIVE (CTL-042, SEC-79 family)
+        # A DISABLED workflow still has a perfect file on disk. Every other
+        # check in this repo reasons about .github/workflows/*.yml as TEXT -
+        # the step above confirms a control's file exists and that something
+        # invokes it - and all of them pass for a workflow GitHub will never
+        # run again, because `state: disabled_manually` lives in the API and
+        # nowhere in the repository.
+        #
+        # Found 2026-08-09: 4 of the 20 workflows declaring a cron schedule
+        # were inactive and had been since mid-June, including anomaly-detect
+        # on */15. Dependabot kept bumping all four (#474), so they kept
+        # appearing in diffs looking maintained.
+        #
+        # WARN-ONLY until the four are re-enabled or excepted - same warn->block
+        # path as the KAN-413 signup gate. Blocking now would fail every
+        # unrelated PR pending a founder-only decision, and a gate that blocks
+        # work nobody can unblock is a gate that gets switched off. Flip via
+        # SCHEDULED_WORKFLOW_GATE_ENFORCE=1.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-scheduled-workflows-active.py --self-test
+          python3 scripts/check-scheduled-workflows-active.py
+      - name: Shared-code drift across repos (CTL-043, KAN-418)
+        # content-moderation.ts and moderation-policy.ts exist as COPIES in
+        # lyra AND lyra-mcp-server, with nothing checking they still agree.
+        # KAN-418 offered publishing @lyra/contracts instead; that was declined
+        # 2026-08-09 ("minimise the supply chain surface") because a private
+        # package consumed by the web app and both Railway services becomes a
+        # path where whoever can publish executes in production in three places.
+        #
+        # This costs zero tokens: lyra-mcp-server is PUBLIC, so the built-in
+        # GITHUB_TOKEN reads it. It does not remove the duplication, it removes
+        # the silence.
+        #
+        # moderation-policy.ts was ALREADY textually drifted when this landed
+        # (different headers + the NodeNext '.js' extension) with identical
+        # logic - which is why that entry compares NORMALISED. A byte check
+        # would have been red on day one for a reason nobody can fix.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-shared-code-drift.py --self-test
+          python3 scripts/check-shared-code-drift.py
       - name: Auto-heal pattern catalogue self-test (KAN-63 Tier 4)
         # Verify every entry in scripts/auto-fix-patterns.json still
         # matches its fixture under tests/fixtures/auto-fix-logs/, and
@@ -334,7 +407,7 @@ jobs:
         # src/lib/** may import src/app/**; one top-level src/app segment may
         # not import another; no import cycles. Landing them now stops the
         # codebase regressing while the modularisation programme (KAN-415)
-        # runs — the precedent is src/lib/deploy-env.ts, built to be the single
+        # runs — the precedent is src/modules/platform/deploy-env.ts, built to be the single
         # environment resolver, which never displaced the six inline
         # derivations because nothing stopped new ones being written.
         #

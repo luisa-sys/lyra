@@ -13,8 +13,8 @@
  * All actions validate `host_user_id = auth.uid()` independent of RLS.
  */
 
-import { createClient } from '@/lib/supabase-server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createClient } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { applyTransition, type GatheringStatus } from '@/lib/convene/gatherings/state-machine';
 import { adapterFor } from '@/lib/convene/calendar';
 import { getConnectionForUser } from '@/lib/convene/oauth-connections';

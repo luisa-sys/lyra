@@ -59,6 +59,20 @@ echo "# weekly-health-regression $(date -u +%Y-%m-%dT%H:%M:%SZ)  phases: $PHASES
 [ -f package.json ] || record UNVERIFIED repo "no package.json in $(pwd) — wrong dir/branch? (did you checkout develop?)"
 [ -d node_modules ] || record UNVERIFIED deps "node_modules missing — run 'npm ci' (and 'npx playwright install' for E2E) in the setup script first"
 
+fail_detail() { # $1=logfile — richer than a bare tail: names the failing
+  # jest suite(s) + summary counts when present. A bare `tail -n 3` can land
+  # entirely inside jest's Snapshots/Time/"Ran all test suites" boilerplate
+  # and never show WHICH test failed, forcing a manual re-run to find out —
+  # hit for real on the 2026-08-08 and 2026-08-09 runs.
+  local f="$1" jest_bits
+  jest_bits="$(grep -E '^FAIL |^(Tests:|Test Suites:)' "$f" 2>/dev/null)"
+  if [ -n "$jest_bits" ]; then
+    printf '%s\n' "$jest_bits" | tr '\n' ' ' | cut -c1-500
+  else
+    tail -n 3 "$f" | tr '\n' ' ' | cut -c1-300
+  fi
+}
+
 run_phase() { # $1 label
   local label="$1" c rc log; c="$(cmd_for "$label")"
   [ -z "$c" ] && { record UNVERIFIED "$label" "no command mapped"; return; }
@@ -85,7 +99,7 @@ run_phase() { # $1 label
       # the audit report (no network error) and still FAILs below.
       record UNVERIFIED "$label" "npm registry unreachable — audit gate could not run (env gap, not a vuln): $(tail -n 1 "$log" | cut -c1-160)"
     else
-      record FAIL "$label" "exit $rc — $(tail -n 3 "$log" | tr '\n' ' ' | cut -c1-300)"
+      record FAIL "$label" "exit $rc — $(fail_detail "$log")"
     fi
   fi
   rm -f "$log"

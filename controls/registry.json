@@ -549,7 +549,7 @@
       "id": "CTL-030",
       "name": "Structural dependency rules (module/segment/cycle)",
       "defect_class": "regression-risk",
-      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/lib/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
+      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/modules/platform/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
       "implementation": "scripts/check-dependency-rules.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -632,7 +632,7 @@
       "id": "CTL-037",
       "name": "Env-access ratchet",
       "defect_class": "scattered-configuration",
-      "summary": "Freezes the set of DIRECT process.env reads under src/ (72 references across 37 files at 2026-07-29) in env-access-baseline.json and makes it shrink-only: a new file fails, a new variable in an already-listed file fails, and a listed file or variable that has STOPPED being read ALSO fails so the baseline cannot over-state the problem. src/lib/env.ts is exempt by design. Keyed on file plus variable-set rather than line number, so unrelated edits do not churn it. Exists because src/lib/deploy-env.ts proved that creating a canonical resolver is ~10% of the work - all six derivations it was meant to replace are still inline - and only CI retires call sites.",
+      "summary": "Freezes the set of DIRECT process.env reads under src/ (72 references across 37 files at 2026-07-29) in env-access-baseline.json and makes it shrink-only: a new file fails, a new variable in an already-listed file fails, and a listed file or variable that has STOPPED being read ALSO fails so the baseline cannot over-state the problem. src/modules/platform/env.ts is exempt by design. Keyed on file plus variable-set rather than line number, so unrelated edits do not churn it. Exists because src/modules/platform/deploy-env.ts proved that creating a canonical resolver is ~10% of the work - all six derivations it was meant to replace are still inline - and only CI retires call sites.",
       "implementation": "scripts/check-env-access.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -698,6 +698,95 @@
       ],
       "escape_hatch": "// comment-assertion-ok: <JIRA-KEY> <reason>",
       "added": "2026-08-02"
+    },
+    {
+      "id": "CTL-040",
+      "name": "Design re-baseline gate",
+      "defect_class": "self-certified-attestation",
+      "summary": "Requires design/BASELINE.json's baseline_ref to change in the SAME PR that moves a design-bearing file (src/app/globals.css, src/components/**, or any src/app/**/*.tsx). Exists because the Claude Design build loop's source lives in a different, PRIVATE repo (github.com/luisa-sys/lyra-design-system) that this CI cannot read, so the extraction DoD could only ask a human to attest 'EXTRACTION-DOD-DESIGN-SYSTEM: done' - and an attestation satisfied by typing a word is indistinguishable from no control, the same defect shape as a comment-satisfied assertion (CTL-039) one layer up. The concrete failure it covers is KAN-419 5.1: build.py reads globals.css and reconstructs 21 @dsCard previews from page sources, so a move breaks its source pointer loudly but on the founder's machine, hours later, with nothing warning the agent that moved it. SCOPE LIMIT, stated deliberately: this does NOT prove the design system was re-pointed or regenerated - CI cannot read that repo. It proves someone opened it, took its head and recorded it here, raising a false attestation's cost from 'type a word' to 'go and look'. Fires only on relocation (D/R), not edits, because an edit leaves the pointer resolving; widening it would make every extraction PR demand a meaningless re-baseline and drive people to the hatch by reflex.",
+      "implementation": "scripts/check-design-baseline.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-457",
+        "KAN-441",
+        "KAN-419",
+        "KAN-415"
+      ],
+      "escape_hatch": "Design-Baseline-Ok: <JIRA-KEY> <reason>  (commit trailer; key AND reason both required)",
+      "self_test": "scripts/check-design-baseline.py --self-test",
+      "added": "2026-08-08"
+    },
+    {
+      "id": "CTL-041",
+      "name": "Module manifest integrity",
+      "defect_class": "manifest-describes-a-tree-that-moved",
+      "summary": "Asserts modules.json against the actual tree via git ls-files: every tracked file under src/ is owned by exactly one module (longest-prefix wins, as in CODEOWNERS), every declared path still exists, and owns.files matches the real count. modules.json is the input to every boundary rule in the modularisation programme - layers, mayDependOn, mustNot, the dependency-cruiser config, the extraction DoD - and nothing validated it. Three defects were live when this was added: client-ip.ts had been MOVED into src/modules/guards/ but never DECLARED there so it stayed unowned (the very gap the moving commit claimed to close); owns.files had drifted on three modules whose paths are DIRECTORIES, profile declaring 35 against an actual 43, because a file added inside a directory never bumps a hand-typed count; and a nested path across two modules read as an ambiguous boundary when it was in fact correct. A module whose declared path no longer exists owns nothing, and every rule written about it is inert while still reading as configured.",
+      "implementation": "tests/unit/modules-manifest-integrity.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415"
+      ],
+      "escape_hatch": "Add the path to UNOWNED_BY_DESIGN in the test, with a comment arguing why it belongs to no module. Deliberately a literal list, never a glob - a pattern would silently adopt whatever lands next to it.",
+      "self_test": "Mutation-proven 2026-08-09, all four directions: removing client-ip from guards' paths, overstating profile's owns.files, declaring a path that does not exist, and deleting convene's more specific nested path each turn the suite red; the clean manifest is green.",
+      "added": "2026-08-09"
+    },
+    {
+      "id": "CTL-042",
+      "name": "Scheduled workflows are actually active",
+      "defect_class": "disabled-but-looks-configured",
+      "summary": "Queries the GitHub API for every workflow's state and fails when one that declares a cron schedule is not active. A DISABLED workflow still has a perfect file on disk, and every other check in this repo reasons about .github/workflows/*.yml as TEXT - check-workflow-integrity.sh greps it, CTL-023 confirms the file exists and that something invokes it, CTL-035 confirms its path literals still match - so all of them pass for a workflow GitHub will never run again, because `state: disabled_manually` lives in the API and nowhere in the repository. Found 2026-08-09: 4 of the 20 workflows declaring a cron schedule were inactive and had been since mid-June, including anomaly-detect on */15. Two things hid it - CLAUDE.md still documented 'Sunday 04:00 Stryker mutation testing' and a Sunday 23:00 staging auto-promote as live cadences, and Dependabot kept bumping all four files (#474), so they kept appearing in diffs looking maintained. This is SEC-79 exactly, and the lesson taken from SEC-79 does not cover it, because existence and invocation were never what broke.",
+      "implementation": "scripts/check-scheduled-workflows-active.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-79"
+      ],
+      "escape_hatch": "An entry in .github/scheduled-workflow-exceptions.json carrying BOTH a Jira key and a reason. An entry for a workflow that has since been re-enabled is a STALE exception and fails outright, so the list cannot only grow. Ships WARN-first (SCHEDULED_WORKFLOW_GATE_ENFORCE=1 to block) because the four live findings need a founder decision, and a gate that blocks every unrelated PR on something nobody can clear is a gate that gets switched off.",
+      "self_test": "--self-test covers the seven parsing decisions, notably that a COMMENTED-OUT cron is not a live schedule (backup-complete.yml ships its cadence commented until commissioning, and reading that as scheduled would raise a permanent unresolvable finding). Verified live 2026-08-09: warn mode exits 0 naming all four inactive workflows, --enforce exits 1.",
+      "added": "2026-08-09"
+    },
+    {
+      "id": "CTL-044",
+      "name": "Architecture rules span every library root",
+      "defect_class": "path-anchored-rule-quietly-narrows",
+      "summary": "Asserts that no-module-to-app's from-path covers every library root declared in modules.json, and every tracked file under each, enumerated from git ls-files rather than sampled. The rule is BLOCKING - library code may not import from a route tree, because that means shared logic is owned by a page (KAN-424 Defect 1). Its anchor read ^src/lib/ until 2026-08-09, when the KAN-415 D1 extraction moved 28 files into src/modules/ - every security guard and every Supabase client among them - and every one silently left the rule's scope. Nothing went red: the rule kept matching the files that had NOT moved, so it kept reporting a clean pass. Proven with a fixture, a src/modules -> src/app edge is an error under the widened anchor and NOTHING under the old one, with identical dependency counts cruised - the edge was seen and discarded. Neither existing control models this: CTL-035 detects DEAD paths and ^src/lib/ still matched 87 files (narrow, not dead), and CTL-033 greps exact moved file paths which cannot match a regex prefix, and sweeps only .github, scripts and docs while this config sits at the repo root. Writing the test also found src/components/ and src/middleware.ts were outside the rule too - widening on a guess would have missed both.",
+      "implementation": "tests/scripts/dependency-rules-cover-modules.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-424"
+      ],
+      "escape_hatch": "None by design. If a library root genuinely must be exempt from the boundary rule, remove it from modules.json's declared paths - which is a visible, argued change - rather than narrowing the anchor, which is invisible.",
+      "self_test": "Mutation-proven 2026-08-09: narrowing the anchor back to the pre-D1 value reddens 3 of the 7 assertions. Fixtures are enumerated from git ls-files, never sampled - a hand-picked list proves the rule covers the paths someone thought of, which is precisely how the original anchor looked correct.",
+      "added": "2026-08-09"
+    },
+    {
+      "id": "CTL-043",
+      "name": "Shared-code drift across repos",
+      "defect_class": "duplicated-source-diverges-silently",
+      "summary": "Compares files that exist as COPIES in lyra and lyra-mcp-server and fails when they diverge. The web app and the MCP servers share rules but no code, so every shared rule is a copy that drifts, and this has already caused a production defect (admin_approve_beta wrote two columns a lyra migration had dropped). lyra-mcp-server/src/convene-recommend-scoring.ts opens by admitting it is a verbatim copy with no mechanism to keep it one. KAN-418 offered two fixes - publish @lyra/contracts, or vendor plus a CI diff. The package was declined 2026-08-09 to minimise supply-chain surface: it would create a path where whoever can publish executes in production on Vercel and both Railway services, and would place read tokens in four runtimes. This alternative costs zero tokens, zero registries and zero runtime dependencies because lyra-mcp-server is public and CI reads it with the built-in GITHUB_TOKEN. It does not remove the duplication; it removes the silence. Found on first run that moderation-policy.ts had ALREADY drifted textually - header comments plus the mandatory NodeNext '.js' import extension - with logic identical, which is why that entry compares normalised.",
+      "implementation": "scripts/check-shared-code-drift.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-418"
+      ],
+      "escape_hatch": "Edit shared-code-manifest.json: change an entry's mode from exact to normalised (comments and the NodeNext extension only), or move it to the `deferred` list with a reason. Deferred entries are PRINTED on every run, so a deferral cannot quietly become permanent. An empty shared list fails outright rather than passing vacuously.",
+      "self_test": "--self-test covers 8 normalisation fixtures, including the two that matter in opposite directions: differing headers plus a '.js' extension must compare EQUAL, while a changed severity comparison or string literal must still differ, and a double-slash inside a string literal must survive. Mutation-proven live 2026-08-09 in three directions: a real change to the exact-mode file goes red, a comment-only change to the normalised-mode file stays green, and a real logic change to the normalised-mode file goes red.",
+      "added": "2026-08-09"
     }
   ]
 }

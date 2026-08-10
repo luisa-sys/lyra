@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import { INVITE_COOKIE, INVITE_COOKIE_MAX_AGE } from '@/lib/beta-access/invite-cookie';
 
 /**

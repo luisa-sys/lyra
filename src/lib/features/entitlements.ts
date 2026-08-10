@@ -6,7 +6,7 @@
  * checks (paid gift links on the recipient profile, admin tooling, MCP) use the
  * service-role reads in entitlements-service.ts instead.
  */
-import { createClient as createCookieClient } from '@/lib/supabase-server';
+import { createClient as createCookieClient } from '@/modules/platform/supabase-server';
 import { resolveEntitlements, type FeatureKey } from './registry';
 
 /** The current (cookie-authenticated) user's full entitlement map. */

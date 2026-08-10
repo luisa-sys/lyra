@@ -33,11 +33,11 @@ src/lib/age/**
 src/lib/beta-access/**
 
 # Supabase clients used by the signup + confirm paths
-src/lib/supabase-server.ts
-src/lib/supabase-service.ts
+src/modules/platform/supabase-server.ts
+src/modules/platform/supabase-service.ts
 
 # Env accessors used by signUp (siteUrl, inviteCode)
-src/lib/env.ts
+src/modules/platform/env.ts
 
 # Middleware routing/gating that decides where a new user lands
 src/middleware.ts

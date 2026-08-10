@@ -64,11 +64,11 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: () => Promise.resolve({ data: { user: mockUser } }),
@@ -299,9 +299,18 @@ describe('dismissGiftSuggestion', () => {
   });
 
   test('a database error is surfaced, not swallowed', async () => {
+    // BUGS-87 (founder-approved 2026-08-09): this asserted the RAW Postgres
+    // string reached the caller — and `gift-extras-section.tsx` renders it
+    // verbatim in a role="alert", so it reached the MEMBER. The test's real
+    // intent is "the failure is surfaced, not swallowed"; that is preserved,
+    // and strengthened by asserting the raw text is now absent.
     mockUpsertError = { message: 'relation does not exist' };
     const result = await dismissGiftSuggestion('books_reading:something to read');
-    expect(result).toEqual({ success: false, error: 'relation does not exist' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe('Something went wrong saving that. Please try again.');
+      expect(result.error).not.toMatch(/relation does not exist/);
+    }
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
