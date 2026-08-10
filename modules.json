@@ -918,10 +918,11 @@
         "src/app/waitlist/",
         "src/app/suspended/",
         "src/app/join/",
-        "src/middleware.ts"
+        "src/middleware.ts",
+        "src/modules/access/"
       ],
       "owns": {
-        "files": 12,
+        "files": 28,
         "tables": [],
         "rpcs": [],
         "profilesColumns": [

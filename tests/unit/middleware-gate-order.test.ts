@@ -270,35 +270,57 @@ describe('fail-CLOSED paths — the other half of the asymmetry', () => {
   });
 
   /**
-   * ⚠️ CHARACTERISATION OF A DEFECT, NOT AN ENDORSEMENT.
+   * ⚠️ THIS WAS A DEFECT. IT IS NOW A DECISION.
    *
-   * The beta/tier gate destructures only `{ data: profile }` and never looks at
-   * `error`. So a transient profiles-read failure makes `profile` undefined,
-   * which is `!== 'live'`, which redirects a legitimate live user to /waitlist —
-   * SILENTLY. No log line, no signal.
+   * The beta/tier gate destructured only `{ data: profile }` and never looked
+   * at `error`. A transient profiles-read failure made `profile` undefined,
+   * which is `!== 'live'`, which redirected a LEGITIMATE LIVE USER to /waitlist
+   * — silently. No log, no signal, and no way for that user to self-recover:
+   * they ARE live, they just cannot prove it while the read is failing.
    *
-   * The suspension gate immediately above it was explicitly hardened against
-   * exactly this ("Observability: never fail silently on a lookup error") and
-   * chose to fail OPEN with a console.error. Fifty lines later the same read
-   * fails CLOSED and says nothing.
+   * The suspension gate fifty lines above was explicitly hardened against
+   * exactly this ("never fail silently on a lookup error") and fails OPEN with
+   * a console.error. Same read, opposite direction, no log.
    *
-   * This test asserts the CURRENT behaviour so the decomposition is provably
-   * equivalent. It is deliberately not fixed here: changing it is a behaviour
-   * change to a production access gate and belongs in its own ticket, with its
-   * own decision about whether the right answer is fail-open, fail-closed, or
-   * fail-closed-but-logged.
+   * DECIDED 2026-08-09 (Luisa): FAIL CLOSED, BUT LOGGED.
+   *
+   * The direction stays — this gate governs access to a gated product, whereas
+   * suspension governs a suspended user's own session, and admitting an
+   * unverified user to beta on a transient database error is the worse outcome.
+   * What changes is the silence.
+   *
+   * This assertion previously read `expect(spy).not.toHaveBeenCalled()`, with a
+   * comment saying that if a future change started logging here the test would
+   * fail and someone would read the note. That is exactly what happened, in the
+   * commit that made the change. Updated deliberately, not to make a build
+   * green.
    */
-  test('a beta-gate query ERROR silently redirects a live user to /waitlist', async () => {
+  test('a beta-gate query ERROR fails closed to /waitlist, and SAYS SO', async () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     process.env.IS_BETA_DEPLOY = 'true';
     mockProfileError = { message: 'connection reset' };
     const res = await middleware(req('/dashboard'));
+    // The direction is unchanged: still closed, still /waitlist.
     expect(loc(res)?.pathname).toBe('/waitlist');
-    // The point of the test: nothing was logged. If a future change starts
-    // logging here, this assertion fails and someone reads the comment above.
-    expect(spy).not.toHaveBeenCalled();
+    // The silence is not. And it must be DISTINGUISHABLE from the ordinary
+    // not-live case, or the log cannot answer "was this user actually live?".
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('failing closed'),
+      'connection reset',
+    );
   });
-});
+
+  test('an ordinary not-live user is NOT logged as an error', async () => {
+    // The other half. If every /waitlist bounce logged, the log would be noise
+    // and the error case would be invisible inside it — which is the same
+    // failure as not logging at all, arrived at from the other direction.
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.IS_BETA_DEPLOY = 'true';
+    mockProfile = { user_status: 'pending', access_tier: 'beta' };
+    const res = await middleware(req('/dashboard'));
+    expect(loc(res)?.pathname).toBe('/waitlist');
+    expect(spy).not.toHaveBeenCalled();
+  });});
 
 describe('exemption tables — the loops they exist to prevent', () => {
   // Two overlapping inline exemption arrays today; D4 replaces them with one

@@ -683,6 +683,27 @@ def build(repo=REPO):
             "src/middleware.ts unreadable — the auth model cannot be derived, and "
             "guessing it would mark authed pages public"
         )
+    # KAN-415 D4: the auth model's literals moved out of src/middleware.ts into
+    # named gates. The derivation regexes are unchanged — what changed is where
+    # the source lives — so the gate files are concatenated before deriving.
+    #
+    # This is exactly the failure mode CTL-033 exists for: after D4, deriving
+    # from src/middleware.ts alone yields an EMPTY model, and an empty model is
+    # fatal by design (see below) because it "would flatter every coverage
+    # number downstream". The fatal check is deliberately left exactly as it is;
+    # widening the SOURCE is the fix, not weakening the ASSERTION.
+    gates_dir = os.path.join(os.path.dirname(middleware_path), "modules", "access", "gates")
+    if os.path.isdir(gates_dir):
+        for name in sorted(os.listdir(gates_dir)):
+            if not name.endswith(".ts"):
+                continue
+            gate_src = read(os.path.join(gates_dir, name))
+            if gate_src is None:
+                raise SystemExit2(
+                    "access gate {0} unreadable — the auth model would derive from a "
+                    "partial corpus, which is worse than not deriving at all".format(name)
+                )
+            mw_src += "\n" + gate_src
     model = derive_auth_model(mw_src)
     if not model["admin_prefixes"] or not model["authed_prefixes"]:
         raise SystemExit2(
