@@ -23,8 +23,18 @@
  * cheaper, earlier signal: it catches a gate that was written and never wired,
  * or wired twice, before anything has to run.
  */
-import type { AuthedContext, EdgeContext } from './context';
-import type { Gate } from './gate';
+import { NextResponse, type NextRequest } from 'next/server';
+import { buildCspReportOnly } from '@/modules/guards/security-headers';
+import {
+  buildDeployContext,
+  createEdgeContext,
+  type AuthedContext,
+  type EdgeContext,
+  type MiddlewareEnvRaw,
+} from './context';
+import { generateCspNonce, stampCspReportOnly } from './csp';
+import { establishSession } from './session';
+import { runGates, type Gate } from './gate';
 import { authRateLimit } from './gates/auth-rate-limit';
 import { betaOauth404 } from './gates/beta-oauth-404';
 import { pkceCodeRedirect } from './gates/pkce-code-redirect';
@@ -98,3 +108,59 @@ export const AUTHED_PIPELINE: readonly Gate<AuthedContext>[] = AUTHED_ORDER.map(
   if (!gate) throw new Error(`AUTHED_ORDER names an unknown gate: ${id}`);
   return gate;
 });
+
+/**
+ * ── THE COMPOSITION ROOT ───────────────────────────────────────────────────
+ *
+ * The entire request path, as a factory. src/middleware.ts becomes a call to
+ * this plus its env reader plus `config`, and — the point — HAS NO FUNCTION
+ * BODY LEFT.
+ *
+ * That is not tidiness. Through D5-D9 this file's neighbours get rewritten
+ * repeatedly, and the cheapest way to "just handle one more case" is to open
+ * src/middleware.ts and insert `if (x) return y;` above the pipeline. Every
+ * ordering test would still pass: the gates still run in order, they are simply
+ * no longer the only thing that runs. With no body there is nowhere to put it,
+ * and adding one is a visible structural change rather than a one-line edit.
+ *
+ * The fail-open when Supabase is unconfigured stays HERE rather than becoming a
+ * gate, for the same reason establishSession is not one: it is a precondition
+ * of the authed pipeline existing at all, and a gate lives in an ordered list
+ * where it could be moved above the pre-auth gates that must not depend on it.
+ */
+export function createAccessMiddleware(readEnv: () => MiddlewareEnvRaw) {
+  return async function middleware(request: NextRequest): Promise<NextResponse> {
+    const deploy = buildDeployContext(readEnv());
+
+    // Lazy: the SEC-36 404 returns before any document is served and must not
+    // pay for a nonce it will never use. A getRandomValues spy asserts it.
+    let cspCache: string | undefined;
+    const csp = (): string => {
+      if (cspCache === undefined) cspCache = buildCspReportOnly(generateCspNonce());
+      return cspCache;
+    };
+
+    const edge = createEdgeContext(request, deploy, csp);
+    const preAuth = await runGates(PRE_AUTH_PIPELINE, edge);
+    if (preAuth !== null) return preAuth;
+
+    const { supabaseUrl, supabaseAnonKey } = deploy;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      // Fail OPEN: no Supabase means no auth gates at all. Correct for local
+      // and CI boots that have no credentials, and it means the security
+      // posture below is exactly as strong as the presence of two environment
+      // variables. Pinned by middleware-gate-order.test.ts.
+      return stampCspReportOnly(NextResponse.next(), csp());
+    }
+
+    const { supabase, user, res } = await establishSession(request, supabaseUrl, supabaseAnonKey);
+
+    const authed: AuthedContext = { ...edge, supabase, user, res };
+    const authedOutcome = await runGates(AUTHED_PIPELINE, authed);
+    if (authedOutcome !== null) return authedOutcome;
+
+    // res.current, not a captured value — the cookie callback rebuilt it
+    // during getUser(). See session.ts.
+    return stampCspReportOnly(res.current, csp());
+  };
+}
