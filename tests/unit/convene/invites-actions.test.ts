@@ -107,7 +107,7 @@ function adminFrom(table: string) {
   return { select: () => ({ then: (r: (v: unknown) => unknown) => r({ data: [], error: null }) }) };
 }
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: mockUserId ? { id: mockUserId } : null } })) },
   })),
@@ -117,7 +117,7 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({ from: (t: string) => adminFrom(t) })),
 }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: { supabaseUrl: () => 'http://localhost', supabaseServiceRoleKey: () => 'svc', supabaseAnonKey: () => 'anon' },
 }));
 

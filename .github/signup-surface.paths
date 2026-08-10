@@ -33,14 +33,17 @@ src/lib/age/**
 src/lib/beta-access/**
 
 # Supabase clients used by the signup + confirm paths
-src/lib/supabase-server.ts
-src/lib/supabase-service.ts
+src/modules/platform/supabase-server.ts
+src/modules/platform/supabase-service.ts
 
 # Env accessors used by signUp (siteUrl, inviteCode)
-src/lib/env.ts
+src/modules/platform/env.ts
 
 # Middleware routing/gating that decides where a new user lands
 src/middleware.ts
+# KAN-415 D4: the gating logic that decided where a new user lands moved here.
+# Without this line the signup gate stops covering the code it was written for.
+src/modules/access/**
 
 # Account-creation DB trigger + profiles defaults (content-filtered, see note)
 supabase/migrations/**

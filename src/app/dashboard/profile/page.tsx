@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from './manual-of-me-fields';

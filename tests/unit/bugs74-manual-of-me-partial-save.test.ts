@@ -25,7 +25,7 @@ const mockUpsertCapture = jest.fn();
 const mockGetUser = jest.fn();
 const mockProfileSelectSingle = jest.fn();
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockImplementation(async () => ({
     auth: { getUser: mockGetUser },
     from: jest.fn().mockImplementation((table: string) => {

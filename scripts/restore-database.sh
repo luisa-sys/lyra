@@ -44,11 +44,22 @@ echo "Resetting the public schema..."
 # recreate the whole public schema instead, so the restore is clean regardless
 # of how the schema has grown. (The dump itself recreates public via CREATE
 # SCHEMA; we DROP it first so that statement succeeds.)
+#
+# BUGS-91 (2026-08-09): `supabase_migrations` is reset here too, because the
+# dump now CONTAINS it. Leaving it in place would make the restore collide on
+# the existing schema_migrations rows — so this must move in lockstep with
+# backup-database.sh. Backup and restore drifting apart is how a restore that
+# "succeeds" produces a database nobody can migrate afterwards.
+#
+# Dropping it is safe *in a restore*, which is already destructive by design
+# (see the warning above), and the dump recreates it with the lineage that
+# matches the data being restored — which is the entire point.
 psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "
   DROP SCHEMA IF EXISTS public CASCADE;
   CREATE SCHEMA public;
   GRANT ALL ON SCHEMA public TO postgres;
   GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+  DROP SCHEMA IF EXISTS supabase_migrations CASCADE;
 " 2>&1
 
 echo "Restoring from backup..."

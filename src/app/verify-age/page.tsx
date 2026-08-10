@@ -13,7 +13,7 @@
  */
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import { isProviderAgeCheckActive } from '@/lib/age/provider-gate';
 import { isDiditConfigured } from '@/lib/age/didit';

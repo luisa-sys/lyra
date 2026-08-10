@@ -14,8 +14,8 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 
 /** Proposed default window from RETENTION_SCHEDULE.md (raw events ~13 months). */
 export const DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS = 13;

@@ -1,11 +1,12 @@
 'use server';
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/lib/moderation-audit';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
+import { dbErrorFor } from '@/lib/db-error-copy';
 
 /**
  * KAN-181: server actions for `profile_conversation_starters`.
@@ -39,7 +40,7 @@ import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
  * a database that lacks the column fails the WHOLE request with PGRST204 —
  * the value being null does not save you. Every write below therefore adds the
  * key ONLY when there is something to write. `npm run type-check` cannot catch
- * this: `src/lib/supabase-server.ts` builds an untyped client. Pinned by
+ * this: `src/modules/platform/supabase-server.ts` builds an untyped client. Pinned by
  * `tests/unit/conversation-starters-custom-prompts.test.ts`.
  */
 
@@ -62,26 +63,13 @@ async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
   return { supabase, profileId: profile.id as string, userId: user.id };
 }
 
-/**
- * Map a Postgres error from either cap trigger onto member-facing copy.
- *
- * Order matters: the custom-cap message ('Custom question limit (3) reached')
- * also matches the generic `limit (\d+) reached` pattern, so it has to be
- * tested first or a member who filled their three own questions would be told
- * to remove one of their ten answers.
+/*
+ * `capErrorCopy` lived here until BUGS-87. It moved to
+ * src/lib/db-error-copy.ts, where its matchers were ANCHORED per trigger.
+ * The generic `/limit \(\d+\) reached/` it used was safe while it was
+ * local to this file and became a bug the moment it was shared: it also
+ * matches 'Profile file limit (10) reached'. See that module's header.
  */
-function capErrorCopy(message: string): string | null {
-  if (/custom question limit \(\d+\) reached/i.test(message)) {
-    return 'You can write up to 3 of your own questions. Remove one to add another.';
-  }
-  // The DB trigger raises a custom message for the answer cap; surface
-  // it as a clean toast. Match the limit generically (any digits) so the
-  // copy survives future cap changes without a code edit.
-  if (/limit \(\d+\) reached/.test(message)) {
-    return 'You can answer up to 10 prompts. Remove one to add another.';
-  }
-  return null;
-}
 
 /**
  * Validate + clean the question a member wrote themselves.
@@ -161,13 +149,11 @@ export async function addConversationStarter(input: {
     });
 
   if (error) {
-    const capCopy = capErrorCopy(error.message);
-    if (capCopy) return { success: false, error: capCopy };
-    // 23505 = unique_violation on (profile_id, prompt_id)
-    if (error.code === '23505') {
-      return { success: false, error: 'You already answered this prompt — edit your existing answer instead.' };
-    }
-    return { success: false, error: error.message };
+    // BUGS-87: the cap messages and 23505 (unique_violation on
+    // profile_id+prompt_id) both live in src/lib/db-error-copy.ts now, so the
+    // add and update paths cannot drift apart — the sibling-drift shape this
+    // module's header warns about, previously reproduced right here.
+    return { success: false, error: dbErrorFor('add-conversation-starter', error) };
   }
 
   revalidatePath('/dashboard/profile');
@@ -225,9 +211,7 @@ export async function updateConversationStarter(
     .eq('profile_id', profileId);
 
   if (error) {
-    const capCopy = capErrorCopy(error.message);
-    if (capCopy) return { success: false, error: capCopy };
-    return { success: false, error: error.message };
+    return { success: false, error: dbErrorFor('update-conversation-starter', error) };
   }
 
   revalidatePath('/dashboard/profile');
@@ -246,7 +230,7 @@ export async function removeConversationStarter(id: string): Promise<ActionResul
     .eq('profile_id', profileId);
 
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: dbErrorFor('remove-conversation-starter', error) };
   }
 
   revalidatePath('/dashboard/profile');

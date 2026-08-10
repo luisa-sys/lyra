@@ -22,20 +22,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getOauthClient, hashClientSecret } from '@/lib/oauth/clients';
-import { getAuthCode, markCodeUsed } from '@/lib/oauth/codes';
-import { verifyPkceS256 } from '@/lib/oauth/pkce';
-import { issueAccessToken } from '@/lib/oauth/jwt';
-import { issueAccessTokenJti } from '@/lib/oauth/access-tokens';
+import { getOauthClient, hashClientSecret } from '@/modules/oauth-as/lib/clients';
+import { getAuthCode, markCodeUsed } from '@/modules/oauth-as/lib/codes';
+import { verifyPkceS256 } from '@/modules/oauth-as/lib/pkce';
+import { issueAccessToken } from '@/modules/oauth-as/lib/jwt';
+import { issueAccessTokenJti } from '@/modules/oauth-as/lib/access-tokens';
 import {
   issueRefreshToken,
   tryMarkRefreshUsed,
   getRefreshToken,
   revokeFamily,
-} from '@/lib/oauth/refresh';
-import { oauthConfig } from '@/lib/oauth/config';
-import { RATE_LIMITS } from '@/lib/rate-limit';
-import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
+} from '@/modules/oauth-as/lib/refresh';
+import { oauthConfig } from '@/modules/oauth-as/lib/config';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/modules/guards/rate-limit-shared';
 
 function errorJson(error: string, description?: string, status = 400) {
   return NextResponse.json(

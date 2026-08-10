@@ -17,6 +17,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { memberFacingDbError } from '@/lib/db-error-copy';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -87,15 +88,24 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
   });
 
   test('server-actions file surfaces the answer cap as a clean error', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.conversationStartersActions),
-      'utf-8',
-    );
-    // KAN-404 #14: the actions file now matches the trigger message with a
-    // robust regex (any digit count) rather than a hard-coded "limit (5)",
-    // and the friendly copy advertises the raised cap of 10.
-    expect(src).toMatch(/limit \\\(\\d\+\\\) reached/);
-    expect(src).toMatch(/up to 10/);
+    // BUGS-87: was a source-text scan of the actions file. The cap copy moved
+    // to src/lib/db-error-copy.ts, and CTL-039 immediately flagged the
+    // relocated scan as comment-shadowed — the copy appears in that module's
+    // header AND in its code, so deleting the code would have left the
+    // assertion green. So this is now BEHAVIOURAL: it calls the mapper.
+    //
+    // It also drops the old `limit (\d+) reached` assertion. That pattern was
+    // the defect, not the guarantee: it matches 'Profile file limit (10)
+    // reached' too, so sharing it would have told a member who hit the
+    // ten-FILE cap that they could answer ten prompts. The anchored behaviour
+    // below is what actually matters.
+    expect(
+      memberFacingDbError({ message: 'Conversation-starter answer limit (10) reached' }),
+    ).toMatch(/up to 10 prompts/);
+    // Anchored, not generic: the file cap must NOT get this copy.
+    expect(
+      memberFacingDbError({ message: 'Profile file limit (10) reached' }),
+    ).not.toMatch(/prompts/);
 
     // Coverage not weakened: the robust regex the actions file uses must
     // still map the LEGACY 'limit (5) reached' message (e.g. a stale DB

@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { createServiceRoleClient } from "@/lib/supabase-service";
+import { createServiceRoleClient } from "@/modules/platform/supabase-service";
 import { isProdDeploy } from "@/lib/beta-access/flow";
 
 /**

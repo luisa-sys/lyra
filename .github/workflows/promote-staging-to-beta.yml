@@ -19,7 +19,10 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  # `write` (was `read`) so this workflow can DISPATCH soak-journey against the
+  # staging ref when no soak exists for the SHA being promoted. See the
+  # "post-deploy soak" gate below for why that is necessary rather than nice.
+  actions: write
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -125,6 +128,46 @@ jobs:
           set -euo pipefail
           STAGING_SHA="${{ steps.check.outputs.staging_sha }}"
           echo "Looking for a soak result for ${STAGING_SHA:0:8}"
+
+          # ------------------------------------------------------------------
+          # 2026-08-09: this gate was UNSATISFIABLE exactly when it mattered.
+          #
+          # soak-journey fires on `schedule` and `workflow_run`, and GitHub runs
+          # BOTH of those from the DEFAULT branch — so every automatic soak run
+          # is attributed headSha = main's HEAD, never staging's. This gate
+          # matches on headSha == staging HEAD.
+          #
+          # The result is perverse rather than merely broken: those two SHAs are
+          # equal only when staging and main are already in sync, i.e. when
+          # there is nothing to promote. The moment staging advances — the only
+          # time anyone promotes — no matching soak can exist and the gate
+          # refuses forever. That is why staging sat 34 commits ahead of beta,
+          # with run 30741750933 failing on exactly this.
+          #
+          # Failing closed was RIGHT. What was wrong was leaving no way to
+          # satisfy it. So: if no soak exists for this SHA, dispatch one against
+          # the staging ref (which attributes headSha to staging HEAD) and then
+          # wait for it exactly as before. The gate keeps its teeth; it stops
+          # demanding something nothing could produce.
+          # ------------------------------------------------------------------
+          EXISTING=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow soak-journey.yml \
+            --limit 20 \
+            --json headSha \
+            --jq "[.[] | select(.headSha == \"$STAGING_SHA\")] | length")
+
+          if [ "$EXISTING" = "0" ]; then
+            echo "::notice::No soak-journey run exists for ${STAGING_SHA:0:8} — dispatching one against the staging ref."
+            gh workflow run soak-journey.yml \
+              --repo "${{ github.repository }}" \
+              --ref staging
+            # Let GitHub register the run before the poll loop starts, so the
+            # first attempt is not a guaranteed miss.
+            sleep 15
+          else
+            echo "Found $EXISTING existing soak-journey run(s) for ${STAGING_SHA:0:8}."
+          fi
 
           # The soak takes ~5-10 min and starts only after deploy-staging
           # finishes, so allow a generous budget. 40 x 20s = ~13 min.

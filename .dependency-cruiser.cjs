@@ -122,12 +122,34 @@ module.exports = {
       name: 'no-module-to-app',
       severity: severityFor(BLOCKING),
       comment:
-        'A library under src/lib/** must not import from a route tree under src/app/**. ' +
+        'Library code must not import from a route tree under src/app/**. ' +
         'Libraries are the stable core; route folders are the churn surface. An edge in this ' +
         'direction means shared logic is owned by a page — which is how the access-transition ' +
         'matrix ended up living in the admin console (KAN-424, Defect 1). Move the shared code ' +
-        'into src/lib/ and have the route import it, never the reverse.',
-      from: { path: '^src/lib/' },
+        'into a library and have the route import it, never the reverse.',
+      // ⚠️ THIS ANCHOR MUST SPAN EVERY LIBRARY ROOT, NOT JUST src/lib/.
+      //
+      // It read '^src/lib/' until 2026-08-09. The KAN-415 D1 extraction then
+      // moved 28 files into src/modules/{platform,guards,observability,oauth-as}
+      // — including every security guard and every Supabase client — and every
+      // one of them silently left the scope of this BLOCKING rule. Nothing went
+      // red, because the rule kept matching the files that had not moved.
+      //
+      // That is the defining failure of a path-anchored control: it does not
+      // break when the tree moves, it QUIETLY COVERS LESS, and the emptier
+      // src/lib gets over D2…D8 the less it guards while still printing a pass.
+      // At the time of the fix src/lib held 87 files and src/modules 28; the
+      // programme's whole direction of travel is to invert that ratio.
+      //
+      // tests/scripts/dependency-rules-cover-modules.test.js asserts this
+      // pattern matches every library root declared in modules.json, so the
+      // next extraction cannot narrow it again by accident.
+      // Every library root modules.json declares, not just the two the first
+      // fix happened to look at. The regression test found src/components/
+      // (ui-kit) and src/middleware.ts were ALSO outside the rule — both
+      // are library code by the same argument, and covering them adds zero
+      // violations today. Widening on a guess would have left them out.
+      from: { path: '^src/(lib|modules|components)/|^src/middleware\\.ts$' },
       to: { path: '^src/app/' },
     },
     ...crossSegmentRules,

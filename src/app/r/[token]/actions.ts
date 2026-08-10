@@ -2,7 +2,7 @@
 
 import { getInviteeByToken, recordRsvpResponse } from '@/lib/convene/invites/repository';
 import { isConveneEnabled } from '@/lib/convene/flags';
-import { sanitiseText } from '@/lib/sanitise';
+import { sanitiseText } from '@/modules/guards/sanitise';
 import { checkModeration } from '@/lib/moderation-policy';
 
 type Result = { ok: true } | { ok: false; error: string };

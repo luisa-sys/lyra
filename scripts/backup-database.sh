@@ -36,10 +36,26 @@ echo "Output: $BACKUP_FILE"
 echo ""
 
 # Run pg_dump (schema + data, excluding auth schema which is managed by Supabase)
+#
+# BUGS-91 (2026-08-09): `supabase_migrations` added. It was NOT here, so no
+# backup we take has ever contained the migration lineage — 75 rows and 133 KB
+# of recorded `statements` on production at the time this was found.
+#
+# That is not a completeness nicety. A restore from a public-only dump produces
+# a database with NO migration history, so `supabase db push` afterwards
+# considers every migration unapplied and tries to replay the entire lineage
+# against the restored data. The backup that exists to prove DR could not, on
+# its own, reconstitute a database anyone could safely continue to migrate —
+# which is the substance of SEC-23's restore drill and BUGS-75.
+#
+# It also means the BUGS-91 reconciliation had no safety net: `supabase
+# migration repair --status reverted` DELETEs these rows, and nothing anywhere
+# held a copy.
 pg_dump "$SUPABASE_DB_URL" \
   --no-owner \
   --no-privileges \
   --schema=public \
+  --schema=supabase_migrations \
   --format=plain \
   --file="$BACKUP_FILE" \
   2>&1

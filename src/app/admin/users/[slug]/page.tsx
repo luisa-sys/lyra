@@ -14,7 +14,7 @@ import { getProfileEntitlements } from '@/lib/features/entitlements-service';
 import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/lib/features/registry';
 import { getGlobalSwitches } from '@/lib/features/global-switches-service';
 import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/lib/features/global-features';
-import { getDeployEnv } from '@/lib/deploy-env';
+import { getDeployEnv } from '@/modules/platform/deploy-env';
 import { setFeatureEntitlement } from '../actions';
 import { userStatusBadge, accessBadge, publishBadge } from '../status-badges';
 

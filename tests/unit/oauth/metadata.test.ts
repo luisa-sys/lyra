@@ -102,14 +102,14 @@ describe('next.config.ts rewrite for /.well-known/oauth-authorization-server (KA
 
 describe('oauth config (KAN-88)', () => {
   test('TTLs match documented values', async () => {
-    const { oauthConfig } = await import('@/lib/oauth/config');
+    const { oauthConfig } = await import('@/modules/oauth-as/lib/config');
     expect(oauthConfig.authorizationCodeTtlSeconds).toBe(600); // 10 min
     expect(oauthConfig.accessTokenTtlSeconds).toBe(3600); // 1h
     expect(oauthConfig.refreshTokenTtlSeconds).toBe(30 * 24 * 60 * 60); // 30d
   });
 
   test('wwwAuthenticateHeader builds the right shape', async () => {
-    const { wwwAuthenticateHeader, oauthConfig } = await import('@/lib/oauth/config');
+    const { wwwAuthenticateHeader, oauthConfig } = await import('@/modules/oauth-as/lib/config');
     const plain = wwwAuthenticateHeader();
     expect(plain).toMatch(/^Bearer realm="/);
     expect(plain).toContain(oauthConfig.issuer());

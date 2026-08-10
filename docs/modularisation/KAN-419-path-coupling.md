@@ -80,9 +80,9 @@ prefix at any depth. Comments (`#`) and blank lines stripped.
 | `src/lib/auth/**` | 1 | LIVE |
 | `src/lib/age/**` | 5 | LIVE |
 | `src/lib/beta-access/**` | 4 | LIVE |
-| `src/lib/supabase-server.ts` | 1 | LIVE |
-| `src/lib/supabase-service.ts` | 1 | LIVE |
-| `src/lib/env.ts` | 1 | LIVE |
+| `src/modules/platform/supabase-server.ts` | 1 | LIVE |
+| `src/modules/platform/supabase-service.ts` | 1 | LIVE |
+| `src/modules/platform/env.ts` | 1 | LIVE |
 | `src/middleware.ts` | 1 | LIVE |
 | `supabase/migrations/**` | 73 | LIVE (content-filtered) |
 
@@ -106,8 +106,8 @@ Syntax: **gitignore-style, leading `/` anchors to repo root.**
 | `/src/lib/oauth/` | 10 | | `/vercel.json` | 1 |
 | `/src/lib/beta-access/` | 4 | | `/wrangler.toml` | 1 |
 | `/src/app/admin/` | 20 | | `/.github/CODEOWNERS` | 1 |
-| `/src/lib/cookie-domain.ts` | 1 | | `/SECURITY.md` | 1 |
-| `/src/lib/env.ts` | 1 | | `/docs/compliance/` | 7 |
+| `/src/modules/platform/cookie-domain.ts` | 1 | | `/SECURITY.md` | 1 |
+| `/src/modules/platform/env.ts` | 1 | | `/docs/compliance/` | 7 |
 | | | | `/CLAUDE.md` | 1 |
 
 **Move-exposure: 8 of 17.** The eight security-critical `/src/…` rules all move
@@ -144,7 +144,7 @@ patterns are the ones that must be drift-checked.**
 #### A4 · `scripts/check-service-role-client.sh` — 2 literals, 2 LIVE
 
 `src/` (grep root, 274 files) and the factory literal
-`src/lib/supabase-service.ts` (1). Guard passes today (exit 0, verified).
+`src/modules/platform/supabase-service.ts` (1). Guard passes today (exit 0, verified).
 
 **Move-exposure: both.** If the factory moves to `modules/platform/` and the
 `FACTORY` literal is not updated, the factory's *own* legal call site becomes a
@@ -153,7 +153,7 @@ direction. If `src/` becomes `src/modules/`, the grep root still covers it.
 
 #### A5 · `stryker.config.mjs` — 2 literals, 2 LIVE
 
-`mutate: ['src/app/(auth)/actions.ts', 'src/lib/sanitise.ts']`.
+`mutate: ['src/app/(auth)/actions.ts', 'src/modules/guards/sanitise.ts']`.
 
 **Move-exposure: both, and this one is the quietest failure in the estate.**
 Stryker with a `mutate` list that matches nothing does not error — it reports a
@@ -212,7 +212,7 @@ documented as removed (`src/app/dashboard/loading.tsx`, `src/app/**/loading.*` �
 BUGS-63/66), cross-repo MCP paths cited in a lyra doc (`src/index.ts`,
 `tests/mcp-rate-limit.test.cjs`), or package names that look like paths
 (`supabase/ssr`). A handful are real drift (`src/sanitise.ts` in
-`docs/ARCHITECTURE.md` — the file is `src/lib/sanitise.ts`; `src/lib/age/gate.ts`
+`docs/ARCHITECTURE.md` — the file is `src/modules/guards/sanitise.ts`; `src/lib/age/gate.ts`
 in `docs/TEST_RUNBOOK_SIGNUP_ACCESS_AGE_PUBLISH.md`).
 
 This is the empirical case for the guard: **an unguarded path reference layer
@@ -288,9 +288,9 @@ list, which is the correct direction for this gate.
 | 7 | `src/lib/auth/**` | 1 | `auth` | *(subsumed by #1)* |
 | 8 | `src/lib/age/**` | 5 | `age` | `src/modules/age/**` |
 | 9 | `src/lib/beta-access/**` | 4 | `access` | `src/modules/access/**` |
-| 10 | `src/lib/supabase-server.ts` | 1 | `platform` | `src/modules/platform/**` |
-| 11 | `src/lib/supabase-service.ts` | 1 | `platform` | *(subsumed by #10)* |
-| 12 | `src/lib/env.ts` | 1 | `platform` | *(subsumed by #10)* |
+| 10 | `src/modules/platform/supabase-server.ts` | 1 | `platform` | `src/modules/platform/**` |
+| 11 | `src/modules/platform/supabase-service.ts` | 1 | `platform` | *(subsumed by #10)* |
+| 12 | `src/modules/platform/env.ts` | 1 | `platform` | *(subsumed by #10)* |
 | 13 | `src/middleware.ts` | 1 | — (stays) | `src/middleware.ts` — unchanged |
 | 14 | `supabase/migrations/**` | 73 | — (stays) | `supabase/migrations/**` — unchanged, content-filtered |
 
@@ -599,7 +599,7 @@ Per the ticket, F1 implements; this is the required list.
 | 4 | `bash-case` `*` crossing `/` (`src/app/*.tsx` → 97) | pass — proves fnmatch was not used |
 | 5 | `bash-case` trailing `/**` prefix rule (`src/lib/age/**`) | pass |
 | 6 | `bash-dbl-bracket` carve-out vs protected ordering | carve-out wins |
-| 7 | `codeowners` leading-`/` anchoring | `/src/lib/env.ts` matches 1, not any nested `env.ts` |
+| 7 | `codeowners` leading-`/` anchoring | `/src/modules/platform/env.ts` matches 1, not any nested `env.ts` |
 | 8 | `literal` exact path (stryker `mutate`) | pass |
 | 9 | `glob` `**` vs `*` depth (eslint/jest) | `tests/**/*.ts` ≠ `tests/*.ts` |
 | 10 | `regex` (`package.json --testPathPatterns`) | pass |

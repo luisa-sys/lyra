@@ -76,7 +76,7 @@ function mockMakeClient() {
   };
 }
 
-jest.mock('@/lib/supabase-service', () => ({
+jest.mock('@/modules/platform/supabase-service', () => ({
   createServiceRoleClient: () => mockMakeClient(),
 }));
 

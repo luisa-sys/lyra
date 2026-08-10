@@ -34,7 +34,7 @@ export async function register() {
   // SEC-55: strip OAuth secrets / PII from events + breadcrumbs before they
   // leave the process. Complements (does not replace) sendDefaultPii:false.
   const { scrubSentryEvent, scrubSentryBreadcrumb } = await import(
-    '@/lib/sentry-scrub'
+    '@/modules/observability/sentry-scrub'
   );
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {
