@@ -10,6 +10,8 @@ import {
   createEdgeContext,
   type MiddlewareEnvRaw,
 } from '@/modules/access/context';
+import { isExemptFrom } from '@/modules/access/exemptions';
+import { isOauthServerPath } from '@/modules/access/oauth-server-paths';
 import { runGates } from '@/modules/access/gate';
 import { PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
 import { clientIp } from '@/modules/guards/client-ip';
@@ -19,23 +21,6 @@ import { clientIp } from '@/modules/guards/client-ip';
 // rate-limit-shared.ts, and the duplication was the recurrence mechanism.
 function getClientIp(request: NextRequest): string {
   return clientIp(request.headers);
-}
-
-/**
- * Paths that make up the OAuth authorization server surface (SEC-36).
- *
- * Both the public `/.well-known/*` paths and the internal `/api/well-known/*`
- * they rewrite to are listed. Middleware sees the public path, but the rewrite
- * targets are directly addressable too, so gating only one half would leave a
- * back door.
- */
-function isOauthServerPath(pathname: string): boolean {
-  return (
-    pathname.startsWith('/oauth/') ||
-    pathname === '/.well-known/oauth-authorization-server' ||
-    pathname === '/.well-known/jwks.json' ||
-    pathname.startsWith('/api/well-known/')
-  );
 }
 
 /**
@@ -151,11 +136,7 @@ export async function middleware(request: NextRequest) {
         });
       }
       // Let the auth/login flow, API routes and assets pass through unchanged.
-      const passthrough =
-        pathname === '/login' ||
-        pathname.startsWith('/auth/') ||
-        pathname.startsWith('/api/') ||
-        pathname.startsWith('/_next/');
+      const passthrough = isExemptFrom('admin-passthrough', pathname);
       if (!passthrough && !pathname.startsWith('/admin')) {
         // admin.checklyra.com/users → /admin/users, carrying refreshed cookies.
         const url = request.nextUrl.clone();
@@ -181,12 +162,7 @@ export async function middleware(request: NextRequest) {
   // and sends them to /suspended with an appeal route. Runs before the beta gate
   // so a suspended user lands on /suspended, not /waitlist. Exempts the
   // suspended page itself + the auth/logout flow + assets to avoid loops.
-  const suspensionExempt =
-    pathname === '/suspended' ||
-    pathname === '/login' ||
-    pathname.startsWith('/auth/') ||
-    pathname.startsWith('/_next/') ||
-    pathname === '/favicon.ico';
+  const suspensionExempt = isExemptFrom('suspension', pathname);
   if (user && !suspensionExempt) {
     const { data: suspProfile, error: suspErr } = await supabase
       .from('profiles')
@@ -220,17 +196,7 @@ export async function middleware(request: NextRequest) {
   //                          (sessions carry via the shared .checklyra.com cookie).
   // The /waitlist page itself + auth pages are exempt to avoid redirect loops.
   const deployTier = deploy.deployTier;
-  const exemptFromBetaGate =
-    pathname === '/waitlist' ||
-    pathname === '/suspended' || // KAN-319: suspended users land here, not /waitlist
-    pathname === '/status' || // SEC-4: public status page is never beta-gated
-    pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname === '/join' || // KAN-337: beta-invite deep-link sets a cookie + redirects to /signup
-    pathname === '/confirm-age' || // 18+ declaration: ask before the waitlist bounce, not after
-    pathname.startsWith('/auth/') ||
-    pathname.startsWith('/_next/') ||
-    pathname === '/favicon.ico';
+  const exemptFromBetaGate = isExemptFrom('beta-tier', pathname);
 
   if (deployTier && user && !exemptFromBetaGate) {
     const { data: profile } = await supabase
