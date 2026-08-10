@@ -2,12 +2,12 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { rateLimit, RATE_LIMITS } from '@/modules/guards/rate-limit';
 import { withParentCookieDomain } from '@/modules/platform/cookie-domain';
-import { cfAccessEnabled, verifyCfAccessToken } from '@/modules/guards/cf-access';
 import { buildCspReportOnly } from '@/modules/guards/security-headers';
 import { generateCspNonce, stampCspReportOnly } from '@/modules/access/csp';
 import {
   buildDeployContext,
   createEdgeContext,
+  type AuthedContext,
   type MiddlewareEnvRaw,
 } from '@/modules/access/context';
 import { isExemptFrom } from '@/modules/access/exemptions';
@@ -16,7 +16,7 @@ import { runGates } from '@/modules/access/gate';
 import { betaTier } from '@/modules/access/gates/beta-tier';
 import { suspension } from '@/modules/access/gates/suspension';
 import { establishSession } from '@/modules/access/session';
-import { PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
+import { AUTHED_PIPELINE, PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
 import { clientIp } from '@/modules/guards/client-ip';
 
 // SEC-120: the precedence rule lives in ONE place now — see
@@ -70,16 +70,6 @@ export async function middleware(request: NextRequest) {
   //
   // They run against an EdgeContext, which has no `user` and no Supabase
   // client — so "check the user first" is not an edit that can be written here.
-  // KAN-309 / SEC-34 / SEC-37 admin-host facts. Derived here rather than in a
-  // gate because three later blocks read them; they move with the admin gate in
-  // C7. `cfEnabled` is inert until CF_ACCESS_* are configured.
-  const adminHost = deploy.adminHost;
-  const adminHostEnforced = deploy.adminHostEnforced;
-  const requestHost =
-    request.headers.get('host') ?? request.headers.get('x-forwarded-host') ?? '';
-  const isAdminHost = requestHost === adminHost;
-  const cfEnabled = cfAccessEnabled();
-
   const edge = createEdgeContext(request, deploy, csp);
   const preAuth = await runGates(PRE_AUTH_PIPELINE, edge);
   if (preAuth !== null) return preAuth;
@@ -105,73 +95,17 @@ export async function middleware(request: NextRequest) {
   // Read `res.current` at the point of RETURN, never captured here — the cookie
   // callback rebuilds it during getUser(). See session.ts.
 
-  // KAN-309 / SEC-37: route the admin tools to the admin subdomain, and verify
-  // Cloudflare Access on the admin host. Isolation applies when
-  // ADMIN_HOST_ENFORCED=true OR CF Access is configured — so enabling CF Access
-  // can never leave /admin reachable on a public host by forgetting a flag.
-  if (adminHostEnforced || cfEnabled) {
-    if (isAdminHost) {
-      // SEC-34/SEC-37: every request reaching the admin host must carry a valid
-      // Cloudflare Access JWT — this rejects anything that hit the origin
-      // without transiting the CF edge (leaked preview URL, spoofed Host,
-      // direct origin). Inert (allows all) until CF_ACCESS_* are configured.
-      if (
-        cfEnabled &&
-        !(await verifyCfAccessToken(request.headers.get('cf-access-jwt-assertion')))
-      ) {
-        return new NextResponse('Forbidden: Cloudflare Access required.', {
-          status: 403,
-        });
-      }
-      // Let the auth/login flow, API routes and assets pass through unchanged.
-      const passthrough = isExemptFrom('admin-passthrough', pathname);
-      if (!passthrough && !pathname.startsWith('/admin')) {
-        // admin.checklyra.com/users → /admin/users, carrying refreshed cookies.
-        const url = request.nextUrl.clone();
-        url.pathname = '/admin' + (pathname === '/' ? '' : pathname);
-        const rewrite = NextResponse.rewrite(url);
-        res.current.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
-        return stampCspReportOnly(rewrite, csp());
-      }
-      // Already an /admin path (or passthrough) — serve it, and crucially skip
-      // the beta gate below so an admin isn't bounced to /waitlist.
-      return stampCspReportOnly(res.current, csp());
-    }
-    // Any non-admin host must never serve /admin — send it to the subdomain.
-    if (pathname.startsWith('/admin')) {
-      return NextResponse.redirect(
-        new URL(`https://${adminHost}${pathname}${request.nextUrl.search}`),
-      );
-    }
-  }
-
-  // ── AUTHED GATES (partial — the remaining three land in C7) ────────────
-  // suspension BEFORE beta-tier, so a suspended user lands on /suspended
-  // rather than /waitlist. Each gate carries its own reasoning; the ORDER is
-  // asserted from the outside in middleware-gate-order.test.ts.
-  const authed = { ...edge, supabase, user, res };
-  const authedOutcome = await runGates([suspension, betaTier], authed);
+  // ── AUTHED GATES ───────────────────────────────────────────────────────
+  // Five gates, in an order that is behaviour rather than style: admin-host
+  // returns early so an operator whose own profile is not `live` still reaches
+  // the console; suspension precedes beta-tier so a suspended user lands on
+  // /suspended rather than /waitlist. Each gate carries its own reasoning in
+  // src/modules/access/gates/, and every ordering is asserted from the outside
+  // in tests/unit/middleware-gate-order.test.ts.
+  const authed: AuthedContext = { ...edge, supabase, user, res };
+  const authedOutcome = await runGates(AUTHED_PIPELINE, authed);
   if (authedOutcome !== null) return authedOutcome;
 
-  // Redirect unauthenticated users away from protected routes
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (
-    user &&
-    (request.nextUrl.pathname === '/login' ||
-      request.nextUrl.pathname === '/signup')
-  ) {
-    const url = request.nextUrl.clone();
-    // KAN-175: on beta, ineligible users belong at /waitlist, not /dashboard.
-    // The dashboard redirect would just bounce them through the beta gate again.
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
-  }
 
   return stampCspReportOnly(res.current, csp());
 }

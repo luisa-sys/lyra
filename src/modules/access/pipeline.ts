@@ -28,6 +28,11 @@ import type { Gate } from './gate';
 import { authRateLimit } from './gates/auth-rate-limit';
 import { betaOauth404 } from './gates/beta-oauth-404';
 import { pkceCodeRedirect } from './gates/pkce-code-redirect';
+import { adminHost } from './gates/admin-host';
+import { authPageRedirect } from './gates/auth-page-redirect';
+import { betaTier } from './gates/beta-tier';
+import { protectedRoute } from './gates/protected-route';
+import { suspension } from './gates/suspension';
 
 /** Every pre-auth gate that exists, keyed by id. Not an order. */
 export const PRE_AUTH_GATES: Readonly<Record<string, Gate<EdgeContext>>> = {
@@ -59,7 +64,37 @@ export const PRE_AUTH_PIPELINE: readonly Gate<EdgeContext>[] = PRE_AUTH_ORDER.ma
   return gate;
 });
 
-/** Placeholder for C7 — the authed pipeline is assembled once its gates exist. */
-export const AUTHED_GATES: Readonly<Record<string, Gate<AuthedContext>>> = {};
-export const AUTHED_ORDER: readonly string[] = [];
-export const AUTHED_PIPELINE: readonly Gate<AuthedContext>[] = [];
+/** Every authed gate that exists, keyed by id. Not an order. */
+export const AUTHED_GATES: Readonly<Record<string, Gate<AuthedContext>>> = {
+  [adminHost.id]: adminHost,
+  [suspension.id]: suspension,
+  [betaTier.id]: betaTier,
+  [protectedRoute.id]: protectedRoute,
+  [authPageRedirect.id]: authPageRedirect,
+};
+
+/**
+ * The order they run in. Three of these orderings are behaviour with
+ * consequences, all pinned behaviourally in middleware-gate-order.test.ts:
+ *
+ *   admin-host BEFORE beta-tier — the admin branch RETURNS, so an operator
+ *     whose own profile is not `live` still reaches the console. Without this
+ *     ordering, enabling the beta gate locks out the person who would fix it.
+ *   suspension BEFORE beta-tier — a suspended user lands on /suspended, not
+ *     /waitlist.
+ *   beta-tier BEFORE auth-page-redirect — an ineligible user is bounced to
+ *     /waitlist rather than sent to /dashboard and bounced from there.
+ */
+export const AUTHED_ORDER: readonly string[] = [
+  'admin-host',
+  'suspension',
+  'beta-tier',
+  'protected-route',
+  'auth-page-redirect',
+];
+
+export const AUTHED_PIPELINE: readonly Gate<AuthedContext>[] = AUTHED_ORDER.map((id) => {
+  const gate = AUTHED_GATES[id];
+  if (!gate) throw new Error(`AUTHED_ORDER names an unknown gate: ${id}`);
+  return gate;
+});
