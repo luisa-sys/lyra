@@ -42,7 +42,7 @@
  * Under every one, photo-upload.test.js stays 6/6 green.
  */
 import { uploadAvatar } from '@/app/dashboard/profile/actions';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
@@ -77,7 +77,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   })),
 }));
 
-jest.mock('@/lib/features/entitlements', () => ({
+jest.mock('@/modules/features/entitlements', () => ({
   getMyFeatureEntitlements: jest.fn(),
 }));
 

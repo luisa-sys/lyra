@@ -12,8 +12,8 @@
  * read (next/headers, service client).
  */
 import { isConveneEnabled } from './flags';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
-import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
+import { isFeatureGloballyEnabled } from '@/modules/features/global-switches-service';
 
 /**
  * True only if Convene is enabled in this env (env var) AND the admin global

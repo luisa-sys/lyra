@@ -121,7 +121,7 @@
       "edges": 1,
       "direction": "same-layer, undeclared",
       "files": [
-        "src/lib/age/provider-gate.ts -> src/lib/features/global-switches-service.ts"
+        "src/lib/age/provider-gate.ts -> src/modules/features/global-switches-service.ts"
       ],
       "typeOnly": false
     }

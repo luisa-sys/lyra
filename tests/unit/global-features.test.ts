@@ -6,7 +6,7 @@ import {
   GLOBAL_FEATURE_CONFIG,
   isGlobalFeatureKey,
   resolveGlobalSwitches,
-} from '@/lib/features/global-features';
+} from '@/modules/features/global-features';
 
 describe('global feature registry (KAN-408)', () => {
   it('covers the current global features', () => {

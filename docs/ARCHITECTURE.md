@@ -76,7 +76,7 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
-`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/lib/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
+`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 

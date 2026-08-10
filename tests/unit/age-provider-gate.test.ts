@@ -2,7 +2,7 @@
  * KAN-408: provider age-verification gate (keyed on the global switch).
  */
 const mockGlobally = jest.fn();
-jest.mock('@/lib/features/global-switches-service', () => ({
+jest.mock('@/modules/features/global-switches-service', () => ({
   isFeatureGloballyEnabled: (...a: unknown[]) => mockGlobally(...a),
 }));
 

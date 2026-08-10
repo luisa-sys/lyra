@@ -102,7 +102,7 @@
       "TWILIO_SMS_FROM",
       "TWILIO_WHATSAPP_FROM"
     ],
-    "src/lib/features/entitlements-service.ts": [
+    "src/modules/features/entitlements-service.ts": [
       "PAID_LINKS_COMPLIANCE_READY"
     ],
     "src/lib/geo/places-city.ts": [

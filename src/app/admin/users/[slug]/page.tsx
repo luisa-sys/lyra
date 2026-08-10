@@ -10,10 +10,10 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
-import { getProfileEntitlements } from '@/lib/features/entitlements-service';
-import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/lib/features/registry';
-import { getGlobalSwitches } from '@/lib/features/global-switches-service';
-import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/lib/features/global-features';
+import { getProfileEntitlements } from '@/modules/features/entitlements-service';
+import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/modules/features/registry';
+import { getGlobalSwitches } from '@/modules/features/global-switches-service';
+import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/modules/features/global-features';
 import { getDeployEnv } from '@/modules/platform/deploy-env';
 import { setFeatureEntitlement } from '../actions';
 import { userStatusBadge, accessBadge, publishBadge } from '../status-badges';

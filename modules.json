@@ -1125,7 +1125,7 @@
     "features": {
       "layer": 2,
       "paths": [
-        "src/lib/features/"
+        "src/modules/features/"
       ],
       "owns": {
         "files": 5,
@@ -1139,7 +1139,7 @@
       "publicApi": [
         {
           "symbol": "getMyFeatureEntitlements",
-          "file": "src/lib/features/entitlements.ts",
+          "file": "src/modules/features/entitlements.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -1150,7 +1150,7 @@
         },
         {
           "symbol": "isFeatureGloballyEnabled",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 3,
           "consumingModules": [
             "account",
@@ -1161,7 +1161,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_CONFIG",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1170,7 +1170,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_KEYS",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1179,7 +1179,7 @@
         },
         {
           "symbol": "getGlobalSwitches",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -1189,7 +1189,7 @@
         },
         {
           "symbol": "isPaidLinksAllowedForRecipient",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "affiliate",
@@ -1199,7 +1199,7 @@
         },
         {
           "symbol": "isGlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1208,7 +1208,7 @@
         },
         {
           "symbol": "resolveGlobalSwitches",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1217,7 +1217,7 @@
         },
         {
           "symbol": "type:GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1226,7 +1226,7 @@
         },
         {
           "symbol": "getProfileEntitlements",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1235,7 +1235,7 @@
         },
         {
           "symbol": "FEATURE_CONFIG",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1244,7 +1244,7 @@
         },
         {
           "symbol": "GA_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1253,7 +1253,7 @@
         },
         {
           "symbol": "TEST_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1262,7 +1262,7 @@
         },
         {
           "symbol": "type:FeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1271,7 +1271,7 @@
         },
         {
           "symbol": "isFeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1280,7 +1280,7 @@
         },
         {
           "symbol": "GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -1289,7 +1289,7 @@
         },
         {
           "symbol": "isFeatureEnabledByUserId",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -2913,8 +2913,8 @@
         "src/lib/age/record-declaration.ts"
       ],
       "features": [
-        "src/lib/features/entitlements-service.ts",
-        "src/lib/features/global-switches-service.ts"
+        "src/modules/features/entitlements-service.ts",
+        "src/modules/features/global-switches-service.ts"
       ],
       "account": [
         "src/lib/retention/affiliate-clicks.ts",
