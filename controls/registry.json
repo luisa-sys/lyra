@@ -234,7 +234,9 @@
         "KAN-413"
       ],
       "escape_hatch": null,
-      "added": "2026-07-25"
+      "added": "2026-07-25",
+      "self_test": "npx jest tests/scripts/check-signup-surface-gate.test.js",
+      "notes": "Armed under KAN-415 D6. This control shipped 2026-07-25 with NO tests of its own, which matters more than it sounds: its own header states the daily Staging Soak deliberately never exercises signup (it reuses a persistent reset-user), so this gate is the only thing proving account creation still works before code reaches staging. The KAN-419 spike then demonstrated that a modularisation move renames the surface out from under the manifest and the gate reports RESULT: CLEAN - exit 0, no warning, no log. tests/scripts/check-signup-surface-gate.test.js now pins both halves: the behavioural contract (fires on the surface, stays quiet otherwise, content-filters migrations, fails closed when unverifiable) and a two-way ratchet asserting every src/ glob in the manifest still resolves to tracked files. Mutation-proven three ways - performing the real D6 move with the manifest untouched reddens 2, disarming matches_glob reddens 12, and turning the fail-closed branch into a CLEAN reddens 1."
     },
     {
       "id": "CTL-014",
