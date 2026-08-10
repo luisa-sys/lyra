@@ -111,7 +111,63 @@ const SELF_FILENAME = path.basename(__filename);
 // do with what this file asserts, and which failed five unrelated PRs in a row.
 // Excluding the naming convention is the fix; the readFileSync guard below
 // closes the remaining window between listing and reading.
-const TRANSIENT_PROBE_RE = /^__.*_probe__.*\.test\.js$/;
+// Read from tests/support/transient-probes.json rather than declared here.
+// This was a private const, and the KAN-415 test-floor guard reproduced the
+// very flake this comment describes because it could not see it. One
+// definition, three readers — CTL-043's lesson applied locally: the fix for a
+// copy that drifts is to stop having copies.
+const TRANSIENT_PROBE_RE = new RegExp(
+  require('../support/transient-probes.json').pattern,
+);
+
+describe('transient-probe convention has ONE definition (KAN-415)', () => {
+  // The pattern was a private const in this file, carrying a comment saying the
+  // flake it prevents had "failed five unrelated PRs in a row". The KAN-415
+  // test-floor guard then reproduced that exact flake, because a private const
+  // is invisible to the next person who enumerates test files. These assertions
+  // stop the definition being copied back.
+  const SHARED = require('../support/transient-probes.json');
+
+  test('the shared definition exists and declares its readers', () => {
+    expect(typeof SHARED.pattern).toBe('string');
+    expect(Array.isArray(SHARED.readers)).toBe(true);
+    expect(SHARED.readers.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('every declared reader exists and reads the shared file', () => {
+    for (const rel of SHARED.readers) {
+      const abs = path.join(REPO_ROOT, rel);
+      expect(fs.existsSync(abs)).toBe(true);
+      const src = fs.readFileSync(abs, 'utf8');
+      // Must reference the shared definition...
+      expect(src).toContain('transient-probes.json');
+      // ...and must NOT re-declare the regex inline. A literal /^__.*_probe__/
+      // in a reader is the copy that caused this.
+      expect(src).not.toMatch(/=\s*\/\^__\.\*_probe__/);
+    }
+  });
+
+  test('every reader tolerates a file vanishing between listing and reading', () => {
+    // The exclusion closes the common case; this closes the window between
+    // `--listTests` returning a path and the reader opening it. Without it the
+    // guard is merely less flaky, not correct.
+    for (const rel of SHARED.readers) {
+      const src = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+      if (!src.includes('readFileSync')) continue;
+      expect(src).toContain("ENOENT");
+    }
+  });
+
+  test('the pattern matches the probes that actually exist, both ways', () => {
+    const re = new RegExp(SHARED.pattern);
+    expect(re.test('__ctl038_probe__.test.js')).toBe(true);
+    expect(re.test('__ctl039_probe__.test.js')).toBe(true);
+    // A too-greedy pattern would silently drop the whole suite and every
+    // enumerating guard would pass while measuring nothing.
+    expect(re.test('seo.test.js')).toBe(false);
+    expect(re.test('middleware-gate-order.test.ts')).toBe(false);
+  });
+});
 
 describe('KAN-168: every test block must make at least one assertion', () => {
   // Discover all unit test files (excluding self — see SELF_FILENAME above).

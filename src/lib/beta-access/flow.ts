@@ -12,8 +12,8 @@
  *    beta.checklyra.com, not-live -> the beta waitlist. Dev/stage stay on their
  *    own origin and let the in-app middleware gate handle waitlisting.
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 import { sendBetaQueueNotice } from './email';
 import { computeAccessTransition, type AccessTier, type UserStatus } from '@/lib/access-model';
 

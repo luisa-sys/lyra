@@ -46,7 +46,7 @@ import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
 
@@ -62,7 +62,7 @@ const getPublicUrl = jest.fn(() => ({ data: { publicUrl: 'https://cdn/x.png' } }
 const storageFrom = jest.fn(() => ({ upload, getPublicUrl }));
 const profileUpdate = jest.fn(() => ({ eq: jest.fn(async () => ({ error: null })) }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } } })) },
     from: jest.fn(() => ({

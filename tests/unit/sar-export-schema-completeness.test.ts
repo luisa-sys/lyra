@@ -27,7 +27,7 @@
  * and `feature_entitlements` in 2026-06-22 — all predating SEC-71 (2026-07-22).
  * The guard was born narrower than its own header claim; this is not drift.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   PERSON_KEYED_TABLES,
@@ -155,5 +155,107 @@ describe('SEC-117: SAR export completeness, derived from the schema', () => {
     // A table both exported and excluded means the reader cannot tell which
     // decision is live.
     expect(dupes).toEqual([]);
+  });
+});
+
+/**
+ * SEC-117 follow-up (2026-08-09) — the guard above had the defect it exists to
+ * catch, one level up.
+ *
+ * It derives the person-keyed set from `src/types/database/prod.ts`, a COMMITTED
+ * SNAPSHOT of the production schema. A snapshot is only as current as its last
+ * regeneration. So a migration that adds a person-keyed table is invisible to it
+ * until someone remembers to regenerate — and `gift_suggestion_dismissals`
+ * (KAN-443, `profile_id`) proved it: the table existed in a migration and on two
+ * live databases while that suite sat 7/7 green and said nothing.
+ *
+ * A completeness check whose INPUT can silently go stale is not a completeness
+ * check. This reads the migrations instead. They cannot lag, because they ARE
+ * the change.
+ *
+ * Drop-aware on purpose: `convene_spike_oauth_connections` is created by
+ * 20260516200100 and dropped by 20260516240000. Demanding a SAR decision for a
+ * table that no longer exists would be noise, and noise is what teaches people
+ * to wave a gate through.
+ */
+const MIGRATIONS = SRC.migrations;
+
+/** Tables that still exist after replaying every migration's create/drop. */
+function personKeyedTablesFromMigrations(): Map<string, string[]> {
+  const dir = resolve(ROOT, MIGRATIONS);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const live = new Map<string, string[]>();
+
+  for (const f of files) {
+    // Strip `--` line comments FIRST. Every well-written migration here
+    // documents its own rollback in a comment, e.g.
+    //     --   drop table if exists public.gift_suggestion_dismissals;
+    // and the first cut of this parser matched that prose, deleted the table
+    // from the map, and reported 19 tables instead of 28 — missing the very
+    // table it was written to catch. That is the comment-satisfied-assertion
+    // defect (CTL-039) reappearing inside the fix for it: a check reading
+    // prose as if it were code.
+    const sql = readFileSync(resolve(dir, f), 'utf-8')
+      .split('\n')
+      .map((line) => line.replace(/--.*$/, ''))
+      .join('\n');
+
+    const createRe =
+      /create table (?:if not exists )?(?:public\.)?(\w+)\s*\(([\s\S]*?)\n\);/gi;
+    let m: RegExpExecArray | null;
+    while ((m = createRe.exec(sql))) {
+      const [, name, body] = m;
+      const keys = PERSON_COLUMNS.filter((c) =>
+        new RegExp(`^\\s*${c}\\b`, 'm').test(body),
+      );
+      if (keys.length) live.set(name, keys);
+    }
+
+    const dropRe = /drop table (?:if exists )?(?:public\.)?(\w+)/gi;
+    while ((m = dropRe.exec(sql))) live.delete(m[1]);
+  }
+  return live;
+}
+
+describe('SEC-117 follow-up: person-keyed tables derived from MIGRATIONS', () => {
+  it('finds a non-trivial number (the derivation is not vacuous)', () => {
+    // If the create-table regex stopped matching, every assertion below would
+    // pass over an empty map — the exact failure this file exists to prevent,
+    // reproduced in the fix for it.
+    expect(personKeyedTablesFromMigrations().size).toBeGreaterThan(20);
+  });
+
+  it('every person-keyed table a migration creates has an explicit SAR decision', () => {
+    const decided = new Set([
+      ...Object.keys(PERSON_KEYED_TABLES),
+      ...Object.keys(JOIN_KEYED_TABLES),
+      ...Object.keys(DELIBERATELY_EXCLUDED),
+    ]);
+
+    const undecided = [...personKeyedTablesFromMigrations().keys()]
+      .filter((t) => !decided.has(t))
+      .sort();
+
+    // Adding a person-keyed table in a migration without deciding whether a
+    // subject access request returns it must be a RED BUILD at the moment the
+    // migration lands — not whenever prod.ts is next regenerated.
+    expect(undecided).toEqual([]);
+  });
+
+  it('drops are honoured — a dropped table needs no SAR decision', () => {
+    const live = personKeyedTablesFromMigrations();
+    // Created by 20260516200100, dropped by 20260516240000. Verified absent
+    // from production 2026-08-09.
+    expect(live.has('convene_spike_oauth_connections')).toBe(false);
+    // Sanity: the drop logic must not be deleting everything.
+    expect(live.has('profiles')).toBe(true);
+  });
+
+  it('catches what the snapshot missed: gift_suggestion_dismissals', () => {
+    // The concrete case. Pinned by name so a future refactor that reintroduces
+    // snapshot-only derivation fails here rather than silently.
+    const live = personKeyedTablesFromMigrations();
+    expect(live.get('gift_suggestion_dismissals')).toEqual(['profile_id']);
+    expect(Object.keys(PERSON_KEYED_TABLES)).toContain('gift_suggestion_dismissals');
   });
 });

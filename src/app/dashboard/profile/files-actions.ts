@@ -1,17 +1,18 @@
 'use server';
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { coerceVisibility } from './visibility';
 import {
   preflightUpload,
   ALLOWED_MIMES,
   extensionForMime,
   type AllowedMime,
-} from '@/lib/file-magic-bytes';
+} from '@/modules/guards/file-magic-bytes';
 import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { dbErrorFor } from '@/lib/db-error-copy';
 
 /**
  * KAN-142: server actions for the profile_files surface.
@@ -194,7 +195,7 @@ export async function updateProfileFileVisibility(
     .eq('id', id)
     .eq('profile_id', profileId);
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: dbErrorFor('update-profile-file-visibility', error) };
   }
 
   revalidatePath('/dashboard/profile');

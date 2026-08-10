@@ -14,7 +14,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { hasDeclaredAge } from '@/lib/age/record-declaration';
 import { confirmAge, declineAge } from './actions';
 

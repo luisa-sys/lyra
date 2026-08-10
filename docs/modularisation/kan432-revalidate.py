@@ -284,11 +284,11 @@ def main():
         return len(seen)
 
     kernel = {
-        "src/lib/supabase-server.ts": 46,
-        "src/lib/supabase-service.ts": 39,
-        "src/lib/env.ts": 17,
+        "src/modules/platform/supabase-server.ts": 46,
+        "src/modules/platform/supabase-service.ts": 39,
+        "src/modules/platform/env.ts": 17,
         "src/lib/admin.ts": 17,
-        "src/lib/deploy-env.ts": 5,
+        "src/modules/platform/deploy-env.ts": 5,
     }
     out["kernel"] = {
         k: {"planFanIn": v, "actualFanIn": len(fanin.get(k, ())),
@@ -314,7 +314,7 @@ def main():
     )
     svc_total, svc_hits = count_matches(r"createServiceRoleClient", src_files)
     svc_importers = sorted(
-        a for a, b in edges if b == "src/lib/supabase-service.ts"
+        a for a, b in edges if b == "src/modules/platform/supabase-service.ts"
     )
     profiles_sites = sum(
         1 for p in src_files

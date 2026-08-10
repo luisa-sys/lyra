@@ -1,0 +1,24 @@
+{
+  "_why": [
+    "KAN-457. This file is the app repo's record of which Claude Design commit the",
+    "rendered UI was last reconciled against. It exists because the design system",
+    "lives in a DIFFERENT, PRIVATE repo (github.com/luisa-sys/lyra-design-system)",
+    "that this repo's CI cannot read, so the extraction DoD could only ever ask a",
+    "human to attest 'done' — and an attestation satisfied by typing a word is",
+    "indistinguishable from no control at all.",
+    "",
+    "CTL-040 (scripts/check-design-baseline.py) makes that attestation load-bearing:",
+    "when a PR MOVES a file on a design-bearing surface, `baseline_ref` below must",
+    "change in the SAME PR. The claim is then backed by a diff, not a promise.",
+    "",
+    "This does NOT prove the design system was actually re-pointed — CI still cannot",
+    "read that repo. It proves someone opened it, took its head, and recorded it",
+    "here. That is a deliberate, stated limit; see docs/MODULARISATION_EXTRACTION_DOD.md",
+    "section 2.2 and the CTL-040 registry entry."
+  ],
+  "design_repo": "https://github.com/luisa-sys/lyra-design-system",
+  "baseline_ref": "70c583093955aa76b7d59e83606a9b516cd8581b",
+  "reconciled_on": "2026-08-08",
+  "reconciled_for": "KAN-457",
+  "note": "Initial baseline. Design head at the time CTL-040 was introduced: 'chore(design): KAN-469 -> DEV_IMPL (PR #702)'."
+}

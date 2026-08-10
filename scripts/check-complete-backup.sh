@@ -47,7 +47,12 @@ except Exception as e:
     print(f"FAIL:invalid JSON ({e})"); sys.exit(0)
 schemas = m.get("schemas", [])
 # auth is the schema whose absence makes a backup non-restorable (no users).
-for required in ("public", "auth", "storage"):
+# supabase_migrations added BUGS-91 (2026-08-09): without it a restore yields a
+# database with no migration history, so `supabase db push` afterwards treats
+# every migration as unapplied and replays the whole lineage over restored
+# data. Enforced here rather than trusted, because it went missing from BOTH
+# backup paths for months while every check stayed green.
+for required in ("public", "auth", "storage", "supabase_migrations"):
     if required not in schemas:
         print(f"FAIL:manifest missing required schema '{required}' (schemas={schemas})")
         sys.exit(0)

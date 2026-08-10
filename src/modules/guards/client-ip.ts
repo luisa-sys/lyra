@@ -4,7 +4,7 @@
  * WHY THIS FILE EXISTS
  * --------------------
  * The precedence rule used to live in two places — `getClientIp` in
- * `src/middleware.ts` and `clientIpFromHeaders` in `src/lib/rate-limit-shared.ts`
+ * `src/middleware.ts` and `clientIpFromHeaders` in `src/modules/guards/rate-limit-shared.ts`
  * — and both preferred `cf-connecting-ip`, a header any client can set:
  *
  *     cf-connecting-ip ?? x-forwarded-for ?? x-real-ip ?? 'unknown'
@@ -43,7 +43,7 @@
  * `cf-connecting-ip` can forge `cf-ray` in the same breath. Only a secret the
  * attacker does not hold distinguishes the two paths.
  */
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 
 /** Header a Cloudflare Transform Rule stamps with the shared secret. */
 export const CF_PROXY_HEADER = 'x-lyra-edge';
@@ -86,20 +86,48 @@ export function transitedCloudflare(headers: Headers): boolean {
  * alone. Surfacing this belongs on an admin-only surface, as its own change.
  */
 export function clientIp(headers: Headers): string {
-  if (transitedCloudflare(headers)) {
+  // MONITOR MODE (SEC-120). Enforcement is gated behind a SECOND variable on
+  // purpose. There is no way to observe, from outside, whether the Cloudflare
+  // Transform Rule is actually stamping the header — so flipping straight to
+  // enforcement means the first symptom of a mis-built rule is the entire user
+  // base rate-limited into a handful of Cloudflare edge-IP buckets.
+  //
+  // With the secret set but CF_PROXY_ENFORCE unset, behaviour is unchanged and
+  // any request arriving WITHOUT a valid secret is logged. Once the logs show
+  // that only direct-to-origin traffic is missing it, set CF_PROXY_ENFORCE=1.
+  //
+  // Rollout order matters and is the reverse of the obvious one:
+  //   1. add the CF Transform Rule
+  //   2. set CF_PROXY_SECRET        (monitor — safe, observable)
+  //   3. confirm the logs are quiet
+  //   4. set CF_PROXY_ENFORCE=1     (enforce)
+  const trusted = transitedCloudflare(headers);
+
+  if (env.cfProxySecret() && !trusted) {
+    // Deliberately not rate-limited or sampled: after step 1 this should be
+    // near-silent, and a flood IS the signal that the rule is not working.
+    console.warn(
+      '[SEC-120] request without a valid edge secret — ' +
+        (env.cfProxyEnforce()
+          ? 'cf-connecting-ip IGNORED'
+          : 'monitor mode, cf-connecting-ip still trusted'),
+    );
+  }
+
+  if (trusted) {
     // Provably ours: CF overwrites cf-connecting-ip at its own edge, so this
     // is the real client.
     return headers.get('cf-connecting-ip') ?? firstForwarded(headers) ?? 'unknown';
   }
 
-  if (env.cfProxySecret()) {
-    // Secret IS configured and this request did not present it, so it did not
+  if (env.cfProxySecret() && env.cfProxyEnforce()) {
+    // Enforcing, and this request did not present the secret, so it did not
     // come through our edge. cf-connecting-ip is untrustworthy here — use the
     // platform-set forwarded chain, which a client cannot overwrite.
     return firstForwarded(headers) ?? headers.get('x-real-ip') ?? 'unknown';
   }
 
-  // Not yet configured — legacy precedence, unchanged.
+  // Unconfigured, or configured-but-monitoring — legacy precedence, unchanged.
   return (
     headers.get('cf-connecting-ip') ??
     firstForwarded(headers) ??
@@ -111,4 +139,10 @@ export function clientIp(headers: Headers): string {
 /** Whether the trusted-proxy secret is configured. Not yet surfaced — see above. */
 export function isTrustedProxyConfigured(): boolean {
   return Boolean(env.cfProxySecret());
+}
+
+/** 'off' | 'monitor' | 'enforce' — the current trusted-proxy posture. */
+export function trustedProxyMode(): 'off' | 'monitor' | 'enforce' {
+  if (!env.cfProxySecret()) return 'off';
+  return env.cfProxyEnforce() ? 'enforce' : 'monitor';
 }

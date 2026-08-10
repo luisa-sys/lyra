@@ -154,13 +154,35 @@ describe('qa-sweep/inventory.py — parsing', () => {
     expect(r.exitCode).toBe(0);
   });
 
-  test('the auth model is derived from middleware, not hardcoded', () => {
-    // Derived means a middleware change moves the inventory instead of
-    // silently invalidating it.
-    const mw = fs.readFileSync(path.join(ROOT, SRC.middleware), 'utf-8');
-    expect(mw).toContain("pathname.startsWith('/admin')");
+  test('the auth model is derived from the gate corpus, not hardcoded', () => {
+    // REPOINTED, KAN-415 D4 C7 (approved 2026-08-09). This read
+    // src/middleware.ts and asserted it contained "pathname.startsWith('/admin')".
+    // The literal moved into src/modules/access/gates/admin-host.ts when the
+    // middleware was decomposed; inventory.py now concatenates the gates before
+    // deriving, so the DERIVATION is unchanged and only its source widened.
+    //
+    // The assertion is repointed at the corpus rather than at one file, which
+    // is strictly stronger: it no longer passes because a particular file
+    // happens to mention a string, and it keeps holding as later phases move
+    // gates again.
+    const gatesDir = path.join(ROOT, path.dirname(SRC.middleware), 'modules', 'access', 'gates');
+    const corpus = [fs.readFileSync(path.join(ROOT, SRC.middleware), 'utf-8')]
+      .concat(
+        fs
+          .readdirSync(gatesDir)
+          .filter((f) => f.endsWith('.ts'))
+          .map((f) => fs.readFileSync(path.join(gatesDir, f), 'utf-8')),
+      )
+      .join('\n');
+    expect(corpus).toContain("pathname.startsWith('/admin')");
+
+    // The part that actually matters: DERIVED, not hardcoded. An empty model is
+    // fatal in inventory.py by design, because it would reclassify every gated
+    // page as public and flatter every coverage number downstream.
     expect(INV.auth_model.admin_prefixes).toContain('/admin');
     expect(INV.auth_model.authed_prefixes).toContain('/dashboard');
+    expect(INV.auth_model.admin_prefixes.length).toBeGreaterThan(0);
+    expect(INV.auth_model.authed_prefixes.length).toBeGreaterThan(0);
   });
 
   test('routes are classified by that derived auth model', () => {

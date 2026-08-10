@@ -27,13 +27,28 @@ describe('Auth pages', () => {
     expect(fs.existsSync(path.join(root, SRC.dashboardPage))).toBe(true);
   });
 
-  test('middleware exists and handles auth routes', () => {
-    const middlewarePath = path.join(root, SRC.middleware);
-    expect(fs.existsSync(middlewarePath)).toBe(true);
-    const content = fs.readFileSync(middlewarePath, 'utf8');
-    expect(content).toContain('/dashboard');
-    expect(content).toContain('/login');
-    expect(content).toContain('auth.getUser');
+  test('middleware exists', () => {
+    // REPOINTED, KAN-415 D4 C5 (approved 2026-08-09).
+    //
+    // This block used to read src/middleware.ts as SOURCE TEXT and assert it
+    // contained the strings '/dashboard', '/login' and 'auth.getUser'. All
+    // three moved: the session refresh into src/modules/access/session.ts, the
+    // two paths into the gates and the exemption table.
+    //
+    // Replacing them with behavioural assertions is a STRENGTHENING, and the
+    // repo already knew the old form was weak: BOTH '/dashboard' and '/login'
+    // are recorded in tests/support/comment-assertion-baseline.json as
+    // COMMENT-SHADOWED — satisfiable by a header comment alone, with the code
+    // deleted. A toContain on source text cannot tell "the middleware redirects
+    // anonymous users to /login" from "someone mentioned /login in a comment".
+    //
+    // The behaviour those three strings were standing in for is now asserted
+    // properly, through the real middleware, in:
+    //   tests/unit/middleware-gate-order.test.ts       (the redirects, and their ORDER)
+    //   tests/unit/middleware-response-contract.test.ts (getUser's cookie refresh
+    //                                                    actually reaching the response)
+    // Both are mutation-proven; the source-text form never was.
+    expect(fs.existsSync(path.join(root, SRC.middleware))).toBe(true);
   });
 
   test('server actions file exists with signUp, signIn, signOut', () => {

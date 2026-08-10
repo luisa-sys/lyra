@@ -357,7 +357,7 @@ THROTTLE_PATTERNS: List[Dict[str, object]] = [
         "id": "profile-write-user",
         "match": "You are saving too quickly.",
         "kind": "friendly-string",
-        "source": "src/lib/profile-rate-limit.ts",
+        "source": "src/modules/guards/profile-rate-limit.ts",
         "limit": "30 writes / 60s per user",
         "reason": (
             "Per-user profile-write limiter. Returns an ActionResult string, "
@@ -369,7 +369,7 @@ THROTTLE_PATTERNS: List[Dict[str, object]] = [
         "id": "profile-write-ip",
         "match": "Too many requests from your network.",
         "kind": "friendly-string",
-        "source": "src/lib/profile-rate-limit.ts",
+        "source": "src/modules/guards/profile-rate-limit.ts",
         "limit": "30 writes / 60s per IP",
         "reason": (
             "The IP key is SHARED ACROSS ALL SEEDED USERS, so this is the "

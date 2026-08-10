@@ -7,8 +7,8 @@
  * route (immediate UX). No biometric is handled here.
  */
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
 import { createAgeSession } from '@/lib/age/didit';
 import { profileIdForUser, setProfileAgeStatus } from '@/lib/age/age-service';
 

@@ -21,7 +21,7 @@
     },
     {
       "test": "tests/unit/rate-limit.test.js",
-      "subject": "src/lib/rate-limit.ts",
+      "subject": "src/modules/guards/rate-limit.ts",
       "shared": [
         "cleanup",
         "rateLimit"

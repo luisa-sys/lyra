@@ -5,7 +5,7 @@
  * in an environment. This deployment can manage the environments whose switch
  * rows live in its own database: dev/staging manage only themselves; a
  * prod-family console (beta or prod — they share the prod-lyra project) manages
- * BOTH beta and prod. See src/lib/deploy-env.ts.
+ * BOTH beta and prod. See src/modules/platform/deploy-env.ts.
  *
  * Effective availability of a feature = its env/credential gate AND this switch
  * AND (where relevant) the per-user entitlement. Flipping a switch off here is a
@@ -14,7 +14,7 @@
  */
 
 import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
-import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/lib/deploy-env';
+import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/modules/platform/deploy-env';
 import {
   GLOBAL_FEATURE_KEYS,
   GLOBAL_FEATURE_CONFIG,

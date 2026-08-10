@@ -46,12 +46,12 @@ SRC = os.path.join(ROOT, "src")
 # ---------------------------------------------------------------------------
 MODULE_RULES = [
     # --- Layer 0: platform (leaf kernel) ---
-    ("src/lib/supabase-browser.ts", "platform"),
-    ("src/lib/supabase-server.ts", "platform"),
-    ("src/lib/supabase-service.ts", "platform"),
-    ("src/lib/env.ts", "platform"),
-    ("src/lib/deploy-env.ts", "platform"),
-    ("src/lib/cookie-domain.ts", "platform"),
+    ("src/modules/platform/supabase-browser.ts", "platform"),
+    ("src/modules/platform/supabase-server.ts", "platform"),
+    ("src/modules/platform/supabase-service.ts", "platform"),
+    ("src/modules/platform/env.ts", "platform"),
+    ("src/modules/platform/deploy-env.ts", "platform"),
+    ("src/modules/platform/cookie-domain.ts", "platform"),
     # --- Layer 0: contracts (pure rule-sets; zero deps, zero I/O; plan §3 P5) ---
     # DERIVED, flagged for founder confirmation: the `audit` module (layer 1)
     # cannot legally import a layer-3 module, so the pure moderation rules it
@@ -61,18 +61,18 @@ MODULE_RULES = [
     ("src/lib/content-moderation.ts", "contracts"),
     ("src/lib/moderation-policy.ts", "contracts"),
     # --- Layer 0: guards (request/output guarding utilities) JUDGEMENT ---
-    ("src/lib/rate-limit.ts", "guards"),
-    ("src/lib/rate-limit-shared.ts", "guards"),
-    ("src/lib/profile-rate-limit.ts", "guards"),
-    ("src/lib/turnstile.ts", "guards"),
-    ("src/lib/sanitise.ts", "guards"),
-    ("src/lib/file-magic-bytes.ts", "guards"),
-    ("src/lib/security-headers.ts", "guards"),
-    ("src/lib/cf-access.ts", "guards"),
-    ("src/lib/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
+    ("src/modules/guards/rate-limit.ts", "guards"),
+    ("src/modules/guards/rate-limit-shared.ts", "guards"),
+    ("src/modules/guards/profile-rate-limit.ts", "guards"),
+    ("src/modules/guards/turnstile.ts", "guards"),
+    ("src/modules/guards/sanitise.ts", "guards"),
+    ("src/modules/guards/file-magic-bytes.ts", "guards"),
+    ("src/modules/guards/security-headers.ts", "guards"),
+    ("src/modules/guards/cf-access.ts", "guards"),
+    ("src/modules/guards/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
     # --- Layer 0: observability ---
-    ("src/lib/metrics.ts", "observability"),
-    ("src/lib/sentry-scrub.ts", "observability"),
+    ("src/modules/observability/metrics.ts", "observability"),
+    ("src/modules/observability/sentry-scrub.ts", "observability"),
     ("src/app/api/health/", "observability"),
     ("src/app/status/", "observability"),  # JUDGEMENT: live-probe status page (SEC-4)
     # --- Layer 0: ui-kit (to be BUILT; today exactly one file) ---
@@ -96,7 +96,7 @@ MODULE_RULES = [
     ("src/app/confirm-age/", "age"),
     ("src/app/api/age/", "age"),
     # --- Layer 2: domains ---
-    ("src/lib/oauth/", "oauth-as"),
+    ("src/modules/oauth-as/lib/", "oauth-as"),
     ("src/app/oauth/", "oauth-as"),
     ("src/app/api/well-known/", "oauth-as"),
     ("src/app/(auth)/", "auth"),
@@ -870,7 +870,7 @@ def main():
         key=lambda r: (-r["sites"], r["column"], r["accessor"]))
 
     # service-role privilege register
-    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/lib/supabase-service.ts"})
+    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/modules/platform/supabase-service.ts"})
     service_mods = defaultdict(list)
     for f in service_files:
         service_mods[file_mod[f]].append(f)

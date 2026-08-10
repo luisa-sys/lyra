@@ -6,7 +6,7 @@
  * through the service client. We store ONLY the status + provider reference +
  * timestamp — never a DOB, selfie, or raw biometric.
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import type { AgeStatusResult } from './didit';
 
 function serviceClient() {

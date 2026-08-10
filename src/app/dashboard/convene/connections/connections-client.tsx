@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase-browser';
+import { createClient } from '@/modules/platform/supabase-browser';
 
 interface ConnectionRow {
   id: string;

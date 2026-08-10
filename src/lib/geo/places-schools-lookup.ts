@@ -4,7 +4,7 @@
  *
  * Reuses the KAN-341 town/city integration (`src/lib/geo/places-city.ts`) —
  * same Google Places (New) Text Search endpoint, same existing key, no new
- * vendor and no new secret. The key is read via `src/lib/env.ts` rather than
+ * vendor and no new secret. The key is read via `src/modules/platform/env.ts` rather than
  * `process.env` directly (CTL-037 — a new file reading env fails the ratchet),
  * which is also why this module is kept SEPARATE from the pure picker logic:
  * the client component must not pull the env accessor into the browser bundle.
@@ -13,7 +13,7 @@
  * degrade-never-block rule this serves.
  */
 
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 import {
   MAX_SUGGESTIONS,
   extractSuggestion,

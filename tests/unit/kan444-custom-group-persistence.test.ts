@@ -39,7 +39,7 @@ jest.mock('@/lib/moderation-audit', () => ({
   moderateAndAudit: (_supabase: unknown, args: { text: string; field: string }) => mockModerate(args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),

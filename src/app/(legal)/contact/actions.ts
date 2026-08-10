@@ -1,8 +1,8 @@
 "use server";
 
 import { headers } from "next/headers";
-import { sanitiseText } from "@/lib/sanitise";
-import { verifyTurnstile } from "@/lib/turnstile";
+import { sanitiseText } from "@/modules/guards/sanitise";
+import { verifyTurnstile } from "@/modules/guards/turnstile";
 
 /**
  * KAN-272 — Contact form server action.
@@ -17,7 +17,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
  *
  * A Cloudflare Turnstile human-check runs first, but only when both
  * NEXT_PUBLIC_TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are provisioned
- * (see src/lib/turnstile.ts). When unset, the check is skipped and the form
+ * (see src/modules/guards/turnstile.ts). When unset, the check is skipped and the form
  * still submits.
  *
  * Per gotcha #18 this 'use server' module exports ONLY async functions; the

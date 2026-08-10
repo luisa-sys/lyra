@@ -1,0 +1,26 @@
+{
+  "$comment": [
+    "CTL-042 — scheduled workflows that are deliberately NOT active.",
+    "",
+    "Read by scripts/check-scheduled-workflows-active.py. Every entry needs a",
+    "Jira key AND a reason; a bare marker is itself a failure, and an entry for",
+    "a workflow that has since been re-enabled is a STALE exception and fails",
+    "the check outright — a list containing things that no longer apply is a",
+    "list nobody reads.",
+    "",
+    "DECIDED 2026-08-09 by Luisa. Four workflows were found dark since mid-June.",
+    "Two were re-enabled (anomaly-detect, mutation-testing) and are deliberately",
+    "absent from this file — listing an active workflow here is an error. The",
+    "two below are excepted with reasons rather than re-enabled."
+  ],
+  "exceptions": {
+    ".github/workflows/affiliate-link-smoke.yml": {
+      "key": "BUGS-90",
+      "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
+    },
+    ".github/workflows/auto-promote-to-staging.yml": {
+      "key": "SEC-98",
+      "reason": "Weekly develop->staging auto-promote. SEC-98 made production change control manual-only and withdrew the fix-only auto-promote exception on 2026-07-23; an unattended promote sits awkwardly beside that even though staging is not production. Decided 2026-08-09 (Luisa): stay off. NOTE: CLAUDE.md's Deployment Pipeline section still describes this as auto-running Sunday 23:00 UTC — that line is now wrong and is corrected in this commit."
+    }
+  }
+}

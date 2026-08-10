@@ -2,8 +2,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import * as Sentry from '@sentry/nextjs';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { sanitiseSearchTerm } from '@/lib/sanitise';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { sanitiseSearchTerm } from '@/modules/guards/sanitise';
 
 function getSupabase() {
   return createServiceRoleClient();

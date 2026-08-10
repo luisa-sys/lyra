@@ -15,7 +15,7 @@ const updateSpy = jest.fn();
 const getUserByIdSpy = jest.fn();
 const mockSendBetaQueueNotice = jest.fn();
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'https://x.supabase.co',
     supabaseServiceRoleKey: () => 'svc-key',

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { env } from '@/lib/env';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = env.siteUrl();

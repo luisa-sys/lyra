@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { turnstileSiteKey } from "@/lib/turnstile";
+import { turnstileSiteKey } from "@/modules/guards/turnstile";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {

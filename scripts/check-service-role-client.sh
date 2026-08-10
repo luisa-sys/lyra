@@ -6,7 +6,7 @@
 # It used to be hand-rolled inline in ~30 files with drifting options, so a
 # hardening change had to be applied everywhere and was easy to miss.
 #
-# It now lives in exactly one hardened factory: src/lib/supabase-service.ts
+# It now lives in exactly one hardened factory: src/modules/platform/supabase-service.ts
 # (`createServiceRoleClient()`). This guard enforces that invariant statically
 # by forbidding any call to `env.supabaseServiceRoleKey()` outside that factory
 # — you cannot construct a service-role client without the key, so if the key is
@@ -17,10 +17,10 @@
 
 set -euo pipefail
 
-FACTORY='src/lib/supabase-service.ts'
+FACTORY='src/modules/platform/supabase-service.ts'
 
 # Every call site of the service-role key getter. The env DEFINITION in
-# src/lib/env.ts is `supabaseServiceRoleKey: () => …` (no leading dot), so the
+# src/modules/platform/env.ts is `supabaseServiceRoleKey: () => …` (no leading dot), so the
 # `\.` anchor matches only *calls* (`env.supabaseServiceRoleKey()`), never the
 # definition.
 # grep exits 1 for "no match" — the answer we want — but >=2 when the search

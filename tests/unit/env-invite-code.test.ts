@@ -6,7 +6,7 @@
  * must be trimmed too — otherwise a LYRA_INVITE_CODE set with stray whitespace
  * would silently break the whole beta-invite flow.
  */
-import { env } from '@/lib/env';
+import { env } from '@/modules/platform/env';
 
 describe('KAN-337: env.inviteCode trimming', () => {
   const original = process.env.LYRA_INVITE_CODE;

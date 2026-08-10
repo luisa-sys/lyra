@@ -5,8 +5,8 @@
  * the test process and verifies the round-trip + tamper-detection.
  */
 
-import { issueAccessToken, verifyAccessToken } from '@/lib/oauth/jwt';
-import { verifyPkceS256 } from '@/lib/oauth/pkce';
+import { issueAccessToken, verifyAccessToken } from '@/modules/oauth-as/lib/jwt';
+import { verifyPkceS256 } from '@/modules/oauth-as/lib/pkce';
 import { createHash, generateKeyPairSync } from 'crypto';
 
 const TEST_SECRET = '0'.repeat(32);
