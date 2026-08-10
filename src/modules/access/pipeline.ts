@@ -110,6 +110,75 @@ export const AUTHED_PIPELINE: readonly Gate<AuthedContext>[] = AUTHED_ORDER.map(
 });
 
 /**
+ * The pairwise orderings that are SECURITY OR CORRECTNESS invariants, as data.
+ *
+ * Complementary to the exact-order test rather than a substitute for it:
+ * exact-order catches EVERY change to the sequence, this says WHICH changes are
+ * catastrophic and why. A reviewer looking at a reordered array can read this
+ * and know in seconds whether the change is cosmetic or a live security
+ * regression.
+ *
+ * Each is resolved to indices and asserted `before < after`, so a constraint
+ * naming a gate that no longer exists fails loudly rather than passing
+ * vacuously.
+ */
+export interface OrderConstraint {
+  readonly pipeline: 'pre-auth' | 'authed';
+  readonly before: string;
+  readonly after: string;
+  readonly ticket: string;
+  readonly why: string;
+}
+
+export const ORDER_CONSTRAINTS: readonly OrderConstraint[] = [
+  {
+    pipeline: 'pre-auth',
+    before: 'beta-oauth-404',
+    after: 'auth-rate-limit',
+    ticket: 'SEC-36',
+    why:
+      'The 404 must not be reachable by staying under a rate limit. It closes an ' +
+      "unauthenticated DCR write into PRODUCTION's oauth_clients — beta runs on the " +
+      'prod Supabase project (gotcha #19).',
+  },
+  {
+    pipeline: 'pre-auth',
+    before: 'pkce-code-redirect',
+    after: 'auth-rate-limit',
+    ticket: 'KAN-88',
+    why:
+      'A PKCE exchange must reach /auth/callback. Rate-limiting it first would ' +
+      'strand a user mid-login with no session and no way to acquire one.',
+  },
+  {
+    pipeline: 'authed',
+    before: 'admin-host',
+    after: 'beta-tier',
+    ticket: 'KAN-309',
+    why:
+      'The admin branch RETURNS. An operator whose own profile is not `live` must ' +
+      'still reach the console — otherwise enabling the beta gate locks out the ' +
+      'person who would fix it.',
+  },
+  {
+    pipeline: 'authed',
+    before: 'suspension',
+    after: 'beta-tier',
+    ticket: 'KAN-319',
+    why: 'A suspended user must land on /suspended, not /waitlist.',
+  },
+  {
+    pipeline: 'authed',
+    before: 'beta-tier',
+    after: 'auth-page-redirect',
+    ticket: 'KAN-175',
+    why:
+      'An ineligible user belongs at /waitlist. Sending them to /dashboard first ' +
+      'would bounce them through the beta gate a second time.',
+  },
+];
+
+/**
  * ── THE COMPOSITION ROOT ───────────────────────────────────────────────────
  *
  * The entire request path, as a factory. src/middleware.ts becomes a call to

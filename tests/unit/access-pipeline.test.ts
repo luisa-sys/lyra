@@ -10,6 +10,10 @@
 import fs from 'fs';
 import path from 'path';
 import {
+  AUTHED_GATES,
+  AUTHED_ORDER,
+  AUTHED_PIPELINE,
+  ORDER_CONSTRAINTS,
   PRE_AUTH_GATES,
   PRE_AUTH_ORDER,
   PRE_AUTH_PIPELINE,
@@ -137,5 +141,70 @@ describe('runGates — the protocol', () => {
       run: async () => marker,
     };
     expect(await runGates([asyncGate] as never, {} as never)).toBe(marker);
+  });
+});
+
+describe('ORDER is an exact, checked artefact (CTL-045)', () => {
+  /**
+   * Deep-equal against hard-coded literals, with a reason per position.
+   *
+   * This lands LAST in D4 on purpose. Written earlier, every subsequent commit
+   * would have had to edit its own expected list — and in a log, editing the
+   * expectation to match the code is indistinguishable from weakening it.
+   */
+  test('PRE_AUTH_ORDER is exactly this, in this sequence', () => {
+    expect([...PRE_AUTH_ORDER]).toEqual([
+      'beta-oauth-404',    // SEC-36: before auth, before rate limiting, before any read
+      'pkce-code-redirect',// a login exchange must complete before anything can gate it
+      'auth-rate-limit',   // credential stuffing, POST only
+    ]);
+  });
+
+  test('AUTHED_ORDER is exactly this, in this sequence', () => {
+    expect([...AUTHED_ORDER]).toEqual([
+      'admin-host',        // returns early; an operator must reach the console
+      'suspension',        // /suspended, not /waitlist
+      'beta-tier',         // tier routing
+      'protected-route',   // anonymous -> /login
+      'auth-page-redirect',// signed-in -> /dashboard
+    ]);
+  });
+
+  test('every authed gate is wired exactly once', () => {
+    expect([...AUTHED_ORDER].sort()).toEqual(Object.keys(AUTHED_GATES).sort());
+    expect(new Set(AUTHED_ORDER).size).toBe(AUTHED_ORDER.length);
+    expect(AUTHED_PIPELINE.map((g) => g.id)).toEqual([...AUTHED_ORDER]);
+  });
+});
+
+describe('ORDER_CONSTRAINTS — which reorderings are catastrophic, and why', () => {
+  const orderFor = (p: string) => (p === 'pre-auth' ? PRE_AUTH_ORDER : AUTHED_ORDER);
+
+  test.each(ORDER_CONSTRAINTS.map((c) => [`${c.before} before ${c.after} (${c.ticket})`, c] as const))(
+    '%s',
+    (_label, c) => {
+      const order = orderFor(c.pipeline);
+      const bi = order.indexOf(c.before);
+      const ai = order.indexOf(c.after);
+      // A constraint naming a gate that no longer exists must FAIL, not pass
+      // vacuously on two -1s comparing equal.
+      expect(bi).toBeGreaterThanOrEqual(0);
+      expect(ai).toBeGreaterThanOrEqual(0);
+      expect(bi).toBeLessThan(ai);
+    },
+  );
+
+  test('every constraint carries a ticket and a reason a reviewer can act on', () => {
+    for (const c of ORDER_CONSTRAINTS) {
+      expect(c.ticket).toMatch(/^[A-Z][A-Z0-9]+-[0-9]+$/);
+      expect(c.why.trim().length).toBeGreaterThan(40);
+    }
+  });
+
+  test('the constraint set covers both pipelines', () => {
+    // If it only ever described one, half the ordering would be unguarded by
+    // this instrument while looking covered.
+    const pipelines = new Set(ORDER_CONSTRAINTS.map((c) => c.pipeline));
+    expect([...pipelines].sort()).toEqual(['authed', 'pre-auth']);
   });
 });

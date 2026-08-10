@@ -399,7 +399,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run ESLint
-        run: npm run lint
+        # CTL-046 lives in eslint.config.mjs — a no-restricted-syntax rule scoped
+        # to the access gates. Naming the config here is what connects the
+        # control to its invoker in controls/registry.json; `npm run lint` alone
+        # reaches it only by convention, and a convention is precisely what the
+        # registry exists to stop us relying on.
+        run: npm run lint  # uses eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)

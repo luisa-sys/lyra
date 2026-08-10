@@ -53,6 +53,13 @@ export const adminHost: Gate<AuthedContext> = {
       const passthrough = isExemptFrom('admin-passthrough', ctx.pathname);
       if (!passthrough && !ctx.pathname.startsWith('/admin')) {
         const url = ctx.request.nextUrl.clone();
+        // CTL-046 exception. This is STRING BUILDING, not an exemption
+        // decision: without it the root path rewrites to '/admin/' rather than
+        // '/admin'. The rule is right to be strict enough to catch it —
+        // narrowing the selector to allow this shape would also allow a real
+        // bypass written the same way — so the exception is declared here, at
+        // the one site where it applies.
+        // eslint-disable-next-line no-restricted-syntax -- KAN-415: CTL-046, string building not an exemption decision (see above)
         url.pathname = '/admin' + (ctx.pathname === '/' ? '' : ctx.pathname);
         const rewrite = NextResponse.rewrite(url);
         ctx.res.current.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
