@@ -13,6 +13,7 @@ import {
 import { isExemptFrom } from '@/modules/access/exemptions';
 import { isOauthServerPath } from '@/modules/access/oauth-server-paths';
 import { runGates } from '@/modules/access/gate';
+import { establishSession } from '@/modules/access/session';
 import { PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
 import { clientIp } from '@/modules/guards/client-ip';
 
@@ -89,33 +90,18 @@ export async function middleware(request: NextRequest) {
     return stampCspReportOnly(NextResponse.next(), csp());
   }
 
-  let supabaseResponse = NextResponse.next({
+  // ── THE SESSION BOUNDARY ───────────────────────────────────────────────
+  // Not a gate, deliberately: it is a precondition of the authed pipeline
+  // existing at all, and modelling it as a gate would place it in an ordered
+  // list where it could be moved. Everything above this line runs without
+  // knowing who is asking; everything below may.
+  const { supabase, user, res } = await establishSession(
     request,
-  });
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
-        supabaseResponse = NextResponse.next({
-          request,
-        });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, withParentCookieDomain(options))
-        );
-      },
-    },
-  });
-
-  // Refresh the session — this is critical for server-side auth
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    supabaseUrl,
+    supabaseAnonKey,
+  );
+  // Read `res.current` at the point of RETURN, never captured here — the cookie
+  // callback rebuilds it during getUser(). See session.ts.
 
   // KAN-309 / SEC-37: route the admin tools to the admin subdomain, and verify
   // Cloudflare Access on the admin host. Isolation applies when
@@ -142,12 +128,12 @@ export async function middleware(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = '/admin' + (pathname === '/' ? '' : pathname);
         const rewrite = NextResponse.rewrite(url);
-        supabaseResponse.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
+        res.current.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
         return stampCspReportOnly(rewrite, csp());
       }
       // Already an /admin path (or passthrough) — serve it, and crucially skip
       // the beta gate below so an admin isn't bounced to /waitlist.
-      return stampCspReportOnly(supabaseResponse, csp());
+      return stampCspReportOnly(res.current, csp());
     }
     // Any non-admin host must never serve /admin — send it to the subdomain.
     if (pathname.startsWith('/admin')) {
@@ -243,7 +229,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return stampCspReportOnly(supabaseResponse, csp());
+  return stampCspReportOnly(res.current, csp());
 }
 
 export const config = {
