@@ -13,6 +13,8 @@ import {
 import { isExemptFrom } from '@/modules/access/exemptions';
 import { isOauthServerPath } from '@/modules/access/oauth-server-paths';
 import { runGates } from '@/modules/access/gate';
+import { betaTier } from '@/modules/access/gates/beta-tier';
+import { suspension } from '@/modules/access/gates/suspension';
 import { establishSession } from '@/modules/access/session';
 import { PRE_AUTH_PIPELINE } from '@/modules/access/pipeline';
 import { clientIp } from '@/modules/guards/client-ip';
@@ -143,71 +145,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // KAN-319: suspended-user gate (all deploys). A suspended user's public
-  // profile is already hidden by RLS; this also blocks their own use of the app
-  // and sends them to /suspended with an appeal route. Runs before the beta gate
-  // so a suspended user lands on /suspended, not /waitlist. Exempts the
-  // suspended page itself + the auth/logout flow + assets to avoid loops.
-  const suspensionExempt = isExemptFrom('suspension', pathname);
-  if (user && !suspensionExempt) {
-    const { data: suspProfile, error: suspErr } = await supabase
-      .from('profiles')
-      .select('is_suspended')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    // Observability: never fail silently on a lookup error. We fail OPEN here
-    // (let the request proceed) rather than closed, because a suspended user's
-    // public exposure is already prevented at the data tier by RLS
-    // (published-and-not-suspended), so this gate only governs their own
-    // session — and failing closed on a transient profiles-read error would
-    // wrongly lock out the whole authenticated userbase.
-    if (suspErr) {
-      console.error('[middleware] suspension lookup failed (failing open):', suspErr.message);
-    }
-    if (suspProfile?.is_suspended) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/suspended';
-      url.search = '';
-      return NextResponse.redirect(url);
-    }
-  }
-
-  // KAN-326: tier-aware access gate. Active on the "prod family" — the beta
-  // deploy (IS_BETA_DEPLOY=true, tier 'beta') and the real production deploy
-  // (checklyra.com, tier 'prod'). Dev/stage are single full envs (deployTier
-  // null) and are not gated here. An authenticated user is:
-  //   - not live          -> sent to /waitlist
-  //   - live, wrong tier  -> sent to their tier's site (beta <-> prod), so a
-  //                          promoted user always lands on the right site
-  //                          (sessions carry via the shared .checklyra.com cookie).
-  // The /waitlist page itself + auth pages are exempt to avoid redirect loops.
-  const deployTier = deploy.deployTier;
-  const exemptFromBetaGate = isExemptFrom('beta-tier', pathname);
-
-  if (deployTier && user && !exemptFromBetaGate) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_status, access_tier')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (profile?.user_status !== 'live') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/waitlist';
-      url.search = '';
-      return NextResponse.redirect(url);
-    }
-    if (profile.access_tier !== deployTier) {
-      // Live user on the wrong site — move them to their tier's host, keeping path.
-      const targetHost =
-        profile.access_tier === 'prod'
-          ? 'https://checklyra.com'
-          : 'https://beta.checklyra.com';
-      return NextResponse.redirect(
-        new URL(`${targetHost}${pathname}${request.nextUrl.search}`),
-      );
-    }
-  }
+  // ── AUTHED GATES (partial — the remaining three land in C7) ────────────
+  // suspension BEFORE beta-tier, so a suspended user lands on /suspended
+  // rather than /waitlist. Each gate carries its own reasoning; the ORDER is
+  // asserted from the outside in middleware-gate-order.test.ts.
+  const authed = { ...edge, supabase, user, res };
+  const authedOutcome = await runGates([suspension, betaTier], authed);
+  if (authedOutcome !== null) return authedOutcome;
 
   // Redirect unauthenticated users away from protected routes
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
