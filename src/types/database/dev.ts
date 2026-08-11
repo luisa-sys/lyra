@@ -1393,6 +1393,7 @@ export type Database = {
           discoverable_by_phone: boolean
           discoverable_by_postcode: boolean
           display_name: string
+          gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
           id: string
@@ -1436,6 +1437,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
@@ -1479,6 +1481,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name?: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
