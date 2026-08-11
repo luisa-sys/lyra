@@ -12,8 +12,8 @@
  * file inside the app tree, which constrains it in three ways that matter here.
  *
  * 1. A `'use server'` file may export ONLY async functions (gotcha #18), so
- *    `DecideInput` had to live in a separate `types.ts` that existed for no
- *    reason except that restriction. A plain module exports it directly, and
+ *    `DecideInput` had to live in a separate type-only sibling that existed for
+ *    no reason except that restriction. A plain module exports it directly, and
  *    that sibling file is now gone.
  * 2. The pure decisions inside — the open-redirect guard, the authorize-URL
  *    rebuild — could not be exported and therefore could not be tested as
@@ -52,8 +52,9 @@ import { buildSuccessRedirect, buildErrorRedirect } from '@/modules/oauth-as/lib
 /**
  * The consent form's payload.
  *
- * Previously `src/app/oauth/authorize/types.ts`, which existed solely because a
- * `'use server'` file cannot export a type. It belongs with its functions.
+ * Previously a `types.ts` sibling of the authorize action, which existed solely
+ * because a `'use server'` file cannot export a type. It belongs with its
+ * functions, and that file is now deleted.
  */
 export interface DecideInput {
   client_id: string;
