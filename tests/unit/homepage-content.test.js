@@ -69,7 +69,10 @@ describe('KAN-272: Minimal homepage (June-2026 redesign)', () => {
 
   test('queries up to 6 published profiles for the "A few people to meet" band', () => {
     expect(content).toContain('A few people to meet');
-    expect(content).toContain('is_published');
+    // SEC-104: reads moved from the `profiles` table to the `public_profiles`
+    // view, which carries `is_published = true AND is_suspended = false` in its
+    // body and therefore binds the service-role client (RLS does not).
+    expect(content).toContain('.from("public_profiles")');
     expect(content).toContain('.limit(6)');
   });
 

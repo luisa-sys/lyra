@@ -5,11 +5,24 @@
  *
  * THE INVARIANTS, IN WORDS
  * ------------------------
- *  1. The profile query filters on **both** `is_published = true` AND
- *     `is_suspended = false`. This is SEC-100. The sitemap is built with the
+ *  1. The profile query reads the **`public_profiles` view**, never the raw
+ *     `profiles` table. This is SEC-100/SEC-104. The sitemap is built with the
  *     SERVICE-ROLE client, which bypasses RLS, so the database policy that
- *     protects every other read does **not** apply here — the filter has to be
- *     written out by hand, and nothing else will catch it if it is dropped.
+ *     protects every other read does **not** apply here. Until SEC-104 the
+ *     `is_published = true AND is_suspended = false` pair had to be written out
+ *     by hand at every call site; it now lives in the view body, where it binds
+ *     service_role by construction.
+ *
+ *     ⚠️ AND THAT MAKES THIS TEST NARROWER, WHICH IS WORTH SAYING OUT LOUD. A
+ *     unit test cannot see whether the view on a given database actually
+ *     carries the predicate — it can only prove the code reads the view. The
+ *     other half moved to a control that CAN read a database:
+ *     `scripts/check-db-invariants.py`, run per-environment by
+ *     db-invariants.yml. An invariant relocated into the database needs its
+ *     control relocated with it, or the guarantee is only a comment.
+ *
+ *     The fake below therefore MODELS the view rather than ignoring the table
+ *     name, so invariant 2 still means something.
  *  2. A suspended member's slug never reaches the output. Invariant 1 is about
  *     the query; this is about the result, and they are not the same claim.
  *  3. Static pages are always present, and a Supabase failure degrades to
@@ -49,6 +62,7 @@ type Row = { slug: string; updated_at: string; is_suspended?: boolean };
 type EqCall = [string, unknown];
 
 const eqCalls: EqCall[] = [];
+const sources: string[] = [];
 let rows: Row[] = [];
 let clientThrows = false;
 
@@ -60,6 +74,7 @@ jest.mock('@/modules/platform/supabase-service', () => ({
     // A chainable that records each filter and resolves to whatever survives
     // them, so invariant 1 (the query) and invariant 2 (the result) can be
     // asserted independently rather than one standing in for the other.
+    let source = '';
     const chain = {
       select: () => chain,
       eq: (col: string, val: unknown) => {
@@ -68,13 +83,31 @@ jest.mock('@/modules/platform/supabase-service', () => ({
       },
       then: (resolve: (v: unknown) => unknown) => {
         let out = rows;
+        // SEC-104: the fake MODELS THE VIEW. `public_profiles` is defined as
+        // `SELECT … WHERE is_published = true AND is_suspended = false`, so
+        // reading it must yield only those rows here too — otherwise this
+        // double would prove the route safe against a source that does not
+        // behave like the one production uses.
+        if (source === 'public_profiles') {
+          out = out.filter(
+            (r) =>
+              (r as Record<string, unknown>).is_published === true &&
+              (r as Record<string, unknown>).is_suspended === false,
+          );
+        }
         for (const [col, val] of eqCalls) {
           out = out.filter((r) => (r as Record<string, unknown>)[col] === val);
         }
         return resolve({ data: out, error: null });
       },
     };
-    return { from: () => chain };
+    return {
+      from: (table: string) => {
+        source = table;
+        sources.push(table);
+        return chain;
+      },
+    };
   },
 }));
 
@@ -94,6 +127,7 @@ const SUSPENDED: Row = {
 
 beforeEach(() => {
   eqCalls.length = 0;
+  sources.length = 0;
   clientThrows = false;
   rows = [
     { ...LIVE, is_published: true } as Row,
@@ -104,13 +138,26 @@ beforeEach(() => {
 const urls = (m: MetadataRoute.Sitemap) => m.map((e) => e.url);
 
 describe('sitemap (behavioural, KAN-414 F4 / SEC-100)', () => {
-  it('filters on BOTH is_published and is_suspended', async () => {
+  it('reads the constrained source, not the raw profiles table (SEC-104)', async () => {
+    // ⚠️ THIS ASSERTION CHANGED SHAPE, AND THE REASON MATTERS.
+    //
+    // It used to require `.eq('is_published', true)` AND `.eq('is_suspended',
+    // false)` on the query, because the service-role client bypasses RLS and
+    // that hand-written pair was the only thing between a moderated member and
+    // Google's crawler. SEC-104 moved the pair into the `public_profiles` view
+    // body, where it binds service_role by construction.
+    //
+    // So the thing to assert is no longer "did the caller remember the filters"
+    // but "did the caller read the source that cannot forget them". That is a
+    // narrower claim, and honestly so: a unit test CANNOT see whether the view
+    // on a given database actually carries the predicate. That half is asserted
+    // live, per environment, by scripts/check-db-invariants.py — because an
+    // invariant that moved into the database needs a control that can read the
+    // database.
     await sitemap();
 
-    // The service-role client bypasses RLS, so this pair is the only thing
-    // standing between a moderated member and Google's crawler.
-    expect(eqCalls).toContainEqual(['is_published', true]);
-    expect(eqCalls).toContainEqual(['is_suspended', false]);
+    expect(sources).toContain('public_profiles');
+    expect(sources).not.toContain('profiles');
   });
 
   it('never emits a suspended member’s slug (SEC-100)', async () => {

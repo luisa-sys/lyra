@@ -297,12 +297,6 @@
       "severity": "comment-shadowed"
     },
     {
-      "test": "tests/unit/homepage-content.test.js",
-      "subject": "src/app/page.tsx",
-      "assertion": "is_published",
-      "severity": "comment-shadowed"
-    },
-    {
       "test": "tests/unit/kan351-public-profile-data-integrity.test.ts",
       "subject": "src/app/[slug]/page.tsx",
       "assertion": "/sectionReadErrors/",
@@ -420,18 +414,6 @@
       "test": "tests/unit/search-page.test.js",
       "subject": "src/app/search/page.tsx",
       "assertion": "found",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/search-page.test.js",
-      "subject": "src/app/search/page.tsx",
-      "assertion": "is_published",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/search-page.test.js",
-      "subject": "src/app/search/page.tsx",
-      "assertion": "true",
       "severity": "comment-shadowed"
     },
     {
