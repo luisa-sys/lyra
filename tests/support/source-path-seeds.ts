@@ -99,4 +99,9 @@ export const SEEDED_PATHS = [
   // source-path-manifest-integrity.test.ts checks the whole estate at runtime.
   'src/modules/age/provider-gate.ts',
   'src/modules/auth/post-login-redirect.ts',
+  // CTL-047's own implementation. check-docs-updated.test.js asserts that the
+  // control registry's `implementation` field and pr-checks.yml both name this
+  // exact path — the assertion IS the path, so a literal there would make a
+  // rename look like a passing test against a script nobody runs.
+  'scripts/check-docs-updated.py',
 ] as const;
