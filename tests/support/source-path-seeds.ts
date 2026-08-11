@@ -80,7 +80,7 @@
  */
 export const SEEDED_PATHS = [
   // The 18+ self-declaration (KAN-407) — the age half of the signup contract.
-  'src/lib/age/self-declaration.ts',
+  'src/modules/age/self-declaration.ts',
   // Where D4 moved the gating that decides where a new user lands.
   'src/modules/access/pipeline.ts',
   // The Supabase client the signup and confirm paths run through.
@@ -90,4 +90,13 @@ export const SEEDED_PATHS = [
   // literal in neither — so without this seed the key does not come back.
   // See "A MOVE BREAKS THE SELF-SUSTAINING LOOP" below.
   'src/modules/features/entitlements-service.ts',
+  // D6 moved these out of src/lib/age/ and src/lib/auth/. Both are read via
+  // SRC by tests that assert the KAN-408 global-switch wiring and the
+  // post-login redirect contract; neither is hard-coded anywhere that counts.
+  // The move dropped both keys and `tsc` caught it — the typed manifest turns
+  // this class into a COMPILE error for .ts tests, which is the earliest and
+  // loudest place it can surface. .js tests get no such warning, which is why
+  // source-path-manifest-integrity.test.ts checks the whole estate at runtime.
+  'src/modules/age/provider-gate.ts',
+  'src/modules/auth/post-login-redirect.ts',
 ] as const;

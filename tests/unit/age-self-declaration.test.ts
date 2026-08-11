@@ -19,7 +19,7 @@ import {
   AGE_DECLARATION_FIELD,
   AGE_DECLARATION_COOKIE,
   AGE_DECLARATION_REQUIRED_MESSAGE,
-} from '@/lib/age/self-declaration';
+} from '@/modules/age/self-declaration';
 
 const root = path.join(__dirname, '../..');
 

@@ -15,8 +15,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
-import { isProviderAgeCheckActive } from '@/lib/age/provider-gate';
-import { isDiditConfigured } from '@/lib/age/didit';
+import { isProviderAgeCheckActive } from '@/modules/age/provider-gate';
+import { isDiditConfigured } from '@/modules/age/didit';
 import { startAgeVerification } from './actions';
 
 export const metadata = {

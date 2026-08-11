@@ -1363,7 +1363,7 @@
     "age": {
       "layer": 2,
       "paths": [
-        "src/lib/age/",
+        "src/modules/age/",
         "src/app/verify-age/",
         "src/app/confirm-age/",
         "src/app/api/age/"
@@ -1383,7 +1383,7 @@
       "publicApi": [
         {
           "symbol": "AGE_DECLARATION_COOKIE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1392,7 +1392,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_FIELD",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1401,7 +1401,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_COOKIE_MAX_AGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1410,7 +1410,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_REQUIRED_MESSAGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1419,7 +1419,7 @@
         },
         {
           "symbol": "isAgeDeclared",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1428,7 +1428,7 @@
         },
         {
           "symbol": "AGE_GATE_BLOCK_MESSAGE",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1437,7 +1437,7 @@
         },
         {
           "symbol": "isProviderAgeCheckActive",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1446,7 +1446,7 @@
         },
         {
           "symbol": "passedProviderAgeCheck",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1455,7 +1455,7 @@
         },
         {
           "symbol": "hasDeclaredAge",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1464,7 +1464,7 @@
         },
         {
           "symbol": "recordAgeDeclaration",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1632,7 +1632,7 @@
       "paths": [
         "src/app/(auth)/",
         "src/app/auth/",
-        "src/lib/auth/"
+        "src/modules/auth/"
       ],
       "owns": {
         "files": 11,
@@ -1643,7 +1643,7 @@
       "publicApi": [
         {
           "symbol": "resolvePostLoginRedirect",
-          "file": "src/lib/auth/post-login-redirect.ts",
+          "file": "src/modules/auth/post-login-redirect.ts",
           "importingFiles": 1,
           "consumingModules": [
             "age"
@@ -2909,8 +2909,8 @@
         "src/lib/beta-access/flow.ts"
       ],
       "age": [
-        "src/lib/age/age-service.ts",
-        "src/lib/age/record-declaration.ts"
+        "src/modules/age/age-service.ts",
+        "src/modules/age/record-declaration.ts"
       ],
       "features": [
         "src/modules/features/entitlements-service.ts",

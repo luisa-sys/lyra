@@ -13,7 +13,7 @@ import {
   AGE_DECLARATION_FIELD,
   AGE_DECLARATION_REQUIRED_MESSAGE,
   isAgeDeclared,
-} from '@/lib/age/self-declaration';
+} from '@/modules/age/self-declaration';
 
 function getSiteUrl() {
   return env.siteUrl();

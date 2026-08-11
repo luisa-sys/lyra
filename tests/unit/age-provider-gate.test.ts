@@ -6,7 +6,7 @@ jest.mock('@/modules/features/global-switches-service', () => ({
   isFeatureGloballyEnabled: (...a: unknown[]) => mockGlobally(...a),
 }));
 
-import { passedProviderAgeCheck, isProviderAgeCheckActive } from '@/lib/age/provider-gate';
+import { passedProviderAgeCheck, isProviderAgeCheckActive } from '@/modules/age/provider-gate';
 
 describe('provider-gate (KAN-408)', () => {
   beforeEach(() => jest.clearAllMocks());
