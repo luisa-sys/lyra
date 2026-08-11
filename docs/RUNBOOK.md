@@ -136,7 +136,7 @@ Three structural import rules run on every PR, from `.dependency-cruiser.cjs` vi
 
 | Rule | Invariant |
 | --- | --- |
-| `no-module-to-app` | Nothing under `src/lib/**` may import `src/app/**`. |
+| `no-module-to-app` | Nothing under `src/lib/**`, `src/modules/**`, `src/components/**` or `src/middleware.ts` may import `src/app/**`. ⚠️ The anchor read `^src/lib/` until 2026-08-09; KAN-415 D1 moved 28 files into `src/modules/` and every one silently left this rule's scope with nothing going red. Pinned by CTL-044. |
 | `no-cross-segment-app/<segment>` | One top-level `src/app` segment may not import another. |
 | `no-circular` | No import cycles. |
 
@@ -155,16 +155,19 @@ DEPCRUISE_SEVERITY=error npm run depcruise     # blocking mode — what CI will 
 npx jest tests/scripts/check-dependency-rules.test.js   # prove the gate still bites
 ```
 
-### Roll-out state — currently `warn`, not yet blocking
+### Roll-out state — `no-module-to-app` and `no-circular` are BLOCKING
 
-The gate ships **non-blocking**: violations are printed and annotated in the run
-summary, the build stays green. It flips to blocking by changing
+> **⚠️ Corrected 2026-08-10.** This section described the whole gate as non-blocking. That has been wrong since 2026-07-29 (KAN-414 F3): `.dependency-cruiser.cjs` sets `const BLOCKING = true` and both `no-module-to-app` and `no-circular` resolve to `severity: 'error'` through `severityFor(BLOCKING)`. The `DEPCRUISE_SEVERITY=warn` in `pr-checks.yml` only drives `FORCE_ERROR`, which can *raise* the remaining warn rules — it cannot lower a rule that is already `error`. **Reading a per-rule severity off that env var gives the wrong answer**; read the rule's own `severity:` in the config.
+
+`no-cross-segment-app` genuinely does still ship **non-blocking**: violations are printed and annotated in the run summary, the build stays green. It flips to blocking by changing
 `DEPCRUISE_SEVERITY: warn` to `error` in the "Dependency-rule gate (KAN-425)" step
 of `.github/workflows/pr-checks.yml` — a one-word edit, once `develop` is clean and
 has stayed clean for a week.
 
-`develop` is **not** clean yet. Five real violations exist (`no-module-to-app` is
-already at zero — that was KAN-424 Defect 1):
+`develop` is **not** clean for `no-cross-segment-app`. Four real violations remain — three
+owned by D8/KAN-422, one (`dashboard/page.tsx -> (auth)/actions.ts`) routed nowhere and
+needing an owner before it can flip. `no-module-to-app` and `no-circular` are at zero and
+are already blocking:
 
 | Rule | Violation | Owner |
 | --- | --- | --- |

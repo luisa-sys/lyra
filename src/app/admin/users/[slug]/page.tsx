@@ -9,11 +9,16 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
-import { getProfileEntitlements } from '@/lib/features/entitlements-service';
-import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/lib/features/registry';
-import { getGlobalSwitches } from '@/lib/features/global-switches-service';
-import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/lib/features/global-features';
+import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import {
+  setSuspendState,
+  setPublishedState,
+  deleteProfileItem,
+} from '@/modules/trust-safety/user-actions';
+import { getProfileEntitlements } from '@/modules/features/entitlements-service';
+import { FEATURE_CONFIG, GA_FEATURE_KEYS, TEST_FEATURE_KEYS, type FeatureKey } from '@/modules/features/registry';
+import { getGlobalSwitches } from '@/modules/features/global-switches-service';
+import { GLOBAL_FEATURE_KEYS, GLOBAL_FEATURE_CONFIG } from '@/modules/features/global-features';
 import { getDeployEnv } from '@/modules/platform/deploy-env';
 import { setFeatureEntitlement } from '../actions';
 import { userStatusBadge, accessBadge, publishBadge } from '../status-badges';
@@ -69,112 +74,61 @@ async function loadItems(profileId: string): Promise<ItemRow[]> {
 }
 
 // ── Server actions ────────────────────────────────────────────────
+//
+// KAN-415 D7: the moderation logic moved to
+// src/modules/trust-safety/user-actions.ts, where it can be imported and
+// tested. What remains is FormData parsing — these closures stay in the page
+// because a `'use server'` file may export only async functions (gotcha #18),
+// rejected at action-invocation time rather than at build time.
 
 async function actionSuspend(formData: FormData) {
   'use server';
-  await setSuspendState(formData, true);
+  await setSuspendState(
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('slug') ?? ''),
+    String(formData.get('reason') ?? ''),
+    true,
+  );
 }
 
 async function actionUnsuspend(formData: FormData) {
   'use server';
-  await setSuspendState(formData, false);
-}
-
-async function setSuspendState(formData: FormData, suspend: boolean) {
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const profileId = String(formData.get('profileId') ?? '');
-  const slug = String(formData.get('slug') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-
-  // Self-moderation guard. The admin's own profileId must never equal
-  // the target. Bail silently — UI doesn't render the button in this
-  // case but action handlers must be self-defending.
-  if (profileId === admin.profileId) {
-    redirect(`/admin/users/${slug}`);
-  }
-
-  await logModerationAction({
-    admin,
-    action: suspend ? 'suspend' : 'unsuspend',
-    targetProfileId: profileId,
-    reason: reason || null,
-  });
-
-  const supabase = getAdminServiceClient();
-  await supabase
-    .from('profiles')
-    .update(suspend
-      ? { is_suspended: true, suspended_at: new Date().toISOString(), suspension_reason: reason || null }
-      : { is_suspended: false, suspended_at: null, suspension_reason: null }
-    )
-    .eq('id', profileId);
-
-  redirect(`/admin/users/${slug}`);
+  await setSuspendState(
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('slug') ?? ''),
+    String(formData.get('reason') ?? ''),
+    false,
+  );
 }
 
 async function actionUnpublish(formData: FormData) {
   'use server';
-  await setPublishedState(formData, false);
+  await setPublishedState(
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('slug') ?? ''),
+    String(formData.get('reason') ?? ''),
+    false,
+  );
 }
 
 async function actionRepublish(formData: FormData) {
   'use server';
-  await setPublishedState(formData, true);
+  await setPublishedState(
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('slug') ?? ''),
+    String(formData.get('reason') ?? ''),
+    true,
+  );
 }
-
-async function setPublishedState(formData: FormData, publish: boolean) {
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const profileId = String(formData.get('profileId') ?? '');
-  const slug = String(formData.get('slug') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-
-  // Self-moderation guard (mirror setSuspendState).
-  if (profileId === admin.profileId) {
-    redirect(`/admin/users/${slug}`);
-  }
-
-  await logModerationAction({
-    admin,
-    action: publish ? 'republish' : 'unpublish',
-    targetProfileId: profileId,
-    reason: reason || null,
-  });
-
-  // Unpublishing keeps the owner's edit access (owner RLS) but hides the
-  // profile from the public (published-only RLS). Re-publishing restores it.
-  const supabase = getAdminServiceClient();
-  await supabase.from('profiles').update({ is_published: publish }).eq('id', profileId);
-
-  redirect(`/admin/users/${slug}`);
-}
-
 
 async function actionDeleteItem(formData: FormData) {
   'use server';
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const itemId = String(formData.get('itemId') ?? '');
-  const profileId = String(formData.get('profileId') ?? '');
-  const slug = String(formData.get('slug') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-
-  await logModerationAction({
-    admin,
-    action: 'delete_item',
-    targetProfileId: profileId,
-    targetItemId: itemId,
-    reason: reason || null,
-  });
-
-  const supabase = getAdminServiceClient();
-  await supabase.from('profile_items').delete().eq('id', itemId);
-
-  redirect(`/admin/users/${slug}`);
+  await deleteProfileItem(
+    String(formData.get('itemId') ?? ''),
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('slug') ?? ''),
+    String(formData.get('reason') ?? ''),
+  );
 }
 
 // ── UI ────────────────────────────────────────────────────────────

@@ -287,6 +287,13 @@ sweep() {
 ARCHIVE_FILES=(
   "docs/modularisation/data/kan422-dead-exports.json"     # KAN-422 dead-export scan output
   "docs/modularisation/data/kan432-revalidation.json"     # KAN-432 plan-revalidation snapshot
+  "docs/modularisation/data/kan421-profiles-inventory.json" # KAN-421 profiles survey: a per-file
+                                                           # census taken on a date, like its two
+                                                           # siblings above
+  "docs/modularisation/KAN-416-boundaries-allowlist.seed.json" # KAN-416 boundary SEED: the
+                                                           # measured edge list that seeded the
+                                                           # allowlist. Rewriting an edge would
+                                                           # falsify what was measured.
   "docs/modularisation/kan419-scan.py"                    # superseded by scripts/check-guard-path-drift.py
   "docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md"  # dated plan: names the pre-move layout by design
   "docs/modularisation/KAN-414-F4-HANDOVER-2026-08-01.md" # dated handover: a snapshot of that day's findings
@@ -446,7 +453,11 @@ attest out-of-repo "EXTRACTION-DOD-ROUTINE-PROMPTS" \
 # Uses the same zero-secret route as CTL-043: public repo, built-in GITHUB_TOKEN.
 if is_suppressed mcp-repo; then
   echo "check-extraction-dod: [mcp-repo] SKIPPED by an active exception."
-elif ! command -v gh >/dev/null 2>&1; then
+elif [ -z "${MCP_TARBALL:-}" ] && ! command -v gh >/dev/null 2>&1; then
+  # gh is only actually invoked below when MCP_TARBALL is unset (the `gh api`
+  # tarball download). When MCP_TARBALL IS set — the test suite's injection
+  # point, or an operator's own pre-fetched tarball — gh is never called, so
+  # its mere absence must not fail this check closed.
   die_unverifiable "gh is not available, so the lyra-mcp-server back-references could not be checked. This coupling has already broken once undetected."
 else
   # ONE request. The first cut fetched every candidate file once per moved path

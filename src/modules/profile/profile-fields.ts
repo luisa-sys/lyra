@@ -30,7 +30,22 @@ export const ALLOWED_PROFILE_FIELDS = [
   // user-editable, so it is intentionally absent from this allowlist.
   'country',
   'avatar_url',
-  'is_published',
+  // ⚠️ `is_published` is DELIBERATELY ABSENT — KAN-415 D-6.
+  //
+  // It used to be here, which made `updateProfileFields` a SECOND publish path
+  // alongside `publishProfile()`. That is why the KAN-408 provider age gate had
+  // to be written TWICE: once in the real publish action and once inline in
+  // updateProfileFields, purely to stop the allowlist being used to bypass it.
+  // Two copies of a gate is one copy away from a hole — whichever one a future
+  // fix missed would be the way through.
+  //
+  // Publishing now has exactly ONE entry point, `publishProfile()`, which
+  // carries the gate. Nothing wrote `is_published` through this allowlist (both
+  // UI callers already used publishProfile, and admin publish/unpublish goes
+  // through the trust-safety module on the service-role client), so removing it
+  // closed a bypass without removing a capability.
+  //
+  // `tests/unit/profile-actions.test.ts` fails if it is ever re-added.
   'onboarding_complete',
   'completion_score',
   // KAN-443: the optional "I'd rather choose my own" line. Public text, so it

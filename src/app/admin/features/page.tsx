@@ -20,7 +20,7 @@ import {
   GLOBAL_FEATURE_CONFIG,
   resolveGlobalSwitches,
   type GlobalFeatureKey,
-} from '@/lib/features/global-features';
+} from '@/modules/features/global-features';
 import { setGlobalFeature } from './actions';
 import ConfirmSubmit from './confirm-submit';
 

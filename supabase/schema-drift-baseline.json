@@ -42,7 +42,7 @@
         {
           "line": "enum-label:visibility_level.draft",
           "ticket": "SEC-107",
-          "note": "KAN-143 never shipped to prod. This one is NOT harmless: src/app/dashboard/profile/visibility.ts uses 'draft' as its default and fail-closed value, and that label is not valid on the prod database — which beta.checklyra.com also shares."
+          "note": "KAN-143 never shipped to prod. This one is NOT harmless: src/modules/profile/visibility.ts uses 'draft' as its default and fail-closed value, and that label is not valid on the prod database — which beta.checklyra.com also shares."
         },
         {
           "line": "function:search_by_contact_hash",

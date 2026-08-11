@@ -66,7 +66,7 @@ while IFS=: read -r file linenum content; do
   if echo "$content" | grep -q 'service-role-ok'; then
     continue
   fi
-  echo "::error file=$file,line=$linenum::Inline service-role client construction. Use createServiceRoleClient() from @/lib/supabase-service instead. See KAN-352. → $(echo "$content" | sed 's/^[[:space:]]*//')"
+  echo "::error file=$file,line=$linenum::Inline service-role client construction. Use createServiceRoleClient() from @/modules/platform/supabase-service instead. See KAN-352. → $(echo "$content" | sed 's/^[[:space:]]*//')"
   VIOLATIONS=$((VIOLATIONS + 1))
 done <<EOF
 $MATCHES
@@ -75,7 +75,7 @@ EOF
 if [ "$VIOLATIONS" -gt 0 ]; then
   echo ""
   echo "::error::Found $VIOLATIONS inline service-role client construction(s) outside $FACTORY."
-  echo "Route all service-role usage through createServiceRoleClient() (@/lib/supabase-service). See KAN-352."
+  echo "Route all service-role usage through createServiceRoleClient() (@/modules/platform/supabase-service). See KAN-352."
   exit 1
 fi
 

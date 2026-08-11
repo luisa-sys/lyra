@@ -1125,7 +1125,7 @@
     "features": {
       "layer": 2,
       "paths": [
-        "src/lib/features/"
+        "src/modules/features/"
       ],
       "owns": {
         "files": 5,
@@ -1139,7 +1139,7 @@
       "publicApi": [
         {
           "symbol": "getMyFeatureEntitlements",
-          "file": "src/lib/features/entitlements.ts",
+          "file": "src/modules/features/entitlements.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -1150,7 +1150,7 @@
         },
         {
           "symbol": "isFeatureGloballyEnabled",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 3,
           "consumingModules": [
             "account",
@@ -1161,7 +1161,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_CONFIG",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1170,7 +1170,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_KEYS",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1179,7 +1179,7 @@
         },
         {
           "symbol": "getGlobalSwitches",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -1189,7 +1189,7 @@
         },
         {
           "symbol": "isPaidLinksAllowedForRecipient",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "affiliate",
@@ -1199,7 +1199,7 @@
         },
         {
           "symbol": "isGlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1208,7 +1208,7 @@
         },
         {
           "symbol": "resolveGlobalSwitches",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1217,7 +1217,7 @@
         },
         {
           "symbol": "type:GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1226,7 +1226,7 @@
         },
         {
           "symbol": "getProfileEntitlements",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1235,7 +1235,7 @@
         },
         {
           "symbol": "FEATURE_CONFIG",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1244,7 +1244,7 @@
         },
         {
           "symbol": "GA_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1253,7 +1253,7 @@
         },
         {
           "symbol": "TEST_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1262,7 +1262,7 @@
         },
         {
           "symbol": "type:FeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1271,7 +1271,7 @@
         },
         {
           "symbol": "isFeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1280,7 +1280,7 @@
         },
         {
           "symbol": "GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -1289,7 +1289,7 @@
         },
         {
           "symbol": "isFeatureEnabledByUserId",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -1363,7 +1363,7 @@
     "age": {
       "layer": 2,
       "paths": [
-        "src/lib/age/",
+        "src/modules/age/",
         "src/app/verify-age/",
         "src/app/confirm-age/",
         "src/app/api/age/"
@@ -1383,7 +1383,7 @@
       "publicApi": [
         {
           "symbol": "AGE_DECLARATION_COOKIE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1392,7 +1392,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_FIELD",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1401,7 +1401,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_COOKIE_MAX_AGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1410,7 +1410,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_REQUIRED_MESSAGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1419,7 +1419,7 @@
         },
         {
           "symbol": "isAgeDeclared",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1428,7 +1428,7 @@
         },
         {
           "symbol": "AGE_GATE_BLOCK_MESSAGE",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1437,7 +1437,7 @@
         },
         {
           "symbol": "isProviderAgeCheckActive",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1446,7 +1446,7 @@
         },
         {
           "symbol": "passedProviderAgeCheck",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1455,7 +1455,7 @@
         },
         {
           "symbol": "hasDeclaredAge",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1464,7 +1464,7 @@
         },
         {
           "symbol": "recordAgeDeclaration",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1544,7 +1544,7 @@
     "oauth-as": {
       "layer": 3,
       "paths": [
-        "src/modules/oauth-as/lib/",
+        "src/modules/oauth-as/",
         "src/app/oauth/",
         "src/app/api/well-known/"
       ],
@@ -1632,7 +1632,7 @@
       "paths": [
         "src/app/(auth)/",
         "src/app/auth/",
-        "src/lib/auth/"
+        "src/modules/auth/"
       ],
       "owns": {
         "files": 11,
@@ -1643,7 +1643,7 @@
       "publicApi": [
         {
           "symbol": "resolvePostLoginRedirect",
-          "file": "src/lib/auth/post-login-redirect.ts",
+          "file": "src/modules/auth/post-login-redirect.ts",
           "importingFiles": 1,
           "consumingModules": [
             "age"
@@ -1728,11 +1728,12 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
+        "src/modules/profile/",
         "src/lib/geo/",
         "src/lib/db-error-copy.ts"
       ],
       "owns": {
-        "files": 43,
+        "files": 45,
         "tables": [
           "conversation_starter_prompts",
           "external_links",
@@ -1763,7 +1764,7 @@
       "publicApi": [
         {
           "symbol": "coerceSectionVisibility",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1772,7 +1773,7 @@
         },
         {
           "symbol": "isItemVisibleUnderHybridModel",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1781,7 +1782,7 @@
         },
         {
           "symbol": "isManualOfMeEmpty",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1790,12 +1791,42 @@
         },
         {
           "symbol": "type:ManualOfMe",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
           ],
           "typeOnly": true
+        },
+        {
+          "symbol": "normaliseDeliveryCountry",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "profile",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isIsoAlpha2",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
         }
       ],
       "declaredApi": [],
@@ -2398,7 +2429,7 @@
         "src/lib/affiliate/"
       ],
       "owns": {
-        "files": 8,
+        "files": 7,
         "tables": [
           "affiliate_clicks",
           "affiliate_merchant_eligibility"
@@ -2411,27 +2442,6 @@
         ]
       },
       "publicApi": [
-        {
-          "symbol": "normaliseDeliveryCountry",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 3,
-          "consumingModules": [
-            "profile",
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "isIsoAlpha2",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 2,
-          "consumingModules": [
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
         {
           "symbol": "rollupByDailyMerchant",
           "file": "src/lib/affiliate/reporting.ts",
@@ -2494,15 +2504,6 @@
             "admin"
           ],
           "typeOnly": true
-        },
-        {
-          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "profile"
-          ],
-          "typeOnly": false
         },
         {
           "symbol": "eligibleMerchantsForCountry",
@@ -2598,10 +2599,11 @@
     "trust-safety": {
       "layer": 3,
       "paths": [
-        "src/app/api/reports/"
+        "src/app/api/reports/",
+        "src/modules/trust-safety/"
       ],
       "owns": {
-        "files": 1,
+        "files": 3,
         "tables": [
           "reports"
         ],
@@ -2613,7 +2615,8 @@
       "publicApi": [],
       "declaredApi": [],
       "mayDependOn": [
-        "platform"
+        "platform",
+        "admin"
       ],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
@@ -2621,7 +2624,6 @@
       ],
       "mustNot": [
         "account",
-        "admin",
         "affiliate",
         "auth",
         "convene",
@@ -2909,12 +2911,12 @@
         "src/lib/beta-access/flow.ts"
       ],
       "age": [
-        "src/lib/age/age-service.ts",
-        "src/lib/age/record-declaration.ts"
+        "src/modules/age/age-service.ts",
+        "src/modules/age/record-declaration.ts"
       ],
       "features": [
-        "src/lib/features/entitlements-service.ts",
-        "src/lib/features/global-switches-service.ts"
+        "src/modules/features/entitlements-service.ts",
+        "src/modules/features/global-switches-service.ts"
       ],
       "account": [
         "src/lib/retention/affiliate-clicks.ts",

@@ -9,8 +9,8 @@
  */
 
 import { useRef, useState } from 'react';
-import type { ManualOfMe } from '../manual-of-me-fields';
-import { MANUAL_OF_ME_FIELDS, MANUAL_OF_ME_MAX_LENGTHS } from '../manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, MANUAL_OF_ME_MAX_LENGTHS } from '@/modules/profile/manual-of-me-fields';
 import { updateManualOfMe } from '../manual-of-me-actions';
 import { useAutoSave } from './use-auto-save';
 import { SectionSaveBar } from './section-save-bar';

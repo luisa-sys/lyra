@@ -9,14 +9,14 @@
  * self-declaration at sign-up is all that's required.
  *
  * Lyra never collects a DOB or stores a selfie/biometric here — the Didit hosted
- * flow returns only a yes/no age result (see src/lib/age/didit.ts).
+ * flow returns only a yes/no age result (see src/modules/age/didit.ts).
  */
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
-import { isProviderAgeCheckActive } from '@/lib/age/provider-gate';
-import { isDiditConfigured } from '@/lib/age/didit';
+import { isProviderAgeCheckActive } from '@/modules/age/provider-gate';
+import { isDiditConfigured } from '@/modules/age/didit';
 import { startAgeVerification } from './actions';
 
 export const metadata = {

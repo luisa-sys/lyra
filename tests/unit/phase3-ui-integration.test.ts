@@ -213,7 +213,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('WizardProfile and WizardItem types declare section_visibility / nullable visibility', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.types),
+      resolve(ROOT, SRC.profileTypes),
       'utf-8',
     );
     expect(src).toMatch(/section_visibility:\s*Record<string,\s*string>\s*\|\s*null/);

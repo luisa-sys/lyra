@@ -36,7 +36,7 @@ jest.mock('next/headers', () => ({
   }),
 }));
 
-import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
+import { resolvePostLoginRedirect } from '@/modules/auth/post-login-redirect';
 
 // Minimal stand-in for the Supabase server client — only auth.getUser is used.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
