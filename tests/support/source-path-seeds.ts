@@ -28,6 +28,37 @@
  * literal exists exactly once, in the layer designed to hold it, and a file
  * move updates this one line instead of N assertions.
  *
+ * A MOVE BREAKS THE SELF-SUSTAINING LOOP — THIS IS THE TRAP
+ * ---------------------------------------------------------
+ * `tests/support/source-paths.ts` is itself a tracked `.ts` file under
+ * `tests/`, so the generator reads its own previous output and rediscovers
+ * every key it already holds. The manifest is therefore SELF-SUSTAINING in
+ * steady state, which is why hand-editing a value works and persists — and why
+ * it is easy to believe no seeding is ever needed.
+ *
+ * A FILE MOVE breaks that loop, because the generator keeps only literals that
+ * still resolve on disk:
+ *
+ *   1. `git mv src/lib/features/x.ts src/modules/features/x.ts`
+ *   2. the manifest still says `src/lib/features/x.ts`
+ *   3. that path no longer exists -> the literal is discarded
+ *   4. no test contains the NEW literal yet -> nothing replaces it
+ *   5. the key is GONE, and `SRC.x` is now `undefined`
+ *
+ * The failure that produces is `TypeError: The "paths[2]" argument must be of
+ * type string` from `resolve(__dirname, '../../', undefined)` — which reads
+ * like a broken harness, not like a missing manifest entry. It cost real time
+ * during KAN-415 D5/D6 before it was recognised.
+ *
+ * So: WHEN YOU MOVE A FILE THAT ANY TEST REACHES VIA `SRC`, either update the
+ * value in the manifest in the same commit (the loop then re-sustains it), or
+ * seed it here. Seeding is the durable option, because it survives a
+ * regeneration performed from a stale checkout — which is exactly how the key
+ * was lost the first time.
+ *
+ * `tests/unit/source-path-manifest-integrity.test.ts` now fails loudly on this
+ * whole class, so it cannot recur silently.
+ *
  * WHEN TO ADD A SEED
  * ------------------
  * Only when a test needs a path the manifest does not already carry. First
@@ -54,4 +85,9 @@ export const SEEDED_PATHS = [
   'src/modules/access/pipeline.ts',
   // The Supabase client the signup and confirm paths run through.
   'src/modules/platform/supabase-server.ts',
+  // D5 moved this out of src/lib/features/. Read by SRC in
+  // global-enforcement.test.ts and kan342-gift-visibility.test.ts, and by
+  // literal in neither — so without this seed the key does not come back.
+  // See "A MOVE BREAKS THE SELF-SUSTAINING LOOP" below.
+  'src/modules/features/entitlements-service.ts',
 ] as const;
