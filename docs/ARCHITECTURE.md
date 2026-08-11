@@ -13,6 +13,50 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
+#### Code layout — `src/lib/` and `src/modules/` (KAN-415, IN FLIGHT)
+
+**Both directories exist and both hold live code. That is expected, not drift.**
+The KAN-415 modularisation programme is extracting `src/lib/**` into bounded
+modules under `src/modules/**`, one domain at a time, so the tree is mixed until
+it completes.
+
+| module | what it owns |
+|---|---|
+| `access` | the whole middleware request path — see below |
+| `oauth-as` | the OAuth 2.1 authorization server (SEC-33 RS256/JWKS) |
+| `guards` | rate limiting, Turnstile, sanitisation, client-IP |
+| `platform` | the three Supabase clients + `env.ts`, the only sanctioned env reader |
+| `features` | feature registry, entitlements, global switches |
+| `age` | 18+ self-declaration + the dormant Didit provider code |
+| `auth` | `resolvePostLoginRedirect()` — the shared post-login chokepoint |
+| `observability` | metrics, Sentry scrubbing |
+
+**`modules.json` at the repo root is the authoritative manifest** — which paths
+belong to which module, their layer, and the boundary policy. Read it rather
+than inferring ownership from the directory tree, and update it in the same
+commit as any move (CTL-041).
+
+⚠️ **`src/middleware.ts` has no function body, and that is deliberate.** It reads
+seven env vars and wires them to `createAccessMiddleware()`. The request path is
+an ordered list of named gates in `src/modules/access/`:
+
+- `pipeline.ts` — the gate order (`PRE_AUTH_ORDER`, `AUTHED_ORDER`) plus
+  `ORDER_CONSTRAINTS`, which records *which reorderings are catastrophic and
+  why*, as data, each with its ticket.
+- `gates/*.ts` — one gate per file, each carrying its own `id`, `ticket` and
+  reason.
+- `exemptions.ts` — path exemptions as one declarative table. Exemption is
+  order-free data; gate **order** is not, and stays control flow.
+- `oauth-server-paths.ts` — the SEC-36 surface, kept as an **inclusion** set in
+  its own module rather than folded into the exemption table, because that table
+  is headed "exempt from" and one polarity flip would disable the 404.
+
+`Gate.run` is declared as a **property, not a method shorthand**. Under
+`strictFunctionTypes` that makes parameters contravariant, so placing an
+authenticated gate into the pre-authentication pipeline is a **compile error**.
+Written as a shorthand it is checked bivariantly and the guarantee silently
+evaporates while the code reads identically. Do not "tidy" it.
+
 ### MCP Server (lyra-mcp-server)
 - **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
 - **Hosting**: Railway (auto-deploy from main)
@@ -76,7 +120,7 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
-`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/lib/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
+`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
@@ -127,7 +171,7 @@ skip it.
 to carry it, so it uses the cookie alone — the same mechanism KAN-337 uses for
 the beta-invite code.
 
-**Recording it.** `resolvePostLoginRedirect()` (`src/lib/auth/post-login-redirect.ts`)
+**Recording it.** `resolvePostLoginRedirect()` (`src/modules/auth/post-login-redirect.ts`)
 is the shared chokepoint for both auth routes, so it stamps
 `profiles.age_declared_18_at` once, via the service role. It **degrades open**:
 the check is wrapped in try/catch because an attestation must never be able to
@@ -153,7 +197,7 @@ evidence that the 18+ rule was put to the user and affirmed, nothing more. It is
 deliberately absent from `ALLOWED_PROFILE_FIELDS`, so the profile update action
 cannot write it.
 
-**Dormant Didit code.** The provider integration (`src/lib/age/didit.ts`,
+**Dormant Didit code.** The provider integration (`src/modules/age/didit.ts`,
 `age-service.ts`, `/api/age/didit/webhook`, `/verify-age/callback`) is **left in
 the repo, unreferenced**, so the decision is reversible. `/verify-age` is now a
 redirect to `/dashboard/profile` rather than a 404, for old links. The legacy

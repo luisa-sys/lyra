@@ -6,11 +6,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const mockGloballyEnabled = jest.fn();
-jest.mock('@/lib/features/global-switches-service', () => ({
+jest.mock('@/modules/features/global-switches-service', () => ({
   isFeatureGloballyEnabled: (...a: unknown[]) => mockGloballyEnabled(...a),
 }));
 
-import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
+import { isPaidLinksAllowedForRecipient } from '@/modules/features/entitlements-service';
 import { SRC } from '../support/source-paths';
 
 describe('paid referrals — global switch enforcement (KAN-408)', () => {

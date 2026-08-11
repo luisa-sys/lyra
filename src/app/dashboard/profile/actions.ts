@@ -6,8 +6,8 @@ import { sanitiseText, sanitiseUrl, type ActionResult } from '@/modules/guards/s
 import { moderateAndAudit } from '@/lib/moderation-audit';
 import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
-import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/provider-gate';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
+import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/modules/age/provider-gate';
 import { isAllowedProfileField } from './profile-fields';
 import { coerceVisibility } from './visibility';
 import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';

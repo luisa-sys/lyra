@@ -25,7 +25,7 @@ import { rankCandidates, type RankerContext } from './rank';
 import { composeRationale } from './explain';
 import { EVERGREEN_FALLBACK_CONCEPTS } from './evergreen';
 import { getAffiliateLink } from '@/lib/affiliate/link-service';
-import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
+import { isPaidLinksAllowedForRecipient } from '@/modules/features/entitlements-service';
 import type { PipelineRequest, PipelineResult, V2Recommendation } from './types';
 
 /**

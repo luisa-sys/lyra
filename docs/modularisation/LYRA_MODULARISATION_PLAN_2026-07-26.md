@@ -5,7 +5,31 @@
 **Method:** 8 parallel read-only code surveys + 2 competing architecture proposals, synthesised. Every number below is re-derivable from the repos.
 **Relationship to existing work:** this is the successor programme to **KAN-350** Phase 3. It absorbs, re-scopes or depends on KAN-353, KAN-355, KAN-356, KAN-358 (see §7).
 
+> ## 🔴 SUPERSEDED — the deferral below was REVERSED on 2026-08-04. READ THIS FIRST.
+>
+> **The extraction programme is RE-OPENED and IN FLIGHT.** As of 2026-08-10, `src/modules/`
+> holds live code on `main`: `access` (16 files), `oauth-as` (10), `guards` (10),
+> `platform` (6), `observability` (2), plus `features`, `age` and `auth` in flight.
+> **D1, D2, D3 and D4 are DONE.** Verify with `git ls-files src/modules/`, not with this
+> document.
+>
+> Two paragraphs below still read *"the extraction programme D1–D15 is DEFERRED"* and
+> *"No file moves into `src/modules/` under the current scope"*, and the Workstream D
+> section repeats it. **Both were true on 2026-07-28 and are false now.** They are left
+> in place rather than deleted because this is a dated plan and rewriting a founder
+> ruling would destroy the record of what was decided when — but a session acting on
+> them today would refuse work that is already approved, already merged, and already in
+> production.
+>
+> **Authoritative current state:** [`RE-DECISION-2026-08-09.md`](./RE-DECISION-2026-08-09.md)
+> for the ruling, `modules.json` for module ownership, and the KAN-415 section of the
+> repo-root `CLAUDE.md` for the live sequencing table. Convene is **permanently out**
+> ([`CONVENE-DEFERRED.md`](./CONVENE-DEFERRED.md), KAN-470) unless Convene itself is
+> turned back on.
+
 > **⚠️ Baseline re-validated 2026-07-28 against `674f0a7`** — see [`PLAN-REVALIDATION-2026-07-28.md`](./PLAN-REVALIDATION-2026-07-28.md) (KAN-432). Unless a figure is explicitly marked *re-validated*, every number below is **as-surveyed 2026-07-26** and should be re-derived before it is relied on.
+>
+> **🔴 REVERSED 2026-08-04 — see the banner at the top of this file. The ruling below is a dated record, not current instruction.**
 >
 > **⚠️ SCOPE RULING — founder decision, 2026-07-28 (KAN-432 §5, option A): the extraction programme D1–D15 is DEFERRED.** The adopted scope is **Phase 0 in full + `@lyra/contracts` + the data boundary (C3) + the `profiles` ADR**. D1–D15 are not cancelled — they are re-decided after Phase 0, on evidence measured against a decoupled test estate and a typed schema, rather than on the 2026-07-26 survey. The reasoning is in §2.2 and §6. **No file moves into `src/modules/` under the current scope.**
 
@@ -442,6 +466,8 @@ These are the "research for the refactor" the request asked for. Each answers on
 
 ### Workstream D — Module extractions, in dependency order
 
+> **🔴 REVERSED 2026-08-04. Workstream D is IN FLIGHT — D1–D4 are merged. See the banner at the top of this file.**
+>
 > **⏸️ ALL OF WORKSTREAM D IS DEFERRED — scope ruling 2026-07-28 (§2.2).** D1–D15 are **not cancelled**; they are re-decided after Phase 0 closes, against a decoupled test estate and a generated `Database` type, per the binding re-decision trigger in §2.2. **No file moves into `src/modules/` under the current scope.**
 >
 > The sequencing below is retained because it is the most expensive artefact in this plan to reconstruct, and because two of its steps carry constraints that survive the deferral: **D9 is gated on SEC-104** and **D8 absorbs two app→app edges from F2**. Two items are also promoted out of D entirely because they are in scope on their own merits: **D3 (`@lyra/contracts`)** and the domain-model half of **D8**'s privacy finding, now tracked as **SEC-109** rather than waiting for D13.
@@ -629,6 +655,8 @@ The first draft sequenced docs and verification rework as a **closing phase**. T
 
 **Critical path (as planned 2026-07-26):** R2 → F4 (test decoupling) → C1 → D1 → D2 → D4 → D5 → everything else. **F4 is the choke point.** It is the largest, least glamorous item, delivers no visible modularity, and shortening it is the single most likely way this programme fails.
 
+> **🔴 REVERSED 2026-08-04 — see the banner at the top of this file.**
+>
 > **⏸️ Re-scoped 2026-07-28 (§2.2).** Everything below the `C1 ▶ C2 ▶ …` line in the diagram above — Workstreams C (except C3), D and G — is **deferred**. The **current critical path is `R2 → F4 → F5`**, with `F6 → F7` and `C3` in parallel, plus `@lyra/contracts` (R3/D3, founder-gated on KAN-418) and the `profiles` ADR.
 >
 > **F4 remains the choke point, and the re-validation strengthened that claim rather than weakening it:** the path-coupling tax grew 18–31% in the two days between the survey and the re-validation, with no modularisation work in flight. F4 is now urgent on its own merits — it is the prerequisite for per-module CI, for honest test floors, and for the measurement that the §2.2 re-decision trigger depends on.

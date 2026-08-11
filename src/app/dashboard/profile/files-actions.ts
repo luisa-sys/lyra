@@ -11,7 +11,7 @@ import {
   extensionForMime,
   type AllowedMime,
 } from '@/modules/guards/file-magic-bytes';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 import { dbErrorFor } from '@/lib/db-error-copy';
 
 /**

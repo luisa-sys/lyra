@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/modules/platform/supabase-server';
 import { env } from '@/modules/platform/env';
-import { fetchAgeDecision, normaliseDecision, mapDecisionToAgeStatus } from '@/lib/age/didit';
-import { profileIdForUser, setProfileAgeStatus } from '@/lib/age/age-service';
+import { fetchAgeDecision, normaliseDecision, mapDecisionToAgeStatus } from '@/modules/age/didit';
+import { profileIdForUser, setProfileAgeStatus } from '@/modules/age/age-service';
 
 export const dynamic = 'force-dynamic';
 
