@@ -482,6 +482,69 @@ covering 28 moved files during D1, and CTL-035 could not see it because the
 pattern was **narrow, not dead** — it still matched 87 other files. "Matches
 nothing" is detectable; "matches less than it used to" is not.
 
+## Writing a test that can actually fail (read before adding tests)
+
+The **Test Integrity Policy** below governs not *weakening* an existing test.
+This section is the other half, and it is the one that has actually cost this
+repo: **not writing a useless one in the first place.**
+
+**The framing that matters.** Every failure catalogued here reported GREEN,
+raised the test count, and raised the coverage percentage. A number cannot
+distinguish a test that guards something from a test that guards nothing —
+so "we have N tests" and "coverage is X%" are not evidence, and asking for
+more of either produces more of both kinds. The only evidence a test works is
+**having seen it fail for the right reason.**
+
+### The one rule
+
+> **A control that has never been seen to fail is indistinguishable from no
+> control.** Before you claim a test protects something, break the thing on
+> purpose, watch the test go red, put it back.
+
+That is not ceremony. It has caught a wrong test **every single time** it was
+done properly in this repo, including tests written minutes earlier by whoever
+was applying the rule.
+
+⚠️ **And verify the mutation actually applied.** A `sed`/string-replace that
+silently matches nothing produces a green run that looks exactly like a green
+run. During KAN-415 D7 a mutation reported "1 red" instead of the expected 2
+— because the file was never modified. **Assert the file changed before you
+trust what the suite says about it.**
+
+### The catalogue — every one of these happened here
+
+| # | Failure mode | What it looked like |
+|---|---|---|
+| 1 | **The test reimplements its subject** | `maintenance-page.test.js` copied `isValidEmail`/`escapeHtml` into the test file and tested the copies. **19 green tests.** Mutating the real worker to `return true` changed nothing — email validation, rate limiting and HTML escaping were unguarded on a public form (BUGS-85). Guard: **CTL-038** |
+| 2 | **The comment satisfies the assertion** | `expect(sitemap).toContain('is_published')` stayed green through SEC-100 because `is_published` also appears in the *comment explaining why the query needs it*. Deleting the filter entirely leaves the test green. **The better a fix is documented, the weaker a source-text scan of it becomes.** Guard: **CTL-039** |
+| 3 | **A negative assertion against `undefined`** | `expect(x).not.toContain(SRC.libEnv)` where that key never existed. `undefined` is not in anything, so it **passes forever**. Any `not.*` whose expected value can be undefined asserts nothing. Guard: `source-path-manifest-integrity.test.ts` |
+| 4 | **A parameterised test over an empty list** | `test.each([])` registers **zero** tests and an empty suite is green. Always assert the corpus is non-empty *before* iterating it |
+| 5 | **Inputs that can't reach the code under test** | Two middleware ordering tests compared gates whose path sets are **disjoint** — no request could ever reach both, so "A runs before B" was unfalsifiable |
+| 6 | **Passes locally for the wrong reason** | A ratchet used `fs.existsSync` to check a moved directory. `git mv` leaves the source dir behind **empty**, so it stayed green on the exact defect it guarded and would only have reddened in CI. Use `git ls-files` — tracked state, not disk state |
+| 7 | **A red you have learned to expect** | 18 macOS failures were annotated "expected" for ten days. They were two real defects, one of them a security guard scanning nothing (gotcha #30). **An expected red is a switched-off control** |
+| 8 | **A hand-maintained number** | The test floor read 29 files/320 blocks against an actual 260/2,963 — **89% of the estate could have been deleted without tripping CI**. Generate baselines; never hand-type them |
+
+### What to do instead
+
+- **Import the real subject.** If you cannot, use a subprocess harness
+  (`tests/support/*.mjs` driven from `tests/scripts/`) — never a copy, and
+  never a `jest.config` change (that needs sign-off and alters how ~100 files
+  execute).
+- **Assert behaviour, not source text.** If a source-text scan is genuinely the
+  only instrument, **strip comments before matching** (failure mode 2).
+- **Assert the corpus first.** `expect(items.length).toBeGreaterThan(N)` before
+  `test.each(items)`.
+- **Prefer a two-way ratchet** to a list you may only add to. A list that only
+  grows is a suppression list. Make it fail when it goes **stale** as well as
+  when it is exceeded.
+- **State the gap.** If something is genuinely uncovered, write that down — in
+  the PR, in the ticket, in the header. Recording a gap is a finding; hiding it
+  is a regression.
+
+**Enforced by:** CTL-038 (reimplementation), CTL-039 (comment-shadowed
+assertions), `test-regression-guard.test.js` (the two-way floor). These catch
+three of eight. The other five need you to break the thing on purpose.
+
 ## Test Integrity Policy
 
 Tests are the safety net. Claude must NEVER modify, weaken, skip, or delete any existing unit, smoke, or E2E test to make it pass. Tests exist to catch real problems — a failing test means the code is wrong, not the test.
