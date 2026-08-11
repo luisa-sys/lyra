@@ -1,7 +1,7 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import { ProfileWizard } from '../wizard';
-import { MANUAL_OF_ME_FIELDS, type ManualOfMe } from '../manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS, type ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 
 export const metadata = {
   title: 'Edit your profile (legacy) — Lyra',

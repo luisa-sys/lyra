@@ -75,7 +75,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 import { updateProfileFields } from '@/app/dashboard/profile/actions';
-import { giftVoucherHintPayload } from '@/app/dashboard/profile/profile-fields';
+import { giftVoucherHintPayload } from '@/modules/profile/profile-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';

@@ -8,14 +8,14 @@ import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/modules/age/provider-gate';
-import { isAllowedProfileField } from './profile-fields';
-import { coerceVisibility } from './visibility';
+import { isAllowedProfileField } from '@/modules/profile/profile-fields';
+import { coerceVisibility } from '@/modules/profile/visibility';
 import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';
 import {
   coerceSectionVisibility,
   isControllableSectionKey,
   type SectionVisibility,
-} from './section-visibility';
+} from '@/modules/profile/section-visibility';
 import { preflightUpload } from '@/modules/guards/file-magic-bytes';
 import { MAX_SUGGESTION_KEY_LENGTH } from '@/lib/recommend/dismissals';
 import { dbErrorFor } from '@/lib/db-error-copy';

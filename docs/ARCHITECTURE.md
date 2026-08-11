@@ -31,6 +31,7 @@ it completes.
 | `auth` | `resolvePostLoginRedirect()` — the shared post-login chokepoint |
 | `observability` | metrics, Sentry scrubbing |
 | `trust-safety` | report + user moderation writes, all audit-first |
+| `profile` | the profile **domain core** — see below |
 
 **`modules.json` at the repo root is the authoritative manifest** — which paths
 belong to which module, their layer, and the boundary policy. Read it rather
@@ -57,6 +58,26 @@ an ordered list of named gates in `src/modules/access/`:
 authenticated gate into the pre-authentication pipeline is a **compile error**.
 Written as a shorthand it is checked bivariantly and the guarantee silently
 evaporates while the code reads identically. Do not "tidy" it.
+
+⚠️ **`src/modules/profile/` is the domain core, and the split from the editor's
+UI is a privacy boundary — not tidiness.** Until D8, the seven `Wizard*` /
+`Conversation*` interfaces that *are* the profile data model (fan-in 14) lived in
+`app/dashboard/profile/steps/types.tsx`, a leaf of the **editor's** wizard. So
+the *public* profile's shape — which fields exist, what `section_visibility`
+inherits — was owned by the editor, and `app/[slug]/page.tsx` had to reach into
+`app/dashboard/profile/` to find out what a profile is. That was the D-4 finding
+and three of the five wrong-direction app→app edges; **all three are now gone**
+(5 → 2 remaining, both pre-existing and unrelated).
+
+The split is deliberately asymmetric. The **domain** — `types.ts`,
+`profile-fields.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`,
+`favourites.ts`, `visibility.ts`, `country-codes.ts` — moved into the module,
+where both the editor and `public-profile` (D9) can depend on it legitimately.
+The **UI** — `Field`, `SaveButton` — stayed in the app tree: they carry design
+tokens and are founder-owned under KAN-411 (`uiApprovalGated: always`), and a
+domain module that everything is meant to depend on freely is the wrong home for
+a button. `steps/types.tsx` re-exports the types so the 14 existing editor
+imports still work; **new code should import from `@/modules/profile/types`.**
 
 ⚠️ **A `'use server'` file holds no logic — it delegates to a module.** This is
 the D7 shape and it applies to every server action in `src/app/**`:

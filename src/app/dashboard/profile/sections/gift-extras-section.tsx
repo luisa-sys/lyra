@@ -21,7 +21,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WizardProfile } from '../steps/types';
 import { updateProfileFields, dismissGiftSuggestion, restoreGiftSuggestion } from '../actions';
-import { giftVoucherHintPayload, GIFT_VOUCHER_HINT_MAX_LENGTH } from '../profile-fields';
+import { giftVoucherHintPayload, GIFT_VOUCHER_HINT_MAX_LENGTH } from '@/modules/profile/profile-fields';
 import { useAutoSave } from './use-auto-save';
 import { SectionSaveBar } from './section-save-bar';
 

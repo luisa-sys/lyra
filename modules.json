@@ -1728,11 +1728,12 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
+        "src/modules/profile/",
         "src/lib/geo/",
         "src/lib/db-error-copy.ts"
       ],
       "owns": {
-        "files": 43,
+        "files": 45,
         "tables": [
           "conversation_starter_prompts",
           "external_links",
@@ -2398,7 +2399,7 @@
         "src/lib/affiliate/"
       ],
       "owns": {
-        "files": 8,
+        "files": 7,
         "tables": [
           "affiliate_clicks",
           "affiliate_merchant_eligibility"

@@ -10,12 +10,12 @@ import { createClient as createSupabaseServerClient } from '@/modules/platform/s
 import {
   coerceSectionVisibility,
   isItemVisibleUnderHybridModel,
-} from '@/app/dashboard/profile/section-visibility';
+} from '@/modules/profile/section-visibility';
 import {
   isManualOfMeEmpty,
   type ManualOfMe,
-} from '@/app/dashboard/profile/manual-of-me-fields';
-import { groupFavourites } from '@/app/dashboard/profile/favourites';
+} from '@/modules/profile/manual-of-me-fields';
+import { groupFavourites } from '@/modules/profile/favourites';
 import { getRecommendations } from '@/lib/recommend';
 import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/lib/recommend/dismissals';
 import RecommendationsSection from './recommendations-section';
@@ -23,7 +23,7 @@ import V2RecommendationsSection from './v2-recommendations-section';
 import ReportButton from './report-button';
 import { decodeSlug } from './slug-utils';
 import { headers } from 'next/headers';
-import { isIsoAlpha2, normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
+import { isIsoAlpha2, normaliseDeliveryCountry } from '@/modules/profile/country-codes';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
 import type { ConceptInput } from '@/lib/recommender/v2/types';
 import * as Sentry from '@sentry/nextjs';
@@ -434,7 +434,7 @@ export default async function PublicProfilePage({ params }: Props) {
   ];
 
   // KAN-444: favourites grid — one card per non-empty group, built by the
-  // SAME function the editor groups by (see dashboard/profile/favourites).
+  // SAME function the editor groups by (see the profile module's favourites).
   // Sharing it is the point: the groups a member arranges while editing are
   // by construction the groups their visitors see, so the two cannot drift.
   const favCards = groupFavourites(typedItems);

@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 194 entries.
+// 195 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -123,13 +123,10 @@ export const SRC = {
   conversationStartersActions: 'src/app/dashboard/profile/conversation-starters-actions.ts',
   deliveryCountryActions: 'src/app/dashboard/profile/delivery-country-actions.ts',
   editProfileForm: 'src/app/dashboard/profile/edit-profile-form.tsx',
-  favourites: 'src/app/dashboard/profile/favourites.ts',
   filesActions: 'src/app/dashboard/profile/files-actions.ts',
   legacyPage: 'src/app/dashboard/profile/legacy/page.tsx',
   manualOfMeActions: 'src/app/dashboard/profile/manual-of-me-actions.ts',
   profilePage: 'src/app/dashboard/profile/page.tsx',
-  profileFields: 'src/app/dashboard/profile/profile-fields.ts',
-  sectionVisibility: 'src/app/dashboard/profile/section-visibility.ts',
   profileSections: 'src/app/dashboard/profile/sections',
   steps: 'src/app/dashboard/profile/steps',
   conversationStartersStep: 'src/app/dashboard/profile/steps/conversation-starters-step.tsx',
@@ -194,6 +191,10 @@ export const SRC = {
   platformEnv: 'src/modules/platform/env.ts',
   supabaseServer: 'src/modules/platform/supabase-server.ts',
   supabaseService: 'src/modules/platform/supabase-service.ts',
+  favourites: 'src/modules/profile/favourites.ts',
+  profileFields: 'src/modules/profile/profile-fields.ts',
+  sectionVisibility: 'src/modules/profile/section-visibility.ts',
+  profileTypes: 'src/modules/profile/types.ts',
   database: 'src/types/database',
   index: 'src/types/database/index.ts',
   prod: 'src/types/database/prod.ts',

@@ -104,6 +104,16 @@ export const SEEDED_PATHS = [
   // KAN-88 wiring survives; the literal lives here rather than in that file so
   // the next move updates one line instead of four assertions.
   'src/modules/oauth-as/consent-flow.ts',
+  // D8 moved the profile domain core out of the editor's app tree. All three
+  // keys were DROPPED by the regeneration — read only via SRC, hard-coded
+  // nowhere that counts — which is the self-sustaining loop breaking exactly as
+  // described above. Two of them (profileFields, sectionVisibility) went
+  // `undefined` and were caught by source-path-manifest-integrity rather than
+  // by anything in the suites that read them.
+  'src/modules/profile/types.ts',
+  'src/modules/profile/profile-fields.ts',
+  'src/modules/profile/section-visibility.ts',
+  'src/modules/profile/favourites.ts',
   // CTL-047's own implementation. check-docs-updated.test.js asserts that the
   // control registry's `implementation` field and pr-checks.yml both name this
   // exact path — the assertion IS the path, so a literal there would make a
