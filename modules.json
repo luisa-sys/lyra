@@ -1764,7 +1764,7 @@
       "publicApi": [
         {
           "symbol": "coerceSectionVisibility",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1773,7 +1773,7 @@
         },
         {
           "symbol": "isItemVisibleUnderHybridModel",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1782,7 +1782,7 @@
         },
         {
           "symbol": "isManualOfMeEmpty",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1791,12 +1791,42 @@
         },
         {
           "symbol": "type:ManualOfMe",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
           ],
           "typeOnly": true
+        },
+        {
+          "symbol": "normaliseDeliveryCountry",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "profile",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isIsoAlpha2",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
         }
       ],
       "declaredApi": [],
@@ -2413,27 +2443,6 @@
       },
       "publicApi": [
         {
-          "symbol": "normaliseDeliveryCountry",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 3,
-          "consumingModules": [
-            "profile",
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "isIsoAlpha2",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 2,
-          "consumingModules": [
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
-        {
           "symbol": "rollupByDailyMerchant",
           "file": "src/lib/affiliate/reporting.ts",
           "importingFiles": 1,
@@ -2495,15 +2504,6 @@
             "admin"
           ],
           "typeOnly": true
-        },
-        {
-          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "profile"
-          ],
-          "typeOnly": false
         },
         {
           "symbol": "eligibleMerchantsForCountry",
