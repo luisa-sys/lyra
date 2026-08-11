@@ -2598,10 +2598,11 @@
     "trust-safety": {
       "layer": 3,
       "paths": [
-        "src/app/api/reports/"
+        "src/app/api/reports/",
+        "src/modules/trust-safety/"
       ],
       "owns": {
-        "files": 1,
+        "files": 2,
         "tables": [
           "reports"
         ],
@@ -2613,7 +2614,8 @@
       "publicApi": [],
       "declaredApi": [],
       "mayDependOn": [
-        "platform"
+        "platform",
+        "admin"
       ],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
@@ -2621,7 +2623,6 @@
       ],
       "mustNot": [
         "account",
-        "admin",
         "affiliate",
         "auth",
         "convene",
