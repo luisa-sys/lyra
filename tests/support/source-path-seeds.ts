@@ -28,6 +28,37 @@
  * literal exists exactly once, in the layer designed to hold it, and a file
  * move updates this one line instead of N assertions.
  *
+ * A MOVE BREAKS THE SELF-SUSTAINING LOOP — THIS IS THE TRAP
+ * ---------------------------------------------------------
+ * `tests/support/source-paths.ts` is itself a tracked `.ts` file under
+ * `tests/`, so the generator reads its own previous output and rediscovers
+ * every key it already holds. The manifest is therefore SELF-SUSTAINING in
+ * steady state, which is why hand-editing a value works and persists — and why
+ * it is easy to believe no seeding is ever needed.
+ *
+ * A FILE MOVE breaks that loop, because the generator keeps only literals that
+ * still resolve on disk:
+ *
+ *   1. `git mv src/lib/features/x.ts src/modules/features/x.ts`
+ *   2. the manifest still says `src/lib/features/x.ts`
+ *   3. that path no longer exists -> the literal is discarded
+ *   4. no test contains the NEW literal yet -> nothing replaces it
+ *   5. the key is GONE, and `SRC.x` is now `undefined`
+ *
+ * The failure that produces is `TypeError: The "paths[2]" argument must be of
+ * type string` from `resolve(__dirname, '../../', undefined)` — which reads
+ * like a broken harness, not like a missing manifest entry. It cost real time
+ * during KAN-415 D5/D6 before it was recognised.
+ *
+ * So: WHEN YOU MOVE A FILE THAT ANY TEST REACHES VIA `SRC`, either update the
+ * value in the manifest in the same commit (the loop then re-sustains it), or
+ * seed it here. Seeding is the durable option, because it survives a
+ * regeneration performed from a stale checkout — which is exactly how the key
+ * was lost the first time.
+ *
+ * `tests/unit/source-path-manifest-integrity.test.ts` now fails loudly on this
+ * whole class, so it cannot recur silently.
+ *
  * WHEN TO ADD A SEED
  * ------------------
  * Only when a test needs a path the manifest does not already carry. First
@@ -49,9 +80,43 @@
  */
 export const SEEDED_PATHS = [
   // The 18+ self-declaration (KAN-407) — the age half of the signup contract.
-  'src/lib/age/self-declaration.ts',
+  'src/modules/age/self-declaration.ts',
   // Where D4 moved the gating that decides where a new user lands.
   'src/modules/access/pipeline.ts',
   // The Supabase client the signup and confirm paths run through.
   'src/modules/platform/supabase-server.ts',
+  // D5 moved this out of src/lib/features/. Read by SRC in
+  // global-enforcement.test.ts and kan342-gift-visibility.test.ts, and by
+  // literal in neither — so without this seed the key does not come back.
+  // See "A MOVE BREAKS THE SELF-SUSTAINING LOOP" below.
+  'src/modules/features/entitlements-service.ts',
+  // D6 moved these out of src/lib/age/ and src/lib/auth/. Both are read via
+  // SRC by tests that assert the KAN-408 global-switch wiring and the
+  // post-login redirect contract; neither is hard-coded anywhere that counts.
+  // The move dropped both keys and `tsc` caught it — the typed manifest turns
+  // this class into a COMPILE error for .ts tests, which is the earliest and
+  // loudest place it can surface. .js tests get no such warning, which is why
+  // source-path-manifest-integrity.test.ts checks the whole estate at runtime.
+  'src/modules/age/provider-gate.ts',
+  'src/modules/auth/post-login-redirect.ts',
+  // D7 part 3 moved the OAuth consent decisions out of the app tree. Read via
+  // SRC by consent-account-banner.test.ts, whose whole point is that the
+  // KAN-88 wiring survives; the literal lives here rather than in that file so
+  // the next move updates one line instead of four assertions.
+  'src/modules/oauth-as/consent-flow.ts',
+  // D8 moved the profile domain core out of the editor's app tree. All three
+  // keys were DROPPED by the regeneration — read only via SRC, hard-coded
+  // nowhere that counts — which is the self-sustaining loop breaking exactly as
+  // described above. Two of them (profileFields, sectionVisibility) went
+  // `undefined` and were caught by source-path-manifest-integrity rather than
+  // by anything in the suites that read them.
+  'src/modules/profile/types.ts',
+  'src/modules/profile/profile-fields.ts',
+  'src/modules/profile/section-visibility.ts',
+  'src/modules/profile/favourites.ts',
+  // CTL-047's own implementation. check-docs-updated.test.js asserts that the
+  // control registry's `implementation` field and pr-checks.yml both name this
+  // exact path — the assertion IS the path, so a literal there would make a
+  // rename look like a passing test against a script nobody runs.
+  'scripts/check-docs-updated.py',
 ] as const;

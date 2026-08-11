@@ -18,9 +18,9 @@
  * Safe by construction: the underlying read (getGlobalSwitches) fails safe to
  * each key's default, so a DB hiccup falls back to the default disclosure state.
  */
-import { getGlobalSwitches } from '@/lib/features/global-switches-service';
+import { getGlobalSwitches } from '@/modules/features/global-switches-service';
 import { getDeployEnv } from '@/modules/platform/deploy-env';
-import type { GlobalFeatureKey } from '@/lib/features/global-features';
+import type { GlobalFeatureKey } from '@/modules/features/global-features';
 
 export interface DisclosureFlags {
   /** Sovrn affiliate / paid-referral disclosures. */

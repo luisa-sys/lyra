@@ -12,8 +12,8 @@ import {
   verifyWebhookSignature,
   normaliseDecision,
   mapDecisionToAgeStatus,
-} from '@/lib/age/didit';
-import { setProfileAgeStatus, profileExists } from '@/lib/age/age-service';
+} from '@/modules/age/didit';
+import { setProfileAgeStatus, profileExists } from '@/modules/age/age-service';
 
 export const dynamic = 'force-dynamic';
 

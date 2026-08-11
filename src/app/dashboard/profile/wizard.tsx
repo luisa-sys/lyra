@@ -17,7 +17,7 @@ import {
   uploadAvatar,
 } from './actions';
 import { updateManualOfMe } from './manual-of-me-actions';
-import type { ManualOfMe } from './manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import {
   IdentityStep, BioStep, SchoolStep, ItemsStep, LinksStep, ManualOfMeStep, FilesStep, ConversationStartersStep, PreviewStep,
   type WizardProfile, type WizardItem, type WizardSchool, type WizardLink, type WizardFile,

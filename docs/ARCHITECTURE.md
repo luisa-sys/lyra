@@ -13,6 +13,109 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
+#### Code layout — `src/lib/` and `src/modules/` (KAN-415, IN FLIGHT)
+
+**Both directories exist and both hold live code. That is expected, not drift.**
+The KAN-415 modularisation programme is extracting `src/lib/**` into bounded
+modules under `src/modules/**`, one domain at a time, so the tree is mixed until
+it completes.
+
+| module | what it owns |
+|---|---|
+| `access` | the whole middleware request path — see below |
+| `oauth-as` | the OAuth 2.1 authorization server (SEC-33 RS256/JWKS) |
+| `guards` | rate limiting, Turnstile, sanitisation, client-IP |
+| `platform` | the three Supabase clients + `env.ts`, the only sanctioned env reader |
+| `features` | feature registry, entitlements, global switches |
+| `age` | 18+ self-declaration + the dormant Didit provider code |
+| `auth` | `resolvePostLoginRedirect()` — the shared post-login chokepoint |
+| `observability` | metrics, Sentry scrubbing |
+| `trust-safety` | report + user moderation writes, all audit-first |
+| `profile` | the profile **domain core** — see below |
+
+**`modules.json` at the repo root is the authoritative manifest** — which paths
+belong to which module, their layer, and the boundary policy. Read it rather
+than inferring ownership from the directory tree, and update it in the same
+commit as any move (CTL-041).
+
+⚠️ **`src/middleware.ts` has no function body, and that is deliberate.** It reads
+seven env vars and wires them to `createAccessMiddleware()`. The request path is
+an ordered list of named gates in `src/modules/access/`:
+
+- `pipeline.ts` — the gate order (`PRE_AUTH_ORDER`, `AUTHED_ORDER`) plus
+  `ORDER_CONSTRAINTS`, which records *which reorderings are catastrophic and
+  why*, as data, each with its ticket.
+- `gates/*.ts` — one gate per file, each carrying its own `id`, `ticket` and
+  reason.
+- `exemptions.ts` — path exemptions as one declarative table. Exemption is
+  order-free data; gate **order** is not, and stays control flow.
+- `oauth-server-paths.ts` — the SEC-36 surface, kept as an **inclusion** set in
+  its own module rather than folded into the exemption table, because that table
+  is headed "exempt from" and one polarity flip would disable the 404.
+
+`Gate.run` is declared as a **property, not a method shorthand**. Under
+`strictFunctionTypes` that makes parameters contravariant, so placing an
+authenticated gate into the pre-authentication pipeline is a **compile error**.
+Written as a shorthand it is checked bivariantly and the guarantee silently
+evaporates while the code reads identically. Do not "tidy" it.
+
+⚠️ **`src/modules/profile/` is the domain core, and the split from the editor's
+UI is a privacy boundary — not tidiness.** Until D8, the seven `Wizard*` /
+`Conversation*` interfaces that *are* the profile data model (fan-in 14) lived in
+`app/dashboard/profile/steps/types.tsx`, a leaf of the **editor's** wizard. So
+the *public* profile's shape — which fields exist, what `section_visibility`
+inherits — was owned by the editor, and `app/[slug]/page.tsx` had to reach into
+`app/dashboard/profile/` to find out what a profile is. That was the D-4 finding
+and three of the five wrong-direction app→app edges; **all three are now gone**
+(5 → 2 remaining, both pre-existing and unrelated).
+
+The split is deliberately asymmetric. The **domain** — `types.ts`,
+`profile-fields.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`,
+`favourites.ts`, `visibility.ts`, `country-codes.ts` — moved into the module,
+where both the editor and `public-profile` (D9) can depend on it legitimately.
+The **UI** — `Field`, `SaveButton` — stayed in the app tree: they carry design
+tokens and are founder-owned under KAN-411 (`uiApprovalGated: always`), and a
+domain module that everything is meant to depend on freely is the wrong home for
+a button. `steps/types.tsx` re-exports the types so the 14 existing editor
+imports still work; **new code should import from `@/modules/profile/types`.**
+
+⚠️ **A `'use server'` file holds no logic — it delegates to a module.** This is
+the D7 shape and it applies to every server action in `src/app/**`:
+
+- A `'use server'` file may export **only async functions**, and that is enforced
+  at action-**invocation** time, not at build time. Violating it ships green and
+  500s the first real form submission (gotcha #18). So it cannot export a type,
+  a constant, or a pure helper — which is why `authorize/types.ts` used to exist
+  purely to hold one interface, and why it is now gone.
+- Logic parked there is also **untestable in practice**: an unexported closure
+  cannot be imported at all, and even an exported action drags the action runtime
+  into every test. `src/modules/trust-safety/{report-actions,user-actions}.ts`
+  and `src/modules/oauth-as/consent-flow.ts` were all extracted for this reason —
+  between them they suspend members, close reports, delete profile items and mint
+  OAuth authorization codes, and none of it had unit coverage before.
+- Anything under `src/app/**` is also **invisible to the module dependency
+  rules**. Once the logic is a module, `no-module-to-app` (severity `error`)
+  applies to it.
+
+The page keeps thin `'use server'` closures whose only job is to read `FormData`
+and delegate. **Parsing a form is not the part that needed testing.**
+
+**Audit-first is a frozen contract in both modules**: the audit write is called
+BEFORE the mutation it describes and throws on failure, so an action we could not
+record is one we do not commit. Ordering like that is invisible in review —
+swapping two awaits looks like tidying — so it is asserted by call-order tests
+rather than trusted.
+
+⚠️ **Moving a function moves its qa-sweep denylist key.** The destructive
+denylist in `qa-sweep/config.py` is keyed `file::function`, and two controls
+constrain it from opposite directions: `qa-sweep-preflight` derives the required
+set from every `auth.signOut()` **call site** in `src/`, while
+`qa-sweep-inventory` rejects any key that matches no **inventoried action** —
+and only `'use server'` functions are inventoried. So when a session-ending body
+moves into a plain module, the key stays on the app-tree action that the sweep
+can actually click, and the preflight instead requires that the module is
+reachable only through a denylisted action.
+
 ### MCP Server (lyra-mcp-server)
 - **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
 - **Hosting**: Railway (auto-deploy from main)
@@ -76,7 +179,7 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
-`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/lib/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
+`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
@@ -127,7 +230,7 @@ skip it.
 to carry it, so it uses the cookie alone — the same mechanism KAN-337 uses for
 the beta-invite code.
 
-**Recording it.** `resolvePostLoginRedirect()` (`src/lib/auth/post-login-redirect.ts`)
+**Recording it.** `resolvePostLoginRedirect()` (`src/modules/auth/post-login-redirect.ts`)
 is the shared chokepoint for both auth routes, so it stamps
 `profiles.age_declared_18_at` once, via the service role. It **degrades open**:
 the check is wrapped in try/catch because an attestation must never be able to
@@ -153,7 +256,7 @@ evidence that the 18+ rule was put to the user and affirmed, nothing more. It is
 deliberately absent from `ALLOWED_PROFILE_FIELDS`, so the profile update action
 cannot write it.
 
-**Dormant Didit code.** The provider integration (`src/lib/age/didit.ts`,
+**Dormant Didit code.** The provider integration (`src/modules/age/didit.ts`,
 `age-service.ts`, `/api/age/didit/webhook`, `/verify-age/callback`) is **left in
 the repo, unreferenced**, so the decision is reversible. `/verify-age` is now a
 redirect to `/dashboard/profile` rather than a 404, for old links. The legacy

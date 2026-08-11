@@ -33,7 +33,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 // signup/magic-link paths (the helper itself is covered separately).
 const SENTINEL = 'https://dev.checklyra.com/dashboard';
 const mockResolvePostLoginRedirect = jest.fn().mockResolvedValue(SENTINEL);
-jest.mock('@/lib/auth/post-login-redirect', () => ({
+jest.mock('@/modules/auth/post-login-redirect', () => ({
   resolvePostLoginRedirect: (...args: unknown[]) => mockResolvePostLoginRedirect(...args),
 }));
 

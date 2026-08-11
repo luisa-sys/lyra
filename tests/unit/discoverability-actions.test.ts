@@ -21,7 +21,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/features/entitlements', () => ({
+jest.mock('@/modules/features/entitlements', () => ({
   getMyFeatureEntitlements: jest.fn(async () => ({ discovery: true })),
 }));
 

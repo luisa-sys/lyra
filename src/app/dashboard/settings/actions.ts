@@ -5,7 +5,7 @@ import { getAdminServiceClient } from '@/lib/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
-import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
+import { isFeatureGloballyEnabled } from '@/modules/features/global-switches-service';
 import * as Sentry from '@sentry/nextjs';
 
 // SEC-75 leg (b): external systems that may still hold a copy of a deleted

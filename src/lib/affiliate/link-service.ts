@@ -39,7 +39,7 @@ import {
   type AffiliateProvider,
 } from './types';
 import { detectMerchant } from './merchant-detector';
-import { isPaidLinksAllowedForRecipient } from '@/lib/features/entitlements-service';
+import { isPaidLinksAllowedForRecipient } from '@/modules/features/entitlements-service';
 
 export type AffiliateLinkRequest = {
   /** The raw merchant product URL the recommender chose. */

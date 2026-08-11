@@ -118,7 +118,7 @@
     },
     {
       "test": "tests/unit/age-self-declaration.test.ts",
-      "subject": "src/lib/auth/post-login-redirect.ts",
+      "subject": "src/modules/auth/post-login-redirect.ts",
       "assertion": "/confirm-age",
       "severity": "comment-shadowed"
     },

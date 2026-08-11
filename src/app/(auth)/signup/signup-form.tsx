@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { signUp, signInWithGoogle } from '../actions';
-import { AGE_DECLARATION_FIELD } from '@/lib/age/self-declaration';
+import { AGE_DECLARATION_FIELD } from '@/modules/age/self-declaration';
 
 export function SignupForm({
   hasInviteCode,

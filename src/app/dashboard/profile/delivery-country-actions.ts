@@ -17,7 +17,7 @@
  *   - The owning profile is resolved server-side from `auth.uid()` — caller
  *     cannot supply a `profile_id`. Same pattern as updateManualOfMe (KAN-154).
  *
- * Pairs with src/lib/affiliate/country-codes.ts (the supported-country
+ * Pairs with the profile module's country-codes.ts (the supported-country
  * allowlist, also used by KAN-187 seed and KAN-194 smoke monitor).
  */
 
@@ -25,7 +25,7 @@ import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { type ActionResult } from '@/modules/guards/sanitise';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
+import { normaliseDeliveryCountry } from '@/modules/profile/country-codes';
 import { dbErrorFor } from '@/lib/db-error-copy';
 
 export async function updateDeliveryCountry(

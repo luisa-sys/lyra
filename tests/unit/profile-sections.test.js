@@ -99,7 +99,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   const profilePath = path.join(root, SRC.slugPage);
   // Built from the manifest's profile-directory entry rather than a raw repo
   // path, so this adds no new path coupling to the KAN-414 F4 ratchet.
-  const favouritesPath = path.join(root, SRC.profile, 'favourites.ts');
+  const favouritesPath = path.join(root, SRC.favourites);
   let pageContent;
   let content;
 
@@ -120,7 +120,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   });
 
   test('public page renders favourites through the shared groups module (KAN-444)', () => {
-    expect(pageContent).toContain("from '@/app/dashboard/profile/favourites'");
+    expect(pageContent).toContain("from '@/modules/profile/favourites'");
     expect(pageContent).toContain('groupFavourites(typedItems)');
   });
 
