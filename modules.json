@@ -2602,7 +2602,7 @@
         "src/modules/trust-safety/"
       ],
       "owns": {
-        "files": 2,
+        "files": 3,
         "tables": [
           "reports"
         ],
