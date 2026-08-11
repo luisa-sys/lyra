@@ -99,6 +99,11 @@ export const SEEDED_PATHS = [
   // source-path-manifest-integrity.test.ts checks the whole estate at runtime.
   'src/modules/age/provider-gate.ts',
   'src/modules/auth/post-login-redirect.ts',
+  // D7 part 3 moved the OAuth consent decisions out of the app tree. Read via
+  // SRC by consent-account-banner.test.ts, whose whole point is that the
+  // KAN-88 wiring survives; the literal lives here rather than in that file so
+  // the next move updates one line instead of four assertions.
+  'src/modules/oauth-as/consent-flow.ts',
   // CTL-047's own implementation. check-docs-updated.test.js asserts that the
   // control registry's `implementation` field and pr-checks.yml both name this
   // exact path — the assertion IS the path, so a literal there would make a

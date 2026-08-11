@@ -1544,7 +1544,7 @@
     "oauth-as": {
       "layer": 3,
       "paths": [
-        "src/modules/oauth-as/lib/",
+        "src/modules/oauth-as/",
         "src/app/oauth/",
         "src/app/api/well-known/"
       ],

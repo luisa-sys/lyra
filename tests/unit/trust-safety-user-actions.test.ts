@@ -62,7 +62,6 @@ jest.mock('@/lib/admin', () => ({
   })),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const adminModule = require('@/lib/admin');
 
 beforeEach(() => {

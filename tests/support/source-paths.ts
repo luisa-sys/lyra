@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 192 entries.
+// 194 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -178,6 +178,7 @@ export const SRC = {
   sweep: 'src/lib/retention/sweep.ts',
   middleware: 'src/middleware.ts',
   modules: 'src/modules',
+  srcModules: 'src/modules/',
   gate: 'src/modules/access/gate.ts',
   accessPipeline: 'src/modules/access/pipeline.ts',
   providerGate: 'src/modules/age/provider-gate.ts',
@@ -187,6 +188,7 @@ export const SRC = {
   fileMagicBytes: 'src/modules/guards/file-magic-bytes.ts',
   sanitise: 'src/modules/guards/sanitise.ts',
   turnstile: 'src/modules/guards/turnstile.ts',
+  consentFlow: 'src/modules/oauth-as/consent-flow.ts',
   clientTrust: 'src/modules/oauth-as/lib/client-trust.ts',
   clients: 'src/modules/oauth-as/lib/clients.ts',
   platformEnv: 'src/modules/platform/env.ts',
