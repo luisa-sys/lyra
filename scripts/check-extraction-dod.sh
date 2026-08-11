@@ -287,6 +287,13 @@ sweep() {
 ARCHIVE_FILES=(
   "docs/modularisation/data/kan422-dead-exports.json"     # KAN-422 dead-export scan output
   "docs/modularisation/data/kan432-revalidation.json"     # KAN-432 plan-revalidation snapshot
+  "docs/modularisation/data/kan421-profiles-inventory.json" # KAN-421 profiles survey: a per-file
+                                                           # census taken on a date, like its two
+                                                           # siblings above
+  "docs/modularisation/KAN-416-boundaries-allowlist.seed.json" # KAN-416 boundary SEED: the
+                                                           # measured edge list that seeded the
+                                                           # allowlist. Rewriting an edge would
+                                                           # falsify what was measured.
   "docs/modularisation/kan419-scan.py"                    # superseded by scripts/check-guard-path-drift.py
   "docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md"  # dated plan: names the pre-move layout by design
   "docs/modularisation/KAN-414-F4-HANDOVER-2026-08-01.md" # dated handover: a snapshot of that day's findings
