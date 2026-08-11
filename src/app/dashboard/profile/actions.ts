@@ -115,20 +115,11 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     return { success: true };
   }
 
-  // KAN-408: `is_published` is allow-listed, so this is a second publish path.
-  // Apply the same provider age gate as publishProfile() when the environment's
-  // `age_verification` switch is ON, so it can't be bypassed. (Un-publishing —
-  // is_published=false — is always allowed.)
-  if (sanitised.is_published === true && (await isProviderAgeCheckActive())) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!passedProviderAgeCheck((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
-  }
+  // KAN-415 D-6: the duplicated KAN-408 age gate that used to sit here is gone,
+  // along with the reason for it. `is_published` is no longer allow-listed, so
+  // this action cannot publish and is no longer a second publish path — see the
+  // note in the profile module's profile-fields.ts. `publishProfile()` below is
+  // the only publish entry point and carries the gate.
 
   const { error } = await supabase
     .from('profiles')
