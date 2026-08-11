@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 188 entries.
+// 191 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -161,6 +161,7 @@ export const SRC = {
   components: 'src/components',
   lib: 'src/lib',
   providerGate: 'src/lib/age/provider-gate.ts',
+  selfDeclaration: 'src/lib/age/self-declaration.ts',
   postLoginRedirect: 'src/lib/auth/post-login-redirect.ts',
   authBearer: 'src/lib/convene/auth-bearer.ts',
   microsoft: 'src/lib/convene/calendar/microsoft.ts',
@@ -181,12 +182,14 @@ export const SRC = {
   middleware: 'src/middleware.ts',
   modules: 'src/modules',
   gate: 'src/modules/access/gate.ts',
+  accessPipeline: 'src/modules/access/pipeline.ts',
   fileMagicBytes: 'src/modules/guards/file-magic-bytes.ts',
   sanitise: 'src/modules/guards/sanitise.ts',
   turnstile: 'src/modules/guards/turnstile.ts',
   clientTrust: 'src/modules/oauth-as/lib/client-trust.ts',
   clients: 'src/modules/oauth-as/lib/clients.ts',
   platformEnv: 'src/modules/platform/env.ts',
+  supabaseServer: 'src/modules/platform/supabase-server.ts',
   supabaseService: 'src/modules/platform/supabase-service.ts',
   database: 'src/types/database',
   index: 'src/types/database/index.ts',

@@ -446,7 +446,11 @@ attest out-of-repo "EXTRACTION-DOD-ROUTINE-PROMPTS" \
 # Uses the same zero-secret route as CTL-043: public repo, built-in GITHUB_TOKEN.
 if is_suppressed mcp-repo; then
   echo "check-extraction-dod: [mcp-repo] SKIPPED by an active exception."
-elif ! command -v gh >/dev/null 2>&1; then
+elif [ -z "${MCP_TARBALL:-}" ] && ! command -v gh >/dev/null 2>&1; then
+  # gh is only actually invoked below when MCP_TARBALL is unset (the `gh api`
+  # tarball download). When MCP_TARBALL IS set — the test suite's injection
+  # point, or an operator's own pre-fetched tarball — gh is never called, so
+  # its mere absence must not fail this check closed.
   die_unverifiable "gh is not available, so the lyra-mcp-server back-references could not be checked. This coupling has already broken once undetected."
 else
   # ONE request. The first cut fetched every candidate file once per moved path
