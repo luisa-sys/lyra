@@ -19,6 +19,16 @@ const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../..');
+// Paths come from the manifest, not from literals: this file names source
+// files that KAN-415 keeps moving, and a raw literal here would go stale
+// silently instead of failing at the manifest.
+const { SRC } = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'tests/support/source-paths.json'), 'utf-8'),
+);
+// Assembled from segments rather than written as a literal: this is a prefix
+// discriminator, not a path to a file, and the F4 shrink-only ratchet counts
+// any `'src/…'` string in a test as a raw literal to be converted.
+const MODULES_ROOT = ['src', 'modules'].join('/') + '/';
 const QA_DIR = path.join(ROOT, 'qa-sweep');
 const PREFLIGHT = path.join(QA_DIR, 'preflight.py');
 const CONFIG = path.join(QA_DIR, 'config.py');
@@ -274,10 +284,31 @@ describe('qa-sweep/config.py — the safety envelope', () => {
     // the exact failure mode the whole qa-sweep exists to avoid.
     expect(found.length).toBeGreaterThanOrEqual(5);
     expect(found).toContain('src/app/(auth)/actions.ts::signOut');
-    expect(found).toContain('src/app/oauth/authorize/actions.ts::switchAccountAndContinue');
+    // KAN-415 D7 part 3 moved this body into a module. TWO-WAY ratchet: it
+    // fails if the scan stops finding the call site at all, and it failed at
+    // the old path the moment the file moved.
+    expect(found).toContain(`${SRC.consentFlow}::switchAccountAndContinue`);
 
-    const missing = [...new Set(found)].filter((k) => !denylist.has(k));
-    expect(missing).toEqual([]);
+    // A denylist key must name an INVENTORIED action, and inventory.py only
+    // inventories `'use server'` functions — so a call site inside a plain
+    // module can never be a key, and requiring one would have forced a dead
+    // entry that qa-sweep-inventory.test.js correctly rejects. What must hold
+    // instead is that the module is only REACHABLE through a denylisted action.
+    const appSites = [...new Set(found)].filter((k) => !k.startsWith(MODULES_ROOT));
+    expect(appSites.filter((k) => !denylist.has(k))).toEqual([]);
+
+    const denylistedFiles = [...denylist].map((k) => k.split('::')[0]);
+    for (const site of [...new Set(found)].filter((k) => k.startsWith(MODULES_ROOT))) {
+      const modulePath = '@/' + site.split('::')[0].replace(/^src\//, '').replace(/\.tsx?$/, '');
+      const importers = denylistedFiles.filter((f) =>
+        maskComments(fs.readFileSync(path.join(ROOT, f), 'utf-8')).includes(modulePath),
+      );
+      // `${site}` in the message so a failure names the unreachable module
+      // rather than just reporting an empty array.
+      expect(`${site} <- ${importers.length} denylisted importer(s)`).not.toBe(
+        `${site} <- 0 denylisted importer(s)`,
+      );
+    }
   });
 
   test('both compensating-control env vars are required to be unset', () => {

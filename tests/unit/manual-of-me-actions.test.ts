@@ -58,7 +58,7 @@ import {
   MANUAL_OF_ME_MAX_LENGTHS,
   isManualOfMeField,
   isManualOfMeEmpty,
-} from '@/app/dashboard/profile/manual-of-me-fields';
+} from '@/modules/profile/manual-of-me-fields';
 
 beforeEach(() => {
   mockUpsertCapture.mockClear();

@@ -6,34 +6,37 @@
     {
       "from": "public-profile",
       "to": "profile",
-      "edges": 2,
+      "edges": 0,
       "direction": "same-layer, undeclared",
       "files": [
-        "src/app/[slug]/page.tsx -> src/app/dashboard/profile/manual-of-me-fields.ts",
-        "src/app/[slug]/page.tsx -> src/app/dashboard/profile/section-visibility.ts"
+        "src/app/[slug]/page.tsx -> src/modules/profile/manual-of-me-fields.ts",
+        "src/app/[slug]/page.tsx -> src/modules/profile/section-visibility.ts"
       ],
-      "typeOnly": false
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
     },
     {
       "from": "profile",
       "to": "affiliate",
-      "edges": 2,
+      "edges": 0,
       "direction": "same-layer, undeclared",
       "files": [
-        "src/app/dashboard/profile/delivery-country-actions.ts -> src/lib/affiliate/country-codes.ts",
-        "src/app/dashboard/profile/steps/identity-step.tsx -> src/lib/affiliate/country-codes.ts"
+        "src/app/dashboard/profile/delivery-country-actions.ts -> src/modules/profile/country-codes.ts",
+        "src/app/dashboard/profile/steps/identity-step.tsx -> src/modules/profile/country-codes.ts"
       ],
-      "typeOnly": false
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
     },
     {
       "from": "public-profile",
       "to": "affiliate",
-      "edges": 1,
+      "edges": 0,
       "direction": "same-layer, undeclared",
       "files": [
-        "src/app/[slug]/page.tsx -> src/lib/affiliate/country-codes.ts"
+        "src/app/[slug]/page.tsx -> src/modules/profile/country-codes.ts"
       ],
-      "typeOnly": false
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
     },
     {
       "from": "trust-safety",

@@ -30,6 +30,8 @@ it completes.
 | `age` | 18+ self-declaration + the dormant Didit provider code |
 | `auth` | `resolvePostLoginRedirect()` — the shared post-login chokepoint |
 | `observability` | metrics, Sentry scrubbing |
+| `trust-safety` | report + user moderation writes, all audit-first |
+| `profile` | the profile **domain core** — see below |
 
 **`modules.json` at the repo root is the authoritative manifest** — which paths
 belong to which module, their layer, and the boundary policy. Read it rather
@@ -56,6 +58,63 @@ an ordered list of named gates in `src/modules/access/`:
 authenticated gate into the pre-authentication pipeline is a **compile error**.
 Written as a shorthand it is checked bivariantly and the guarantee silently
 evaporates while the code reads identically. Do not "tidy" it.
+
+⚠️ **`src/modules/profile/` is the domain core, and the split from the editor's
+UI is a privacy boundary — not tidiness.** Until D8, the seven `Wizard*` /
+`Conversation*` interfaces that *are* the profile data model (fan-in 14) lived in
+`app/dashboard/profile/steps/types.tsx`, a leaf of the **editor's** wizard. So
+the *public* profile's shape — which fields exist, what `section_visibility`
+inherits — was owned by the editor, and `app/[slug]/page.tsx` had to reach into
+`app/dashboard/profile/` to find out what a profile is. That was the D-4 finding
+and three of the five wrong-direction app→app edges; **all three are now gone**
+(5 → 2 remaining, both pre-existing and unrelated).
+
+The split is deliberately asymmetric. The **domain** — `types.ts`,
+`profile-fields.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`,
+`favourites.ts`, `visibility.ts`, `country-codes.ts` — moved into the module,
+where both the editor and `public-profile` (D9) can depend on it legitimately.
+The **UI** — `Field`, `SaveButton` — stayed in the app tree: they carry design
+tokens and are founder-owned under KAN-411 (`uiApprovalGated: always`), and a
+domain module that everything is meant to depend on freely is the wrong home for
+a button. `steps/types.tsx` re-exports the types so the 14 existing editor
+imports still work; **new code should import from `@/modules/profile/types`.**
+
+⚠️ **A `'use server'` file holds no logic — it delegates to a module.** This is
+the D7 shape and it applies to every server action in `src/app/**`:
+
+- A `'use server'` file may export **only async functions**, and that is enforced
+  at action-**invocation** time, not at build time. Violating it ships green and
+  500s the first real form submission (gotcha #18). So it cannot export a type,
+  a constant, or a pure helper — which is why `authorize/types.ts` used to exist
+  purely to hold one interface, and why it is now gone.
+- Logic parked there is also **untestable in practice**: an unexported closure
+  cannot be imported at all, and even an exported action drags the action runtime
+  into every test. `src/modules/trust-safety/{report-actions,user-actions}.ts`
+  and `src/modules/oauth-as/consent-flow.ts` were all extracted for this reason —
+  between them they suspend members, close reports, delete profile items and mint
+  OAuth authorization codes, and none of it had unit coverage before.
+- Anything under `src/app/**` is also **invisible to the module dependency
+  rules**. Once the logic is a module, `no-module-to-app` (severity `error`)
+  applies to it.
+
+The page keeps thin `'use server'` closures whose only job is to read `FormData`
+and delegate. **Parsing a form is not the part that needed testing.**
+
+**Audit-first is a frozen contract in both modules**: the audit write is called
+BEFORE the mutation it describes and throws on failure, so an action we could not
+record is one we do not commit. Ordering like that is invisible in review —
+swapping two awaits looks like tidying — so it is asserted by call-order tests
+rather than trusted.
+
+⚠️ **Moving a function moves its qa-sweep denylist key.** The destructive
+denylist in `qa-sweep/config.py` is keyed `file::function`, and two controls
+constrain it from opposite directions: `qa-sweep-preflight` derives the required
+set from every `auth.signOut()` **call site** in `src/`, while
+`qa-sweep-inventory` rejects any key that matches no **inventoried action** —
+and only `'use server'` functions are inventoried. So when a session-ending body
+moves into a plain module, the key stays on the app-tree action that the sweep
+can actually click, and the preflight instead requires that the module is
+reachable only through a denylisted action.
 
 ### MCP Server (lyra-mcp-server)
 - **Framework**: TypeScript, Express, @modelcontextprotocol/sdk

@@ -4,7 +4,7 @@ import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { coerceVisibility } from './visibility';
+import { coerceVisibility } from '@/modules/profile/visibility';
 import {
   preflightUpload,
   ALLOWED_MIMES,
