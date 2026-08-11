@@ -27,7 +27,7 @@ import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
   isManualOfMeField,
-} from './manual-of-me-fields';
+} from '@/modules/profile/manual-of-me-fields';
 
 /** Update (upsert) the user's Manual of Me row. Accepts a partial — any
  * subset of allowlisted fields. Non-allowlisted keys cause wholesale

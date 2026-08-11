@@ -234,7 +234,9 @@
         "KAN-413"
       ],
       "escape_hatch": null,
-      "added": "2026-07-25"
+      "added": "2026-07-25",
+      "self_test": "npx jest tests/scripts/check-signup-surface-gate.test.js",
+      "notes": "Armed under KAN-415 D6. This control shipped 2026-07-25 with NO tests of its own, which matters more than it sounds: its own header states the daily Staging Soak deliberately never exercises signup (it reuses a persistent reset-user), so this gate is the only thing proving account creation still works before code reaches staging. The KAN-419 spike then demonstrated that a modularisation move renames the surface out from under the manifest and the gate reports RESULT: CLEAN - exit 0, no warning, no log. tests/scripts/check-signup-surface-gate.test.js now pins both halves: the behavioural contract (fires on the surface, stays quiet otherwise, content-filters migrations, fails closed when unverifiable) and a two-way ratchet asserting every src/ glob in the manifest still resolves to tracked files. Mutation-proven three ways - performing the real D6 move with the manifest untouched reddens 2, disarming matches_glob reddens 12, and turning the fail-closed branch into a CLEAN reddens 1."
     },
     {
       "id": "CTL-014",
@@ -821,6 +823,24 @@
       "escape_hatch": "An eslint-disable-next-line at the specific site, with a comment saying why the comparison is not an exemption decision. Deliberately per-site rather than a selector carve-out.",
       "self_test": "Mutation-proven 2026-08-10: adding a direct pathname equality comparison to the beta-tier gate makes npm run lint report the CTL-046 error; reverting clears it. The scoped files contain zero other such comparisons, so the rule fires only on the edit that matters.",
       "added": "2026-08-10"
+    },
+    {
+      "id": "CTL-047",
+      "name": "Documentation Definition-of-Done",
+      "defect_class": "documentation-drift",
+      "summary": "Fails any PR that makes a STRUCTURAL change whose meaning is written down - a file added/removed under src/modules/, a workflow added/removed, a control script or the control registry, a migration, or a path-keyed guard manifest - without either touching a doc (docs/**, CLAUDE.md, README.md, modules.json, controls/registry.json) or recording a Docs-Updated/Docs-N/A trailer. The trigger set is deliberately narrow: a gate that fires on every PR is one people learn to wave through, and that reflex defeats every other gate too. It cannot tell whether a doc is TRUE - nothing can - it answers the narrower question 'you changed something that is written down somewhere, did you go and look?'. Fails closed (exit 2) when the diff base cannot be resolved.",
+      "implementation": "scripts/check-docs-updated.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-359"
+      ],
+      "escape_hatch": "Docs-Updated: <JIRA-KEY> <what changed and where> or Docs-N/A: <JIRA-KEY> <why no doc describes this> on a commit in the PR. Both require a Jira key AND a reason - a bare key does not satisfy it. Docs-N/A is a legitimate answer and not a loophole: recording that you checked IS the review step. What must not happen is nobody looking.",
+      "self_test": "python3 scripts/check-docs-updated.py --self-test",
+      "added": "2026-08-10",
+      "notes": "Built after a 60-agent audit on 2026-08-10 compared every architecture/runbook/plan doc against the real tree. Three confirmed findings would have made a fresh session do the WRONG thing: the modularisation plan still read 'the extraction programme D1-D15 is DEFERRED ... No file moves into src/modules/' four days after that ruling was reversed and with 44 files already moved on main; CLAUDE.md and RUNBOOK.md both described no-module-to-app as covering src/lib/** only, long after the anchor was widened because 28 files had silently left a BLOCKING rule's scope; and RUNBOOK.md called the dependency gate non-blocking two weeks after it was flipped to error. Every one was written by someone who had just done the work and knew the truth - docs do not drift through carelessness, they drift because nothing is watching and the person who would notice already knows."
     }
   ]
 }

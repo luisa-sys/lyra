@@ -4,9 +4,17 @@
  *
  * WHY THIS EXISTS
  * ---------------
- * modules.json is the input to every boundary rule in the programme: layers,
- * `mayDependOn`, `mustNot`, the dependency-cruiser config, the extraction DoD.
- * Nothing validated it. Three separate defects were sitting in it when this was
+ * modules.json is the declared map of who owns what: layers, `mayDependOn`,
+ * `mustNot`, and the ownership the extraction DoD and CTL-044 read. Nothing
+ * validated it.
+ *
+ * ⚠️ It is NOT read by .dependency-cruiser.cjs. An earlier draft of this
+ * rationale said it was, and that mattered enough to correct: depcruise's rules
+ * are hand-written path regexes that only MENTION modules.json in prose, so the
+ * two can disagree silently. CTL-044 exists precisely because they did — the
+ * `no-module-to-app` anchor stopped covering the tree modules.json describes,
+ * and nothing connected them. Believing the manifest feeds depcruise would make
+ * that whole class of defect invisible by assumption. Three separate defects were sitting in it when this was
  * written, and each is the same shape — the manifest quietly describing a tree
  * that no longer exists:
  *

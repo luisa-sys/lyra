@@ -1,6 +1,6 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { NextResponse } from 'next/server';
-import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
+import { resolvePostLoginRedirect } from '@/modules/auth/post-login-redirect';
 
 /**
  * OAuth (e.g. Google) redirect callback — the PKCE code exchange here is

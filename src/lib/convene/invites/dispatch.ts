@@ -24,7 +24,7 @@ import {
   renderInviteHtml,
 } from './templates';
 import { renderSmsBody } from './sms-templates';
-import { isFeatureEnabledByUserId } from '@/lib/features/entitlements-service';
+import { isFeatureEnabledByUserId } from '@/modules/features/entitlements-service';
 import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';

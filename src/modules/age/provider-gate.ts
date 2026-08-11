@@ -13,7 +13,7 @@
  * `age_status` column) was retained by KAN-407 — this is only the gate that
  * decides whether it is enforced.
  */
-import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
+import { isFeatureGloballyEnabled } from '@/modules/features/global-switches-service';
 
 export type AgeStatus = 'none' | 'pending' | 'passed' | 'failed' | 'manual_review';
 

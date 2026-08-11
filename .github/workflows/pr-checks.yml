@@ -97,6 +97,24 @@ jobs:
         # list so guard and robot agree. Fail-open ONLY when the diff base can't be
         # resolved (CODEOWNERS still hard-gates these paths). See KAN-411.
         run: BASE_REF="origin/${{ github.base_ref }}" bash scripts/check-ui-copy-ownership.sh
+      - name: Documentation Definition-of-Done (CTL-047)
+        # Guard #14. INERT unless the PR makes a STRUCTURAL change whose meaning
+        # is written down: a file added/removed under src/modules/, a workflow
+        # added/removed, a control script or the control registry, a migration,
+        # or a path-keyed guard manifest. When it fires, the PR must either touch
+        # a doc (docs/**, CLAUDE.md, README.md, modules.json, controls/registry.json)
+        # or carry a `Docs-Updated: <KEY> <what>` / `Docs-N/A: <KEY> <why>` trailer.
+        #
+        # The trigger set is deliberately NARROW. A gate that fires on every PR is
+        # one people learn to wave through, and that reflex defeats every other
+        # gate too. Editing a function body is not in scope; adding a module is.
+        #
+        # Built after a 2026-08-10 audit found the modularisation plan still
+        # saying "No file moves into src/modules/" with 44 files already moved —
+        # a fresh session reading it would have stopped approved, shipped work.
+        # Docs are part of "done" (KAN-359); this is the first thing enforcing it.
+        # Fails CLOSED (exit 2) if the diff base cannot be resolved.
+        run: python3 scripts/check-docs-updated.py "origin/${{ github.base_ref }}" HEAD
       - name: Extraction Definition-of-Done (KAN-428)
         # Guard #13. INERT unless the PR deletes or renames a file under src/
         # (an "extraction"). When it fires, every artefact that classifies a

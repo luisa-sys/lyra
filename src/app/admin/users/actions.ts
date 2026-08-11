@@ -30,7 +30,7 @@ import {
   type BulkAction,
   type UserFilter,
 } from './users-actions-shared';
-import { isFeatureKey } from '@/lib/features/registry';
+import { isFeatureKey } from '@/modules/features/registry';
 
 function parseFilter(formData: FormData): UserFilter {
   const str = (k: string): string | null => {

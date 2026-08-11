@@ -40,7 +40,7 @@ import {
   hashPhoneInput,
   SEARCH_RATE_LIMIT,
 } from './discoverability-helpers';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 
 interface DiscoverabilityInput {
   phone?: boolean;

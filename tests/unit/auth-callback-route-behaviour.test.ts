@@ -60,7 +60,7 @@ const resolvePostLoginRedirect = jest.fn(
   async (_c: unknown, origin: string, next: string) => `${origin}${next}`,
 );
 
-jest.mock('@/lib/auth/post-login-redirect', () => ({
+jest.mock('@/modules/auth/post-login-redirect', () => ({
   resolvePostLoginRedirect: (...a: unknown[]) =>
     (resolvePostLoginRedirect as unknown as (...x: unknown[]) => unknown)(...a),
 }));

@@ -3,7 +3,7 @@
  *
  * These are the admin-managed master switches that turn a feature ON/OFF for
  * EVERY user in an environment. They sit ABOVE the per-user entitlement layer
- * (src/lib/features/registry.ts):
+ * (src/modules/features/registry.ts):
  *
  *   effective = existing env/credential gates          (unchanged, fail-closed)
  *             AND globalSwitch(environment, feature)     (THIS layer, default ON)

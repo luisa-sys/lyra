@@ -18,6 +18,13 @@
 > **Deliverables:**
 > - `modules.json` (repo root) — the v1 manifest. `enforced: false` everywhere;
 >   read by nothing (`.dependency-cruiser.cjs` mentions it only in a comment —
+> **⚠️ No longer true as of 2026-08-09.** `modules.json` IS read and enforced now:
+> **CTL-041** (`tests/unit/modules-manifest-integrity.test.js`) fails if a tracked file
+> under `src/modules/` is missing from the manifest or its file counts drift, and
+> **CTL-044** (`tests/scripts/dependency-rules-cover-modules.test.js`) pins
+> `no-module-to-app`'s anchor to every library root the manifest declares. The
+> sentence below records the state on 2026-07-28 and is kept as a dated finding.
+
 >   its six modules.json-dependent rules are deferred to KAN-415 C2).
 > - `docs/modularisation/KAN-416-boundaries-allowlist.seed.json` — every
 >   currently-violating edge **and** the `profiles` column baseline.

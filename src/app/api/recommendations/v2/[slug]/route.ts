@@ -46,7 +46,7 @@ import type { ConceptInput } from '@/lib/recommender/v2/types';
 import {
   normaliseDeliveryCountry,
   isIsoAlpha2,
-} from '@/lib/affiliate/country-codes';
+} from '@/modules/profile/country-codes';
 
 interface ProfileRow {
   id: string;
