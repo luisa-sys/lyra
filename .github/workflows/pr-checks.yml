@@ -232,6 +232,12 @@ jobs:
         # absent is the silent-skip pattern KAN-167 forbids. Regeneration is a
         # documented manual step.
         run: python3 scripts/check-schema-type-parity.py
+      - name: Live schema-parity checker self-test (CTL-048)
+        # The checker itself, exercised without credentials. Its LIVE run lives
+        # in promote-to-staging.yml, where the secrets are — but if the
+        # comparators rot, every environment would report clean for the wrong
+        # reason, and that must fail here rather than during a promotion.
+        run: python3 scripts/check-live-schema-parity.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the

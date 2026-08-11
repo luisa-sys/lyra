@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 195,
+  "count": 197,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -13,6 +13,7 @@
     "backupDatabase": ".github/workflows/backup-database.yml",
     "backupRestoreTest": ".github/workflows/backup-restore-test.yml",
     "prChecks": ".github/workflows/pr-checks.yml",
+    "promoteToStaging": ".github/workflows/promote-to-staging.yml",
     "securityAudit": ".github/workflows/security-audit.yml",
     "weeklyReport": ".github/workflows/weekly-report.yml",
     "baseline": "design/BASELINE.json",
@@ -37,6 +38,7 @@
     "checkExtractionDod": "scripts/check-extraction-dod.sh",
     "checkFixOnlyPromote": "scripts/check-fix-only-promote.sh",
     "checkGuardPathDrift": "scripts/check-guard-path-drift.py",
+    "checkLiveSchemaParity": "scripts/check-live-schema-parity.py",
     "checkRoutineOwnership": "scripts/check-routine-ownership.sh",
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",
     "checkSchemaTypeParity": "scripts/check-schema-type-parity.py",
