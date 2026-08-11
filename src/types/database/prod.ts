@@ -1394,6 +1394,7 @@ export type Database = {
           dashboard_widget_state: Json
           delivery_country_code: string | null
           display_name: string
+          gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
           id: string
@@ -1433,6 +1434,7 @@ export type Database = {
           dashboard_widget_state?: Json
           delivery_country_code?: string | null
           display_name: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
@@ -1472,6 +1474,7 @@ export type Database = {
           dashboard_widget_state?: Json
           delivery_country_code?: string | null
           display_name?: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
