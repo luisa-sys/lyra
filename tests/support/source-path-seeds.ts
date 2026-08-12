@@ -143,4 +143,20 @@ export const SEEDED_PATHS = [
   // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
   // had none, so it is the one that would silently vanish.
   'src/types/database/dev.ts',
+  // KAN-473 / KAN-415 D9 moved these five out of src/app/[slug]/. All are now
+  // reached ONLY via SRC — ui-ownership-covers-modules.test.js routes every
+  // real path through the manifest so the raw-literal ratchet stays honest,
+  // and the two unit tests import the helpers by alias. That is the exact
+  // shape described above: a move breaks the self-sustaining loop, and a key
+  // read only as `SRC.foo` does not come back on the next regeneration.
+  //
+  // The three .tsx matter most: they are FOUNDER-OWNED, and the test that
+  // proves they stayed founder-owned across the move reads them through these
+  // keys. Lose a key and that assertion runs against `undefined` — which
+  // `is_protected` would answer "not protected" for, inverting the test.
+  'src/modules/public-profile/report-button.tsx',
+  'src/modules/public-profile/recommendations-section.tsx',
+  'src/modules/public-profile/v2-recommendations-section.tsx',
+  'src/modules/public-profile/slug-utils.ts',
+  'src/modules/public-profile/v2-recommendations-helpers.ts',
 ] as const;

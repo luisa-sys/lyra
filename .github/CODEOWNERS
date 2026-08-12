@@ -41,6 +41,14 @@
 /src/app/admin/                     @luisa-sys
 /src/modules/platform/cookie-domain.ts           @luisa-sys
 /src/modules/platform/env.ts                     @luisa-sys
+
+# KAN-415 D9 / KAN-473: the extracted public-profile UI. Listed explicitly
+# because check-ui-copy-ownership.sh FAILS OPEN when it cannot resolve a diff
+# base (shallow or detached CI history) and leans on CODEOWNERS in that case —
+# so for founder-owned UI this file is the second line, not decoration. These
+# three .tsx were founder-owned at src/app/[slug]/ and must stay so here.
+/src/modules/public-profile/        @luisa-sys
+
 /supabase/migrations/               @luisa-sys
 
 # ── CI / release / infra (a bad change here ships to prod) ───────────────────

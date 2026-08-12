@@ -43,8 +43,13 @@ const SCRIPT = path.join(ROOT, SRC.checkSuspensionGuardCoverage);
  * public-surface classification fixtures. Leaving the floor at 6 would have let
  * every one of the new cases be deleted with the suite still green — on the
  * only rule that can see the defect this control was rewritten for.
+ *
+ * KAN-473 (D9): 21 -> 24. Extracting public-profile out of src/app/ narrowed
+ * this control from 74 public-surface files to 69 — the identical failure, one
+ * commit later, on a control rewritten specifically to fix it. The three new
+ * fixtures pin the module roots back into scope.
  */
-const SELF_TEST_FLOOR = 21;
+const SELF_TEST_FLOOR = 24;
 
 function run(args = [], opts = {}) {
   return spawnSync('python3', [SCRIPT, ...args], {
