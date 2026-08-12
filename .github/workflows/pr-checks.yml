@@ -238,6 +238,15 @@ jobs:
         # comparators rot, every environment would report clean for the wrong
         # reason, and that must fail here rather than during a promotion.
         run: python3 scripts/check-live-schema-parity.py --self-test
+      - name: Migration ledger-parity checker self-test (CTL-049)
+        # Same split as CTL-048 above: the LIVE run needs a Management API
+        # token and lives in db-invariants.yml, but the comparison and the
+        # two-way ratchet are pure logic and must be proven to still fail here.
+        # The normaliser is the part that matters — it collapses the repo's
+        # `profile_items_visibility` onto the ledger's
+        # `kan_143_profile_items_visibility`, and one that collapsed too much
+        # would MASK an unrebuildable migration while reporting green.
+        run: python3 scripts/check-migration-ledger-parity.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the

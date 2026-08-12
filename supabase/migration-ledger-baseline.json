@@ -1,0 +1,111 @@
+{
+  "_why": [
+    "CTL-049 / SEC-137. Divergences between supabase/migrations/ and each",
+    "database's applied-migration ledger, as they stood when this file was",
+    "generated. Grandfathered so the control can land green.",
+    "",
+    "SHRINK-ONLY, BOTH WAYS. A new divergence fails. A baselined divergence",
+    "that has been resolved ALSO fails, so this cannot quietly become a",
+    "suppression list. Regenerate with --write-baseline in the same commit",
+    "that fixes something; never hand-edit."
+  ],
+  "ticket": "SEC-137",
+  "environments": {
+    "dev": {
+      "applied_not_in_repo": [
+        "affiliation_description",
+        "fix_security_advisories_and_rls_performance",
+        "kan_232_mcp_tool_call_log",
+        "kan_244_content_moderation_flags",
+        "kan_245_mcp_tool_call_log_retention",
+        "profile_redesign_favourite_categories",
+        "revoke_secdef_exec_bugs44_v2_public",
+        "sec75_moderation_actor_anonymise",
+        "sec_01_bugs24_revoke_convene_vault_anon_grants",
+        "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+      ],
+      "in_repo_not_applied": [
+        "add_api_keys",
+        "add_plays_category",
+        "bugs60_grant_admin_rpc_authenticated",
+        "bugs62_convene_invite_atomic_claim",
+        "bugs77_create_rls_auto_enable",
+        "e2e_fix_auth_tokens_fn",
+        "homepage_example_profiles",
+        "raise_pcs_cap_to_10"
+      ],
+      "duplicate_ledger_rows": []
+    },
+    "staging": {
+      "applied_not_in_repo": [
+        "convene_vault_helpers",
+        "fix_security_advisories_and_rls_performance",
+        "kan263_profile_redesign",
+        "kan349_404_promote_batch_staging",
+        "kan_232_mcp_tool_call_log",
+        "kan_244_content_moderation_flags",
+        "kan_245_mcp_tool_call_log_retention",
+        "revoke_secdef_exec_bugs44_v2_public",
+        "sec_01_bugs24_revoke_convene_vault_anon_grants",
+        "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+      ],
+      "in_repo_not_applied": [
+        "about_me_fields",
+        "add_api_keys",
+        "add_plays_category",
+        "affiliation_show_on_profile",
+        "bugs60_grant_admin_rpc_authenticated",
+        "bugs77_create_rls_auto_enable",
+        "convene_spike_oauth",
+        "create_lyra_schema",
+        "drop_convene_spike",
+        "e2e_fix_auth_tokens_fn",
+        "favourites_categories",
+        "kan339_scrub_postcode",
+        "kan345_dashboard_widget_state",
+        "raise_pcs_cap_to_10",
+        "sec45_profile_items_public_read_visibility",
+        "sec54_sec56_bugs65_secdef_rls_grant_batch"
+      ],
+      "duplicate_ledger_rows": []
+    },
+    "prod": {
+      "applied_not_in_repo": [
+        "convene_vault_helpers",
+        "fix_security_advisories_and_rls_performance",
+        "kan154_kan263_manual_of_me_and_affiliation_cols",
+        "kan349_404_promote_batch_prod",
+        "kan_232_mcp_tool_call_log",
+        "kan_244_content_moderation_flags",
+        "kan_245_mcp_tool_call_log_retention",
+        "revoke_secdef_exec_bugs44_v2_public",
+        "sec107_add_draft_visibility_label",
+        "sec56_revoke_oauth_connections_direct_writes",
+        "sec_01_bugs24_revoke_convene_vault_anon_grants",
+        "sec_03_bugs25_stop_anon_enumeration_storage_buckets"
+      ],
+      "in_repo_not_applied": [
+        "about_me_fields",
+        "add_api_keys",
+        "add_plays_category",
+        "affiliation_show_on_profile",
+        "bugs60_grant_admin_rpc_authenticated",
+        "bugs77_create_rls_auto_enable",
+        "convene_spike_oauth",
+        "create_lyra_schema",
+        "drop_convene_spike",
+        "e2e_fix_auth_tokens_fn",
+        "kan339_scrub_postcode",
+        "kan345_dashboard_widget_state",
+        "manual_of_me",
+        "phone_postcode_search",
+        "profile_items_visibility",
+        "raise_pcs_cap_to_10",
+        "sec54_sec56_bugs65_secdef_rls_grant_batch"
+      ],
+      "duplicate_ledger_rows": [
+        "bugs69_revoke_global_feature_switch_trigger_exec"
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 208,
+  "count": 210,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -40,6 +40,7 @@
     "checkFixOnlyPromote": "scripts/check-fix-only-promote.sh",
     "checkGuardPathDrift": "scripts/check-guard-path-drift.py",
     "checkLiveSchemaParity": "scripts/check-live-schema-parity.py",
+    "checkMigrationLedgerParity": "scripts/check-migration-ledger-parity.py",
     "checkRoutineOwnership": "scripts/check-routine-ownership.sh",
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",
     "checkSchemaTypeParity": "scripts/check-schema-type-parity.py",
@@ -199,6 +200,7 @@
     "index": "src/types/database/index.ts",
     "prod": "src/types/database/prod.ts",
     "staging": "src/types/database/staging.ts",
+    "migrationLedgerBaseline": "supabase/migration-ledger-baseline.json",
     "migrations": "supabase/migrations",
     "migrations20260330120000AddAvatarUrlAndStorage": "supabase/migrations/20260330120000_add_avatar_url_and_storage.sql",
     "migrations20260516160000AddCurrentProblemsCategory": "supabase/migrations/20260516160000_add_current_problems_category.sql",
