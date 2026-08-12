@@ -439,7 +439,7 @@ both contain live code. That is expected, not drift.
 | **D6** | `age` + `auth` | PR #754 |
 | **D7** | `trust-safety` | not started |
 | **D8** | `profile` domain core | not started |
-| **D9** | — | 🚫 HARD-BLOCKED on SEC-104 |
+| **D9** | `public-profile` | PR #768 (KAN-473) — SEC-104 gate lifted |
 | **convene** | — | 🚫 **PERMANENTLY OUT** |
 
 **Convene is out of the programme** and stays out unless Convene itself is turned
@@ -451,6 +451,25 @@ is enforced by CTL-041; deleting it reddens the suite. See
 
 `modules.json` is the authoritative module manifest — check it, not this table,
 for which paths belong to which module.
+
+### Founder-owned UI may now live in a module (KAN-473)
+
+D8 kept `Field` and `SaveButton` in the app tree partly because they are
+"founder-owned under KAN-411" (see `docs/ARCHITECTURE.md`). **That half of the
+argument no longer holds**, because D9 extended `is_protected` to cover
+`src/modules/*.tsx` — stated on the file type, not a module name, so D7 and D8
+are covered by default rather than by someone remembering.
+
+It had to be extended, and this is the part to internalise: measured before the
+D9 move, the three components read FOUNDER-OWNED at `src/app/[slug]/…` and **not
+protected** at `src/modules/public-profile/…`. Extracting them would have
+removed them from founder ownership permanently with no red build — and the
+`UI-Change-Approved:` trailer authorising the move would have carried it through
+the gate it was disabling, turning a one-time approval into a standing one.
+
+So the remaining reasons to keep UI in the app tree are the real ones — a shared
+design primitive belongs where every consumer can reach it, and a route file
+cannot move without changing its URL. Ownership is no longer one of them.
 
 ### ⚠️ Every move must carry its own estate rework, in the SAME commit
 
