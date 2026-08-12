@@ -59,12 +59,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('public_profiles')
       .select('slug, updated_at');
 
-    profilePages = (profiles || []).map((profile) => ({
-      url: `${baseUrl}/${profile.slug}`,
-      lastModified: new Date(profile.updated_at),
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-    }));
+    profilePages = (profiles || [])
+      // SEC-132: `public_profiles` is a VIEW, and a view does not carry the base
+      // table's NOT NULL guarantees — every column comes back nullable even
+      // though `profiles.slug` is NOT NULL. Guard rather than assert, because
+      // both failure modes here are SILENT and get published to crawlers:
+      // a null slug renders the literal string `https://checklyra.com/null`,
+      // and `new Date(null)` is 1970-01-01 rather than an error.
+      //
+      // This was invisible until the service-role client gained its <Database>
+      // generic — with an untyped client `profile.slug` was `any`.
+      .filter((p): p is typeof p & { slug: string } => typeof p.slug === 'string' && p.slug !== '')
+      .map((profile) => ({
+        url: `${baseUrl}/${profile.slug}`,
+        // `updated_at` is genuinely nullable on the base table too, so this one
+        // is not merely a view artefact. Omit the hint rather than invent a
+        // date — `lastModified` is optional, and a wrong date is worse than an
+        // absent one because crawlers act on it.
+        ...(profile.updated_at ? { lastModified: new Date(profile.updated_at) } : {}),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      }));
   } catch {
     // If Supabase is unavailable, return static pages only
   }

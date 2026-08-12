@@ -104,5 +104,16 @@ export async function getAnomalyWindowAdmin(window: AnomalyWindowKey): Promise<M
   if (error) {
     throw new Error(`get_metrics_for_window(${window}) [admin] failed: ${error.message}`);
   }
-  return data as MetricsSnapshot;
+  // SEC-132: `get_metrics_for_window` returns `jsonb`, so with the now-typed
+  // service-role client the Returns type is `Json` — a union that does not
+  // overlap MetricsSnapshot, hence the explicit widen-then-narrow rather than a
+  // direct assertion. The cast is what lets a jsonb payload cross into a named
+  // type at all; it does not verify the shape.
+  //
+  // Note the two sibling functions above still read `data as MetricsSnapshot`
+  // directly. That is not an inconsistency to tidy — they use the SERVER client,
+  // which has no <Database> generic yet, so their `data` is still `any` and the
+  // cast is unchecked. The difference between these three lines is exactly the
+  // difference this ticket is about.
+  return data as unknown as MetricsSnapshot;
 }
