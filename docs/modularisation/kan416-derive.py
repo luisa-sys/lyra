@@ -110,8 +110,8 @@ MODULE_RULES = [
     ("src/app/dashboard/share-beta.tsx", "dashboard"),
     ("src/app/dashboard/share-profile.tsx", "dashboard"),
     ("src/app/dashboard/widgets/", "dashboard"),
-    ("src/lib/dashboard/", "dashboard"),
-    ("src/lib/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
+    ("src/modules/dashboard/", "dashboard"),
+    ("src/modules/dashboard/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
     ("src/app/dashboard/settings/", "account"),
     ("src/lib/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
     ("src/app/api/retention/", "account"),  # FOUNDER-RULED (plan D6 over manifest)

@@ -108,7 +108,7 @@
     "src/modules/profile/geo/places-city.ts": [
       "GOOGLE_PLACES_API_KEY"
     ],
-    "src/lib/invite-text.ts": [
+    "src/modules/dashboard/invite-text.ts": [
       "NEXT_PUBLIC_SITE_URL"
     ],
     "src/modules/oauth-as/lib/config.ts": [

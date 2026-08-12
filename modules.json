@@ -1992,8 +1992,7 @@
         "src/app/dashboard/share-beta.tsx",
         "src/app/dashboard/share-profile.tsx",
         "src/app/dashboard/widgets/",
-        "src/lib/dashboard/",
-        "src/lib/invite-text.ts"
+        "src/modules/dashboard/"
       ],
       "owns": {
         "files": 9,

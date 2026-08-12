@@ -95,6 +95,26 @@ TEST_DIR="tests"
 # Paths named verbatim inside claude.ai routine prompts (KAN-419 §5.2). These
 # are prefixes: any moved path at or under one of them needs a routine-prompt
 # review, because the prompt's copy of it cannot be updated by any PR.
+# ⚠️ THESE ARE THE PROMPTS' SPELLINGS, NOT THE TREE'S. DO NOT REWRITE ON A MOVE.
+#
+# This list mirrors text that lives in claude.ai routine prompts, outside every
+# repository CI can read. Its entries are correct when they match what the
+# PROMPT says — which, after a move and before Luisa edits the prompt, is the
+# OLD path. That is the whole reason the attestation exists.
+#
+# The check below compares MOVED-FROM paths against this list. So rewriting an
+# entry to its new path in the same commit that moves the file makes the moved
+# path stop matching, the gate report "not applicable", and the attestation —
+# the one saying a human must go and update the prompt — silently disappear.
+# A commit that carries itself through the gate it is disabling.
+#
+# That happened here: KAN-415's tail moved invite-text.ts and beta-access/
+# email.ts, a blanket path rewrite caught this list too, and the gate went
+# quiet. Caught by reading the diff, not by any control — nothing registers
+# these patterns with CTL-035, so a dead entry here is invisible.
+#
+# An entry may only be updated once the corresponding routine prompt has
+# actually been edited, in a commit that says so.
 ROUTINE_COUPLED=(
   "scripts/staging-soak.sh"
   "scripts/check-ui-copy-ownership.sh"
@@ -102,7 +122,7 @@ ROUTINE_COUPLED=(
   "src/components"
   "src/lib/invite-text.ts"
   "src/lib/convene/invites"
-  "src/modules/access/beta-access/email.ts"
+  "src/lib/beta-access/email.ts"
   "src/app/dashboard/profile/affiliation-fields.ts"
   "src/app/dashboard/convene/organise/organise-fields.ts"
 )

@@ -2,7 +2,7 @@ import {
   computeProfileCompletion,
   COMPLETION_COMPONENTS,
   type ProfileCompletionInput,
-} from '@/lib/dashboard/profile-completion';
+} from '@/modules/dashboard/profile-completion';
 
 const EMPTY: ProfileCompletionInput = {
   displayName: null,
