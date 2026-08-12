@@ -133,6 +133,12 @@ export const SEEDED_PATHS = [
   // same reasoning as the two entries above.
   '.github/workflows/db-invariants.yml',
   'scripts/gen-db-types.sh',
+  // CTL-028's implementation, seeded for the same reason as CTL-047's and
+  // CTL-048's above: check-suspension-guard-coverage.test.js asserts the
+  // registry's `implementation` field names this exact path, so the assertion
+  // IS the path and a literal in the test would let a rename read as a pass
+  // against a control nobody runs. SEC-104 step 3.
+  'scripts/check-suspension-guard-coverage.py',
   // The snapshot gen-db-types.sh must leave untouched when it fails closed.
   // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
   // had none, so it is the one that would silently vanish.
