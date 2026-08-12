@@ -841,6 +841,25 @@
       "self_test": "python3 scripts/check-docs-updated.py --self-test",
       "added": "2026-08-10",
       "notes": "Built after a 60-agent audit on 2026-08-10 compared every architecture/runbook/plan doc against the real tree. Three confirmed findings would have made a fresh session do the WRONG thing: the modularisation plan still read 'the extraction programme D1-D15 is DEFERRED ... No file moves into src/modules/' four days after that ruling was reversed and with 44 files already moved on main; CLAUDE.md and RUNBOOK.md both described no-module-to-app as covering src/lib/** only, long after the anchor was widened because 28 files had silently left a BLOCKING rule's scope; and RUNBOOK.md called the dependency gate non-blocking two weeks after it was flipped to error. Every one was written by someone who had just done the work and knew the truth - docs do not drift through carelessness, they drift because nothing is watching and the person who would notice already knows."
+    },
+    {
+      "id": "CTL-048",
+      "name": "Live schema parity",
+      "defect_class": "schema-parity-drift",
+      "summary": "Asks the three LIVE Supabase databases for their columns and asserts (a) every table present on more than one database exposes the same columns, except where supabase/schema-drift-baseline.json records a ticketed difference, and (b) each committed src/types/database/<env>.ts matches its own database. Exists because CTL-036 - the repo-side half - compares the three committed SNAPSHOTS to each other and therefore cannot see all three going stale the same way, which is the state they were in on 2026-08-11: every snapshot was missing gift_voucher_hint while all three databases had it, and CTL-036 was green. Runs in the promotion chain because a promotion is when a column gap becomes an outage - code written against one schema reaching a database with another. Detects drift in BOTH directions; dev is behind staging and prod on gathering_invite_messages.claimed_at (BUGS-62), so a prod-is-missing-only check would sail past it. Fails closed with exit 2 when a credential is absent rather than skipping.",
+      "implementation": "scripts/check-live-schema-parity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/promote-to-staging.yml",
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-107",
+        "BUGS-62",
+        "KAN-420"
+      ],
+      "escape_hatch": "none - apply the missing migration, or record the difference in supabase/schema-drift-baseline.json with a ticket",
+      "added": "2026-08-11"
     }
   ]
 }

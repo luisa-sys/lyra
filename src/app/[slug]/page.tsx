@@ -96,11 +96,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
-    .from('profiles')
+    // SEC-104: the view carries published + not-suspended, so this service-role
+    // read is constrained by the query itself rather than by remembering (SEC-44).
+    .from('public_profiles')
     .select('display_name, headline, bio_short')
     .eq('slug', slug)
-    .eq('is_published', true)
-    .eq('is_suspended', false) // SEC-44: service-role render must exclude suspended profiles
     .single();
 
   if (!profile) {
@@ -226,11 +226,21 @@ export default async function PublicProfilePage({ params }: Props) {
   const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
-    .from('profiles')
+    // SEC-104. Two things changed here, and the second is the bigger one.
+    //
+    // 1. The published + not-suspended predicate now lives in the view body, so
+    //    a suspended profile 404s by construction (SEC-44) even though this is a
+    //    service-role read that RLS does not touch.
+    // 2. `select('*')` used to pull all 42 columns of `profiles` — including
+    //    is_admin, user_id, suspension_reason, the six age-verification columns
+    //    and the search hashes — of which this page uses 13. Against the view it
+    //    returns 17, and the 25 it does not need are no longer fetched at all.
+    //    An audit found none of them reached the browser, so this is a hardening
+    //    rather than a leak fix; but a column that is never selected cannot be
+    //    leaked by the next person to add a prop.
+    .from('public_profiles')
     .select('*')
     .eq('slug', slug)
-    .eq('is_published', true)
-    .eq('is_suspended', false) // SEC-44: suspended profiles must 404 on the public page, not render
     .single();
 
   if (!profile) {

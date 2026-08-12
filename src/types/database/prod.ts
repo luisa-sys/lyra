@@ -1201,6 +1201,7 @@ export type Database = {
         Row: {
           answer: string
           created_at: string | null
+          custom_prompt: string | null
           id: string
           profile_id: string
           prompt_id: string
@@ -1210,6 +1211,7 @@ export type Database = {
         Insert: {
           answer: string
           created_at?: string | null
+          custom_prompt?: string | null
           id?: string
           profile_id: string
           prompt_id: string
@@ -1219,6 +1221,7 @@ export type Database = {
         Update: {
           answer?: string
           created_at?: string | null
+          custom_prompt?: string | null
           id?: string
           profile_id?: string
           prompt_id?: string
@@ -1291,6 +1294,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           created_at: string | null
           description: string | null
+          group_label: string | null
           id: string
           profile_id: string
           sort_order: number | null
@@ -1302,6 +1306,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
+          group_label?: string | null
           id?: string
           profile_id: string
           sort_order?: number | null
@@ -1313,6 +1318,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
+          group_label?: string | null
           id?: string
           profile_id?: string
           sort_order?: number | null
@@ -1394,6 +1400,7 @@ export type Database = {
           dashboard_widget_state: Json
           delivery_country_code: string | null
           display_name: string
+          gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
           id: string
@@ -1433,6 +1440,7 @@ export type Database = {
           dashboard_widget_state?: Json
           delivery_country_code?: string | null
           display_name: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
@@ -1472,6 +1480,7 @@ export type Database = {
           dashboard_widget_state?: Json
           delivery_country_code?: string | null
           display_name?: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
