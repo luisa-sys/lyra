@@ -18,7 +18,7 @@ import {
 } from '@/modules/profile/section-visibility';
 import { preflightUpload } from '@/modules/guards/file-magic-bytes';
 import { MAX_SUGGESTION_KEY_LENGTH } from '@/lib/recommend/dismissals';
-import { dbErrorFor } from '@/lib/db-error-copy';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();

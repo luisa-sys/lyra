@@ -1728,9 +1728,7 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
-        "src/modules/profile/",
-        "src/lib/geo/",
-        "src/lib/db-error-copy.ts"
+        "src/modules/profile/"
       ],
       "owns": {
         "files": 45,

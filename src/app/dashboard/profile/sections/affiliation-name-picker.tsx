@@ -6,7 +6,7 @@
  *
  * Deliberately thin: every decision it makes (when to look up, what the list
  * contains, what a pick does to the postcode) is a pure function in
- * `src/lib/geo/places-schools.ts`, so the behaviour is unit-tested rather than
+ * `src/modules/profile/geo/places-schools.ts`, so the behaviour is unit-tested rather than
  * locked inside JSX the repo's `node` jest environment cannot render.
  *
  * The list ALWAYS ends with "add your own", and the input is an ordinary text
@@ -22,7 +22,7 @@ import {
   shouldSuggest,
   type PlaceSuggestion,
   type SuggestionOption,
-} from '@/lib/geo/places-schools';
+} from '@/modules/profile/geo/places-schools';
 import { suggestAffiliations } from '../affiliation-search-actions';
 
 const DEBOUNCE_MS = 350;

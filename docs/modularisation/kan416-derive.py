@@ -103,7 +103,7 @@ MODULE_RULES = [
     ("src/app/auth/", "auth"),
     ("src/lib/auth/", "auth"),
     ("src/app/dashboard/profile/", "profile"),
-    ("src/lib/geo/", "profile"),  # JUDGEMENT: postcode->city for profile location (KAN-341)
+    ("src/modules/profile/geo/", "profile"),  # JUDGEMENT: postcode->city for profile location (KAN-341)
     ("src/app/[slug]/", "public-profile"),
     ("src/app/search/", "public-profile"),  # JUDGEMENT: public profile search
     ("src/app/dashboard/page.tsx", "dashboard"),

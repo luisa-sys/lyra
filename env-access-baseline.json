@@ -105,7 +105,7 @@
     "src/modules/features/entitlements-service.ts": [
       "PAID_LINKS_COMPLIANCE_READY"
     ],
-    "src/lib/geo/places-city.ts": [
+    "src/modules/profile/geo/places-city.ts": [
       "GOOGLE_PLACES_API_KEY"
     ],
     "src/lib/invite-text.ts": [
