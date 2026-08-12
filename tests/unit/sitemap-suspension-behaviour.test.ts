@@ -30,6 +30,23 @@
  *     outage, and the failure mode is silent.
  *  4. Every URL is absolute and built from the configured site URL, so a
  *     preview deployment cannot publish preview-host URLs to search engines.
+ *  5. The route is configured to render PER REQUEST, not at build time
+ *     (SEC-130). Invariants 1 and 2 are about what the query asks for; this is
+ *     about when it runs, and a correct query executed once at build time is
+ *     still a stale answer. Until this was fixed the route read no dynamic API,
+ *     so Next prerendered it and a suspended member's slug stayed in
+ *     `/sitemap.xml` until the next deploy — while their profile page 404'd and
+ *     `/search` dropped them immediately.
+ *
+ *     ⚠️ AND THIS ONE IS NARROWER STILL, WHICH IS WORTH SAYING OUT LOUD. Jest
+ *     imports a module; it does not run a Next build, so it CANNOT observe
+ *     whether the deployed route was prerendered. What it can do is pin the
+ *     route segment config — which is the actual mechanism Next reads to make
+ *     that decision, not a proxy for it. The deployed half (that
+ *     `/sitemap.xml` really comes back uncached) is asserted against a running
+ *     environment by the `C1-sitemap-fresh` probe in `scripts/staging-soak.sh`.
+ *     Same reasoning as invariant 1: a guarantee that lives outside the unit
+ *     needs a control that lives outside the unit.
  *
  * WHY THIS IS STRONGER — AND THE HISTORY THAT PROVES IT
  * -----------------------------------------------------
@@ -113,6 +130,12 @@ jest.mock('@/modules/platform/supabase-service', () => ({
 
 // `jest.mock` is hoisted above imports, so the route sees the stubs below.
 import sitemap from '@/app/sitemap';
+// Imported as a namespace as well, so the route segment config can be asserted
+// as the EVALUATED export rather than as source text. A `toContain` scan over
+// the file would also match the comment explaining why the config is there —
+// which is the CTL-039 failure mode, and this file's own header is a long
+// argument against it.
+import * as sitemapRoute from '@/app/sitemap';
 
 const LIVE: Row = {
   slug: 'ada',
@@ -206,5 +229,24 @@ describe('sitemap (behavioural, KAN-414 F4 / SEC-100)', () => {
       expect(e.changeFrequency).toBeDefined();
       expect(typeof e.priority).toBe('number');
     }
+  });
+});
+
+describe('sitemap freshness (SEC-130)', () => {
+  // Both assertions are POSITIVE on purpose. `expect(x).not.toBe(undefined)`
+  // style checks are how this repo has previously shipped tests that could
+  // never fail (catalogue entry 3 in CLAUDE.md): deleting the export makes the
+  // binding `undefined`, and a negative assertion against `undefined` passes
+  // forever. Asserting the exact expected value reddens on deletion AND on a
+  // silent change of value.
+  it('declares force-dynamic, so Next renders it per request', () => {
+    expect(sitemapRoute.dynamic).toBe('force-dynamic');
+  });
+
+  it('declares revalidate = 0, so no ISR window can re-stale it', () => {
+    // `force-dynamic` already implies this; stating it explicitly is what
+    // src/app/status/page.tsx and src/app/api/health/route.ts do, and it means
+    // relaxing the guarantee takes two deliberate edits rather than one.
+    expect(sitemapRoute.revalidate).toBe(0);
   });
 });
