@@ -118,5 +118,10 @@ export const SEEDED_PATHS = [
   // control registry's `implementation` field and pr-checks.yml both name this
   // exact path — the assertion IS the path, so a literal there would make a
   // rename look like a passing test against a script nobody runs.
+  // CTL-048's implementation. check-live-schema-parity.test.js asserts the
+  // registry's `implementation` field and the workflows both name this exact
+  // path — the assertion IS the path, so a literal in the test would make a
+  // rename look like a passing test against a script nobody runs.
+  'scripts/check-live-schema-parity.py',
   'scripts/check-docs-updated.py',
 ] as const;

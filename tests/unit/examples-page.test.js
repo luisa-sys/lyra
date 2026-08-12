@@ -35,8 +35,11 @@ describe('Example profiles gallery (/examples)', () => {
   });
 
   test('queries published curated example profiles, ordered', () => {
-    expect(content).toContain('.from("profiles")');
-    expect(content).toContain('.eq("is_published", true)');
+    // SEC-104: reads moved from the `profiles` table to the `public_profiles`
+    // view, which carries `is_published = true AND is_suspended = false` in its
+    // body and therefore binds the service-role client (RLS does not).
+    expect(content).toContain('.from("public_profiles")');
+    expect(content).not.toContain('.from("profiles")');
     expect(content).toContain('.eq("is_homepage_example", true)');
     expect(content).toContain('homepage_example_order');
   });

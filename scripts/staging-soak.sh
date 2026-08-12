@@ -135,6 +135,40 @@ expect_code "C1-sectxt"  "$SITE/.well-known/security.txt" "security.txt" 200 403
 # reachability check, not a latency-measurable page.
 expect_code "C1-join"    "$SITE/join"                     "join (invite) reachable" 200 301 302 307 308
 
+# ── C1 SEC-130: /sitemap.xml must be rendered PER REQUEST, not prerendered ────
+# The route declares `dynamic = 'force-dynamic'`, so a genuinely dynamic
+# response comes back with a no-store/no-cache Cache-Control. If it ever
+# regresses to build-time prerendering the header flips to a cacheable one —
+# and that is not cosmetic: it is exactly the state in which a SUSPENDED
+# member's slug stayed in the sitemap until the next deploy, while their profile
+# page 404'd and /search dropped them immediately. The unit test
+# (tests/unit/sitemap-suspension-behaviour.test.ts) can only pin the route
+# segment config; Jest does not run a Next build, so this is the probe that
+# observes the deployed behaviour.
+#
+# Biased to UNVERIFIED, deliberately: a missing Cache-Control means an
+# intermediary rewrote it, which we cannot interpret, and a false FAIL here
+# would block a release over a proxy quirk. Never a silent skip either — an
+# unreadable answer is reported as unreadable.
+sm_raw=$(curl -s -o /dev/null -D - -w '\nHTTPCODE:%{http_code}\n' \
+  --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$SITE/sitemap.xml" 2>/dev/null)
+sm_code=$(printf '%s' "$sm_raw" | sed -n 's/^HTTPCODE:\(.*\)$/\1/p' | tail -1 | tr -d '\r')
+[ -z "$sm_code" ] && sm_code="000"
+# Lowercased first: header names are case-insensitive and Vercel/CF do not agree
+# on casing. `tr 'A-Z' 'a-z'` rather than ${v,,} — bash 3.2 (gotcha #28).
+sm_cc=$(printf '%s' "$sm_raw" | tr 'A-Z' 'a-z' | sed -n 's/^cache-control:[[:space:]]*//p' | head -1 | tr -d '\r')
+if [ "$sm_code" != "200" ]; then
+  record UNVERIFIED "C1-sitemap-fresh" "sitemap.xml freshness — got $sm_code, cannot read headers (gated/unreachable)"
+elif [ -z "$sm_cc" ]; then
+  record UNVERIFIED "C1-sitemap-fresh" "sitemap.xml freshness — no Cache-Control returned; an intermediary may have stripped it"
+# -E, not a BRE \| alternation: BSD grep does not honour \| and would silently
+# never match, reporting a clean scan that never ran (gotcha #30).
+elif printf '%s' "$sm_cc" | grep -qE 'no-store|no-cache'; then
+  record PASS "C1-sitemap-fresh" "sitemap.xml rendered per request (cache-control: $sm_cc)"
+else
+  record FAIL "C1-sitemap-fresh" "sitemap.xml looks CACHED (cache-control: $sm_cc) — SEC-130 regression: a suspended member's slug can persist in the sitemap until the next deploy"
+fi
+
 # ── C1 release-conformance: /api/health JSON must match THIS env ──────────────
 # (the grey-cloud alias serves the SAME staging build, so siteUrl is still the
 # canonical https://stage.checklyra.com — the conformance check holds.)
