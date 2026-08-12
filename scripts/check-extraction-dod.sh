@@ -102,7 +102,7 @@ ROUTINE_COUPLED=(
   "src/components"
   "src/lib/invite-text.ts"
   "src/lib/convene/invites"
-  "src/lib/beta-access/email.ts"
+  "src/modules/access/beta-access/email.ts"
   "src/app/dashboard/profile/affiliation-fields.ts"
   "src/app/dashboard/convene/organise/organise-fields.ts"
 )
@@ -299,6 +299,26 @@ ARCHIVE_FILES=(
   "docs/modularisation/KAN-414-F4-HANDOVER-2026-08-01.md" # dated handover: a snapshot of that day's findings
   "docs/modularisation/KAN-414-F6-threading-fallout.md"   # a MEASUREMENT of 2026-07-29, whose own text says the doc is the deliverable
   "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
+  # ── The WRITE-UPS whose DATA files are already archived above (KAN-415 tail) ──
+  # This list archived the .json outputs and missed their .md counterparts, so
+  # every extraction rewrote the prose while protecting the data. The two halves
+  # of the same measurement then disagree.
+  #
+  # Not hypothetical, and the damage is already done: KAN-419-path-coupling.md
+  # says "Produced: 2026-07-27 · Tracked files at scan time: 791" and today
+  # contains 19 references to `src/modules/` — a directory that did not exist
+  # when that scan ran. D1..D9 rewrote them. Restoring the original text needs
+  # git archaeology and is tracked separately; adding them here stops the
+  # bleeding.
+  #
+  # Each one states its own status in its header — "Spike · research artefact ·
+  # read-only", with a Produced/Run date and the exact commit it was measured
+  # at. That is the test for membership of this list: a file pinned to a SHA is
+  # describing a moment, not the tree.
+  "docs/modularisation/KAN-419-path-coupling.md"          # scan of 2026-07-27; its LIVE/DEAD table IS the measurement
+  "docs/modularisation/KAN-421-profiles-god-table.md"     # run of 2026-07-28 @ 1cadd57; file:line census, sibling of the archived .json
+  "docs/modularisation/KAN-416-module-manifest.md"        # derivation of 2026-07-28 @ 1d6cb5f
+  "docs/modularisation/PLAN-REVALIDATION-2026-07-28.md"   # KAN-432 re-derivation @ 674f0a7; sibling of the archived kan432-revalidation.json
 )
 
 # Whole directories that are records rather than descriptions. Kept separate

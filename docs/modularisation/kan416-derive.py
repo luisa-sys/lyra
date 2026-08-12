@@ -83,9 +83,9 @@ MODULE_RULES = [
     # cannot go in guards (guards must stay edge-safe).
     ("src/lib/moderation-audit.ts", "audit"),
     # --- Layer 2: access core ---
-    ("src/lib/beta-access/", "access"),
-    ("src/lib/account-status.ts", "access"),
-    ("src/lib/access-model/", "access"),  # computeAccessTransition, moved out of the admin tree (plan §3 A1)
+    ("src/modules/access/beta-access/", "access"),
+    ("src/modules/access/account-status.ts", "access"),
+    ("src/modules/access/access-model/", "access"),  # computeAccessTransition, moved out of the admin tree (plan §3 A1)
     ("src/app/waitlist/", "access"),      # FOUNDER-RULED (manifest over plan D2)
     ("src/app/suspended/", "access"),     # FOUNDER-RULED (manifest over plan D11)
     ("src/app/join/", "access"),          # FOUNDER-RULED (manifest over plan D2)

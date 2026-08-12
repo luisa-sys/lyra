@@ -39,7 +39,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({ rpc: (...a: unknown[]) => mockRpc(...a) }),
 }));
 
-jest.mock('@/lib/beta-access/email', () => ({
+jest.mock('@/modules/access/beta-access/email', () => ({
   sendBetaApprovedEmail: (...a: unknown[]) => mockEmail(...a),
 }));
 

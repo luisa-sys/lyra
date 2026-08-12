@@ -4,7 +4,7 @@
  * This is the single source of truth for how a user moves between access
  * states. It used to live in `src/app/admin/users/users-actions-shared.ts` —
  * inside the admin UI route tree — which made it the codebase's only
- * `src/lib/**` -> `src/app/**` import edge: `src/lib/beta-access/flow.ts` and
+ * `src/lib/**` -> `src/app/**` import edge: `src/modules/access/beta-access/flow.ts` and
  * `src/app/waitlist/actions.ts` both reached into the admin console for it.
  * It is a pure policy function, not an admin-console detail, so it lives here.
  *

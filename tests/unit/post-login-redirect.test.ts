@@ -16,7 +16,7 @@ const mockBetaRedirectUrl = jest.fn((opts?: unknown) => {
 });
 const mockIsProdFamily = jest.fn(() => false);
 
-jest.mock('@/lib/beta-access/flow', () => ({
+jest.mock('@/modules/access/beta-access/flow', () => ({
   // The 1st arg still flows to mockResolveBetaAccess (existing assertions
   // unchanged); the 2nd (carriedCode) is recorded separately for KAN-337.
   resolveBetaAccess: (u: unknown, o: unknown) => {

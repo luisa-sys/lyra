@@ -19,7 +19,7 @@ jest.mock('@/lib/admin', () => ({
 }));
 
 jest.mock('@/modules/platform/supabase-server', () => ({ createClient: jest.fn() }));
-jest.mock('@/lib/beta-access/email', () => ({ sendBetaApprovedEmail: jest.fn() }));
+jest.mock('@/modules/access/beta-access/email', () => ({ sendBetaApprovedEmail: jest.fn() }));
 
 const ADMIN = { userId: 'admin-user', profileId: 'admin-profile', email: 'a@a.com', displayName: 'A' };
 

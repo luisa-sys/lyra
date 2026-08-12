@@ -58,8 +58,8 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 
 // The real `shouldRefuseIssuance` is used deliberately — mocking it would make
 // the fail-closed test assert against a stub of the very decision under test.
-jest.mock('@/lib/account-status', () => ({
-  ...jest.requireActual('@/lib/account-status'),
+jest.mock('@/modules/access/account-status', () => ({
+  ...jest.requireActual('@/modules/access/account-status'),
   getAccountStanding: jest.fn(async () => standing),
 }));
 

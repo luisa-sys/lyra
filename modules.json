@@ -912,9 +912,6 @@
     "access": {
       "layer": 2,
       "paths": [
-        "src/lib/beta-access/",
-        "src/lib/account-status.ts",
-        "src/lib/access-model/",
         "src/app/waitlist/",
         "src/app/suspended/",
         "src/app/join/",
@@ -939,7 +936,7 @@
       "publicApi": [
         {
           "symbol": "getAccountStanding",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 5,
           "consumingModules": [
             "account",
@@ -950,7 +947,7 @@
         },
         {
           "symbol": "shouldRefuseIssuance",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -961,7 +958,7 @@
         },
         {
           "symbol": "INVITE_COOKIE",
-          "file": "src/lib/beta-access/invite-cookie.ts",
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
           "importingFiles": 3,
           "consumingModules": [
             "auth"
@@ -970,7 +967,7 @@
         },
         {
           "symbol": "isProdFamily",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -979,7 +976,7 @@
         },
         {
           "symbol": "sendBetaApprovedEmail",
-          "file": "src/lib/beta-access/email.ts",
+          "file": "src/modules/access/beta-access/email.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -988,7 +985,7 @@
         },
         {
           "symbol": "isProdDeploy",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal"
@@ -997,7 +994,7 @@
         },
         {
           "symbol": "computeAccessTransition",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1006,7 +1003,7 @@
         },
         {
           "symbol": "AccessAction",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1015,7 +1012,7 @@
         },
         {
           "symbol": "betaInviteLink",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1024,7 +1021,7 @@
         },
         {
           "symbol": "publicSignupUrl",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1033,7 +1030,7 @@
         },
         {
           "symbol": "betaRedirectUrl",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1042,7 +1039,7 @@
         },
         {
           "symbol": "resolveBetaAccess",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -2908,7 +2905,7 @@
       ],
       "access": [
         "src/app/waitlist/actions.ts",
-        "src/lib/beta-access/flow.ts"
+        "src/modules/access/beta-access/flow.ts"
       ],
       "age": [
         "src/modules/age/age-service.ts",

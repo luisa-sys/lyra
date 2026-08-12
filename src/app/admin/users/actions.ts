@@ -21,8 +21,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/modules/platform/supabase-server';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction, logModerationActionsBatch } from '@/lib/admin';
-import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
-import { computeAccessTransition } from '@/lib/access-model';
+import { sendBetaApprovedEmail } from '@/modules/access/beta-access/email';
+import { computeAccessTransition } from '@/modules/access/access-model';
 import {
   BULK_MAX,
   EMAIL_CAP,

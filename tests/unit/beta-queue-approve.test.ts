@@ -17,7 +17,7 @@ jest.mock('@/lib/admin', () => ({
   logModerationAction: (...a: unknown[]) => mockLog(...a),
 }));
 
-jest.mock('@/lib/beta-access/email', () => ({
+jest.mock('@/modules/access/beta-access/email', () => ({
   sendBetaApprovedEmail: (...a: unknown[]) => mockEmail(...a),
 }));
 

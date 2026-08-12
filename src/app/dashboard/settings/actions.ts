@@ -2,7 +2,7 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { getAdminServiceClient } from '@/lib/admin';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
 import { isFeatureGloballyEnabled } from '@/modules/features/global-switches-service';

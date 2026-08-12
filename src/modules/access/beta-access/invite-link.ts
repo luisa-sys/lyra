@@ -9,7 +9,7 @@
  * link is the authorisation, and it only ever grants BETA.
  */
 import { env } from '@/modules/platform/env';
-import { isProdFamily } from '@/lib/beta-access/flow';
+import { isProdFamily } from '@/modules/access/beta-access/flow';
 
 export { INVITE_COOKIE, INVITE_COOKIE_MAX_AGE } from './invite-cookie';
 

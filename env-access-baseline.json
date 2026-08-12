@@ -72,7 +72,7 @@
       "DIDIT_WEBHOOK_SECRET",
       "DIDIT_WORKFLOW_ID"
     ],
-    "src/lib/beta-access/email.ts": [
+    "src/modules/access/beta-access/email.ts": [
       "LYRA_BETA_FROM_EMAIL",
       "LYRA_BETA_NOTIFY_EMAIL",
       "RESEND_API_KEY"
