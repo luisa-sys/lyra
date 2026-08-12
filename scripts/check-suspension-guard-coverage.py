@@ -146,6 +146,26 @@ AUTHENTICATED_PREFIXES = [
     ("src/app/api/reports/", "authenticated report submission — auth.getUser() first"),
 ]
 
+# PUBLIC-FACING MODULE ROOTS — extracted route code that is still public surface.
+#
+# KAN-473 / KAN-415 D9. `src/app/` is not the whole public surface any more: the
+# modularisation programme moves route-adjacent code into `src/modules/`, and D9
+# took five public-profile files out of `src/app/[slug]/`. Measured at the time
+# of that move, with this list absent: the public-surface count fell 74 -> 69
+# and all five moved files answered `is_public_surface = False`.
+#
+# That is the SAME failure this control was rewritten for, one commit later and
+# on a different axis — a path-anchored rule does not break when the tree moves,
+# it quietly covers less. It is named here rather than default-denied because
+# most of `src/modules/` is genuinely NOT public surface (platform, access,
+# guards) and several of those files read `profiles` legitimately; a blanket
+# rule would fire on all of them and a gate that always fires gets waved through.
+#
+# Each prefix must still match tracked files — see check_public_modules_are_live.
+PUBLIC_MODULE_PREFIXES = [
+    ("src/modules/public-profile/", "KAN-473 — the extracted public profile + search UI"),
+]
+
 ALLOW_MARKER = "suspension-guard-ok"
 
 # --- the retained rule (now a warning off the public surface) ---------------
@@ -178,7 +198,9 @@ def strip_comments(source: str) -> str:
 
 
 def is_public_surface(rel_path: str) -> bool:
-    """Default-deny: a src/app file is public unless explicitly carved out."""
+    """Default-deny under src/app/, plus the named public-facing module roots."""
+    if any(rel_path.startswith(prefix) for prefix, _ in PUBLIC_MODULE_PREFIXES):
+        return True
     if not rel_path.startswith("src/app/"):
         return False
     return not any(rel_path.startswith(prefix) for prefix, _ in AUTHENTICATED_PREFIXES)
@@ -266,6 +288,28 @@ def check_carve_outs_are_live(root: Path, files: list[str]) -> list[str]:
                 f"the profiles base table. Either the path moved — in which case the public "
                 f"surface has silently GROWN and this list must be rewritten — or the carve-out "
                 f"was never needed and should be deleted."
+            )
+    return problems
+
+
+def check_public_modules_are_live(root: Path, files: list[str]) -> list[str]:
+    """Every named public-module root must still contain tracked files.
+
+    A carve-out that matches nothing makes the surface look SMALLER; so does an
+    INCLUSION that matches nothing, and it is quieter — an empty carve-out at
+    least leaves the files covered by the default, whereas an empty inclusion
+    means the code it named has moved somewhere with no cover at all. This list
+    exists because a move did exactly that; it must not survive the next one.
+    """
+    problems: list[str] = []
+    for prefix, reason in PUBLIC_MODULE_PREFIXES:
+        if not any(f.startswith(prefix) for f in files):
+            problems.append(
+                f"::error::Public-module root '{prefix}' ({reason}) matches no tracked file. "
+                f"That code has moved or been deleted — and if it moved, the public surface it "
+                f"represents is now OUTSIDE this control with nothing reporting the gap. "
+                f"Update PUBLIC_MODULE_PREFIXES to the new path, or remove the entry if the "
+                f"module is genuinely gone."
             )
     return problems
 
@@ -443,6 +487,12 @@ _PATH_CASES = [
     ("the admin console is carved out", "src/app/admin/users/page.tsx", False),
     ("the authenticated reports API is carved out", "src/app/api/reports/route.ts", False),
     ("library code is not a route at all", "src/modules/access/gates/suspension.ts", False),
+    # KAN-473: the D9-extracted public UI is still public surface even though it
+    # no longer lives under src/app/. Without these the move silently narrowed
+    # this control from 74 files to 69.
+    ("D9-extracted public-profile UI stays in scope", "src/modules/public-profile/report-button.tsx", True),
+    ("...including a file D9 has not created yet", "src/modules/public-profile/future-section.tsx", True),
+    ("but platform module code is still not public", "src/modules/platform/supabase-service.ts", False),
 ]
 
 
@@ -524,6 +574,7 @@ def main() -> int:
         return 1
 
     carve_out_problems = check_carve_outs_are_live(root, result["files"])
+    carve_out_problems += check_public_modules_are_live(root, result["files"])
     if carve_out_problems:
         print()
         for problem in carve_out_problems:
