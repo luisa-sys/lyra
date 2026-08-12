@@ -138,20 +138,32 @@ def columns_from_snapshot(env: str) -> dict[str, set[str]]:
 
 
 def load_baseline() -> set[tuple[str, str, str]]:
-    """{(table, column, missing_from_env)} — the KNOWN, ticketed differences."""
+    """{(table, column, missing_from_env)} — the KNOWN, ticketed differences.
+
+    Parses the SAME `supabase/schema-drift-baseline.json` shape CTL-036
+    (check-schema-type-parity.py) already reads: entries live two levels
+    down, under `drift.<leg>.<only_in_first|only_in_second>[]`, and each one
+    carries a single `line` string such as
+    `"column:profiles.discoverable_by_phone"` — there is no `table`/`column`
+    (or `object`/`name`) field to read directly.
+    """
     if not BASELINE_PATH.exists():
         return set()
     raw = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
     known: set[tuple[str, str, str]] = set()
-    for leg, payload in raw.items():
+    for payload in (raw.get("drift") or {}).values():
         if not isinstance(payload, dict):
             continue
         for direction in ("only_in_first", "only_in_second"):
             for entry in payload.get(direction, []) or []:
                 if not isinstance(entry, dict):
                     continue
-                table = entry.get("table") or entry.get("object") or ""
-                column = entry.get("column") or entry.get("name") or ""
+                line = entry.get("line", "")
+                if not line.startswith("column:") or "." not in line:
+                    continue  # enum-label:/function: entries are out of this
+                    # checker's scope — it only compares columns (module
+                    # docstring point 1)
+                table, column = line[len("column:") :].split(".", 1)
                 if table and column:
                     # Recorded leg-agnostically: the point is "this pair is
                     # known to differ somewhere", and the leg is in the file for
@@ -234,6 +246,26 @@ def self_test() -> int:
     # A table on one database only must not be reported as drift.
     single = {"dev": {"only_here": {"id"}}, "prod": {}}
     checks.append(("a single-database table is not drift", compare_live(single, set()) == []))
+
+    # The real baseline file's shape, not a hand-built stand-in. Every check
+    # above calls compare_live() with a baseline set it constructed itself,
+    # so none of them exercise load_baseline()'s own parsing of the committed
+    # JSON — which is exactly how the field-name mismatch (table/column vs.
+    # the file's single "line" string) and the missing "drift" nesting level
+    # shipped invisibly: load_baseline() silently returned an empty set
+    # against the real file on every run, so every already-ticketed SEC-107 /
+    # BUGS-62 entry read as new, unbaselined drift the first time this
+    # checker ran for real (2026-08-12, blocked develop -> staging).
+    real_baseline = load_baseline()
+    checks.append(("the real baseline file parses to a non-empty set", len(real_baseline) > 0))
+    checks.append((
+        "a known SEC-107 entry (profiles.discoverable_by_phone) is recognised",
+        ("profiles", "discoverable_by_phone", "*") in real_baseline,
+    ))
+    checks.append((
+        "a known BUGS-62 entry (gathering_invite_messages.claimed_at) is recognised",
+        ("gathering_invite_messages", "claimed_at", "*") in real_baseline,
+    ))
 
     passed = sum(1 for _, ok in checks if ok)
     for name, ok in checks:

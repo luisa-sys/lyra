@@ -32,7 +32,7 @@ const { SRC } = JSON.parse(
 const SCRIPT = path.join(ROOT, SRC.checkLiveSchemaParity);
 
 /** Committed MINIMUM number of self-test fixtures. May be raised, never lowered. */
-const SELF_TEST_FLOOR = 6;
+const SELF_TEST_FLOOR = 9;
 
 /** Run with an explicitly constructed env so an ambient credential cannot leak in. */
 function run(args, extraEnv = {}) {
