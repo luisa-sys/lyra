@@ -134,16 +134,15 @@ export default async function SearchPage({
     // publicProfiles() so neither can drift and lose a guard on its own.
     const publicProfiles = () =>
       supabase
-        .from('profiles')
+        // SEC-104: the `public_profiles` VIEW, not the table. This page reads
+        // through the SERVICE-ROLE client, which bypasses RLS — so the policy on
+        // `profiles` never applied, and a suspended (moderated / taken-down)
+        // member stayed fully discoverable in public search (SEC-100, same
+        // mechanism as SEC-44 which fixed only /[slug]). The view's WHERE binds
+        // service_role, so both branches of this builder are covered by
+        // construction rather than by remembering.
+        .from('public_profiles')
         .select('id, display_name, slug, headline, city, country, avatar_url')
-        .eq('is_published', true)
-        // SEC-100: this page reads through the SERVICE-ROLE client, which bypasses
-        // RLS — so the `is_published = true AND is_suspended = false` policy on
-        // `profiles` does NOT apply here. Without this filter a suspended (i.e.
-        // moderated / taken-down) member stayed fully discoverable in public
-        // search. Identical mechanism to SEC-44, which fixed only /[slug].
-        // Guarded by scripts/check-suspension-guard-coverage.py.
-        .eq('is_suspended', false)
         .eq('is_homepage_example', false); // KAN-334: curated demo profiles never appear in real member discovery
 
     const [byField, byAffiliation] = await Promise.all([
