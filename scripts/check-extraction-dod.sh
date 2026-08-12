@@ -356,6 +356,46 @@ is_archival() {
   return 1
 }
 
+# ── The prompt mirror is not drift either (KAN-415 tail) ────────────────────
+# ROUTINE_COUPLED above holds paths as the claude.ai routine PROMPTS spell them.
+# After a move and before the founder edits the prompt, the correct value there
+# is the OLD path — that mismatch is the whole signal `routine-prompts` exists
+# to raise.
+#
+# But `stale-refs` sweeps scripts/ for exactly that literal, so the two checks
+# in THIS FILE contradicted each other: keeping the old spelling failed
+# stale-refs, and rewriting it satisfied stale-refs while silently making the
+# moved path stop matching ROUTINE_COUPLED — so `routine-prompts` reported
+# "not applicable" and the attestation vanished. A PR could therefore move a
+# path named in a routine prompt, go green, and never tell anyone the prompt
+# needed updating.
+#
+# Discovered when this gate failed a PR for the deliberate act of NOT rewriting
+# the mirror. So: hits inside the ROUTINE_COUPLED block are printed, never
+# failed — the same treatment as dated evidence, for the same reason. They are
+# a record of something outside the repo, not a description of the tree.
+#
+# The range is computed from the file rather than hard-coded, so the carve-out
+# cannot drift away from the array it is meant to cover. Anything else in this
+# script still fails normally: this exempts a block, not a file.
+ROUTINE_BLOCK_START="$(grep -n '^ROUTINE_COUPLED=(' "$0" | head -1 | cut -d: -f1)"
+if [ -n "${ROUTINE_BLOCK_START:-}" ]; then
+  ROUTINE_BLOCK_END="$(awk -v s="$ROUTINE_BLOCK_START" 'NR>s && /^\)/ {print NR; exit}' "$0")"
+else
+  ROUTINE_BLOCK_END=""
+fi
+
+# A `file:line:text` hit that sits inside this script's ROUTINE_COUPLED array.
+is_prompt_mirror() {
+  local hit="$1" f ln
+  f="${hit%%:*}"
+  [ "$f" = "scripts/check-extraction-dod.sh" ] || return 1
+  [ -n "${ROUTINE_BLOCK_START:-}" ] && [ -n "${ROUTINE_BLOCK_END:-}" ] || return 1
+  ln="${hit#*:}"; ln="${ln%%:*}"
+  case "$ln" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$ln" -gt "$ROUTINE_BLOCK_START" ] && [ "$ln" -lt "$ROUTINE_BLOCK_END" ]
+}
+
 # `stale-refs` owns .github/ + scripts/ + docs/, minus the mirror manifest,
 # which `doc-manifest` owns so the two can be excepted independently.
 SWEEP_PRESENT=()
@@ -379,14 +419,28 @@ else
     # being archival is one list edit away from failing again.
     live=""
     arch=""
+    mirror=""
     while IFS= read -r hit; do
       [ -z "$hit" ] && continue
       if is_archival "${hit%%:*}"; then
         arch="${arch}${hit}"$'\n'
+      elif is_prompt_mirror "$hit"; then
+        mirror="${mirror}${hit}"$'\n'
       else
         live="${live}${hit}"$'\n'
       fi
     done <<<"$out"
+
+    if [ -n "${mirror//[[:space:]]/}" ]; then
+      echo "check-extraction-dod: [stale-refs] '${old}' is held at its OLD spelling in ROUTINE_COUPLED (recorded, not failed):"
+      while IFS= read -r hit; do
+        [ -z "$hit" ] && continue
+        echo "check-extraction-dod:     ${hit}"
+      done <<<"$mirror"
+      echo "check-extraction-dod:     That list mirrors claude.ai routine prompts, which no PR can edit. It is"
+      echo "check-extraction-dod:     CORRECT until the founder re-points the prompt — and rewriting it here would"
+      echo "check-extraction-dod:     silently switch the routine-prompts check off for this very move."
+    fi
 
     if [ -n "${live//[[:space:]]/}" ]; then
       hits=1
