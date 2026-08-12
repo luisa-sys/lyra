@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 197 entries.
+// 200 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -25,6 +25,7 @@ export const SRC = {
   backupComplete: '.github/workflows/backup-complete.yml',
   backupDatabase: '.github/workflows/backup-database.yml',
   backupRestoreTest: '.github/workflows/backup-restore-test.yml',
+  dbInvariants: '.github/workflows/db-invariants.yml',
   prChecks: '.github/workflows/pr-checks.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
   securityAudit: '.github/workflows/security-audit.yml',
@@ -61,6 +62,7 @@ export const SRC = {
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
   docSyncHealthcheck: 'scripts/doc-sync-healthcheck.sh',
+  genDbTypes: 'scripts/gen-db-types.sh',
   genTestPaths: 'scripts/gen-test-paths.mjs',
   lyraMaintenanceWorker: 'scripts/lyra-maintenance-worker.js',
   restoreDatabase: 'scripts/restore-database.sh',
@@ -198,6 +200,7 @@ export const SRC = {
   sectionVisibility: 'src/modules/profile/section-visibility.ts',
   profileTypes: 'src/modules/profile/types.ts',
   database: 'src/types/database',
+  dev: 'src/types/database/dev.ts',
   index: 'src/types/database/index.ts',
   prod: 'src/types/database/prod.ts',
   staging: 'src/types/database/staging.ts',

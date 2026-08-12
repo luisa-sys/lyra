@@ -191,11 +191,19 @@ def compare_live(live: dict[str, dict[str, set[str]]], baseline) -> list[str]:
     return violations
 
 
-def compare_snapshots(live: dict[str, dict[str, set[str]]]) -> list[str]:
+def compare_snapshots(
+    live: dict[str, dict[str, set[str]]],
+    snapshot_reader=columns_from_snapshot,
+) -> list[str]:
+    """SEC-133: `snapshot_reader` is injectable ONLY so the self-test can reach
+    this comparator. Until now all nine self-test cases exercised compare_live()
+    and NONE touched this function — and this is the half that runs daily and
+    the half that caught SEC-131. A comparator with no fixture is the thing this
+    file's own docstring warns about, one level in."""
     violations: list[str] = []
     for env, tables in live.items():
         try:
-            snap = columns_from_snapshot(env)
+            snap = snapshot_reader(env)
         except FileNotFoundError:
             violations.append(f"{env}: no committed snapshot at src/types/database/{env}.ts")
             continue
@@ -267,6 +275,45 @@ def self_test() -> int:
         ("gathering_invite_messages", "claimed_at", "*") in real_baseline,
     ))
 
+    # ------------------------------------------------------------------
+    # SEC-133: compare_snapshots() fixtures. Added when this half started
+    # running daily (--snapshot-only). Every case above tests compare_live();
+    # before this, the snapshot comparator had NO coverage at all — despite
+    # being the half that found SEC-131, and the only half that can see a
+    # snapshot which has gone stale against its own database.
+    # ------------------------------------------------------------------
+    def reader(mapping):
+        def _read(env):
+            if env not in mapping:
+                raise FileNotFoundError(env)
+            return mapping[env]
+        return _read
+
+    # THE SEC-131 SHAPE: the database has a column the committed snapshot does
+    # not. This is invisible to compare_live() when every database agrees —
+    # which is exactly how group_label and custom_prompt survived.
+    live_one = {"dev": {"profile_items": {"id", "group_label"}}}
+    v = compare_snapshots(live_one, reader({"dev": {"profile_items": {"id"}}}))
+    checks.append(("a STALE snapshot is detected", len(v) == 1 and "group_label" in v[0]))
+    checks.append(("the stale snapshot names its env", v and v[0].startswith("dev:")))
+
+    # The reverse: the snapshot claims a column the database does not have.
+    # This is how a type asserts a column exists on a database it does not.
+    v = compare_snapshots(live_one, reader({"dev": {"profile_items": {"id", "group_label", "ghost"}}}))
+    checks.append(("an OVERSTATING snapshot is detected", len(v) == 1 and "ghost" in v[0]))
+
+    v = compare_snapshots(live_one, reader({"dev": {"profile_items": {"id", "group_label"}}}))
+    checks.append(("a matching snapshot produces no violation", v == []))
+
+    # Intersection-only, deliberately: a relation absent from the snapshot is
+    # not a violation (that is how public_profiles sat unlisted without failing).
+    v = compare_snapshots(live_one, reader({"dev": {"other_table": {"id"}}}))
+    checks.append(("a relation absent from the snapshot is not a violation", v == []))
+
+    # A missing snapshot FILE must be reported, not swallowed.
+    v = compare_snapshots(live_one, reader({}))
+    checks.append(("a missing snapshot file is reported", len(v) == 1 and "no committed snapshot" in v[0]))
+
     passed = sum(1 for _, ok in checks if ok)
     for name, ok in checks:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -278,6 +325,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--env", action="append", help="limit to one or more environments")
+    parser.add_argument(
+        "--snapshot-only",
+        action="store_true",
+        help=(
+            "SEC-133: run ONLY the live-vs-snapshot half (each committed snapshot "
+            "against its own database). This is the daily mode. See the note in main()."
+        ),
+    )
     args = parser.parse_args()
 
     if args.self_test:
@@ -308,31 +363,80 @@ def main() -> int:
         print("A control that cannot run must not report success.")
         return 2
 
-    if len(live) < 2:
-        print("::error::check-live-schema-parity: fewer than two databases read; nothing to compare")
+    # SEC-133 — WHY --snapshot-only EXISTS, AND WHY IT IS THE DAILY MODE.
+    #
+    # The two halves behave OPPOSITELY during a staged migration rollout, and
+    # rollouts here span days (dev, then staging, then production):
+    #
+    #   live-vs-live      compares the three databases to each other. Mid-rollout
+    #                     they genuinely differ, so it is RED for the whole window
+    #                     until the divergence is baselined. Correct on a promote —
+    #                     you should not promote mid-rollout — and pure noise daily.
+    #   live-vs-snapshot  compares each env to its OWN database. Unaffected by a
+    #                     rollout, provided <env>.ts is regenerated when <env> is
+    #                     migrated. Red exactly when a snapshot has gone stale.
+    #
+    # And the half worth running daily is settled by evidence, not preference:
+    # SEC-131 (two columns missing from all three snapshots) was COMPLETELY
+    # INVISIBLE to live-vs-live, because all three databases agreed perfectly.
+    # Only the snapshot half could see it. Running the cross-database half daily
+    # would have caught nothing and gone red for days at a time — and a red you
+    # learn to expect is a control you have switched off.
+    #
+    # So: snapshot half daily, both halves on the promote. The promote path is
+    # unchanged by this flag.
+    minimum = 1 if args.snapshot_only else 2
+    if len(live) < minimum:
+        print(
+            f"::error::check-live-schema-parity: fewer than {minimum} database(s) read; "
+            "nothing to compare"
+        )
         return 2
 
-    baseline = load_baseline()
-    violations = compare_live(live, baseline) + compare_snapshots(live)
+    if args.snapshot_only:
+        violations = compare_snapshots(live)
+    else:
+        violations = compare_live(live, load_baseline()) + compare_snapshots(live)
 
     if violations:
         for v in violations:
             print(f"::error::check-live-schema-parity: {v}")
         print()
-        print("Column parity is a promotion precondition: code written against one")
-        print("schema is about to reach a database with a different one, and the")
-        print("first symptom is a 500 on whatever page reads the missing column.")
-        print()
-        print("Fix by applying the missing migration, or — if the difference is")
-        print("known and ticketed — record it in supabase/schema-drift-baseline.json.")
-        print("Regenerate a stale snapshot with the documented step in docs/RUNBOOK.md.")
+        if args.snapshot_only:
+            print("A committed snapshot no longer matches its own database.")
+            print()
+            print("This is not cosmetic. src/types/database/ is what the app's")
+            print("`Database` type is built from, so a stale snapshot means the")
+            print("compiler is reasoning about a schema that does not exist — and")
+            print("CTL-036 cannot see it, because it only compares the snapshots to")
+            print("EACH OTHER. That is how SEC-131 stayed green in every gate.")
+            print()
+            print("Fix it in one command, naming the environment that drifted:")
+            print("    npm run gen:db-types -- --env dev")
+            print("and commit the regenerated file. Full steps: docs/RUNBOOK.md")
+            print("-> 'Regenerating a database type snapshot'.")
+        else:
+            print("Column parity is a promotion precondition: code written against one")
+            print("schema is about to reach a database with a different one, and the")
+            print("first symptom is a 500 on whatever page reads the missing column.")
+            print()
+            print("Fix by applying the missing migration, or — if the difference is")
+            print("known and ticketed — record it in supabase/schema-drift-baseline.json.")
+            print("Regenerate a stale snapshot with `npm run gen:db-types -- --env <env>`")
+            print("(docs/RUNBOOK.md -> 'Regenerating a database type snapshot').")
         return 1
 
     tables = len({t for env in live.values() for t in env})
-    print(
-        f"check-live-schema-parity OK — {len(live)} database(s), {tables} table(s), "
-        "columns agree and every committed snapshot matches its database."
-    )
+    if args.snapshot_only:
+        print(
+            f"check-live-schema-parity OK (snapshot-only) — {len(live)} database(s), "
+            f"{tables} relation(s); every committed snapshot matches its own database."
+        )
+    else:
+        print(
+            f"check-live-schema-parity OK — {len(live)} database(s), {tables} table(s), "
+            "columns agree and every committed snapshot matches its database."
+        )
     return 0
 
 

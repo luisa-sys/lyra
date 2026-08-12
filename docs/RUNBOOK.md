@@ -512,6 +512,51 @@ supabase migration repair <VERSION> --status reverted
 ./scripts/restore-database.sh ./backups/latest_backup.sql
 ```
 
+### Regenerating a database type snapshot (SEC-133)
+
+**Do this in the SAME change that applies a migration to an environment.** The
+committed snapshots in `src/types/database/{dev,staging,prod}.ts` are what the
+app's `Database` type is built from, so one that has gone stale means the
+compiler is reasoning about a schema that does not exist.
+
+```bash
+npm run gen:db-types -- --env dev        # or staging, or prod
+```
+
+Then commit the regenerated file, and verify:
+
+```bash
+python3 scripts/check-live-schema-parity.py --snapshot-only --env dev
+```
+
+Requires `SUPABASE_ACCESS_TOKEN`. Without it the script **fails loud and writes
+nothing** — a truncated or error-body snapshot is worse than a stale one,
+because the drift gates would then compare against garbage. If you have no CLI
+token, the Supabase MCP tool `generate_typescript_types` returns identical
+output for a project ref; write it to the same path.
+
+**Why this procedure exists at all.** Until 2026-08-12 the checker's own error
+message told you to *"regenerate a stale snapshot with the documented step in
+`docs/RUNBOOK.md`"* — and that step did not exist anywhere in `docs/` or
+`scripts/`. The remediation instruction was a dangling reference, which is why
+[SEC-131](https://checklyra.atlassian.net/browse/SEC-131) sat undetected: two
+columns were live on all three databases and absent from all three snapshots.
+
+**Which gate catches what — they are not interchangeable:**
+
+| gate | compares | blind to |
+|---|---|---|
+| **CTL-036** (`check-schema-type-parity.py`, every PR) | the three snapshots **to each other** | all three stale the same way — no *relative* drift to find |
+| **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
+| **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
+
+The daily job runs only the snapshot half on purpose. During a staged migration
+rollout the three databases genuinely differ, so the cross-database half would
+be red for the whole multi-day window — and a red you learn to expect is a
+control you have switched off. The snapshot half is unaffected by a rollout,
+*provided you follow the procedure above*. It is also the only half that could
+see SEC-131, because there all three databases agreed perfectly.
+
 ## Scheduled Workflows (GitHub Actions)
 
 DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns found

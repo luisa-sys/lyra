@@ -846,17 +846,20 @@
       "id": "CTL-048",
       "name": "Live schema parity",
       "defect_class": "schema-parity-drift",
-      "summary": "Asks the three LIVE Supabase databases for their columns and asserts (a) every table present on more than one database exposes the same columns, except where supabase/schema-drift-baseline.json records a ticketed difference, and (b) each committed src/types/database/<env>.ts matches its own database. Exists because CTL-036 - the repo-side half - compares the three committed SNAPSHOTS to each other and therefore cannot see all three going stale the same way, which is the state they were in on 2026-08-11: every snapshot was missing gift_voucher_hint while all three databases had it, and CTL-036 was green. Runs in the promotion chain because a promotion is when a column gap becomes an outage - code written against one schema reaching a database with another. Detects drift in BOTH directions; dev is behind staging and prod on gathering_invite_messages.claimed_at (BUGS-62), so a prod-is-missing-only check would sail past it. Fails closed with exit 2 when a credential is absent rather than skipping.",
+      "summary": "Asks the three LIVE Supabase databases for their columns and asserts (a) every table present on more than one database exposes the same columns, except where supabase/schema-drift-baseline.json records a ticketed difference, and (b) each committed src/types/database/<env>.ts matches its own database. Exists because CTL-036 - the repo-side half - compares the three committed SNAPSHOTS to each other and therefore cannot see all three going stale the same way, which is the state they were in on 2026-08-11: every snapshot was missing gift_voucher_hint while all three databases had it, and CTL-036 was green. Runs in the promotion chain because a promotion is when a column gap becomes an outage - code written against one schema reaching a database with another. Detects drift in BOTH directions; dev is behind staging and prod on gathering_invite_messages.claimed_at (BUGS-62), so a prod-is-missing-only check would sail past it. Fails closed with exit 2 when a credential is absent rather than skipping. SEC-133: the live-vs-snapshot half ALSO runs daily via db-invariants.yml (--snapshot-only), because running only on a promote meant drift surfaced at the door of a release and nothing looked for it in between. Only that half runs daily: the cross-database half is red for the whole of any staged migration rollout, and SEC-131 proved the snapshot half is the one that matters - all three databases agreed perfectly while all three snapshots were wrong, so live-vs-live was blind to it. Remediation is one command: npm run gen:db-types -- --env <env>.",
       "implementation": "scripts/check-live-schema-parity.py",
       "kind": "ci-gate",
       "wired_in": [
         ".github/workflows/promote-to-staging.yml",
-        ".github/workflows/pr-checks.yml"
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/db-invariants.yml"
       ],
       "prevents": [
         "SEC-107",
         "BUGS-62",
-        "KAN-420"
+        "KAN-420",
+        "SEC-131",
+        "SEC-133"
       ],
       "escape_hatch": "none - apply the missing migration, or record the difference in supabase/schema-drift-baseline.json with a ticket",
       "added": "2026-08-11"

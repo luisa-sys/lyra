@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 197,
+  "count": 200,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -12,6 +12,7 @@
     "backupComplete": ".github/workflows/backup-complete.yml",
     "backupDatabase": ".github/workflows/backup-database.yml",
     "backupRestoreTest": ".github/workflows/backup-restore-test.yml",
+    "dbInvariants": ".github/workflows/db-invariants.yml",
     "prChecks": ".github/workflows/pr-checks.yml",
     "promoteToStaging": ".github/workflows/promote-to-staging.yml",
     "securityAudit": ".github/workflows/security-audit.yml",
@@ -48,6 +49,7 @@
     "checkWorkflowIntegrity": "scripts/check-workflow-integrity.sh",
     "dailySecurityCheck": "scripts/daily-security-check.sh",
     "docSyncHealthcheck": "scripts/doc-sync-healthcheck.sh",
+    "genDbTypes": "scripts/gen-db-types.sh",
     "genTestPaths": "scripts/gen-test-paths.mjs",
     "lyraMaintenanceWorker": "scripts/lyra-maintenance-worker.js",
     "restoreDatabase": "scripts/restore-database.sh",
@@ -185,6 +187,7 @@
     "sectionVisibility": "src/modules/profile/section-visibility.ts",
     "profileTypes": "src/modules/profile/types.ts",
     "database": "src/types/database",
+    "dev": "src/types/database/dev.ts",
     "index": "src/types/database/index.ts",
     "prod": "src/types/database/prod.ts",
     "staging": "src/types/database/staging.ts",
