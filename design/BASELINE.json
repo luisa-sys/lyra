@@ -17,10 +17,10 @@
     "section 2.2 and the CTL-040 registry entry."
   ],
   "design_repo": "https://github.com/luisa-sys/lyra-design-system",
-  "baseline_ref": "f7c0e02138dcf0d8c4441dc667886377c8148445",
+  "baseline_ref": "3c3ac22106f91d9734fa7029dd0e84fcbd01de92",
   "reconciled_on": "2026-08-12",
   "reconciled_for": "KAN-473",
   "note": "KAN-415 D9 moved three public-profile components into src/modules/public-profile/. CTL-040 flagged the move as design-bearing, and it was RIGHT: rebuild/sync-manifest.json in the design repo globbed 'src/app/[slug]/**' in the dev_paths of KAN-449, KAN-450 and KAN-458, so those globs stopped covering the moved files. dev_paths is what the G3 promote-verified gate reads, so it would have kept passing over a strictly smaller set. Fixed there rather than waved through here with a Design-Baseline-Ok trailer — the escape hatch would have been dishonest, since the coupling this gate exists to catch was real.",
   "previous_baseline_ref": "70c583093955aa76b7d59e83606a9b516cd8581b",
-  "pending": "f7c0e02 is the head of luisa-sys/lyra-design-system#2 (branch claude/site-map-continuation-zblkza), NOT yet merged to that repo's main, which was at 169d12acb8ea063760926fc43004ba33a91297d5 when this was recorded. Stated plainly because this file's whole purpose is to be a claim backed by a diff: the diff exists and is linked, the merge has not happened. Re-point to the merged SHA when design PR #2 lands."
+  "merged_as": "3c3ac22 is the squash of luisa-sys/lyra-design-system#2 onto that repo's main, so this ref is reachable from the design system's default branch rather than only from a PR branch. An earlier revision of this commit recorded the branch head f7c0e02 with a 'pending' caveat; #2 was then merged, so the caveat is resolved rather than carried. Previous design main head before the merge: 169d12acb8ea063760926fc43004ba33a91297d5."
 }
