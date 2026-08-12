@@ -1906,7 +1906,8 @@
       "layer": 3,
       "paths": [
         "src/app/[slug]/",
-        "src/app/search/"
+        "src/app/search/",
+        "src/modules/public-profile/"
       ],
       "owns": {
         "files": 8,
@@ -1946,7 +1947,8 @@
         "uiApprovalGated": "always",
         "uiApprovalPaths": [
           "src/app/[slug]/**",
-          "src/app/search/**"
+          "src/app/search/**",
+          "src/modules/public-profile/**"
         ],
         "mcpLockstep": "tools",
         "migrationEnvs": [
@@ -1959,7 +1961,7 @@
         "blastRadius": "high (privacy)",
         "edgeSafe": false,
         "frozenContracts": [
-          ".eq('is_published',true).eq('is_suspended',false) must stay ONE tested unit (SEC-44)",
+          "public reads go through the public_profiles VIEW, never the profiles base table (SEC-104; enforced by CTL-028). Supersedes the SEC-44 requirement that .eq('is_published',true).eq('is_suspended',false) stay one tested unit — that pair no longer appears in this module's files at all, because the predicates moved into the view body, where they apply even to service_role",
           "SEC-82 cache headers preserved"
         ],
         "extraGates": [

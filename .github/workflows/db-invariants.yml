@@ -115,3 +115,74 @@ jobs:
           echo "3. Raise a SEC ticket and record it in the Risk Register."
           echo "4. If the finding is accepted, add a waiver with an owner, a Jira key"
           echo "   and a date to supabase/security-invariants-waivers.json."
+
+  snapshot-freshness:
+    name: Committed schema snapshots match their databases (CTL-048, daily)
+    # SEC-133 — CTL-048's live-vs-snapshot half, run DAILY.
+    #
+    # WHY A SEPARATE JOB, not another step on `invariants`: that job's
+    # `if: failure()` handler prints a SECURITY DEFINER / storage-bucket
+    # message. A stale snapshot is not that, and a finding that describes
+    # itself wrongly is how an operator learns to skim the annotations.
+    #
+    # WHY DAILY AT ALL: CTL-048 previously ran only during a promote, so drift
+    # could sit undetected indefinitely and then surface at the worst possible
+    # moment — at the door of a release. SEC-131 was found only because someone
+    # chose to dry-run the gate before dispatching; how long those two columns
+    # had been missing is unknown, because nothing was looking.
+    #
+    # WHY ONLY THE SNAPSHOT HALF: the two halves behave oppositely during a
+    # staged migration rollout, and rollouts here span days. live-vs-live
+    # compares the three databases to each other, so mid-rollout it is red for
+    # the whole window — noise, daily. live-vs-snapshot compares each env to its
+    # OWN database and is unaffected, provided <env>.ts is regenerated when
+    # <env> is migrated.
+    #
+    # And the evidence settles it: SEC-131 was INVISIBLE to live-vs-live,
+    # because all three databases agreed perfectly. Only this half could see it.
+    # Both halves still run on the promote; that path is unchanged.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Self-test the checker
+        # Prove the comparators can still fail before trusting a clean report.
+        # The six compare_snapshots() fixtures added under SEC-133 are the ones
+        # that matter here — this job runs nothing else.
+        run: python3 scripts/check-live-schema-parity.py --self-test
+
+      - name: Compare each committed snapshot with its own database
+        # Fail-closed on a missing credential: the script exits 2 and says which
+        # one, rather than reporting a clean scan it never performed.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 scripts/check-live-schema-parity.py --snapshot-only
+
+      - name: Raise the finding
+        if: failure()
+        run: |
+          set -euo pipefail
+          echo "::error::A committed schema snapshot no longer matches its own database."
+          echo ""
+          echo "src/types/database/ is what the app's \`Database\` type is built from,"
+          echo "so a stale snapshot means the compiler is reasoning about a schema that"
+          echo "does not exist. CTL-036 cannot see this: it compares the three snapshots"
+          echo "to EACH OTHER, so three files stale in the same way look identical and"
+          echo "pass. That is exactly how SEC-131 stayed green in every gate."
+          echo ""
+          echo "Fix, naming the environment the annotations above identify:"
+          echo "    npm run gen:db-types -- --env dev"
+          echo "then commit the regenerated file."
+          echo ""
+          echo "Full steps: docs/RUNBOOK.md -> 'Regenerating a database type snapshot'."
+          echo ""
+          echo "If this is red because a migration is mid-rollout, that is the control"
+          echo "working: regenerate the snapshot for the environment you migrated. Do"
+          echo "NOT leave it red across days — a red you learn to expect is a control"
+          echo "you have switched off."

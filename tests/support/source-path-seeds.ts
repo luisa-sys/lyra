@@ -124,4 +124,39 @@ export const SEEDED_PATHS = [
   // rename look like a passing test against a script nobody runs.
   'scripts/check-live-schema-parity.py',
   'scripts/check-docs-updated.py',
+  // SEC-133 gave CTL-048 a DAILY half, and these three are the residue: no
+  // counted test hard-codes any of them, so all three exist only as `SRC.*`.
+  // check-live-schema-parity.test.js asserts that the daily job invokes the
+  // checker with --snapshot-only, and that gen-db-types.sh refuses to write
+  // without a token. Both assertions are ABOUT the paths, so a literal in the
+  // test would let a rename read as a pass against a job nobody runs — the
+  // same reasoning as the two entries above.
+  '.github/workflows/db-invariants.yml',
+  'scripts/gen-db-types.sh',
+  // CTL-028's implementation, seeded for the same reason as CTL-047's and
+  // CTL-048's above: check-suspension-guard-coverage.test.js asserts the
+  // registry's `implementation` field names this exact path, so the assertion
+  // IS the path and a literal in the test would let a rename read as a pass
+  // against a control nobody runs. SEC-104 step 3.
+  'scripts/check-suspension-guard-coverage.py',
+  // The snapshot gen-db-types.sh must leave untouched when it fails closed.
+  // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
+  // had none, so it is the one that would silently vanish.
+  'src/types/database/dev.ts',
+  // KAN-473 / KAN-415 D9 moved these five out of src/app/[slug]/. All are now
+  // reached ONLY via SRC — ui-ownership-covers-modules.test.js routes every
+  // real path through the manifest so the raw-literal ratchet stays honest,
+  // and the two unit tests import the helpers by alias. That is the exact
+  // shape described above: a move breaks the self-sustaining loop, and a key
+  // read only as `SRC.foo` does not come back on the next regeneration.
+  //
+  // The three .tsx matter most: they are FOUNDER-OWNED, and the test that
+  // proves they stayed founder-owned across the move reads them through these
+  // keys. Lose a key and that assertion runs against `undefined` — which
+  // `is_protected` would answer "not protected" for, inverting the test.
+  'src/modules/public-profile/report-button.tsx',
+  'src/modules/public-profile/recommendations-section.tsx',
+  'src/modules/public-profile/v2-recommendations-section.tsx',
+  'src/modules/public-profile/slug-utils.ts',
+  'src/modules/public-profile/v2-recommendations-helpers.ts',
 ] as const;

@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 197 entries.
+// 208 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -25,6 +25,7 @@ export const SRC = {
   backupComplete: '.github/workflows/backup-complete.yml',
   backupDatabase: '.github/workflows/backup-database.yml',
   backupRestoreTest: '.github/workflows/backup-restore-test.yml',
+  dbInvariants: '.github/workflows/db-invariants.yml',
   prChecks: '.github/workflows/pr-checks.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
   securityAudit: '.github/workflows/security-audit.yml',
@@ -56,11 +57,13 @@ export const SRC = {
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
+  checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
   docSyncHealthcheck: 'scripts/doc-sync-healthcheck.sh',
+  genDbTypes: 'scripts/gen-db-types.sh',
   genTestPaths: 'scripts/gen-test-paths.mjs',
   lyraMaintenanceWorker: 'scripts/lyra-maintenance-worker.js',
   restoreDatabase: 'scripts/restore-database.sh',
@@ -92,7 +95,6 @@ export const SRC = {
   termsPage: 'src/app/(legal)/terms/page.tsx',
   notFound: 'src/app/[slug]/not-found.tsx',
   slugPage: 'src/app/[slug]/page.tsx',
-  slugUtils: 'src/app/[slug]/slug-utils.ts',
   sections: 'src/app/_marketing/sections.tsx',
   featuresPage: 'src/app/admin/features/page.tsx',
   route: 'src/app/api/convene/admin/drain-queue/route.ts',
@@ -102,6 +104,7 @@ export const SRC = {
   callbackRoute: 'src/app/api/convene/oauth/google/callback/route.ts',
   microsoftCallbackRoute: 'src/app/api/convene/oauth/microsoft/callback/route.ts',
   initiateRoute: 'src/app/api/convene/oauth/microsoft/initiate/route.ts',
+  healthRoute: 'src/app/api/health/route.ts',
   slugRoute: 'src/app/api/recommendations/[slug]/route.ts',
   v2SlugRoute: 'src/app/api/recommendations/v2/[slug]/route.ts',
   sweepRoute: 'src/app/api/retention/cron/sweep/route.ts',
@@ -197,7 +200,15 @@ export const SRC = {
   profileFields: 'src/modules/profile/profile-fields.ts',
   sectionVisibility: 'src/modules/profile/section-visibility.ts',
   profileTypes: 'src/modules/profile/types.ts',
+  publicProfile: 'src/modules/public-profile',
+  modulesPublicProfile: 'src/modules/public-profile/',
+  recommendationsSection: 'src/modules/public-profile/recommendations-section.tsx',
+  reportButton: 'src/modules/public-profile/report-button.tsx',
+  slugUtils: 'src/modules/public-profile/slug-utils.ts',
+  v2RecommendationsHelpers: 'src/modules/public-profile/v2-recommendations-helpers.ts',
+  v2RecommendationsSection: 'src/modules/public-profile/v2-recommendations-section.tsx',
   database: 'src/types/database',
+  dev: 'src/types/database/dev.ts',
   index: 'src/types/database/index.ts',
   prod: 'src/types/database/prod.ts',
   staging: 'src/types/database/staging.ts',

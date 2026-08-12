@@ -161,6 +161,7 @@ recording it here is a red build.
 | `oauth_refresh_tokens` | P8 | `user_id` | **withheld** — live credential (SEC-71) |
 | `oauth_authorization_codes` | P8 | `user_id` | **withheld** — short-lived credential (SEC-71) |
 | `oauth_connect_state` | P8 | `user_id` | **withheld** — transient CSRF state, not personal data |
+| `public_profiles` | P1 | `user_id` | **withheld** — redundant: a view over `profiles`, already exported in full (SEC-132) |
 
 ### On the withheld rows
 
@@ -172,6 +173,15 @@ Two are retained under **Art. 17(3)(b)**. `moderation_logs` is
 `ON DELETE RESTRICT` precisely so it survives an erasure, and
 `erasure_obligations` is the record that the erasure happened. Erasing either on
 request would defeat its purpose.
+
+One — `public_profiles` (SEC-132) — is withheld for a different reason from the
+other six, and the distinction matters when reading this table. It is not a
+lawful-basis carve-out and **nothing in it is kept from the subject**. It is a
+*view* over `profiles`, so all 17 of its columns are a strict subset of the
+`profiles` row the export already returns in full. Listing it would hand back a
+second copy of data already supplied. If it is ever the case that the view gains
+a column `profiles` does not have, this row must change — a view that is no
+longer a strict subset is no longer redundant.
 
 **If a subject disputes a withholding**, the answer is not to widen the export —
 it is to confirm the lawful basis above still applies to their specific case, and
