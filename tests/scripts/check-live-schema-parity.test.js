@@ -31,8 +31,16 @@ const { SRC } = JSON.parse(
 );
 const SCRIPT = path.join(ROOT, SRC.checkLiveSchemaParity);
 
-/** Committed MINIMUM number of self-test fixtures. May be raised, never lowered. */
-const SELF_TEST_FLOOR = 9;
+/**
+ * Committed MINIMUM number of self-test fixtures. May be raised, never lowered.
+ *
+ * SEC-133: raised 9 -> 15. Six compare_snapshots() fixtures were added when the
+ * snapshot half started running daily. Leaving the floor at 9 would have let all
+ * six be deleted with the suite still green — which is the precise failure this
+ * constant exists to prevent, and it would have applied to the only half that
+ * could see SEC-131.
+ */
+const SELF_TEST_FLOOR = 15;
 
 /** Run with an explicitly constructed env so an ambient credential cannot leak in. */
 function run(args, extraEnv = {}) {
@@ -120,6 +128,88 @@ describe('CTL-048 — live schema parity', () => {
     // edge satisfiable by a failing job.
     const jobBlock = yml.slice(yml.indexOf('  schema-parity:'), yml.indexOf('  merge-and-deploy:'));
     expect(jobBlock).not.toMatch(/continue-on-error/);
+  });
+
+  test('SEC-133: the self-test covers the SNAPSHOT half, not just the live half', () => {
+    // Before SEC-133 all nine fixtures exercised compare_live() and NONE
+    // touched compare_snapshots() — the half that runs daily, and the only half
+    // that could see SEC-131. A floor alone would not have caught that: the
+    // count was healthy while an entire comparator was unfixtured.
+    const { stdout } = run(['--self-test']);
+    for (const fixture of [
+      'a STALE snapshot is detected',
+      'an OVERSTATING snapshot is detected',
+      'a matching snapshot produces no violation',
+      'a missing snapshot file is reported',
+    ]) {
+      expect(`${fixture}: ${stdout.includes(fixture)}`).toBe(`${fixture}: true`);
+    }
+  });
+
+  test('SEC-133: --snapshot-only is wired into the DAILY job and blocks it', () => {
+    const yml = require('node:fs').readFileSync(path.join(ROOT, SRC.dbInvariants), 'utf-8');
+
+    // Invoked, with the flag — not merely mentioned.
+    expect(yml).toMatch(/check-live-schema-parity\.py --snapshot-only/);
+    // Daily, and its own job so a stale snapshot does not report itself as a
+    // SECURITY DEFINER finding.
+    expect(yml).toMatch(/^\s{2}snapshot-freshness:/m);
+    expect(yml).toMatch(/cron:\s*'15 6 \* \* \*'/);
+    // A step that cannot fail the job is decoration.
+    const job = yml.slice(yml.indexOf('  snapshot-freshness:'));
+    expect(job).not.toMatch(/continue-on-error/);
+    expect(job).not.toMatch(/if:\s*env\./); // the KAN-167 silent-skip shape
+  });
+
+  test('SEC-133: the remediation the checker names actually exists', () => {
+    // THE DEFECT THIS PINS. The checker used to tell you to "regenerate a stale
+    // snapshot with the documented step in docs/RUNBOOK.md" — and no such step
+    // existed anywhere in docs/ or scripts/. An instruction pointing at nothing
+    // is worse than none: it reads as a procedure and stops the reader looking.
+    const fs = require('node:fs');
+    const script = fs.readFileSync(SCRIPT, 'utf-8');
+    const runbook = fs.readFileSync(path.join(ROOT, 'docs/RUNBOOK.md'), 'utf-8');
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+
+    // The command the checker tells you to run must exist as a script...
+    expect(script).toMatch(/npm run gen:db-types/);
+    expect(pkg.scripts['gen:db-types']).toBeDefined();
+    // ...and resolve to a real file.
+    const target = pkg.scripts['gen:db-types'].replace(/^bash\s+/, '').trim();
+    expect(`${target} exists: ${fs.existsSync(path.join(ROOT, target))}`).toBe(
+      `${target} exists: true`,
+    );
+    // ...and the RUNBOOK section it cites must be present, by its exact heading.
+    expect(runbook).toMatch(/^### Regenerating a database type snapshot/m);
+  });
+
+  test('SEC-133: gen:db-types fails closed without a token rather than writing', () => {
+    // A truncated or error-body snapshot is worse than a stale one: the drift
+    // gates would then compare against garbage. Assert it refuses, and that the
+    // committed snapshot is untouched.
+    const fs = require('node:fs');
+    const snapshot = path.join(ROOT, SRC.dev);
+    const before = fs.readFileSync(snapshot, 'utf-8');
+
+    const res = spawnSync('bash', [path.join(ROOT, SRC.genDbTypes), '--env', 'dev'], {
+      encoding: 'utf-8',
+      cwd: ROOT,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME }, // no SUPABASE_ACCESS_TOKEN
+    });
+
+    expect(res.status).not.toBe(0);
+    expect(res.stdout + res.stderr).toMatch(/SUPABASE_ACCESS_TOKEN is not set/);
+    expect(fs.readFileSync(snapshot, 'utf-8')).toBe(before);
+  });
+
+  test('SEC-133: gen:db-types rejects an unknown environment', () => {
+    const res = spawnSync('bash', [path.join(ROOT, SRC.genDbTypes), '--env', 'staging-2'], {
+      encoding: 'utf-8',
+      cwd: ROOT,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME },
+    });
+    expect(res.status).not.toBe(0);
+    expect(res.stdout + res.stderr).toMatch(/unknown environment/);
   });
 
   test('git is not required — the subject reads files and HTTP only', () => {

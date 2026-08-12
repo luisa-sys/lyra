@@ -378,6 +378,32 @@ sweep module-manifest "$MODULE_MANIFEST"
 sweep test-estate "$TEST_DIR"
 
 # ------------------------------------------------------- PR-body attestations
+#
+# ⚠️ TWO THINGS ABOUT EDITING THESE ANSWERS THAT WILL WASTE YOUR TIME (KAN-473).
+#
+# 1. EDITING THE PR BODY DOES NOT RE-RUN THIS GATE, and re-running the failed
+#    job does not pick the edit up either. pr-checks.yml triggers on
+#    `pull_request` with the default activity types — opened, synchronize,
+#    reopened — so `edited` fires nothing; and `PR_BODY` is interpolated from
+#    `github.event.pull_request.body`, which is frozen in the run's event
+#    payload, so a re-run replays the ORIGINAL body. Fixing an attestation
+#    therefore requires a PUSH. Verified 2026-08-12: a corrected body plus
+#    `rerun_failed_jobs` reproduced the identical failure, and the re-run's own
+#    log echoed the stale text.
+#
+# 2. THE MARKER MUST START THE LINE (modulo a bullet and a checkbox) — see the
+#    regex in attest(). Markdown emphasis around it does not survive:
+#
+#        - [x] **EXTRACTION-DOD-COVERAGE:** playwright project 'public-pages'
+#                ^^ the `**` sits between the checkbox and the marker, so the
+#                   line does not match and the answer reads as ABSENT
+#        - [x] EXTRACTION-DOD-COVERAGE: playwright project 'public-pages'   <- ok
+#
+#    The failure mode is worth naming because it is indistinguishable from the
+#    one it is not: a gate that read none of your three answers reports exactly
+#    what a gate that read them and disagreed would report. Three answers were
+#    written, all three were bolded, and all three came back "the PR body has
+#    no '<marker>' line".
 PR_BODY_TEXT=""
 if [ -n "${PR_BODY_FILE:-}" ]; then
   [ -f "$PR_BODY_FILE" ] || die_unverifiable "PR_BODY_FILE '$PR_BODY_FILE' does not exist."

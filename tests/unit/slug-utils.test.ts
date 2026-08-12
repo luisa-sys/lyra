@@ -7,7 +7,7 @@
  * "rosa-martínez"). decodeSlug URL-decodes + NFC-normalises the param.
  */
 
-import { decodeSlug } from '@/app/[slug]/slug-utils';
+import { decodeSlug } from '@/modules/public-profile/slug-utils';
 
 describe('decodeSlug', () => {
   test('leaves a pure-ASCII slug unchanged', () => {
