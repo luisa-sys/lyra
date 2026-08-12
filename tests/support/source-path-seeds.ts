@@ -159,4 +159,15 @@ export const SEEDED_PATHS = [
   'src/modules/public-profile/v2-recommendations-section.tsx',
   'src/modules/public-profile/slug-utils.ts',
   'src/modules/public-profile/v2-recommendations-helpers.ts',
+  // CTL-049 / SEC-137. Both are reached ONLY through `SRC` — the test routes
+  // every path through the manifest so the F4 raw-literal ratchet (shrink-only)
+  // is not raised by a new file, which would have been the easy wrong move.
+  //
+  // Seeding matters more than usual for the checker: the registry's
+  // `implementation` field names it, and `tests/scripts/` asserts that the
+  // daily workflow invokes THAT path. Lose the key and the assertion compares
+  // against `undefined`, which no workflow contains — so the test would fail
+  // loudly rather than silently, but the baseline path would fail vacuously.
+  'scripts/check-migration-ledger-parity.py',
+  'supabase/migration-ledger-baseline.json',
 ] as const;
