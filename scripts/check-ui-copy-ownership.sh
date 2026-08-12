@@ -77,6 +77,27 @@ is_protected() {
   # --- all page / layout / component TSX under src/app + everything in src/components ---
   [[ $f == src/app/*.tsx ]] && return 0
   [[ $f == src/components/* ]] && return 0
+  # --- extracted UI: any TSX under src/modules/ (KAN-473 / KAN-415 D9) ---
+  #
+  # WHY THIS IS BROAD RATHER THAN NAMED. D9 moved three founder-owned components
+  # out of src/app/[slug]/ into src/modules/public-profile/. Measured before the
+  # move: all three were FOUNDER-OWNED at the old path and NOT PROTECTED at the
+  # new one, because nothing here matched src/modules/ at all. The extraction
+  # would therefore have removed them from founder ownership permanently, with
+  # NO red build — "matches nothing" is detectable, "matches less than it used
+  # to" is not (the same shape as the ^src/lib/ depcruise narrowing in D1).
+  #
+  # Worse, the `UI-Change-Approved:` trailer authorising the move would have
+  # carried it through this very gate, and the move would then have switched the
+  # gate off for those files from then on — turning a one-time approval into a
+  # standing one.
+  #
+  # So the rule is stated on the FILE TYPE, not on a module name: src/modules/
+  # holds domain logic, and a .tsx there is by definition a rendered component.
+  # KAN-415 has D7 and D8 still to come; a named rule would have to be extended
+  # by whoever does them, and the failure mode of forgetting is silent. This one
+  # covers them by default, and exempting a module is a visible diff here.
+  [[ $f == src/modules/*.tsx ]] && return 0
   return 1
 }
 

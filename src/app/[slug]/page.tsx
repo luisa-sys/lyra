@@ -18,10 +18,10 @@ import {
 import { groupFavourites } from '@/modules/profile/favourites';
 import { getRecommendations } from '@/lib/recommend';
 import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/lib/recommend/dismissals';
-import RecommendationsSection from './recommendations-section';
-import V2RecommendationsSection from './v2-recommendations-section';
-import ReportButton from './report-button';
-import { decodeSlug } from './slug-utils';
+import RecommendationsSection from '@/modules/public-profile/recommendations-section';
+import V2RecommendationsSection from '@/modules/public-profile/v2-recommendations-section';
+import ReportButton from '@/modules/public-profile/report-button';
+import { decodeSlug } from '@/modules/public-profile/slug-utils';
 import { headers } from 'next/headers';
 import { isIsoAlpha2, normaliseDeliveryCountry } from '@/modules/profile/country-codes';
 import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
