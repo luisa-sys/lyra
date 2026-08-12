@@ -124,4 +124,17 @@ export const SEEDED_PATHS = [
   // rename look like a passing test against a script nobody runs.
   'scripts/check-live-schema-parity.py',
   'scripts/check-docs-updated.py',
+  // SEC-133 gave CTL-048 a DAILY half, and these three are the residue: no
+  // counted test hard-codes any of them, so all three exist only as `SRC.*`.
+  // check-live-schema-parity.test.js asserts that the daily job invokes the
+  // checker with --snapshot-only, and that gen-db-types.sh refuses to write
+  // without a token. Both assertions are ABOUT the paths, so a literal in the
+  // test would let a rename read as a pass against a job nobody runs — the
+  // same reasoning as the two entries above.
+  '.github/workflows/db-invariants.yml',
+  'scripts/gen-db-types.sh',
+  // The snapshot gen-db-types.sh must leave untouched when it fails closed.
+  // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
+  // had none, so it is the one that would silently vanish.
+  'src/types/database/dev.ts',
 ] as const;
