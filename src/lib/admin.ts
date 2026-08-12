@@ -22,6 +22,7 @@
 
 import { createClient as createSupabaseServerClient } from '@/modules/platform/supabase-server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import type { Database, Json } from '@/types/database';
 
 /**
  * The set of action strings we accept in moderation_logs. The DB column
@@ -108,13 +109,25 @@ export function getAdminServiceClient() {
   return createServiceRoleClient();
 }
 
+/**
+ * SEC-132: the generated Insert row for `moderation_logs`. Named once here
+ * because both writers below have to state the same trigger-managed omission.
+ */
+type ModerationLogInsert = Database['public']['Tables']['moderation_logs']['Insert'];
+
 export interface LogModerationActionInput {
   admin: AdminUser;
   action: ModerationAction;
   targetProfileId?: string | null;
   targetItemId?: string | null;
   reason?: string | null;
-  metadata?: Record<string, unknown>;
+  /**
+   * SEC-132: `Json`, not `Record<string, unknown>`. This value is written to a
+   * `jsonb` column, and `unknown` values are not necessarily serialisable — a
+   * `Date`, a `Map` or a `undefined` survives `Record<string, unknown>` and
+   * then lands in the audit log as `{}` or an error.
+   */
+  metadata?: Json;
 }
 
 /**
@@ -128,16 +141,20 @@ export interface LogModerationActionInput {
  */
 export async function logModerationAction(input: LogModerationActionInput): Promise<string> {
   const client = getAdminServiceClient();
+  // SEC-132: `row_hash` / `seq` omitted deliberately — see the note in
+  // logModerationActionsBatch below. They are written by the hash-chain trigger,
+  // and a caller able to supply its own would be able to forge the audit chain.
+  const row: Omit<ModerationLogInsert, 'row_hash' | 'seq'> = {
+    actor_user_id: input.admin.userId,
+    action: input.action,
+    target_profile_id: input.targetProfileId ?? null,
+    target_item_id: input.targetItemId ?? null,
+    reason: input.reason ?? null,
+    metadata: input.metadata ?? {},
+  };
   const { data, error } = await client
     .from('moderation_logs')
-    .insert({
-      actor_user_id: input.admin.userId,
-      action: input.action,
-      target_profile_id: input.targetProfileId ?? null,
-      target_item_id: input.targetItemId ?? null,
-      reason: input.reason ?? null,
-      metadata: input.metadata ?? {},
-    })
+    .insert(row as ModerationLogInsert)
     .select('id')
     .single();
 
@@ -152,7 +169,8 @@ export interface LogModerationActionsBatchInput {
   action: ModerationAction;
   targetProfileIds: string[];
   reason?: string | null;
-  metadata?: Record<string, unknown>;
+  /** SEC-132: see the note on `LogModerationActionInput.metadata`. */
+  metadata?: Json;
 }
 
 /**
@@ -167,15 +185,27 @@ export async function logModerationActionsBatch(
 ): Promise<void> {
   if (input.targetProfileIds.length === 0) return;
   const client = getAdminServiceClient();
-  const rows = input.targetProfileIds.map((profileId) => ({
-    actor_user_id: input.admin.userId,
-    action: input.action,
-    target_profile_id: profileId,
-    target_item_id: null,
-    reason: input.reason ?? null,
-    metadata: input.metadata ?? {},
-  }));
-  const { error } = await client.from('moderation_logs').insert(rows);
+  // SEC-132: `row_hash` and `seq` are NOT NULL with no column default, so the
+  // generated Insert type marks them REQUIRED. Supplying them from here would
+  // be wrong, not merely redundant: they are computed by the BEFORE INSERT
+  // trigger `moderation_logs_hash_chain_trg`, which is what makes this table
+  // tamper-evident. A caller that could set its own `row_hash` could forge the
+  // chain. Typegen cannot see triggers, so this is the one place the generated
+  // type is narrower than the database — the omission is named in an `Omit`
+  // rather than hidden behind a blanket cast, so the other columns stay checked.
+  const rows: Omit<ModerationLogInsert, 'row_hash' | 'seq'>[] = input.targetProfileIds.map(
+    (profileId) => ({
+      actor_user_id: input.admin.userId,
+      action: input.action,
+      target_profile_id: profileId,
+      target_item_id: null,
+      reason: input.reason ?? null,
+      metadata: input.metadata ?? {},
+    }),
+  );
+  const { error } = await client
+    .from('moderation_logs')
+    .insert(rows as ModerationLogInsert[]);
   if (error) {
     throw new Error(`Failed to write ${rows.length} moderation_logs rows: ${error.message}`);
   }

@@ -321,7 +321,15 @@ export async function deleteAccount() {
   try {
     const { error: obligationError } = await admin.rpc('record_erasure_obligation', {
       p_subject_user_id: userId,
-      p_subject_email: user.email ?? null,
+      // SEC-132: the generated Args type says `p_subject_email: string`, because
+      // typegen marks any parameter without a SQL DEFAULT as required and
+      // non-null. Verified against the database: `record_erasure_obligation` is
+      // NOT STRICT and `erasure_obligations.subject_email` is nullable, so NULL
+      // is accepted and stored. Passing `''` instead would type-check and be
+      // WRONG — it would record an erasure obligation carrying an email address
+      // that is not merely unknown but affirmatively empty, which is what an ops
+      // follow-up would then try to chase through Resend and Didit.
+      p_subject_email: (user.email ?? null) as string,
       p_processors: ERASURE_PROCESSORS,
       p_notes: 'Account hard-deleted; external processor / KV copies pending erasure (SEC-75 leg b).',
     });

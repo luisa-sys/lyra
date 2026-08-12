@@ -75,7 +75,13 @@ import type { MetadataRoute } from 'next';
 
 const BASE = 'https://checklyra.com';
 
-type Row = { slug: string; updated_at: string; is_suspended?: boolean };
+// SEC-132: `slug` and `updated_at` are nullable here on purpose. `public_profiles`
+// is a VIEW, and a view does not carry the base table's NOT NULL guarantees, so
+// the real query can hand back either as null. Widening the fixture type is what
+// lets invariant 6 below construct that row at all — with the old
+// `{ slug: string; updated_at: string }` the case could not be expressed, which
+// is why it went untested through SEC-100, SEC-104 and SEC-130.
+type Row = { slug: string | null; updated_at: string | null; is_suspended?: boolean };
 type EqCall = [string, unknown];
 
 const eqCalls: EqCall[] = [];
@@ -228,6 +234,47 @@ describe('sitemap (behavioural, KAN-414 F4 / SEC-100)', () => {
     for (const e of entries) {
       expect(e.changeFrequency).toBeDefined();
       expect(typeof e.priority).toBe('number');
+    }
+  });
+});
+
+describe('sitemap nullability of the public_profiles VIEW (SEC-132)', () => {
+  // These three cases became REACHABLE only once the service-role client gained
+  // its <Database> generic. Before that `profile.slug` was `any`, so neither the
+  // compiler nor this suite had any reason to ask what happens when the view
+  // returns null — and both failure modes below are silent and get published to
+  // search engines.
+  const published = (r: Partial<Row>) =>
+    ({ is_published: true, is_suspended: false, ...r }) as unknown as Row;
+
+  it('drops a null-slug row instead of emitting the literal URL /null', async () => {
+    rows = [published({ slug: 'ada', updated_at: '2026-01-01T00:00:00.000Z' }), published({ slug: null, updated_at: '2026-01-01T00:00:00.000Z' })];
+
+    const out = urls(await sitemap());
+
+    expect(out).toContain(`${BASE}/ada`);
+    expect(out.some((u) => u.endsWith('/null'))).toBe(false);
+  });
+
+  it('still emits a row whose updated_at is null, but with no lastModified', async () => {
+    rows = [published({ slug: 'no-date', updated_at: null })];
+
+    const entry = (await sitemap()).find((e) => e.url === `${BASE}/no-date`);
+
+    // The page belongs in the sitemap; only the freshness hint is unknown.
+    expect(entry).toBeDefined();
+    expect(entry?.lastModified).toBeUndefined();
+  });
+
+  it('never dates an entry 1970 — the new Date(null) trap', async () => {
+    rows = [published({ slug: 'no-date', updated_at: null })];
+
+    for (const e of await sitemap()) {
+      if (e.lastModified) {
+        // `new Date(null)` is not an error, it is 1970-01-01 — so the old code
+        // would have told crawlers this profile was last modified 56 years ago.
+        expect(new Date(e.lastModified).getUTCFullYear()).toBeGreaterThan(2000);
+      }
     }
   });
 });
