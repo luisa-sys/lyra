@@ -18,6 +18,7 @@
  */
 
 import type { ModerationAction } from '@/lib/admin';
+import type { Database } from '@/types/database';
 
 /** The two axes of the access model (KAN-326). */
 export type UserStatus = 'not_applied' | 'waitlist' | 'live';
@@ -40,8 +41,22 @@ export type AccessAction =
   | 'unsuspend';
 
 export interface AccessTransition {
-  /** The partial `profiles` update to apply. */
-  update: Record<string, unknown>;
+  /**
+   * The partial `profiles` update to apply.
+   *
+   * SEC-132: typed as the generated `profiles` Update row, not
+   * `Record<string, unknown>`. This is the single source of truth for how a
+   * user moves between access states — including `suspend` — and every value
+   * here is written straight to the profiles table by three callers (the admin
+   * console, the waitlist action, and the beta-access flow).
+   *
+   * As `Record<string, unknown>` a misspelled column was accepted by the
+   * compiler AND by PostgREST-via-an-untyped-client, so `user_staus: 'live'`
+   * would have been a silent no-op: the update succeeds, affects the columns it
+   * recognises, and the account simply never transitions. Naming the real row
+   * type makes that a build error.
+   */
+  update: Database['public']['Tables']['profiles']['Update'];
   /** The moderation_logs action string to audit. */
   moderationAction: ModerationAction;
   /** Whether a "you're in" approval email is appropriate for this transition. */

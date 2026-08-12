@@ -96,4 +96,12 @@ export const DELIBERATELY_EXCLUDED: Record<string, string> = {
   // would be self-defeating to erase or hand back on request.
   moderation_logs: 'Art.17(3)(b) — moderation audit trail, ON DELETE RESTRICT',
   erasure_obligations: 'Art.17(3)(b) — the record of erasure itself',
+
+  // SEC-132: a VIEW over `profiles`, not independent storage. All 17 of its
+  // columns are a strict subset of the `profiles` row the same export already
+  // returns in full, so including it would hand the subject a second copy of
+  // data they have already been given rather than anything new. Excluded as
+  // REDUNDANT, not withheld — unlike the entries above, nothing here is absent
+  // from the response. Art.15 is satisfied by the `profiles` row itself.
+  public_profiles: 'SEC-132 — view over profiles; every column already exported via the profiles row',
 };
