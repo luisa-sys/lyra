@@ -3,7 +3,7 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
 import { dbErrorFor } from '@/modules/profile/db-error-copy';

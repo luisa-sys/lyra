@@ -3,7 +3,7 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, sanitiseUrl, type ActionResult } from '@/modules/guards/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import type { WizardItem } from './steps/types';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { getMyFeatureEntitlements } from '@/modules/features/entitlements';

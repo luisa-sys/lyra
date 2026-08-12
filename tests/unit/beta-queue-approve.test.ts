@@ -8,7 +8,7 @@ const mockGetUserById = jest.fn();
 const mockLog = jest.fn();
 const mockEmail = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({ update: () => ({ eq: (...a: unknown[]) => mockUpdateEq(...a) }) }),

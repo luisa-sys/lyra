@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
 import { sendBetaApprovedEmail } from '@/modules/access/beta-access/email';
 
 /**

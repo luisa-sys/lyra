@@ -133,7 +133,7 @@ files rather than deleting them, which is a *narrower* ask than the ticket antic
 
 Live code reached from inside its own file, exported solely for test access. **Not
 dead; do not delete.** Full list in the JSON (`bucket == "OVER-EXPORTED"`). Largest
-concentrations: `src/lib/content-moderation.ts` (8), `dashboard/settings/discoverability-helpers.ts` (6),
+concentrations: `src/modules/contracts/content-moderation.ts` (8), `dashboard/settings/discoverability-helpers.ts` (6),
 `dashboard/profile/visibility.ts` (5), `lib/oauth/jwt.ts` (5), `lib/oauth/refresh.ts` (5).
 
 **Recommended disposition — none, for now.** Narrowing these is a per-module decision to

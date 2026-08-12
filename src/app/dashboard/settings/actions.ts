@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
-import { getAdminServiceClient } from '@/lib/admin';
+import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
@@ -162,7 +162,7 @@ export async function exportUserData(): Promise<string> {
   // and — because nothing errored — indistinguishable from a complete one.
   // Membership of this list is now checked against the schema by
   // tests/unit/sar-export-completeness.test.js; see
-  // src/lib/gdpr/person-keyed-tables.ts.
+  // src/modules/contracts/person-keyed-tables.ts.
 
   // Per-user feature grants (KAN-309). Personal data: it records what this
   // member is permitted to do.

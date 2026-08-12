@@ -76,7 +76,7 @@ Measured: **133 `jest.mock()` calls across 53 files** (full per-file list in the
 
 | Target kind | Count | Move risk | Plan |
 |---|---|---|---|
-| `@/…` alias (e.g. `@/lib/supabase-server` ×28, `@/lib/env` ×14, `@/lib/admin` ×7) | **90** | re-points **automatically** if `jest.config.js` `moduleNameMapper` is updated in lockstep with `tsconfig` paths on every extraction | one config edit per new module alias — add to KAN-428 extraction DoD |
+| `@/…` alias (e.g. `@/lib/supabase-server` ×28, `@/lib/env` ×14, `@/modules/admin/admin` ×7) | **90** | re-points **automatically** if `jest.config.js` `moduleNameMapper` is updated in lockstep with `tsconfig` paths on every extraction | one config edit per new module alias — add to KAN-428 extraction DoD |
 | npm packages (`next/cache` ×18, `@supabase/supabase-js` ×10, …) | 43 | none — package names don't move | none |
 | relative paths | **0** | — | nothing to fix; keep it that way (lint rule candidate) |
 

@@ -58,8 +58,8 @@ MODULE_RULES = [
     # depends on must sit at layer 0. Both files are import-free / I/O-free and
     # plan §3 P5 lists "content moderation" among the six contracts rule-sets;
     # KAN-416 comment 2026-07-27 settled this as option (a).
-    ("src/lib/content-moderation.ts", "contracts"),
-    ("src/lib/moderation-policy.ts", "contracts"),
+    ("src/modules/contracts/content-moderation.ts", "contracts"),
+    ("src/modules/contracts/moderation-policy.ts", "contracts"),
     # --- Layer 0: guards (request/output guarding utilities) JUDGEMENT ---
     ("src/modules/guards/rate-limit.ts", "guards"),
     ("src/modules/guards/rate-limit-shared.ts", "guards"),
@@ -81,7 +81,7 @@ MODULE_RULES = [
     # Resolves the moderation write-path deadlock: trust-safety cannot drop to
     # layer 1 (it also owns api/reports + retention routes) and the writer
     # cannot go in guards (guards must stay edge-safe).
-    ("src/lib/moderation-audit.ts", "audit"),
+    ("src/modules/audit/moderation-audit.ts", "audit"),
     # --- Layer 2: access core ---
     ("src/modules/access/beta-access/", "access"),
     ("src/modules/access/account-status.ts", "access"),
@@ -113,7 +113,7 @@ MODULE_RULES = [
     ("src/modules/dashboard/", "dashboard"),
     ("src/modules/dashboard/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
     ("src/app/dashboard/settings/", "account"),
-    ("src/lib/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
+    ("src/modules/account/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
     ("src/app/api/retention/", "account"),  # FOUNDER-RULED (plan D6 over manifest)
     ("src/lib/recommend/convene/", "convene"),  # FOUNDER-RULED (plan D7 over manifest); KAN-353 turns on this
     ("src/lib/convene/", "convene"),
@@ -144,11 +144,11 @@ MODULE_RULES = [
     ("src/app/service-worker-register.tsx", "marketing-legal"),
     # --- Layer 3: leaf consumer ---
     ("src/app/admin/", "admin"),
-    ("src/lib/admin.ts", "admin"),
+    ("src/modules/admin/admin.ts", "admin"),
 ]
 
 # 21 modules: the plan's 20 + `audit` (founder-approved, KAN-416 R1b).
-# `contracts` seeds from src/lib/content-moderation.ts + moderation-policy.ts
+# `contracts` seeds from src/modules/contracts/content-moderation.ts + moderation-policy.ts
 # (both already import-free and I/O-free) before being published (KAN-415/418).
 ALL_MODULES = [
     "platform", "contracts",
@@ -460,11 +460,11 @@ CHANGE_PROCESS = {
 DECLARED_API = {
     "audit": [
         {"symbol": "recordModerationFlag", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
         {"symbol": "logModerationAction", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
         {"symbol": "auditedMutation", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
     ],
 }
 

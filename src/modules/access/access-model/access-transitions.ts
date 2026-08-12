@@ -17,7 +17,7 @@
  * Date.now() and no I/O, and it is directly unit-testable without a DB.
  */
 
-import type { ModerationAction } from '@/lib/admin';
+import type { ModerationAction } from '@/modules/admin/admin';
 import type { Database } from '@/types/database';
 
 /** The two axes of the access model (KAN-326). */

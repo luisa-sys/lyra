@@ -23,7 +23,7 @@ const mockLogBatch = jest.fn();
 const mockEmail = jest.fn();
 const mockRpc = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({

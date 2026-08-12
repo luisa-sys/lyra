@@ -13,7 +13,7 @@ import {
   DEFAULT_AFFILIATE_CLICKS_RETENTION_MONTHS,
   affiliateClicksRetentionMonths,
   affiliateClicksCutoff,
-} from '@/lib/retention/affiliate-clicks';
+} from '@/modules/account/retention/affiliate-clicks';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const ORIG = process.env.RETENTION_AFFILIATE_CLICKS_MONTHS;
