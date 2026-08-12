@@ -435,11 +435,11 @@ both contain live code. That is expected, not drift.
 | **D2** | `oauth-as` | ✅ done |
 | **D3** | — | ✅ resolved by decision (#735) |
 | **D4** | `access` — the middleware gate pipeline | ✅ on `main` |
-| **D5** | `features` | PR #747 |
-| **D6** | `age` + `auth` | PR #754 |
+| **D5** | `features` | ✅ done — but NOT via [#747](https://github.com/luisa-sys/lyra/pull/747), which is **closed unmerged**; the work reached `develop` by another route |
+| **D6** | `age` + `auth` | ✅ done (PR #754) |
 | **D7** | `trust-safety` | ✅ done (PR #756) |
 | **D8** | `profile` domain core | ✅ done (PR #756) |
-| **D9** | `public-profile` | PR #768 (KAN-473) — SEC-104 gate lifted |
+| **D9** | `public-profile` | ✅ done (PR #768, KAN-473) — SEC-104 gate lifted |
 | **convene** | — | 🚫 **PERMANENTLY OUT** |
 
 **Convene is out of the programme** and stays out unless Convene itself is turned
@@ -448,6 +448,17 @@ order. It is dark (`CONVENE_ENABLED` false everywhere, routes 404), so extractin
 ~7k LOC buys nothing and has no E2E or soak cover. The marker in `modules.json`
 is enforced by CTL-041; deleting it reddens the suite. See
 `docs/modularisation/CONVENE-DEFERRED.md`.
+
+**Every numbered step D1–D9 is now on `develop`.** What remains is the **TAIL**:
+modules `modules.json` already declares whose paths still sit in `src/lib/`.
+That is bookkeeping, not a numbered step, and it is nearly done — `src/lib/`
+holds 50 tracked files, of which **27 are Convene and permanently out of
+scope**, leaving `affiliate` (7) and `recommendations` (16).
+
+⚠️ **Verify the state against the TREE, not this table.** D5's row said "PR
+#747" for weeks while that PR sat closed-unmerged and the work was already on
+`develop` — the row was wrong in the direction that makes you redo finished
+work. `git ls-files src/modules/<name>` answers it in one command.
 
 `modules.json` is the authoritative module manifest — check it, not this table,
 for which paths belong to which module.
