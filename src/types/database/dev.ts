@@ -750,6 +750,32 @@ export type Database = {
           },
         ]
       }
+      gift_suggestion_dismissals: {
+        Row: {
+          dismissed_at: string
+          profile_id: string
+          suggestion_key: string
+        }
+        Insert: {
+          dismissed_at?: string
+          profile_id: string
+          suggestion_key: string
+        }
+        Update: {
+          dismissed_at?: string
+          profile_id?: string
+          suggestion_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_suggestion_dismissals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_feature_switches: {
         Row: {
           created_at: string
@@ -1973,6 +1999,28 @@ export type Database = {
           ip: string | null
           last_seen: string | null
           request_count: number | null
+        }
+        Relationships: []
+      }
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio_short: string | null
+          city: string | null
+          country: string | null
+          delivery_country_code: string | null
+          display_name: string | null
+          gift_voucher_hint: string | null
+          headline: string | null
+          homepage_example_order: number | null
+          id: string | null
+          is_homepage_example: boolean | null
+          is_published: boolean | null
+          is_suspended: boolean | null
+          section_visibility: Json | null
+          slug: string | null
+          updated_at: string | null
+          user_id: string | null
         }
         Relationships: []
       }
