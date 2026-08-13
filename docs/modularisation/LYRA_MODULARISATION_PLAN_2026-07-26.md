@@ -276,6 +276,40 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 
 > **⚠️ HARD DEPENDENCY: C2 must not start before [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) resolves.** This section and story **C2** specify all 9 rules blocking at severity `error`. SEC-105 (open) says that gate has **already caused six pipeline outages over dev-only code that never ships**, while the production tree it was protecting was never dirty. Both cannot be right, and enacting C2 as written would scale a control a live SEC ticket says is mis-scoped. This matters beyond the gate itself: §1.4's *"only a CI gate does the 90%"* is the justification for this programme's cost, so if the gate's **scoping** is wrong, the argument needs re-stating rather than the gate merely re-tuning. Resolve SEC-105 first, then re-derive what C2 should block on.
 
+> **📌 Amended 2026-08-13 (KAN-415, CTL-051) — two of the nine rules have landed, and the hard dependency above STILL STANDS for the other seven.**
+>
+> **SEC-105 is still `To Do`** (checked 2026-08-13; untouched since 2026-07-27). Read the paragraph above before adding any further rule.
+>
+> **What landed** — `scripts/check-module-layering.py`, blocking in `pr-checks.yml`:
+>
+> | rule | source | violations when it landed |
+> |---|---|---|
+> | the layer rule (incl. `platform-is-a-leaf`, which it subsumes: platform is L0 with an empty `mayDependOn`, so every outgoing edge is upward or undeclared) | `layer` + `layerPolicy.declaredSameLayer` | 12 |
+> | `mustNot` | `mustNot` | (overlapping) |
+> | `no-undeclared-module-dep` | `mayDependOn` | 1 |
+>
+> **Why these two do not trip the hard dependency.** SEC-105's defect is not "a gate blocks"; it is three specific properties, and CTL-051 has none of them:
+>
+> 1. *It is keyed on a third-party feed and can go red overnight on an unchanged repo.* CTL-051 reads Lyra's own import graph and `modules.json`. It can only be tripped by a change in the PR — the property SEC-105 says every other gate in the estate has and the npm-audit gate lacks.
+> 2. *It blocks a deploy over code that never ships.* CTL-051 runs in `pr-checks.yml` only, never in a deploy workflow.
+> 3. *It has no waiver primitive.* CTL-051 ships **green** against a shrink-only two-way baseline, and the escape route is explicit: declare the dependency in `modules.json`, or record it via `--write-baseline`. The one exception is a manifest self-contradiction, which is deliberately un-waivable — see the script's docstring.
+>
+> **What is still blocked, and why the line falls where it does.** The two landed rules had **12** and **1** violations. The remaining ones do not:
+>
+> - `no-deep-module-import` — **142**
+> - `app-routes-are-thin` — *"many"*
+>
+> Making either blocking means shipping either a red build or a ~142-entry suppression list, and *that* is precisely the "scale a control before its scoping is settled" move the hard dependency exists to prevent. A 142-entry baseline is a suppression list wearing a ratchet's clothes. Neither may land until SEC-105 resolves and C2's blocking scope is re-derived.
+>
+> Two of the remaining seven are also blocked on missing data rather than on SEC-105, and would be even if it closed tomorrow:
+>
+> - `no-deep-module-import` needs each module's **`declaredApi`**, which is `[]` for all 21. `publicApi` is populated but is *observed* data — enforcing it as policy would freeze today's graph and call it an architecture. Somebody has to decide what each module's public API **is**.
+> - `app-routes-are-thin` has no definition of "thin" anywhere in `modules.json`.
+>
+> `edge-safe` and `backoffice-not-in-request-path` need neither SEC-105 nor new manifest data, but were not landed here: the Next build already fails on a Node-only import reachable from `middleware.ts`, so `edge-safe` would largely duplicate it, and neither was measured. Both remain open.
+>
+> **Also measured and recorded here so it is not re-derived:** the module graph has **four cycles** — `access↔admin`, `admin↔trust-safety`, `age↔auth`, `profile↔recommendations` — all invisible to depcruise's file-level `no-circular`, which reports zero. Each is one legal downward edge plus one upward edge the layer rule already flags, so no cycle rule was added; driving the upward edges to zero makes them unrepresentable.
+
 ### 4.3 The data boundary — where the real coupling is
 
 - **`scripts/check-module-table-ownership.sh`** — parses every `.from('<table>')` and `.rpc('<fn>')` in `src/`, maps the file to its module by path, fails if the table is not in that module's `owns` list. `profiles` is enforced at **column** granularity.
