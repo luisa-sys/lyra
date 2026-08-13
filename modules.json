@@ -2608,8 +2608,7 @@
       "publicApi": [],
       "declaredApi": [],
       "mayDependOn": [
-        "platform",
-        "admin"
+        "platform"
       ],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [
@@ -2810,7 +2809,8 @@
         "affiliate",
         "features",
         "observability",
-        "platform"
+        "platform",
+        "trust-safety"
       ],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],

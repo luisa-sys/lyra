@@ -43,6 +43,35 @@ For every import edge between two different modules:
    the layer rule today, and kept because the two are independent declarations:
    if someone renumbers a layer, this catches the edge the renumbering just
    legalised. Two statements of the same intent that must agree.
+3. DECLARED DEPENDENCY (KAN-415 C2 `no-undeclared-module-dep`). `dst` must
+   appear in `src`'s `mayDependOn`. This is the rule that catches what the
+   layer rule structurally CANNOT: a *downward* edge is legal at every layer,
+   so without this any module may quietly acquire a dependency on any lower
+   one. Measured when it landed: of 62 cross-module edges, 50 were declared, 9
+   sat in `mayDependOnCandidatesPendingDecision` and 3 were declared nowhere.
+   The two are reported as distinct kinds — `pending-decision` records an
+   architecture question the manifest itself says is open, `undeclared-dep` is
+   plain drift — because collapsing them would lose the only signal
+   distinguishing "not decided" from "not noticed".
+
+...and, before any of that, the manifest is checked against ITSELF.
+
+   A permission that contradicts the policy is worse than a missing one,
+   because it reads as approval. `trust-safety.mayDependOn` contained `admin`
+   — an L3 -> L4 edge, which `layerPolicy` calls forbidden absolutely, so the
+   grant could never be honoured — while the same edge ALSO sat in that
+   module's pending-decision list. One entry claiming the question was both
+   settled and open. Contradictions are NOT baselineable: a baseline records an
+   accepted violation of the policy, and an incoherent policy has nothing to
+   violate. Fix the manifest.
+
+MODULE-LEVEL CYCLES ARE ALREADY COVERED — deliberately not a fourth rule.
+depcruise's `no-circular` works on FILES and reports zero, but the module graph
+has four cycles: access<->admin, admin<->trust-safety, age<->auth and
+profile<->recommendations. Each is one legal downward edge plus one upward edge
+that rule 1 already flags, which is the point of a strict layering — drive the
+upward edges to zero and cycles become unrepresentable. A separate cycle check
+would add a second baseline listing the same edges.
 
 ⚠️ TWO-WAY RATCHET, NOT A SUPPRESSION LIST.
 The 12 violations present when this landed are grandfathered in
@@ -120,6 +149,66 @@ def same_layer_allowances(manifest: dict) -> dict[str, set[str]]:
     return out
 
 
+def contradictions(manifest: dict) -> list[str]:
+    """Places where the manifest disagrees with itself.
+
+    Checked BEFORE the graph, and never baselineable. A baseline records an
+    accepted violation OF the policy; an incoherent policy is not something an
+    edge can violate, so grandfathering one would mean grandfathering the
+    yardstick. Every finding here is fixed by editing modules.json.
+
+    The one that motivated this: `trust-safety.mayDependOn` granted `admin`,
+    an L3 -> L4 edge the same file calls "FORBIDDEN ABSOLUTELY", while listing
+    that identical edge as an open question in its pending-decision list. A
+    grant that can never be honoured is not harmless — it reads as approval to
+    anyone checking whether the dependency is allowed, and it would activate
+    silently the day layer precedence changed.
+    """
+    modules = manifest["modules"]
+    layer = {n: d["layer"] for n, d in modules.items()}
+    same = same_layer_allowances(manifest)
+    found: list[str] = []
+
+    for name in sorted(modules):
+        mod = modules[name]
+        may = list(mod.get("mayDependOn", []))
+        pending = list(mod.get("mayDependOnCandidatesPendingDecision", []))
+        must = list(mod.get("mustNot", []))
+
+        for field, targets in (
+            ("mayDependOn", may),
+            ("mayDependOnCandidatesPendingDecision", pending),
+            ("mustNot", must),
+        ):
+            for t in targets:
+                if t not in modules:
+                    found.append(f"{name}.{field} names `{t}`, which is not a module")
+
+        for t in may:
+            if t not in modules:
+                continue
+            if layer[t] > layer[name]:
+                found.append(
+                    f"{name}.mayDependOn grants `{t}` — an UPWARD edge "
+                    f"L{layer[name]} -> L{layer[t]}, which layerPolicy forbids "
+                    f"absolutely. The grant can never be honoured."
+                )
+            elif layer[t] == layer[name] and t not in same.get(name, set()):
+                found.append(
+                    f"{name}.mayDependOn grants `{t}` — a same-layer L{layer[name]} "
+                    f"edge absent from layerPolicy.declaredSameLayer."
+                )
+            if t in must:
+                found.append(f"{name} declares `{t}` in BOTH mayDependOn and mustNot")
+            if t in pending:
+                found.append(
+                    f"{name} declares `{t}` in BOTH mayDependOn and "
+                    f"mayDependOnCandidatesPendingDecision — settled and open at once"
+                )
+
+    return found
+
+
 # --------------------------------------------------------------------------
 # graph
 # --------------------------------------------------------------------------
@@ -177,19 +266,31 @@ def classify(graph: dict, manifest: dict) -> dict:
 
     violations = []
     for (src, dst), examples in sorted(edges.items()):
-        reasons = []
+        # (kind, detail). The KIND is what the ratchet compares — a stable
+        # enum, so rewording a message does not invalidate every baseline
+        # entry, while an edge that starts violating for an ADDITIONAL reason
+        # still fails instead of hiding under a key that is already listed.
+        reasons: list[tuple[str, str]] = []
         if layer[dst] > layer[src]:
-            reasons.append(f"UPWARD edge L{layer[src]} -> L{layer[dst]} (forbidden absolutely)")
+            reasons.append(("upward", f"UPWARD edge L{layer[src]} -> L{layer[dst]} (forbidden absolutely)"))
         elif layer[dst] == layer[src] and dst not in same.get(src, set()):
-            reasons.append(f"same-layer L{layer[src]} edge not in declaredSameLayer")
+            reasons.append(("same-layer", f"same-layer L{layer[src]} edge not in declaredSameLayer"))
         if dst in modules[src].get("mustNot", []):
-            reasons.append(f"`{dst}` is in `{src}`.mustNot")
+            reasons.append(("must-not", f"`{dst}` is in `{src}`.mustNot"))
+        if dst not in modules[src].get("mayDependOn", []):
+            if dst in modules[src].get("mayDependOnCandidatesPendingDecision", []):
+                reasons.append(
+                    ("pending-decision", f"`{dst}` is only a PENDING candidate in `{src}`.mayDependOn")
+                )
+            else:
+                reasons.append(("undeclared-dep", f"`{dst}` is not in `{src}`.mayDependOn"))
         if reasons:
             violations.append(
                 {
                     "from": src,
                     "to": dst,
-                    "reasons": reasons,
+                    "kinds": sorted(k for k, _ in reasons),
+                    "reasons": [d for _, d in reasons],
                     "example": f"{examples[0][0]} -> {examples[0][1]}",
                     "edge_count": len(examples),
                 }
@@ -202,19 +303,50 @@ def key(v: dict) -> str:
     return f"{v['from']} -> {v['to']}"
 
 
+def baselined_kinds(entry: object) -> list[str]:
+    """The kinds recorded for one baseline entry."""
+    if isinstance(entry, dict):
+        return sorted(entry.get("kinds", []))
+    # A pre-kinds baseline (or a hand-written stub) carries no kind data. Treat
+    # it as matching whatever is found rather than inventing a mismatch — the
+    # key-level ratchet still applies, and --write-baseline upgrades it.
+    return []
+
+
 def evaluate(actual: dict, baseline: dict) -> list[str]:
-    """Two-way: NEW violations fail, and FIXED-but-still-baselined ones fail."""
-    was = set(baseline.get("violations", {}))
+    """Three-way: NEW fails, FIXED-but-still-baselined fails, and a baselined
+    edge that acquires a violation kind it was not baselined for fails too.
+
+    That third case is the one a key-only comparison misses. When rule 3 was
+    added, every already-baselined edge could have silently absorbed it —
+    the key was listed, so nothing would have gone red, and a new class of
+    violation would have arrived pre-suppressed on twelve edges.
+    """
+    was = baseline.get("violations", {})
     now = {key(v): v for v in actual["violations"]}
     failures = []
-    for k in sorted(set(now) - was):
+    for k in sorted(set(now) - set(was)):
         v = now[k]
         failures.append(f"NEW  {k} — {'; '.join(v['reasons'])}\n         e.g. {v['example']}")
-    for k in sorted(was - set(now)):
+    for k in sorted(set(was) - set(now)):
         failures.append(
             f"STALE  {k} is baselined but no longer violates. "
             f"Remove it from the baseline in the same commit that fixed it."
         )
+    for k in sorted(set(now) & set(was)):
+        had, has = baselined_kinds(was[k]), now[k]["kinds"]
+        if had and had != has:
+            gained = sorted(set(has) - set(had))
+            lost = sorted(set(had) - set(has))
+            what = []
+            if gained:
+                what.append(f"newly violates: {', '.join(gained)}")
+            if lost:
+                what.append(f"no longer violates: {', '.join(lost)}")
+            failures.append(
+                f"CHANGED  {k} is baselined, but for different reasons "
+                f"({'; '.join(what)}). A baselined key is not a blanket permit."
+            )
     return failures
 
 
@@ -231,10 +363,10 @@ def self_test() -> int:
             failures.append(f"{label}\n     got:  {got!r}\n     want: {want!r}")
 
     mods = {
-        "kernel": {"layer": 0, "paths": ["src/k/"], "mustNot": ["ui"]},
-        "mid": {"layer": 1, "paths": ["src/m/"], "mustNot": []},
-        "midb": {"layer": 1, "paths": ["src/b/"], "mustNot": []},
-        "ui": {"layer": 2, "paths": ["src/u/"], "mustNot": []},
+        "kernel": {"layer": 0, "paths": ["src/k/"], "mustNot": ["ui"], "mayDependOn": []},
+        "mid": {"layer": 1, "paths": ["src/m/"], "mustNot": [], "mayDependOn": ["kernel", "midb"]},
+        "midb": {"layer": 1, "paths": ["src/b/"], "mustNot": [], "mayDependOn": ["kernel"]},
+        "ui": {"layer": 2, "paths": ["src/u/"], "mustNot": [], "mayDependOn": ["mid"]},
     }
     manifest = {
         "modules": mods,
@@ -262,9 +394,16 @@ def self_test() -> int:
     r = classify(graph_of([("src/k/a.ts", "src/u/b.ts")]), manifest)
     check("an upward edge violates", len(r["violations"]), 1)
     check("upward is reported as upward", "UPWARD" in r["violations"][0]["reasons"][0], True)
-    # kernel.mustNot names ui, so BOTH reasons must fire — the two declarations
-    # are independent and a violation should say so.
-    check("mustNot is reported alongside", len(r["violations"][0]["reasons"]), 2)
+    # kernel.mustNot names ui, and kernel.mayDependOn is empty, so all three
+    # rules must fire — they are independent declarations and a violation
+    # should say so. Asserted by NAME rather than by count: a count of N is
+    # satisfied by any N reasons, and this assertion exists to prove that
+    # `mustNot` is reported ALONGSIDE the layer rule rather than instead of it.
+    check(
+        "every independent rule that the edge breaks is reported",
+        r["violations"][0]["kinds"],
+        ["must-not", "undeclared-dep", "upward"],
+    )
 
     # --- same-layer: declared vs undeclared -------------------------------
     r = classify(graph_of([("src/m/a.ts", "src/b/b.ts")]), manifest)
@@ -278,18 +417,60 @@ def self_test() -> int:
     r = classify(graph_of([("src/u/a.ts", "src/m/b.ts")]), m2)
     check("mustNot catches an otherwise-legal downward edge", len(r["violations"]), 1)
 
+    # --- rule 3: the declared-dependency rule -----------------------------
+    # ui.mayDependOn lists `mid` but not `kernel`. Both edges are DOWNWARD and
+    # so indistinguishable to rule 1 — which is exactly the gap rule 3 fills.
+    r = classify(graph_of([("src/u/a.ts", "src/k/b.ts")]), manifest)
+    check("an undeclared downward edge violates", len(r["violations"]), 1)
+    check("...and is reported as undeclared", r["violations"][0]["kinds"], ["undeclared-dep"])
+    r = classify(graph_of([("src/u/a.ts", "src/m/b.ts")]), manifest)
+    check("a DECLARED downward edge stays legal", r["violations"], [])
+
+    m3 = json.loads(json.dumps(manifest))
+    m3["modules"]["ui"]["mayDependOnCandidatesPendingDecision"] = ["kernel"]
+    r = classify(graph_of([("src/u/a.ts", "src/k/b.ts")]), m3)
+    check(
+        "an OPEN question is a distinct kind, not silent approval",
+        r["violations"][0]["kinds"],
+        ["pending-decision"],
+    )
+
     # --- ratchet ----------------------------------------------------------
     actual = classify(graph_of([("src/k/a.ts", "src/u/b.ts")]), manifest)
     check("a NEW violation fails", any("NEW" in f for f in evaluate(actual, {"violations": {}})), True)
-    check(
-        "a baselined violation passes",
-        evaluate(actual, {"violations": {"kernel -> ui": "fixture"}}),
-        [],
-    )
+    base_ku = {"violations": {"kernel -> ui": {"kinds": actual["violations"][0]["kinds"]}}}
+    check("a baselined violation passes", evaluate(actual, base_ku), [])
     check(
         "a FIXED baselined violation fails as stale",
-        any("STALE" in f for f in evaluate({"edges": 0, "violations": []},
-                                           {"violations": {"kernel -> ui": "fixture"}})),
+        any("STALE" in f for f in evaluate({"edges": 0, "violations": []}, base_ku)),
+        True,
+    )
+    # The case a key-only ratchet misses: same edge, extra rule broken.
+    check(
+        "a baselined edge that gains a violation kind fails as CHANGED",
+        any("CHANGED" in f for f in evaluate(actual, {"violations": {"kernel -> ui": {"kinds": ["upward"]}}})),
+        True,
+    )
+
+    # --- manifest self-consistency ----------------------------------------
+    check("a coherent manifest has no contradictions", contradictions(manifest), [])
+    m4 = json.loads(json.dumps(manifest))
+    m4["modules"]["kernel"]["mayDependOn"] = ["ui"]
+    got = contradictions(m4)
+    check("an unhonourable upward GRANT is a contradiction", len(got), 2)  # upward + mustNot clash
+    check("...and says so", any("UPWARD" in g for g in got), True)
+    m5 = json.loads(json.dumps(manifest))
+    m5["modules"]["ui"]["mayDependOn"] = ["mid", "ghost"]
+    check(
+        "a grant naming a non-module is a contradiction",
+        any("not a module" in g for g in contradictions(m5)),
+        True,
+    )
+    m6 = json.loads(json.dumps(manifest))
+    m6["modules"]["ui"]["mayDependOnCandidatesPendingDecision"] = ["mid"]
+    check(
+        "settled-and-open at once is a contradiction",
+        any("settled and open at once" in g for g in contradictions(m6)),
         True,
     )
 
@@ -315,7 +496,7 @@ def self_test() -> int:
     return 0
 
 
-SELF_TEST_CASES = 16
+SELF_TEST_CASES = 27
 
 
 # --------------------------------------------------------------------------
@@ -342,19 +523,50 @@ def main() -> int:
         print("::error::  Failing closed (exit 2): a check that could not run is not a clean result.")
         return 2
 
+    # The manifest is judged before the graph. A contradiction means the
+    # yardstick is bent, and every verdict measured against it is suspect —
+    # including a clean one. Not baselineable, and not exit 2 either: the check
+    # ran fine, it found a defect.
+    if bad := contradictions(manifest):
+        print("::error::modules.json contradicts itself.")
+        for c in bad:
+            print(f"::error::  {c}")
+        print()
+        print("A permission the policy forbids is worse than a missing one: it reads as")
+        print("approval. Fix modules.json — these are not baselineable, because a baseline")
+        print("records an accepted violation of the policy, and an incoherent policy has")
+        print("nothing to violate.")
+        return 1
+
     if args.write_baseline:
         payload = {
             "_why": [
-                "CTL-051. Cross-module edges that violate the layer policy modules.json",
-                "declares, as they stood when the control landed. Grandfathered so it",
-                "could ship green.",
+                "CTL-051. Cross-module edges that violate the dependency policy",
+                "modules.json declares — the layer rule, `mustNot`, and `mayDependOn` —",
+                "as they stood when each rule landed. Grandfathered so the control could",
+                "ship green.",
                 "",
                 "SHRINK-ONLY, BOTH WAYS. A new violation fails; a baselined one that has",
                 "been FIXED also fails, so this cannot become a place to record drift.",
                 "Regenerate with --write-baseline in the same commit that fixes one.",
+                "",
+                "`kinds` is part of the ratchet. A key listed here is not a blanket",
+                "permit: if a baselined edge starts violating for an ADDITIONAL reason,",
+                "that fails too. Without it, adding a rule would have arrived",
+                "pre-suppressed on every edge already listed.",
+                "",
+                "`pending-decision` means the manifest itself records the architecture",
+                "question as open (mayDependOnCandidatesPendingDecision), as against",
+                "`undeclared-dep`, which is a dependency nobody declared at all.",
             ],
             "ticket": "KAN-415",
-            "violations": {key(v): f"{'; '.join(v['reasons'])} | e.g. {v['example']}" for v in actual["violations"]},
+            "violations": {
+                key(v): {
+                    "kinds": v["kinds"],
+                    "detail": f"{'; '.join(v['reasons'])} | e.g. {v['example']}",
+                }
+                for v in actual["violations"]
+            },
         }
         BASELINE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote {BASELINE.name}: {len(actual['violations'])} violation(s) across {actual['edges']} edges")
@@ -384,13 +596,18 @@ def main() -> int:
             print(f"::error::  {f}")
         print()
         print("modules.json declares: edge src->dst is allowed iff layer(dst) < layer(src),")
-        print("or dst is in declaredSameLayer[src]. An UPWARD edge is forbidden absolutely —")
-        print("no declaration can legalise one.")
+        print("or dst is in declaredSameLayer[src]; dst is absent from src.mustNot; and dst")
+        print("is present in src.mayDependOn. An UPWARD edge is forbidden absolutely — no")
+        print("declaration can legalise one.")
         print()
         print("A NEW violation means an import crossed a boundary the architecture forbids.")
         print("Move the shared code down a layer, or make the dependency explicit in")
-        print("modules.json if the architecture is what changed. A STALE entry means a")
-        print("violation was fixed without shrinking the baseline:")
+        print("modules.json if the architecture is what changed. `undeclared-dep` alone")
+        print("means the edge is legal by layer but nobody declared it — usually one line")
+        print("added to mayDependOn, and the point is that the line is reviewed. A STALE")
+        print("entry means a violation was fixed without shrinking the baseline; a CHANGED")
+        print("entry means a baselined edge now breaks a rule it was not baselined for.")
+        print("Both are resolved the same way:")
         print("    python3 scripts/check-module-layering.py --write-baseline")
         return 1
 

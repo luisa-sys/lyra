@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 214,
+  "count": 215,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -183,6 +183,7 @@
     "consentFlow": "src/modules/oauth-as/consent-flow.ts",
     "clientTrust": "src/modules/oauth-as/lib/client-trust.ts",
     "clients": "src/modules/oauth-as/lib/clients.ts",
+    "metrics": "src/modules/observability/metrics.ts",
     "platformEnv": "src/modules/platform/env.ts",
     "supabaseServer": "src/modules/platform/supabase-server.ts",
     "supabaseService": "src/modules/platform/supabase-service.ts",
