@@ -186,3 +186,93 @@ jobs:
           echo "working: regenerate the snapshot for the environment you migrated. Do"
           echo "NOT leave it red across days — a red you learn to expect is a control"
           echo "you have switched off."
+
+  ledger-parity:
+    name: The repo can rebuild the schema (CTL-049, daily)
+    # SEC-137 — the axis no other database control looks at.
+    #
+    # CTL-036 compares the three committed snapshots to each other. CTL-048
+    # compares each live database to its own snapshot. `invariants` above asks
+    # each database for its privilege posture. Every one of them asks "is the
+    # schema RIGHT?" — and on 2026-08-12 all three were green and all three
+    # were correct.
+    #
+    # None of them reads supabase/migrations/. So nothing asserted that the SQL
+    # in the repo can REPRODUCE the databases, which is the only question that
+    # matters the day one is lost. It cannot: mcp_tool_call_log and
+    # content_moderation_flags are live tables on all three environments with
+    # no migration SQL in version control, and production's ledger has no row
+    # for create_lyra_schema.
+    #
+    # WHY A SEPARATE JOB: same reason snapshot-freshness is separate. The
+    # `invariants` job's failure handler prints a SECURITY DEFINER message.
+    # A finding that describes itself wrongly is how an operator learns to
+    # skim the annotations.
+    #
+    # WHY NOT ON pull_request: a PR cannot change what a database has applied,
+    # so gating every PR on it would be an unsatisfiable required check — and
+    # the first response to one of those is to switch it off. The comparison
+    # LOGIC is exercised on every PR via --self-test in pr-checks.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+
+      - name: Self-test the checker
+        # Prove the comparison and the two-way ratchet can still fail before
+        # trusting anything this job says about live state.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-migration-ledger-parity.py --self-test
+
+      - name: Assert the credential is present
+        # NO SILENT SKIP (KAN-167). A missing token must fail loudly rather
+        # than quietly reduce coverage — SEC-136 is a live example of the same
+        # defect in this repo's own weekly audit.
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is not set."
+            echo "::error::Refusing to run a check that would report clean without"
+            echo "::error::having contacted a single database."
+            exit 1
+          fi
+          echo "Management API token present."
+
+      - name: Compare each ledger against supabase/migrations/
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        # Deliberately NOT --ledger-dir. That seam reads local files and exists
+        # only for generating the first baseline; a control that can be handed
+        # its own answer is a control that can be made to agree with anything.
+        run: python3 scripts/check-migration-ledger-parity.py
+
+      - name: Raise the finding
+        if: failure()
+        run: |
+          set -euo pipefail
+          echo "::error::The repo and a database no longer agree about what has been applied."
+          echo ""
+          echo "Two shapes, and the annotations above say which:"
+          echo ""
+          echo "  NEW ... applied to the database but NOT in the repo"
+          echo "      Someone applied SQL that was never committed. This is the"
+          echo "      unrebuildable case: if that database were lost, this change"
+          echo "      would not come back. Commit the migration SQL."
+          echo ""
+          echo "  NEW ... in the repo but NOT recorded as applied"
+          echo "      A committed migration no ledger knows about. Either apply it,"
+          echo "      or work out which ledger row it actually corresponds to."
+          echo ""
+          echo "  STALE ... baselined but no longer diverges"
+          echo "      Something got FIXED without shrinking the baseline. Regenerate:"
+          echo "          python3 scripts/check-migration-ledger-parity.py --write-baseline"
+          echo "      This half is what stops the baseline becoming a suppression list."
+          echo ""
+          echo "The usual cause is CLAUDE.md gotcha #9: migrations are applied with the"
+          echo "Supabase MCP apply_migration tool, which writes to the database and its"
+          echo "ledger but does NOT write a file into the repo. Committing the SQL is a"
+          echo "separate step, and a separate step is one that can be missed."
+          echo ""
+          echo "Context: SEC-137."

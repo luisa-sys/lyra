@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 208 entries.
+// 210 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -53,6 +53,7 @@ export const SRC = {
   checkFixOnlyPromote: 'scripts/check-fix-only-promote.sh',
   checkGuardPathDrift: 'scripts/check-guard-path-drift.py',
   checkLiveSchemaParity: 'scripts/check-live-schema-parity.py',
+  checkMigrationLedgerParity: 'scripts/check-migration-ledger-parity.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
@@ -212,6 +213,7 @@ export const SRC = {
   index: 'src/types/database/index.ts',
   prod: 'src/types/database/prod.ts',
   staging: 'src/types/database/staging.ts',
+  migrationLedgerBaseline: 'supabase/migration-ledger-baseline.json',
   migrations: 'supabase/migrations',
   migrations20260330120000AddAvatarUrlAndStorage: 'supabase/migrations/20260330120000_add_avatar_url_and_storage.sql',
   migrations20260516160000AddCurrentProblemsCategory: 'supabase/migrations/20260516160000_add_current_problems_category.sql',

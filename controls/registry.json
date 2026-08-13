@@ -866,6 +866,24 @@
       ],
       "escape_hatch": "none - apply the missing migration, or record the difference in supabase/schema-drift-baseline.json with a ticket",
       "added": "2026-08-11"
+    },
+    {
+      "id": "CTL-049",
+      "name": "Migration ledger parity",
+      "defect_class": "unrebuildable-schema",
+      "summary": "Asks whether supabase/migrations/ can REBUILD the databases, which is the axis no other database control looks at. CTL-036 diffs the three committed snapshots against each other; CTL-048 diffs each live database against its own snapshot; check-db-invariants.py asks each database for its privilege posture. All three ask 'is the schema right?', all three were green on 2026-08-12, and all three were correct - none of them reads supabase/migrations/ at all. Measured when this landed: of 82 committed migrations, exactly 1 could be identified in dev's ledger by both version and name, 0 in staging, 1 in prod. mcp_tool_call_log and content_moderation_flags are live tables on all three environments whose creating SQL does not exist in version control; several of the other orphans are the June 2026 anon-grant and SECURITY DEFINER revokes, so a rebuild would be insecure in exactly the way the repo appears to have fixed. Production's ledger has no row for create_lyra_schema at all, and add_api_keys is in the repo with a live table on every environment while no ledger records it as ever having run. The failure was invisible because it is not drift BETWEEN environments - those are mutually consistent - but between the running system and its source of truth. Root cause is gotcha #9: apply_migration writes to the database and its ledger but not to the repo, so committing the SQL is a separate step. Two-way ratchet against supabase/migration-ledger-baseline.json: a NEW divergence fails, and a baselined one that has been RESOLVED also fails, so the file cannot become a suppression list. Fails closed on a missing token, a non-200, or an unparseable body. Read-only: DELETE on the same path rolls migrations out of the history table, so the method is hard-coded and asserted.",
+      "implementation": "scripts/check-migration-ledger-parity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/db-invariants.yml",
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-137",
+        "SEC-134"
+      ],
+      "escape_hatch": "none - commit the migration SQL that was applied out-of-band, or apply the migration that was committed; a divergence that is accepted goes in supabase/migration-ledger-baseline.json via --write-baseline, never by hand",
+      "added": "2026-08-12"
     }
   ]
 }
