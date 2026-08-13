@@ -15,12 +15,12 @@
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { env } from '@/modules/platform/env';
 import { sendBetaQueueNotice } from './email';
-import { computeAccessTransition, type AccessTier, type UserStatus } from '@/lib/access-model';
+import { computeAccessTransition, type AccessTier, type UserStatus } from '@/modules/access/access-model';
 
 const BETA_HOST = 'https://beta.checklyra.com';
 const PROD_HOST = 'https://checklyra.com';
 
-// KAN-424 (F2): the access-model axes now live in @/lib/access-model; re-exported
+// KAN-424 (F2): the access-model axes now live in @/modules/access/access-model; re-exported
 // here so this module's long-standing public surface is unchanged.
 export type { UserStatus, AccessTier };
 

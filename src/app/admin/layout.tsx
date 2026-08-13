@@ -15,7 +15,7 @@
 
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentAdmin } from '@/lib/admin';
+import { getCurrentAdmin } from '@/modules/admin/admin';
 
 export const metadata = {
   title: 'Admin — Lyra',

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 
 import { env } from '@/modules/platform/env';
-import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
+import { INVITE_COOKIE } from '@/modules/access/beta-access/invite-cookie';
 import { isEmailResendCooldown } from './auth-errors';
 import {
   AGE_DECLARATION_COOKIE,

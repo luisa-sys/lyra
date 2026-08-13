@@ -59,10 +59,10 @@ is_protected() {
   [[ $f == */route.ts ]]      && return 1     # any route handler = logic
   [[ $f == src/middleware.ts ]] && return 1
   # --- named user-facing copy modules ---
-  [[ $f == src/lib/invite-text.ts ]] && return 0
+  [[ $f == src/modules/dashboard/invite-text.ts ]] && return 0
   [[ $f == src/lib/convene/invites/templates.ts ]] && return 0
   [[ $f == src/lib/convene/invites/sms-templates.ts ]] && return 0
-  [[ $f == src/lib/beta-access/email.ts ]] && return 0
+  [[ $f == src/modules/access/beta-access/email.ts ]] && return 0
   [[ $f == src/app/dashboard/profile/affiliation-fields.ts ]] && return 0
   [[ $f == src/app/dashboard/convene/organise/organise-fields.ts ]] && return 0
   # --- design / styling / brand ---

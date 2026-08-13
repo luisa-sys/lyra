@@ -8,7 +8,7 @@ const mockGetUserById = jest.fn();
 const mockLog = jest.fn();
 const mockEmail = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({ update: () => ({ eq: (...a: unknown[]) => mockUpdateEq(...a) }) }),
@@ -17,7 +17,7 @@ jest.mock('@/lib/admin', () => ({
   logModerationAction: (...a: unknown[]) => mockLog(...a),
 }));
 
-jest.mock('@/lib/beta-access/email', () => ({
+jest.mock('@/modules/access/beta-access/email', () => ({
   sendBetaApprovedEmail: (...a: unknown[]) => mockEmail(...a),
 }));
 

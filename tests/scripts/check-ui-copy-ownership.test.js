@@ -143,7 +143,7 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(status).toBe(0);
   });
 
-  it('FAILS a named copy module change (src/lib/invite-text.ts) with no trailer', () => {
+  it('FAILS a named copy module change (src/modules/dashboard/invite-text.ts) with no trailer', () => {
     const { status, output } = runOverCommits([
       { files: [SRC.inviteText], message: 'reword the invite copy' },
     ]);

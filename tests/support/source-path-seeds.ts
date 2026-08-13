@@ -170,4 +170,55 @@ export const SEEDED_PATHS = [
   // loudly rather than silently, but the baseline path would fail vacuously.
   'scripts/check-migration-ledger-parity.py',
   'supabase/migration-ledger-baseline.json',
+  // CTL-050 / SEC-136. Both are reached ONLY through `SRC` in
+  // tests/scripts/audit-summary.test.js, so without seeding they would not
+  // survive a regeneration (gotcha #31). audit-summary.py is the reader whose
+  // absence used to be indistinguishable from a clean audit — the key going
+  // missing would make its test compare against `undefined`.
+  'scripts/audit-summary.py',
+  'scripts/audit-to-email.py',
+  // CTL-051 / KAN-415 C2. Reached ONLY via `SRC` in
+  // tests/scripts/check-module-layering.test.js, so without seeding it does
+  // not survive a regeneration (gotcha #31). It is also the
+  // registry's `implementation` value, so the assertion IS the path — a
+  // literal in the test would let a rename read as a pass against a control
+  // nobody runs.
+  'scripts/check-module-layering.py',
+  // CTL-053 / KAN-415 C2. Reached ONLY via `SRC` in
+  // tests/scripts/check-module-api.test.js, and it is also the registry's
+  // `implementation` value and the path pr-checks must name — so the assertion
+  // IS the path. A literal in the test would let a rename read as a pass
+  // against a control nobody runs.
+  'scripts/check-module-api.py',
+  // CTL-054 / KAN-415 C2. Reached ONLY via `SRC` in
+  // tests/scripts/check-edge-safe.test.js, and it is the registry's
+  // `implementation` value and the path pr-checks must name — the assertion IS
+  // the path, so a literal would let a rename read as a pass.
+  'scripts/check-edge-safe.py',
+  // CTL-051 rule 3. The fixture target for "a downward edge nobody declared":
+  // observability is L1, dashboard is L3, and dashboard does not declare it —
+  // so the edge is legal by LAYER and only rule 3 can see it. No counted test
+  // hard-codes this path, so without the seed the key vanishes on the next
+  // regeneration and the fixture would silently target `undefined`, which
+  // `owner_of` answers "no module" for. That inverts the test into one that
+  // asserts a clean result.
+  'src/modules/observability/metrics.ts',
+  // SEC-105. All reached ONLY via `SRC` in tests/scripts/npm-audit-gate.test.js.
+  // The checker path is also the registry's `implementation` value and the one
+  // the workflows must name, so the assertion IS the path — a literal in the
+  // test would let a rename read as a pass against a gate nobody runs. The four
+  // deploy workflows are seeded because the test asserts a NEGATIVE about them
+  // (no `npm audit` line), and gotcha #31's trap is that a negative assertion
+  // against `undefined` passes forever.
+  // (The waiver file itself lives under `security/`, which the generator does
+  // not harvest — its prefix list is src|supabase|scripts|public|design|.github
+  // — so it is a named constant in the test instead, exactly as
+  // modules-layering-baseline.json is. Seeding it here would fail the
+  // manifest-integrity check, which asserts every seed is actually present.)
+  'scripts/check-npm-audit-gate.py',
+  '.github/workflows/deploy-dev.yml',
+  '.github/workflows/deploy-staging.yml',
+  '.github/workflows/deploy-beta.yml',
+  '.github/workflows/deploy-production.yml',
+  '.github/workflows/security-audit.yml',
 ] as const;

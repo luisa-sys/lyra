@@ -18,8 +18,8 @@
 import {
   EVERGREEN_FALLBACK_CONCEPTS,
   isEvergreenFallback,
-} from '@/lib/recommender/v2/evergreen';
-import type { ConceptInput, ProductCandidate } from '@/lib/recommender/v2/types';
+} from '@/modules/recommendations/recommender/v2/evergreen';
+import type { ConceptInput, ProductCandidate } from '@/modules/recommendations/recommender/v2/types';
 
 describe('EVERGREEN_FALLBACK_CONCEPTS — shape invariants', () => {
   test('has at least 3 concepts so the fallback always produces a reasonable spread', () => {

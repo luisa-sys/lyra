@@ -29,8 +29,16 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
-      - name: Run npm audit (high/critical vulnerabilities block deploy)
-        run: npm audit --audit-level=high
+      # SEC-105: npm audit REMOVED from this deploy workflow, deliberately.
+      # It re-audited the exact lockfile the PR gate already passed — all four
+      # deploys are push-triggered on chain branches, and SEC-98 plus
+      # main-chain-guard.yml mean every tree reaching them arrived through a PR.
+      # So it added no information, and did add a failure mode: the audit sat in
+      # a `needs:` ancestor of the deploy job, keyed on a third-party advisory
+      # feed, so a rescore overnight killed the release before any other step
+      # ran. SEC-88 cost ~11 days and held twelve tested security fixes out of
+      # production that way. The blocking gate now lives once, in pr-checks.yml;
+      # the full tree is audited weekly by security-audit.yml.
 
   build-verification:
     name: Build Verification
