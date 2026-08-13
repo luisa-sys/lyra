@@ -326,7 +326,30 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 >
 > **Note what this makes true of §4.1.** The alias scheme is not merely "deferred" — it is *unnecessary for enforcement*, which KAN-432's correction already implied without saying. There are no `index.ts` files and none are needed: creating 21 plus their aliases would rewrite every import in the app to buy enforcement CTL-053 provides by reading the resolved graph. Keep §4.1 as ergonomics if someone wants it; do not treat it as blocking.
 >
-> **Still open in C2:** `app-routes-are-thin`, `edge-safe`, `backoffice-not-in-request-path`, and flipping `no-cross-segment-app` to error. Of these, `app-routes-are-thin` is the one that needs a decision rather than code — "thin" is defined in the table above as "may import only module index files, same-segment files, framework packages", and with no index files that first clause needs restating in terms of `declaredApi`.
+> **📌 C2 CLOSED OUT 2026-08-13. Of the nine rules, six are enforced, one is unimplementable as written, and two need a decision rather than code.**
+>
+> | rule | state |
+> |---|---|
+> | `no-module-to-app` | ✅ blocking (CTL-030) |
+> | `no-circular` | ✅ blocking (CTL-030) |
+> | `platform-is-a-leaf` | ✅ subsumed by CTL-051 — platform is L0 with an empty `mayDependOn`, so every outgoing edge is upward or undeclared |
+> | `no-undeclared-module-dep` | ✅ blocking (CTL-051 rule 3) |
+> | `no-deep-module-import` | ✅ blocking (CTL-053) |
+> | `edge-safe` | ✅ blocking (CTL-054) — measured at **0 violations**: 23 files reachable from `middleware.ts`, importing only `@supabase/ssr`, `jose`, `next/server` |
+> | `backoffice-not-in-request-path` | 🚫 **no target exists** — see below |
+> | `app-routes-are-thin` | ⏸ needs a decision — see below |
+> | `no-cross-segment-app` | ⏸ 2 edges left, 1 unrouted — see below |
+>
+> **`backoffice-not-in-request-path` cannot be written, and should not be faked.** §5's affiliate row says "affiliate/backoffice stays unreachable from the request path", but `src/modules/affiliate/` contains **seven flat files and no `backoffice/` directory** (`eligibility`, `fx`, `link-service`, `merchant-detector`, `reporting`, `smoke`, `types`). A rule anchored on a path that does not exist matches nothing — it would report CLEAN forever and CTL-035 would correctly flag it as a dead pattern. **Recording the gap is the honest move; a green rule guarding nothing is worse than no rule.** If a backoffice surface is ever built, this rule becomes writable and should be written then.
+>
+> **`app-routes-are-thin` needs its definition restated, and that is a founder/architect call.** The table above defines thin as *"`src/app/**` may import only module index files, same-segment files, framework packages"*. There are **no index files** and (per the note above) none are needed for enforcement — so the first clause has no referent. The natural restatement is *"only files in some module's `declaredApi`"*, which CTL-053 already computes. That would be a genuine, enforceable rule; it is not landed here because choosing it changes what "thin" means, and the current violation count under that reading has not been measured.
+>
+> **`no-cross-segment-app` is down to 2** (from 5 → 3 → 2), and one still has no owner:
+>
+> - `src/app/(legal)/about/page.tsx → src/app/_marketing/sections.tsx` — implicated in KAN-422's DELETE list.
+> - `src/app/dashboard/page.tsx → src/app/(auth)/actions.ts` — **routed nowhere**, exactly as the `.dependency-cruiser.cjs` scope note has said since KAN-425. It needs an owner before the rule can flip to `error`.
+>
+> The rule stays `warn` until both are resolved. Flipping it with two live violations would mean either a red build or a suppression entry, and the second is what the ratchet discipline exists to prevent.
 
 
 ### 4.3 The data boundary — where the real coupling is

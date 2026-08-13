@@ -957,6 +957,24 @@
       "escape_hatch": "add the file to that module's `declaredApi` in modules.json - by hand, reviewed. There is no marker and no baseline: widening a module's API should be a visible decision, not a suppression.",
       "self_test": "Mutation-proven 2026-08-13. Removing the sanitise entry from the guards module's declaredApi turns its real consumers into DEEP imports (exit 1). Declaring a genuinely-internal convene file - precondition asserted, not assumed - fails as STALE (exit 1); the first attempt at that proof picked an already-declared file, so the byte-level 'mutation applied' check passed while the intended condition was never created. --suggest leaves modules.json byte-identical. An empty graph exits 2.",
       "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-054",
+      "name": "Edge-safe middleware bundle",
+      "defect_class": "runtime-mismatch-invisible-in-the-import-chain",
+      "summary": "KAN-415 C2 `edge-safe`. src/middleware.ts runs in the Edge runtime, which is not Node: no fs, no crypto module, next/headers is a Server Component API that throws there, and the full @supabase/supabase-js client is the wrong one (@supabase/ssr is the Edge-safe path and is what the middleware uses). The hazard is that NOTHING IN THE IMPORT CHAIN ANNOUNCES ITSELF AS EDGE CODE - a gate file three or four hops from middleware looks like any other module file, so adding a Node-only import to it breaks every request through the gate pipeline, at request time, on a deployed environment rather than at build time. Asserts that no file transitively reachable from an edge entry point imports a banned specifier: any node: builtin, the classic bare builtins, next/headers, and @supabase/supabase-js. Measured when it landed: 23 files reachable from middleware.ts importing exactly three external packages (@supabase/ssr, jose, next/server), all Edge-safe - zero violations, so it ships blocking rather than baselined. Scoped to the REACHABLE SET, not the repo: node:crypto is perfectly legal in Node-runtime code and src/modules/age/didit.ts uses it today, so a repo-wide scan would be red on correct code. A banned list rather than an allowlist, because an allowlist fails on every legitimate new package and a gate that fires on legitimate work is one people learn to wave through. Comments are stripped before matching (CTL-039): this script's own docstring names every banned specifier, and a scan that punished writing the explanation down would be pointed the wrong way. VACUITY GUARD: fewer than 8 reachable files exits 2, because a traversal that silently reached nothing reports zero findings and a green tick, indistinguishable from a clean bundle. Fails closed (exit 2, distinct from 1) on an unusable graph, a missing or renamed entry point, or a collapsed bundle.",
+      "implementation": "scripts/check-edge-safe.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425"
+      ],
+      "escape_hatch": "none - use an Edge-safe equivalent (@supabase/ssr, Web Crypto, NextRequest headers) or move the work out of the middleware's import chain. There is no marker: a Node-only API in the edge bundle is not a style question.",
+      "self_test": "Mutation-proven 2026-08-13: a node:crypto import added THREE HOPS from middleware, in an ordinary-looking gate file, turns the check red (exit 1) and names the file and line; a graph where middleware reaches nothing exits 2 rather than reporting clean; an entry point absent from the graph exits 2; and a banned import in a file OUTSIDE the bundle correctly does not fire.",
+      "added": "2026-08-13"
     }
   ]
 }

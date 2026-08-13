@@ -492,6 +492,8 @@ jobs:
           python3 scripts/check-module-layering.py
           python3 scripts/check-module-api.py --self-test
           python3 scripts/check-module-api.py
+          python3 scripts/check-edge-safe.py --self-test
+          python3 scripts/check-edge-safe.py
       - name: Run unit tests
         run: npm run test:unit
         env:
