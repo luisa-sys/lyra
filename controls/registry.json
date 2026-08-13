@@ -884,6 +884,23 @@
       ],
       "escape_hatch": "none - commit the migration SQL that was applied out-of-band, or apply the migration that was committed; a divergence that is accepted goes in supabase/migration-ledger-baseline.json via --write-baseline, never by hand",
       "added": "2026-08-12"
+    },
+    {
+      "id": "CTL-050",
+      "name": "Audit report readability",
+      "defect_class": "false-green-unmeasured",
+      "summary": "Reads the `npm audit --json` report for the weekly security audit and FAILS CLOSED (exit 2) on anything it cannot measure - missing file, empty file, unparseable body, or a document that is not an npm audit report. Exists because both halves of security-audit.yml previously turned a failure-to-measure into a clean result: the workflow's inline `except: print(0)` fed the `if: ... != '0'` guard on its ONLY failing step, so a parse failure SKIPPED the failure and the run passed; and audit-to-email.py's `except` returned has_vulnerabilities:False, which suppressed the alert email. Green tick, no email, nothing assessed - the SEC-79 shape and forbidden pattern #3 (the report must distinguish 0 from fetch-failed). The trigger was mundane: `> report.json 2>&1` merged npm's warnings into the JSON, and with --json npm writes the report to stdout and warnings to stderr, so any warning corrupted it. A third defect in the same block recorded npm's exit code AFTER `|| true`, so it always read 0. Exit 2 is deliberately distinct from 1 (ran, found something) because a caller that cannot tell those apart is how this started. Extracted from an inline YAML heredoc, where nothing could import or test it.",
+      "implementation": "scripts/audit-summary.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/security-audit.yml"
+      ],
+      "prevents": [
+        "SEC-136",
+        "SEC-79"
+      ],
+      "escape_hatch": "none - a report that cannot be read is not a clean audit; fix the report or the redirect",
+      "added": "2026-08-12"
     }
   ]
 }

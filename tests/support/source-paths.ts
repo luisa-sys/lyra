@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 210 entries.
+// 212 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -37,6 +37,8 @@ export const SRC = {
   offline: 'public/offline.html',
   robots: 'public/robots.txt',
   sw: 'public/sw.js',
+  auditSummary: 'scripts/audit-summary.py',
+  auditToEmail: 'scripts/audit-to-email.py',
   backupDatabaseApi: 'scripts/backup-database-api.sh',
   backupDatabaseComplete: 'scripts/backup-database-complete.sh',
   scriptsBackupDatabase: 'scripts/backup-database.sh',
