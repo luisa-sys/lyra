@@ -149,7 +149,77 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/platform/cookie-domain.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/platform/deploy-env.ts",
+          "consumedBy": [
+            "admin",
+            "features",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/platform/env.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "age",
+            "auth",
+            "guards",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-browser.ts",
+          "consumedBy": [
+            "convene"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-server.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "age",
+            "auth",
+            "convene",
+            "dashboard",
+            "features",
+            "oauth-as",
+            "observability",
+            "profile",
+            "public-profile",
+            "trust-safety"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-service.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "affiliate",
+            "age",
+            "convene",
+            "features",
+            "guards",
+            "marketing-legal",
+            "oauth-as",
+            "observability",
+            "public-profile",
+            "recommendations"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -262,7 +332,21 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/contracts/content-moderation.ts",
+          "consumedBy": [
+            "audit"
+          ]
+        },
+        {
+          "file": "src/modules/contracts/moderation-policy.ts",
+          "consumedBy": [
+            "audit",
+            "convene"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -536,9 +620,88 @@
             "access"
           ],
           "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/guards/client-ip.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/guards/cf-access.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/client-ip.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/json-ld.ts",
+          "consumedBy": [
+            "marketing-legal",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/profile-rate-limit.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit-shared.ts",
+          "consumedBy": [
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/sanitise.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/security-headers.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/turnstile.ts",
+          "consumedBy": [
+            "marketing-legal"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -648,7 +811,14 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/observability/metrics.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -731,7 +901,14 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/components/AffiliateBadge.tsx",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -823,6 +1000,15 @@
         }
       ],
       "declaredApi": [
+        {
+          "file": "src/modules/audit/moderation-audit.ts",
+          "consumedBy": [
+            "convene",
+            "profile"
+          ]
+        }
+      ],
+      "plannedApi": [
         {
           "symbol": "recordModerationFlag",
           "status": "declared",
@@ -1045,7 +1231,47 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/access/access-model/index.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/account-status.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/email.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/flow.ts",
+          "consumedBy": [
+            "auth",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-link.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        }
+      ],
       "mayDependOn": [
         "guards",
         "platform"
@@ -1292,7 +1518,48 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/features/entitlements-service.ts",
+          "consumedBy": [
+            "admin",
+            "affiliate",
+            "convene",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/features/entitlements.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-features.ts",
+          "consumedBy": [
+            "admin",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-switches-service.ts",
+          "consumedBy": [
+            "account",
+            "admin",
+            "age",
+            "convene",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/registry.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -1467,7 +1734,26 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/age/provider-gate.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/age/record-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/age/self-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -1655,7 +1941,20 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/app/(auth)/actions.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        },
+        {
+          "file": "src/modules/auth/post-login-redirect.ts",
+          "consumedBy": [
+            "age"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "age",
@@ -1820,9 +2119,45 @@
             "profile"
           ],
           "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/profile/favourites.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/profile/country-codes.ts",
+          "consumedBy": [
+            "public-profile",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/profile/favourites.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/manual-of-me-fields.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/section-visibility.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "age",
         "audit",
@@ -2213,7 +2548,21 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/lib/convene/cron-auth.ts",
+          "consumedBy": [
+            "account"
+          ]
+        },
+        {
+          "file": "src/lib/convene/flags-user.ts",
+          "consumedBy": [
+            "dashboard",
+            "profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "audit",
@@ -2353,9 +2702,47 @@
             "public-profile"
           ],
           "typeOnly": true
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "profile",
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommend/index.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "affiliate",
         "features",
@@ -2526,7 +2913,33 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/affiliate/eligibility.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/link-service.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/reporting.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/types.ts",
+          "consumedBy": [
+            "admin",
+            "recommendations"
+          ]
+        }
+      ],
       "mayDependOn": [
         "features",
         "platform"
@@ -2605,8 +3018,42 @@
         ],
         "profilesColumns": []
       },
-      "publicApi": [],
-      "declaredApi": [],
+      "publicApi": [
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -2803,7 +3250,16 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/admin/admin.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "trust-safety"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "affiliate",

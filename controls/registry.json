@@ -938,6 +938,25 @@
       "escape_hatch": "security/npm-audit-waivers.json - advisory + package + severity + ticket + owner + reason and exactly one of `expires` (fails on lapse) or `review_by`, governed by CTL-025. Empty is the correct steady state. There is no hatch for a prod-tree HIGH that has a fix available: fix it.",
       "self_test": "Mutation-proven 2026-08-13: a prod-tree HIGH blocks; a MODERATE does not; a matching waiver clears; a waiver does not transfer to another package or another advisory; a stale waiver fails under --scope full and warns under --scope prod; an unparseable report exits 2; re-adding npm audit to a deploy workflow, unwiring the PR gate, and removing the weekly issue each turn the suite red.",
       "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-053",
+      "name": "No deep module imports (declared API surface)",
+      "defect_class": "module-that-is-really-just-a-directory",
+      "summary": "KAN-415 C2 `no-deep-module-import`. CTL-051 constrains WHICH modules may depend on each other and says nothing about which FILES a permitted dependency may reach, so a consumer could import any file of any allowed module. Measured when this landed: 304 files across 21 modules, of which only 54 are imported from outside - the other 250 were internals in fact and public in policy, and any of them could acquire an external consumer with nothing going red. That gap is the difference between a module and a directory. Asserts that every import crossing a module boundary lands on a file listed in the target's `declaredApi`. TWO-WAY, and the second half is the point: a declaredApi entry nothing outside the module imports is STALE and fails, so the public surface RATCHETS DOWN rather than only growing - without it declaredApi would be a suppression list. Seeded from measurement (the 54 real crossings) so it ships at zero violations, which is not circular: a control red on the day it lands is one someone turns off, and the value is forward-acting - the next deep import fails and the fix is either to route through an existing entry point or to add a reviewed line to modules.json. Plan 4.5 prescribes exactly this basis, an API of 'the symbols measured as consumed, not what looks tidy'. Deliberately NOT tsconfig aliases: KAN-432 established that an alias only governs imports written in alias form, so a relative specifier (../../modules/x/internal/thing) resolves and type-checks regardless - aliases catch the honest mistake and miss the shortcut. Reading the resolved graph sees both, and needs no index.ts to exist (there are none; creating 21 plus their aliases would rewrite every import in the app for enforcement this provides directly). Has NO --write mode on purpose - regenerating policy from observation would mean every deep import legalises itself on the next run and the gate could never fail; --suggest prints and a human commits. Fails closed (exit 2, distinct from 1) on an unreadable manifest, a manifest with no modules, or an empty/unparseable graph.",
+      "implementation": "scripts/check-module-api.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425",
+        "KAN-432"
+      ],
+      "escape_hatch": "add the file to that module's `declaredApi` in modules.json - by hand, reviewed. There is no marker and no baseline: widening a module's API should be a visible decision, not a suppression.",
+      "self_test": "Mutation-proven 2026-08-13. Removing the sanitise entry from the guards module's declaredApi turns its real consumers into DEEP imports (exit 1). Declaring a genuinely-internal convene file - precondition asserted, not assumed - fails as STALE (exit 1); the first attempt at that proof picked an already-declared file, so the byte-level 'mutation applied' check passed while the intended condition was never created. --suggest leaves modules.json byte-identical. An empty graph exits 2.",
+      "added": "2026-08-13"
     }
   ]
 }
