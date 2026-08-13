@@ -129,7 +129,7 @@ The write is **fire-and-forget** at the response level — the user gets their U
 
 ## Architecture impact
 
-- New module: `src/lib/affiliate/` in the Lyra web app.
+- New module: `src/modules/affiliate/` in the Lyra web app.
   - `link-service.ts` — entry point, the `getAffiliateLink()` function above.
   - `providers/sovrn.ts` — Sovrn Link Optimizer client with timeout + telemetry.
   - `providers/raw.ts` — passthrough provider for un-monetisable URLs.

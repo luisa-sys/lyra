@@ -2293,9 +2293,8 @@
     "recommendations": {
       "layer": 3,
       "paths": [
-        "src/lib/recommend/",
-        "src/lib/recommender/",
-        "src/app/api/recommendations/"
+        "src/app/api/recommendations/",
+        "src/modules/recommendations/"
       ],
       "owns": {
         "files": 18,
@@ -2312,7 +2311,7 @@
       "publicApi": [
         {
           "symbol": "V2Recommendation",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 2,
           "consumingModules": [
             "public-profile"
@@ -2321,7 +2320,7 @@
         },
         {
           "symbol": "getRecommendations",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2330,7 +2329,7 @@
         },
         {
           "symbol": "buildV2Recommendations",
-          "file": "src/lib/recommender/v2/pipeline.ts",
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2339,7 +2338,7 @@
         },
         {
           "symbol": "ConceptInput",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2348,7 +2347,7 @@
         },
         {
           "symbol": "RecommendationResult",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2420,7 +2419,7 @@
     "affiliate": {
       "layer": 3,
       "paths": [
-        "src/lib/affiliate/"
+        "src/modules/affiliate/"
       ],
       "owns": {
         "files": 7,
@@ -2438,7 +2437,7 @@
       "publicApi": [
         {
           "symbol": "rollupByDailyMerchant",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2447,7 +2446,7 @@
         },
         {
           "symbol": "splitByProvider",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2456,7 +2455,7 @@
         },
         {
           "symbol": "splitBySource",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2465,7 +2464,7 @@
         },
         {
           "symbol": "type:DailyMerchantRollup",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2474,7 +2473,7 @@
         },
         {
           "symbol": "type:ProviderSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2483,7 +2482,7 @@
         },
         {
           "symbol": "type:SourceSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2492,7 +2491,7 @@
         },
         {
           "symbol": "AffiliateClickRow",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2501,7 +2500,7 @@
         },
         {
           "symbol": "eligibleMerchantsForCountry",
-          "file": "src/lib/affiliate/eligibility.ts",
+          "file": "src/modules/affiliate/eligibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2510,7 +2509,7 @@
         },
         {
           "symbol": "getAffiliateLink",
-          "file": "src/lib/affiliate/link-service.ts",
+          "file": "src/modules/affiliate/link-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2519,7 +2518,7 @@
         },
         {
           "symbol": "AffiliateProvider",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2889,7 +2888,7 @@
       "recommendations": [
         "src/app/api/recommendations/[slug]/route.ts",
         "src/app/api/recommendations/v2/[slug]/route.ts",
-        "src/lib/recommender/v2/candidate-sourcing.ts"
+        "src/modules/recommendations/recommender/v2/candidate-sourcing.ts"
       ],
       "marketing-legal": [
         "src/app/examples/page.tsx",
@@ -2920,7 +2919,7 @@
         "src/modules/admin/admin.ts"
       ],
       "affiliate": [
-        "src/lib/affiliate/link-service.ts"
+        "src/modules/affiliate/link-service.ts"
       ],
       "observability": [
         "src/modules/observability/metrics.ts"

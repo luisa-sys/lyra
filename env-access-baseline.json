@@ -63,7 +63,7 @@
       "NEXT_PUBLIC_VERCEL_ENV",
       "NODE_ENV"
     ],
-    "src/lib/affiliate/link-service.ts": [
+    "src/modules/affiliate/link-service.ts": [
       "SOVRN_API_KEY"
     ],
     "src/modules/age/didit.ts": [
@@ -122,7 +122,7 @@
       "OAUTH_JWT_PUBLIC_KEY_B64",
       "OAUTH_JWT_SIGNING_SECRET"
     ],
-    "src/lib/recommender/v2/candidate-sourcing.ts": [
+    "src/modules/recommendations/recommender/v2/candidate-sourcing.ts": [
       "ANTHROPIC_API_KEY",
       "SOVRN_API_KEY"
     ],

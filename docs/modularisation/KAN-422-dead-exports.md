@@ -43,7 +43,7 @@ The discriminator is now measured, not assumed: `internalUses` counts references
 symbol elsewhere in its own file (`kan422-dead-exports.py::internal_uses`).
 
 **Correction 2 — the two files the ticket names for deletion must NOT be deleted.**
-`src/lib/recommender/inputs.ts` and `src/lib/recommender/events.ts` are the scaffolding
+`src/modules/recommendations/recommender/inputs.ts` and `src/modules/recommendations/recommender/events.ts` are the scaffolding
 for **KAN-198** (Rec-Engine 01 — recommender input audit) and **KAN-202** (Rec-Engine 05
 — feedback/learning loop). Both tickets are **In Progress today**. They are unconsumed
 because their consumers are not built yet, which is exactly the KEEP AS CONTRACT case.
@@ -117,9 +117,9 @@ files rather than deleting them, which is a *narrower* ask than the ticket antic
 | Symbols | Reason | Reference |
 |---|---|---|
 | `_internal` × 5 (`convene/invites/dispatch.ts`, `email.ts`, `twilio.ts`, `recommend/convene/score-attendee.ts`, `score-venue.ts`), `__resetCfAccessJwksCacheForTests`, `_clearFxCacheForTests`, `MERCHANT_RULES_INTERNAL` | Deliberate, named test seams. Their naming convention already declares the intent. | — |
-| `src/lib/recommender/inputs.ts` (4 symbols, 55 LOC) | **KAN-198 In Progress** — recommender input coercion; consumers not built yet. | KAN-198 |
-| `src/lib/recommender/events.ts` (3 symbols, 36 LOC) | **KAN-202 In Progress** — feedback/learning loop; `recommendation_events` consumers not built yet. | KAN-202 |
-| `filterCandidatesByEligibility` (60 LOC) + `src/lib/affiliate/eligibility.ts` (3 symbols, 35 LOC) + `affiliate/types.ts` `parseSubId`/`isCountryCode` | The V2 pipeline comment says the eligibility filter is "built into the candidate sourcing buyer-country filter". **That is true today and only today**: Tier 1 (curated catalogue) does check `is_active` + `buyer_countries`, and Tiers 2–3 are stubbed (`candidate-sourcing.ts:152` — `TODO(KAN-184)`). The filter's own docblock explains it exists precisely to cover Tier 2/3. **It becomes load-bearing the moment KAN-184 lands `SOVRN_API_KEY`.** | KAN-190; **blocks KAN-184** |
+| `src/modules/recommendations/recommender/inputs.ts` (4 symbols, 55 LOC) | **KAN-198 In Progress** — recommender input coercion; consumers not built yet. | KAN-198 |
+| `src/modules/recommendations/recommender/events.ts` (3 symbols, 36 LOC) | **KAN-202 In Progress** — feedback/learning loop; `recommendation_events` consumers not built yet. | KAN-202 |
+| `filterCandidatesByEligibility` (60 LOC) + `src/modules/affiliate/eligibility.ts` (3 symbols, 35 LOC) + `affiliate/types.ts` `parseSubId`/`isCountryCode` | The V2 pipeline comment says the eligibility filter is "built into the candidate sourcing buyer-country filter". **That is true today and only today**: Tier 1 (curated catalogue) does check `is_active` + `buyer_countries`, and Tiers 2–3 are stubbed (`candidate-sourcing.ts:152` — `TODO(KAN-184)`). The filter's own docblock explains it exists precisely to cover Tier 2/3. **It becomes load-bearing the moment KAN-184 lands `SOVRN_API_KEY`.** | KAN-190; **blocks KAN-184** |
 | `microsoftCalendarAdapter` (102 LOC) | Phase-7 scaffolding. `calendar/index.ts` registers `google` only, and the connections UI states "More providers coming in Phase 7 (Microsoft, Apple, CalDAV)" — so no user can connect Outlook. Not a live gap. | — |
 | `verifyAccessToken` (36 LOC) | Its docblock: *"AS-side self-check verifier (the load-bearing verification is the MCP resource server's)"*. Intentionally unconsumed by design. | KAN-88 |
 | `approveBetaUser` (44 LOC) | `beta-queue/page.tsx` docblock: *"The single-row `approveBetaUser` action is retained — it remains a valid one-off approve path and is covered by its unit test"*. | KAN-277 → KAN-311 |

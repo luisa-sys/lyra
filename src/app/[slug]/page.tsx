@@ -16,16 +16,16 @@ import {
   type ManualOfMe,
 } from '@/modules/profile/manual-of-me-fields';
 import { groupFavourites } from '@/modules/profile/favourites';
-import { getRecommendations } from '@/lib/recommend';
-import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/lib/recommend/dismissals';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/modules/recommendations/recommend/dismissals';
 import RecommendationsSection from '@/modules/public-profile/recommendations-section';
 import V2RecommendationsSection from '@/modules/public-profile/v2-recommendations-section';
 import ReportButton from '@/modules/public-profile/report-button';
 import { decodeSlug } from '@/modules/public-profile/slug-utils';
 import { headers } from 'next/headers';
 import { isIsoAlpha2, normaliseDeliveryCountry } from '@/modules/profile/country-codes';
-import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
-import type { ConceptInput } from '@/lib/recommender/v2/types';
+import { buildV2Recommendations } from '@/modules/recommendations/recommender/v2/pipeline';
+import type { ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 import * as Sentry from '@sentry/nextjs';
 
 // BUGS-14: profile pages render dynamically per-request (cookie read for the

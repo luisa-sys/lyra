@@ -30,8 +30,8 @@ import {
   type DailyMerchantRollup,
   type ProviderSplit,
   type SourceSplit,
-} from '@/lib/affiliate/reporting';
-import type { AffiliateClickRow } from '@/lib/affiliate/types';
+} from '@/modules/affiliate/reporting';
+import type { AffiliateClickRow } from '@/modules/affiliate/types';
 
 export const dynamic = 'force-dynamic';
 

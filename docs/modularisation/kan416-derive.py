@@ -120,10 +120,10 @@ MODULE_RULES = [
     ("src/app/dashboard/convene/", "convene"),
     ("src/app/api/convene/", "convene"),
     ("src/app/r/", "convene"),  # public RSVP page (KAN-209 P5)
-    ("src/lib/recommend/", "recommendations"),
-    ("src/lib/recommender/", "recommendations"),
+    ("src/modules/recommendations/recommend/", "recommendations"),
+    ("src/modules/recommendations/recommender/", "recommendations"),
     ("src/app/api/recommendations/", "recommendations"),  # FOUNDER-RULED (manifest over plan D4)
-    ("src/lib/affiliate/", "affiliate"),
+    ("src/modules/affiliate/", "affiliate"),
     ("src/app/api/reports/", "trust-safety"),
     ("src/app/(legal)/", "marketing-legal"),
     ("src/app/_marketing/", "marketing-legal"),
