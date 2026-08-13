@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 212,
+  "count": 214,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -43,6 +43,7 @@
     "checkGuardPathDrift": "scripts/check-guard-path-drift.py",
     "checkLiveSchemaParity": "scripts/check-live-schema-parity.py",
     "checkMigrationLedgerParity": "scripts/check-migration-ledger-parity.py",
+    "checkModuleLayering": "scripts/check-module-layering.py",
     "checkRoutineOwnership": "scripts/check-routine-ownership.sh",
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",
     "checkSchemaTypeParity": "scripts/check-schema-type-parity.py",
@@ -172,6 +173,7 @@
     "selfDeclaration": "src/modules/age/self-declaration.ts",
     "postLoginRedirect": "src/modules/auth/post-login-redirect.ts",
     "moderationPolicy": "src/modules/contracts/moderation-policy.ts",
+    "dismissal": "src/modules/dashboard/dismissal.ts",
     "inviteText": "src/modules/dashboard/invite-text.ts",
     "resolveWidgets": "src/modules/dashboard/resolve-widgets.ts",
     "entitlementsService": "src/modules/features/entitlements-service.ts",
