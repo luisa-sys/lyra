@@ -309,6 +309,25 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 > `edge-safe` and `backoffice-not-in-request-path` need neither SEC-105 nor new manifest data, but were not landed here: the Next build already fails on a Node-only import reachable from `middleware.ts`, so `edge-safe` would largely duplicate it, and neither was measured. Both remain open.
 >
 > **Also measured and recorded here so it is not re-derived:** the module graph has **four cycles** — `access↔admin`, `admin↔trust-safety`, `age↔auth`, `profile↔recommendations` — all invisible to depcruise's file-level `no-circular`, which reports zero. Each is one legal downward edge plus one upward edge the layer rule already flags, so no cycle rule was added; driving the upward edges to zero makes them unrepresentable.
+>
+> ---
+>
+> **📌 Updated 2026-08-13 — SEC-105 is RESOLVED, and `no-deep-module-import` has landed.**
+>
+> SEC-105 shipped as CTL-052 (PR #777): the npm-audit gate is prod-tree scoped, blocking in `pr-checks.yml` only, removed from all four deploys, with a dated waiver file. The hard dependency above is therefore **discharged** — but read what it actually argued before treating C2 as open season. Its point was that scoping must be settled before blocking gates are scaled, not that a date had to pass.
+>
+> **`no-deep-module-import` is done** (CTL-053, `scripts/check-module-api.py`). The 145→142 violation count in the table above was never the real obstacle; the obstacle was that nothing defined a module's public surface. Now measured: **304 files across 21 modules, of which 54 are imported from outside**. `declaredApi` is populated for all 21 from those 54, and the rule is two-way — an undeclared cross-module import fails, and a declared entry nothing imports fails as STALE, so the surface can only shrink without a reviewed line.
+>
+> Three manifest corrections went with it:
+>
+> - **`declaredApi` is now POLICY** (file-based, hand-edited, read by CTL-053). It was `[]` for 20 of 21 modules.
+> - **`plannedApi` is new**, holding `audit`'s three aspirational symbols — they name symbols that *do not exist yet* (`todayImplementedBy: moderateAndAudit()`), and feeding intent to an enforcement gate makes its input part-real, part-wish.
+> - **`publicApi` is DESCRIPTIVE** and was 5 entries short. The gaps were all real files that became externally imported during D1–D9 (`guards/client-ip.ts`, `profile/favourites.ts`, `recommendations/recommend/dismissals.ts`, and both `trust-safety` action files) — the KAN-416 derivation predates those moves.
+>
+> **Note what this makes true of §4.1.** The alias scheme is not merely "deferred" — it is *unnecessary for enforcement*, which KAN-432's correction already implied without saying. There are no `index.ts` files and none are needed: creating 21 plus their aliases would rewrite every import in the app to buy enforcement CTL-053 provides by reading the resolved graph. Keep §4.1 as ergonomics if someone wants it; do not treat it as blocking.
+>
+> **Still open in C2:** `app-routes-are-thin`, `edge-safe`, `backoffice-not-in-request-path`, and flipping `no-cross-segment-app` to error. Of these, `app-routes-are-thin` is the one that needs a decision rather than code — "thin" is defined in the table above as "may import only module index files, same-segment files, framework packages", and with no index files that first clause needs restating in terms of `declaredApi`.
+
 
 ### 4.3 The data boundary — where the real coupling is
 
