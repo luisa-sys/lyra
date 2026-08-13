@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 215 entries.
+// 221 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -26,6 +26,10 @@ export const SRC = {
   backupDatabase: '.github/workflows/backup-database.yml',
   backupRestoreTest: '.github/workflows/backup-restore-test.yml',
   dbInvariants: '.github/workflows/db-invariants.yml',
+  deployBeta: '.github/workflows/deploy-beta.yml',
+  deployDev: '.github/workflows/deploy-dev.yml',
+  deployProduction: '.github/workflows/deploy-production.yml',
+  deployStaging: '.github/workflows/deploy-staging.yml',
   prChecks: '.github/workflows/pr-checks.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
   securityAudit: '.github/workflows/security-audit.yml',
@@ -57,6 +61,7 @@ export const SRC = {
   checkLiveSchemaParity: 'scripts/check-live-schema-parity.py',
   checkMigrationLedgerParity: 'scripts/check-migration-ledger-parity.py',
   checkModuleLayering: 'scripts/check-module-layering.py',
+  checkNpmAuditGate: 'scripts/check-npm-audit-gate.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
@@ -64,6 +69,7 @@ export const SRC = {
   checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',
+  checkWaiverHygiene: 'scripts/check-waiver-hygiene.py',
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
   docSyncHealthcheck: 'scripts/doc-sync-healthcheck.sh',
