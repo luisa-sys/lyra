@@ -1,0 +1,26 @@
+{
+  "_why": [
+    "CTL-051. Cross-module edges that violate the layer policy modules.json",
+    "declares, as they stood when the control landed. Grandfathered so it",
+    "could ship green.",
+    "",
+    "SHRINK-ONLY, BOTH WAYS. A new violation fails; a baselined one that has",
+    "been FIXED also fails, so this cannot become a place to record drift.",
+    "Regenerate with --write-baseline in the same commit that fixes one."
+  ],
+  "ticket": "KAN-415",
+  "violations": {
+    "access -> admin": "UPWARD edge L2 -> L4 (forbidden absolutely); `admin` is in `access`.mustNot | e.g. src/modules/access/access-model/access-transitions.ts -> src/modules/admin/admin.ts",
+    "account -> admin": "UPWARD edge L3 -> L4 (forbidden absolutely); `admin` is in `account`.mustNot | e.g. src/app/dashboard/settings/actions.ts -> src/modules/admin/admin.ts",
+    "account -> convene": "same-layer L3 edge not in declaredSameLayer; `convene` is in `account`.mustNot | e.g. src/app/api/retention/cron/sweep/route.ts -> src/lib/convene/cron-auth.ts",
+    "age -> auth": "UPWARD edge L2 -> L3 (forbidden absolutely); `auth` is in `age`.mustNot | e.g. src/app/confirm-age/actions.ts -> src/modules/auth/post-login-redirect.ts",
+    "age -> features": "same-layer L2 edge not in declaredSameLayer; `features` is in `age`.mustNot | e.g. src/modules/age/provider-gate.ts -> src/modules/features/global-switches-service.ts",
+    "dashboard -> auth": "same-layer L3 edge not in declaredSameLayer; `auth` is in `dashboard`.mustNot | e.g. src/app/dashboard/page.tsx -> src/app/(auth)/actions.ts",
+    "dashboard -> convene": "same-layer L3 edge not in declaredSameLayer; `convene` is in `dashboard`.mustNot | e.g. src/app/dashboard/page.tsx -> src/lib/convene/flags-user.ts",
+    "profile -> convene": "same-layer L3 edge not in declaredSameLayer; `convene` is in `profile`.mustNot | e.g. src/app/dashboard/profile/page.tsx -> src/lib/convene/flags-user.ts",
+    "profile -> recommendations": "same-layer L3 edge not in declaredSameLayer; `recommendations` is in `profile`.mustNot | e.g. src/app/dashboard/profile/actions.ts -> src/modules/recommendations/recommend/dismissals.ts",
+    "public-profile -> profile": "same-layer L3 edge not in declaredSameLayer; `profile` is in `public-profile`.mustNot | e.g. src/app/[slug]/page.tsx -> src/modules/profile/country-codes.ts",
+    "recommendations -> profile": "same-layer L3 edge not in declaredSameLayer; `profile` is in `recommendations`.mustNot | e.g. src/app/api/recommendations/v2/[slug]/route.ts -> src/modules/profile/country-codes.ts",
+    "trust-safety -> admin": "UPWARD edge L3 -> L4 (forbidden absolutely) | e.g. src/modules/trust-safety/report-actions.ts -> src/modules/admin/admin.ts"
+  }
+}

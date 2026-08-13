@@ -901,6 +901,23 @@
       ],
       "escape_hatch": "none - a report that cannot be read is not a clean audit; fix the report or the redirect",
       "added": "2026-08-12"
+    },
+    {
+      "id": "CTL-051",
+      "name": "Module layering policy",
+      "defect_class": "declared-but-unenforced-architecture",
+      "summary": "Enforces the layered architecture modules.json already declared. Every module carries a `layer`, a `mayDependOn` and a `mustNot`, and the manifest states the policy explicitly - edge src->dst is allowed iff layer(dst) < layer(src) or dst is in declaredSameLayer[src], with upward edges FORBIDDEN ABSOLUTELY. Nothing read any of it: all 21 modules carried \"enforced\": false and no script or test consumed that field, so the manifest described an architecture rather than constraining one. Measured when this landed: 62 cross-module edges, 12 violating the declared policy, including access (L2) importing admin (L4) and five undeclared same-layer edges. Deliberately not a dependency-cruiser rule - the policy is a function of two JSON fields across 21 modules, which as regexes would be ~400 generated pairwise rules going stale on every layer change; depcruise still produces the graph, this classifies it. Also cross-checks `mustNot` against the layer rule, so renumbering a layer cannot silently legalise an edge the module explicitly forbids. Two-way ratchet: a NEW violation fails and a baselined one that has been FIXED fails as stale. Fails closed (exit 2, distinct from 1) on an unreadable manifest, an empty or unparseable graph, or a missing baseline.",
+      "implementation": "scripts/check-module-layering.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425"
+      ],
+      "escape_hatch": "none - move the shared code down a layer, or change modules.json if the architecture is what changed; an accepted violation goes in modules-layering-baseline.json via --write-baseline, never by hand",
+      "added": "2026-08-13"
     }
   ]
 }

@@ -177,4 +177,11 @@ export const SEEDED_PATHS = [
   // missing would make its test compare against `undefined`.
   'scripts/audit-summary.py',
   'scripts/audit-to-email.py',
+  // CTL-051 / KAN-415 C2. Reached ONLY via `SRC` in
+  // tests/scripts/check-module-layering.test.js, so without seeding it does
+  // not survive a regeneration (gotcha #31). It is also the
+  // registry's `implementation` value, so the assertion IS the path — a
+  // literal in the test would let a rename read as a pass against a control
+  // nobody runs.
+  'scripts/check-module-layering.py',
 ] as const;
