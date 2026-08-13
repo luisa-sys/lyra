@@ -192,4 +192,22 @@ export const SEEDED_PATHS = [
   // `owner_of` answers "no module" for. That inverts the test into one that
   // asserts a clean result.
   'src/modules/observability/metrics.ts',
+  // SEC-105. All reached ONLY via `SRC` in tests/scripts/npm-audit-gate.test.js.
+  // The checker path is also the registry's `implementation` value and the one
+  // the workflows must name, so the assertion IS the path — a literal in the
+  // test would let a rename read as a pass against a gate nobody runs. The four
+  // deploy workflows are seeded because the test asserts a NEGATIVE about them
+  // (no `npm audit` line), and gotcha #31's trap is that a negative assertion
+  // against `undefined` passes forever.
+  // (The waiver file itself lives under `security/`, which the generator does
+  // not harvest — its prefix list is src|supabase|scripts|public|design|.github
+  // — so it is a named constant in the test instead, exactly as
+  // modules-layering-baseline.json is. Seeding it here would fail the
+  // manifest-integrity check, which asserts every seed is actually present.)
+  'scripts/check-npm-audit-gate.py',
+  '.github/workflows/deploy-dev.yml',
+  '.github/workflows/deploy-staging.yml',
+  '.github/workflows/deploy-beta.yml',
+  '.github/workflows/deploy-production.yml',
+  '.github/workflows/security-audit.yml',
 ] as const;

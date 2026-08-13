@@ -19,6 +19,7 @@ defaults:
 
 permissions:
   contents: read
+  issues: write # SEC-105: dev-tree findings are raised as a labelled issue, not just emailed
 
 jobs:
   audit:
@@ -161,10 +162,67 @@ jobs:
             echo "⚠️ Email send may have failed — check Resend dashboard"
           fi
 
+      # SEC-105. This weekly run is now the ONLY place the dev tree is audited,
+      # because the blocking gate was scoped to the production tree. That makes
+      # it the difference between "dev advisories are tracked" and "dev
+      # advisories are ignored" — so it must leave something behind that
+      # outlives a run log. An email is a notification; an issue is a work item.
+      #
+      # Also asserts that no waiver has gone stale. Only this run can: it audits
+      # the FULL tree, so it is the one with complete information. The prod-tree
+      # PR gate cannot see a dev-only advisory and so only warns.
+      - name: Check waiver staleness against the full tree
+        id: waivers
+        continue-on-error: true # advisory: a stale waiver is tidy-up, not an outage. Recorded in the issue below.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-npm-audit-gate.py --scope full --report-only 2>&1 | tee /tmp/waiver-check.txt
+
+      - name: Open or update the dependency-advisory issue
+        if: steps.audit.outputs.high_critical_count != '0' || steps.waivers.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          TITLE="Dependency advisories — full tree (weekly audit)"
+          BODY_FILE=/tmp/audit-issue.md
+
+          {
+            echo "Raised automatically by \`security-audit.yml\`. **This does not block any release** —"
+            echo "the blocking gate is prod-tree scoped and lives in \`pr-checks.yml\` (SEC-105)."
+            echo
+            echo "- **High/critical (full tree, incl. dev):** ${{ steps.audit.outputs.high_critical_count }}"
+            echo "- **Total advisories:** ${{ steps.audit.outputs.total_count }}"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            cat /tmp/waiver-check.txt 2>/dev/null || echo "(waiver check produced no output)"
+            echo '```'
+            echo
+            echo "**Next step:** triage into a SEC ticket. This repo's Actions have no Jira"
+            echo "credentials, so the issue is the handoff — the Daily Security routine picks it"
+            echo "up. Do not close it by fixing only the prod tree; a dev-only advisory is real"
+            echo "work, it simply is not a release blocker."
+          } > "$BODY_FILE"
+
+          # Idempotent via a deterministic title, matching anomaly-detect.yml:
+          # one running issue per ongoing condition, not one per week.
+          EXISTING="$(gh issue list --search "in:title \"$TITLE\"" --state open --label dependencies --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing issue #$EXISTING"
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+          else
+            echo "Opening new dependency-advisory issue"
+            gh issue create --title "$TITLE" --label dependencies --body-file "$BODY_FILE"
+          fi
+
       - name: Fail if high/critical vulnerabilities found
         if: steps.audit.outputs.high_critical_count != '0'
         run: |
           set -euo pipefail
-          echo "❌ ${{ steps.audit.outputs.high_critical_count }} high/critical vulnerabilities detected"
-          echo "Run 'npm audit' locally and fix before next deploy"
+          echo "❌ ${{ steps.audit.outputs.high_critical_count }} high/critical vulnerabilities detected (full tree)"
+          echo "This blocks no release — the release gate is prod-tree scoped (SEC-105)."
+          echo "A red scheduled run is the signal the routine watchdog reads; the issue"
+          echo "opened above is the work item. Triage both."
           exit 1

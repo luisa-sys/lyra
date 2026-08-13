@@ -494,8 +494,17 @@ jobs:
         run: npm run test:unit
         env:
           CI: true
-      - name: Run npm audit (high/critical vulnerabilities block PR)
-        run: npm audit --audit-level=high
+      # SEC-105. Scoped to the production dependency tree and waiver-aware.
+      # This is now the ONLY blocking npm audit in the estate — the four deploy
+      # workflows re-audited a lockfile this step had already passed, adding no
+      # information and a spontaneous-failure window on the release path.
+      # The full tree is still audited weekly by security-audit.yml, which
+      # raises a ticket rather than blocking.
+      - name: npm audit — production tree (high/critical block the PR)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-npm-audit-gate.py --self-test
+          python3 scripts/check-npm-audit-gate.py --scope prod
       - name: Check for lint/type bypasses without Jira reference
         run: |
           set -euo pipefail
