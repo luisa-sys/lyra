@@ -6,8 +6,8 @@
  * ranker stays predictable when the weights are tuned.
  */
 
-import { rankCandidates, type RankerContext } from '@/lib/recommender/v2/rank';
-import type { ProductCandidate, ConceptInput } from '@/lib/recommender/v2/types';
+import { rankCandidates, type RankerContext } from '@/modules/recommendations/recommender/v2/rank';
+import type { ProductCandidate, ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 
 function concept(): ConceptInput {
   return {

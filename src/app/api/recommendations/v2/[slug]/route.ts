@@ -40,9 +40,9 @@
 
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
-import { getRecommendations } from '@/lib/recommend';
-import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
-import type { ConceptInput } from '@/lib/recommender/v2/types';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { buildV2Recommendations } from '@/modules/recommendations/recommender/v2/pipeline';
+import type { ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 import {
   normaliseDeliveryCountry,
   isIsoAlpha2,

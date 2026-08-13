@@ -7,7 +7,7 @@
  * action-level OK/error result.
  */
 
-import { checkModeration } from '@/lib/moderation-policy';
+import { checkModeration } from '@/modules/contracts/moderation-policy';
 
 describe('KAN-241: checkModeration policy wrapper', () => {
   // ───────────── Pass-through cases ─────────────

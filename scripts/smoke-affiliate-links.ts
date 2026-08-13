@@ -9,7 +9,7 @@
  *      URL with monetised:false)
  *   2. Follow the returned URL with a bounded HEAD, falling back to a single
  *      bounded GET when HEAD is bot-walled (403/405/429) or times out — see
- *      probeUrl() in src/lib/affiliate/smoke.ts (BUGS-23). Country-spoofed
+ *      probeUrl() in src/modules/affiliate/smoke.ts (BUGS-23). Country-spoofed
  *      Accept-Language, 5s per attempt.
  *   3. Assert the final hostname matches the expected merchant for that
  *      country (assertLocalisedDomain)
@@ -37,7 +37,7 @@ import {
   summariseResults,
   probeUrl,
   type ProbeOutcome,
-} from '../src/lib/affiliate/smoke';
+} from '../src/modules/affiliate/smoke';
 
 const LYRA_APP_URL = process.env.LYRA_APP_URL || 'https://checklyra.com';
 const PROBE_TIMEOUT_MS = 5000;

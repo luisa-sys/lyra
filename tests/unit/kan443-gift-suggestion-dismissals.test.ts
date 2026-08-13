@@ -114,7 +114,7 @@ import {
   withoutDismissedRecommendations,
   withoutDismissedV2,
   MAX_SUGGESTION_KEY_LENGTH,
-} from '@/lib/recommend/dismissals';
+} from '@/modules/recommendations/recommend/dismissals';
 import { dismissGiftSuggestion, restoreGiftSuggestion } from '@/app/dashboard/profile/actions';
 
 beforeEach(() => {

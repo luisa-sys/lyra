@@ -1,7 +1,7 @@
 /**
  * KAN-408: which legal disclosures are active, driven by the global switch table.
  */
-import { disclosuresFromSwitches } from '@/lib/compliance/disclosures';
+import { disclosuresFromSwitches } from '@/modules/marketing-legal/disclosures';
 
 const base = { mcp: true, convene: true, paid_gift_links: true, age_verification: false };
 

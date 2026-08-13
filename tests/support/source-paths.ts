@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 210 entries.
+// 212 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -37,6 +37,8 @@ export const SRC = {
   offline: 'public/offline.html',
   robots: 'public/robots.txt',
   sw: 'public/sw.js',
+  auditSummary: 'scripts/audit-summary.py',
+  auditToEmail: 'scripts/audit-to-email.py',
   backupDatabaseApi: 'scripts/backup-database-api.sh',
   backupDatabaseComplete: 'scripts/backup-database-complete.sh',
   scriptsBackupDatabase: 'scripts/backup-database.sh',
@@ -172,21 +174,19 @@ export const SRC = {
   oauth: 'src/lib/convene/microsoft/oauth.ts',
   oauthConnections: 'src/lib/convene/oauth-connections.ts',
   postEvent: 'src/lib/convene/post-event.ts',
-  resolveWidgets: 'src/lib/dashboard/resolve-widgets.ts',
-  dbErrorCopy: 'src/lib/db-error-copy.ts',
-  inviteText: 'src/lib/invite-text.ts',
-  moderationPolicy: 'src/lib/moderation-policy.ts',
-  pipeline: 'src/lib/recommender/v2/pipeline.ts',
-  flags: 'src/lib/retention/flags.ts',
-  sweep: 'src/lib/retention/sweep.ts',
   middleware: 'src/middleware.ts',
   modules: 'src/modules',
   srcModules: 'src/modules/',
   gate: 'src/modules/access/gate.ts',
-  accessPipeline: 'src/modules/access/pipeline.ts',
+  pipeline: 'src/modules/access/pipeline.ts',
+  flags: 'src/modules/account/retention/flags.ts',
+  sweep: 'src/modules/account/retention/sweep.ts',
   providerGate: 'src/modules/age/provider-gate.ts',
   selfDeclaration: 'src/modules/age/self-declaration.ts',
   postLoginRedirect: 'src/modules/auth/post-login-redirect.ts',
+  moderationPolicy: 'src/modules/contracts/moderation-policy.ts',
+  inviteText: 'src/modules/dashboard/invite-text.ts',
+  resolveWidgets: 'src/modules/dashboard/resolve-widgets.ts',
   entitlementsService: 'src/modules/features/entitlements-service.ts',
   fileMagicBytes: 'src/modules/guards/file-magic-bytes.ts',
   sanitise: 'src/modules/guards/sanitise.ts',
@@ -197,6 +197,7 @@ export const SRC = {
   platformEnv: 'src/modules/platform/env.ts',
   supabaseServer: 'src/modules/platform/supabase-server.ts',
   supabaseService: 'src/modules/platform/supabase-service.ts',
+  dbErrorCopy: 'src/modules/profile/db-error-copy.ts',
   favourites: 'src/modules/profile/favourites.ts',
   profileFields: 'src/modules/profile/profile-fields.ts',
   sectionVisibility: 'src/modules/profile/section-visibility.ts',
@@ -208,6 +209,7 @@ export const SRC = {
   slugUtils: 'src/modules/public-profile/slug-utils.ts',
   v2RecommendationsHelpers: 'src/modules/public-profile/v2-recommendations-helpers.ts',
   v2RecommendationsSection: 'src/modules/public-profile/v2-recommendations-section.tsx',
+  v2Pipeline: 'src/modules/recommendations/recommender/v2/pipeline.ts',
   database: 'src/types/database',
   dev: 'src/types/database/dev.ts',
   index: 'src/types/database/index.ts',

@@ -8,7 +8,7 @@ Internal ops doc. Covers the hourly **Affiliate link smoke** monitor
 ## What the monitor does
 
 For every `(merchant × buyer-country)` in `SMOKE_PROBES`
-(`src/lib/affiliate/smoke.ts`), the hourly workflow probes the merchant's
+(`src/modules/affiliate/smoke.ts`), the hourly workflow probes the merchant's
 representative URL and asserts the final landing host is the correct
 localised storefront for that country. It exits non-zero (red workflow +
 admin email) when `shouldAlert` is true.

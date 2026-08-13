@@ -15,7 +15,7 @@
 import {
   detectMerchant,
   MERCHANT_RULES_INTERNAL,
-} from '@/lib/affiliate/merchant-detector';
+} from '@/modules/affiliate/merchant-detector';
 
 describe('KAN-191 merchant-detector — recognised merchants', () => {
   test('amazon.com → amazon', () => {

@@ -215,9 +215,7 @@
     "contracts": {
       "layer": 0,
       "paths": [
-        "src/lib/content-moderation.ts",
-        "src/lib/moderation-policy.ts",
-        "src/lib/gdpr/person-keyed-tables.ts"
+        "src/modules/contracts/"
       ],
       "owns": {
         "files": 3,
@@ -228,7 +226,7 @@
       "publicApi": [
         {
           "symbol": "checkModeration",
-          "file": "src/lib/moderation-policy.ts",
+          "file": "src/modules/contracts/moderation-policy.ts",
           "importingFiles": 2,
           "consumingModules": [
             "audit",
@@ -238,7 +236,7 @@
         },
         {
           "symbol": "moderateContent",
-          "file": "src/lib/content-moderation.ts",
+          "file": "src/modules/contracts/content-moderation.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -247,7 +245,7 @@
         },
         {
           "symbol": "type:FieldType",
-          "file": "src/lib/content-moderation.ts",
+          "file": "src/modules/contracts/content-moderation.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -256,7 +254,7 @@
         },
         {
           "symbol": "type:CheckResult",
-          "file": "src/lib/moderation-policy.ts",
+          "file": "src/modules/contracts/moderation-policy.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -801,7 +799,7 @@
     "audit": {
       "layer": 1,
       "paths": [
-        "src/lib/moderation-audit.ts"
+        "src/modules/audit/"
       ],
       "owns": {
         "files": 1,
@@ -815,7 +813,7 @@
       "publicApi": [
         {
           "symbol": "moderateAndAudit",
-          "file": "src/lib/moderation-audit.ts",
+          "file": "src/modules/audit/moderation-audit.ts",
           "importingFiles": 4,
           "consumingModules": [
             "convene",
@@ -828,17 +826,17 @@
         {
           "symbol": "recordModerationFlag",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         },
         {
           "symbol": "logModerationAction",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         },
         {
           "symbol": "auditedMutation",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         }
       ],
       "mayDependOn": [
@@ -912,9 +910,6 @@
     "access": {
       "layer": 2,
       "paths": [
-        "src/lib/beta-access/",
-        "src/lib/account-status.ts",
-        "src/lib/access-model/",
         "src/app/waitlist/",
         "src/app/suspended/",
         "src/app/join/",
@@ -939,7 +934,7 @@
       "publicApi": [
         {
           "symbol": "getAccountStanding",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 5,
           "consumingModules": [
             "account",
@@ -950,7 +945,7 @@
         },
         {
           "symbol": "shouldRefuseIssuance",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -961,7 +956,7 @@
         },
         {
           "symbol": "INVITE_COOKIE",
-          "file": "src/lib/beta-access/invite-cookie.ts",
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
           "importingFiles": 3,
           "consumingModules": [
             "auth"
@@ -970,7 +965,7 @@
         },
         {
           "symbol": "isProdFamily",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -979,7 +974,7 @@
         },
         {
           "symbol": "sendBetaApprovedEmail",
-          "file": "src/lib/beta-access/email.ts",
+          "file": "src/modules/access/beta-access/email.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -988,7 +983,7 @@
         },
         {
           "symbol": "isProdDeploy",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal"
@@ -997,7 +992,7 @@
         },
         {
           "symbol": "computeAccessTransition",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1006,7 +1001,7 @@
         },
         {
           "symbol": "AccessAction",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1015,7 +1010,7 @@
         },
         {
           "symbol": "betaInviteLink",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1024,7 +1019,7 @@
         },
         {
           "symbol": "publicSignupUrl",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1033,7 +1028,7 @@
         },
         {
           "symbol": "betaRedirectUrl",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1042,7 +1037,7 @@
         },
         {
           "symbol": "resolveBetaAccess",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1728,9 +1723,7 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
-        "src/modules/profile/",
-        "src/lib/geo/",
-        "src/lib/db-error-copy.ts"
+        "src/modules/profile/"
       ],
       "owns": {
         "files": 45,
@@ -1961,7 +1954,7 @@
         "blastRadius": "high (privacy)",
         "edgeSafe": false,
         "frozenContracts": [
-          "public reads go through the public_profiles VIEW, never the profiles base table (SEC-104; enforced by CTL-028). Supersedes the SEC-44 requirement that .eq('is_published',true).eq('is_suspended',false) stay one tested unit — that pair no longer appears in this module's files at all, because the predicates moved into the view body, where they apply even to service_role",
+          "public reads go through the public_profiles VIEW, never the profiles base table (SEC-104; enforced by CTL-028). Supersedes the SEC-44 requirement that .eq('is_published',true).eq('is_suspended',false) stay one tested unit \u2014 that pair no longer appears in this module's files at all, because the predicates moved into the view body, where they apply even to service_role",
           "SEC-82 cache headers preserved"
         ],
         "extraGates": [
@@ -1997,8 +1990,7 @@
         "src/app/dashboard/share-beta.tsx",
         "src/app/dashboard/share-profile.tsx",
         "src/app/dashboard/widgets/",
-        "src/lib/dashboard/",
-        "src/lib/invite-text.ts"
+        "src/modules/dashboard/"
       ],
       "owns": {
         "files": 9,
@@ -2081,8 +2073,8 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/settings/",
-        "src/lib/retention/",
-        "src/app/api/retention/"
+        "src/app/api/retention/",
+        "src/modules/account/"
       ],
       "owns": {
         "files": 11,
@@ -2301,9 +2293,8 @@
     "recommendations": {
       "layer": 3,
       "paths": [
-        "src/lib/recommend/",
-        "src/lib/recommender/",
-        "src/app/api/recommendations/"
+        "src/app/api/recommendations/",
+        "src/modules/recommendations/"
       ],
       "owns": {
         "files": 18,
@@ -2320,7 +2311,7 @@
       "publicApi": [
         {
           "symbol": "V2Recommendation",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 2,
           "consumingModules": [
             "public-profile"
@@ -2329,7 +2320,7 @@
         },
         {
           "symbol": "getRecommendations",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2338,7 +2329,7 @@
         },
         {
           "symbol": "buildV2Recommendations",
-          "file": "src/lib/recommender/v2/pipeline.ts",
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2347,7 +2338,7 @@
         },
         {
           "symbol": "ConceptInput",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2356,7 +2347,7 @@
         },
         {
           "symbol": "RecommendationResult",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2428,7 +2419,7 @@
     "affiliate": {
       "layer": 3,
       "paths": [
-        "src/lib/affiliate/"
+        "src/modules/affiliate/"
       ],
       "owns": {
         "files": 7,
@@ -2446,7 +2437,7 @@
       "publicApi": [
         {
           "symbol": "rollupByDailyMerchant",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2455,7 +2446,7 @@
         },
         {
           "symbol": "splitByProvider",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2464,7 +2455,7 @@
         },
         {
           "symbol": "splitBySource",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2473,7 +2464,7 @@
         },
         {
           "symbol": "type:DailyMerchantRollup",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2482,7 +2473,7 @@
         },
         {
           "symbol": "type:ProviderSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2491,7 +2482,7 @@
         },
         {
           "symbol": "type:SourceSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2500,7 +2491,7 @@
         },
         {
           "symbol": "AffiliateClickRow",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2509,7 +2500,7 @@
         },
         {
           "symbol": "eligibleMerchantsForCountry",
-          "file": "src/lib/affiliate/eligibility.ts",
+          "file": "src/modules/affiliate/eligibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2518,7 +2509,7 @@
         },
         {
           "symbol": "getAffiliateLink",
-          "file": "src/lib/affiliate/link-service.ts",
+          "file": "src/modules/affiliate/link-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2527,7 +2518,7 @@
         },
         {
           "symbol": "AffiliateProvider",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2684,7 +2675,6 @@
         "src/app/_marketing/",
         "src/app/examples/",
         "src/app/how-we-check-your-age/",
-        "src/lib/compliance/",
         "src/app/page.tsx",
         "src/app/layout.tsx",
         "src/app/error.tsx",
@@ -2696,7 +2686,8 @@
         "src/app/consent-state.ts",
         "src/app/consented-analytics.tsx",
         "src/app/install-prompt.tsx",
-        "src/app/service-worker-register.tsx"
+        "src/app/service-worker-register.tsx",
+        "src/modules/marketing-legal/"
       ],
       "owns": {
         "files": 29,
@@ -2781,7 +2772,7 @@
       "layer": 4,
       "paths": [
         "src/app/admin/",
-        "src/lib/admin.ts"
+        "src/modules/admin/"
       ],
       "owns": {
         "files": 21,
@@ -2795,7 +2786,7 @@
       "publicApi": [
         {
           "symbol": "getAdminServiceClient",
-          "file": "src/lib/admin.ts",
+          "file": "src/modules/admin/admin.ts",
           "importingFiles": 2,
           "consumingModules": [
             "account",
@@ -2805,7 +2796,7 @@
         },
         {
           "symbol": "ModerationAction",
-          "file": "src/lib/admin.ts",
+          "file": "src/modules/admin/admin.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -2897,7 +2888,7 @@
       "recommendations": [
         "src/app/api/recommendations/[slug]/route.ts",
         "src/app/api/recommendations/v2/[slug]/route.ts",
-        "src/lib/recommender/v2/candidate-sourcing.ts"
+        "src/modules/recommendations/recommender/v2/candidate-sourcing.ts"
       ],
       "marketing-legal": [
         "src/app/examples/page.tsx",
@@ -2910,7 +2901,7 @@
       ],
       "access": [
         "src/app/waitlist/actions.ts",
-        "src/lib/beta-access/flow.ts"
+        "src/modules/access/beta-access/flow.ts"
       ],
       "age": [
         "src/modules/age/age-service.ts",
@@ -2921,14 +2912,14 @@
         "src/modules/features/global-switches-service.ts"
       ],
       "account": [
-        "src/lib/retention/affiliate-clicks.ts",
-        "src/lib/retention/gatherings.ts"
+        "src/modules/account/retention/affiliate-clicks.ts",
+        "src/modules/account/retention/gatherings.ts"
       ],
       "admin": [
-        "src/lib/admin.ts"
+        "src/modules/admin/admin.ts"
       ],
       "affiliate": [
-        "src/lib/affiliate/link-service.ts"
+        "src/modules/affiliate/link-service.ts"
       ],
       "observability": [
         "src/modules/observability/metrics.ts"

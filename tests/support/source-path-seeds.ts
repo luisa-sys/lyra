@@ -170,4 +170,11 @@ export const SEEDED_PATHS = [
   // loudly rather than silently, but the baseline path would fail vacuously.
   'scripts/check-migration-ledger-parity.py',
   'supabase/migration-ledger-baseline.json',
+  // CTL-050 / SEC-136. Both are reached ONLY through `SRC` in
+  // tests/scripts/audit-summary.test.js, so without seeding they would not
+  // survive a regeneration (gotcha #31). audit-summary.py is the reader whose
+  // absence used to be indistinguishable from a clean audit — the key going
+  // missing would make its test compare against `undefined`.
+  'scripts/audit-summary.py',
+  'scripts/audit-to-email.py',
 ] as const;

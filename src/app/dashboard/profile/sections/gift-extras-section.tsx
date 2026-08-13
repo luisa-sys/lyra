@@ -27,7 +27,7 @@ import { SectionSaveBar } from './section-save-bar';
 
 /** One auto-generated suggestion, as the editor needs it. */
 export interface GiftSuggestionView {
-  /** Stable concept identity — see src/lib/recommend/dismissals.ts. */
+  /** Stable concept identity — see src/modules/recommendations/recommend/dismissals.ts. */
   key: string;
   title: string;
   description: string;

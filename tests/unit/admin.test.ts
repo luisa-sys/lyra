@@ -35,7 +35,7 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({ from: serviceFromMock })),
 }));
 
-import { getCurrentAdmin, logModerationAction } from '@/lib/admin';
+import { getCurrentAdmin, logModerationAction } from '@/modules/admin/admin';
 
 beforeEach(() => {
   authGetUser.mockReset();

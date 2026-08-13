@@ -1,7 +1,7 @@
 /**
  * KAN-424 (F2): `access-model` — the neutral home for access-state policy.
  *
- * Seed of the future `access` module (KAN-415). Import from `@/lib/access-model`
+ * Seed of the future `access` module (KAN-415). Import from `@/modules/access/access-model`
  * rather than reaching into the file directly.
  */
 

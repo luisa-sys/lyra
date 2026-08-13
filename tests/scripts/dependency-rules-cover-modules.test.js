@@ -118,11 +118,34 @@ describe('dependency rules span every library root (KAN-415)', () => {
     expect(files.filter((f) => !re.test(f))).toEqual([]);
   });
 
-  test('it still covers every tracked file under src/lib/, which is not empty yet', () => {
+  test('it still covers every tracked file under src/lib/, while src/lib/ exists', () => {
     // Widening must not have replaced the original coverage.
     const re = new RegExp(noModuleToApp.from.path);
     const files = trackedUnder(LIB);
-    expect(files.length).toBeGreaterThan(50); // 87 at the time of writing
+
+    // The corpus must be non-empty, or the assertion below is vacuous over an
+    // empty list (catalogue failure mode 4). That is the ONLY thing this line
+    // needs to establish.
+    //
+    // It read `toBeGreaterThan(50)` — a sanity floor written when src/lib/ held
+    // 87 files. KAN-415 exists to drive that count DOWN, so the number was
+    // guaranteed to expire, and it did: the tail moves took src/lib/ to exactly
+    // 50 and this went red on work that was entirely correct. A threshold that
+    // fails when the programme SUCCEEDS is measuring the wrong thing.
+    //
+    // Any floor above 0 buys nothing here. It cannot detect a coverage gap —
+    // the filter on the next line does that, by naming every uncovered file.
+    // All a bigger number does is encode a guess about how far the programme
+    // should have got, and then fail on the day it gets further.
+    //
+    // Lowered to 0 on founder sign-off, 2026-08-12. src/lib/ will not empty
+    // soon in any case: Convene is permanently out of scope and holds 27 of the
+    // files, so this keeps asserting something real for the foreseeable future.
+    // If Convene is ever extracted and src/lib/ genuinely disappears, this test
+    // should be RETIRED rather than have its corpus check weakened further —
+    // an assertion about a directory that no longer exists is not a control.
+    expect(files.length).toBeGreaterThan(0);
+
     expect(files.filter((f) => !re.test(f))).toEqual([]);
   });
 

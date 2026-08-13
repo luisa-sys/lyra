@@ -4,7 +4,7 @@
  *
  * Three subjects, all driven for real:
  *
- *   1. `src/lib/geo/places-schools.ts` (pure picker logic) and its sibling
+ *   1. `src/modules/profile/geo/places-schools.ts` (pure picker logic) and its sibling
  *      `places-schools-lookup.ts` (the Places call). Every decision the React
  *      component makes lives in the pure module on purpose: the repo's jest
  *      environment is `node` with no DOM, and changing that is a Test-Integrity
@@ -94,8 +94,8 @@ import {
   resolvePickedLocation,
   shouldSuggest,
   type PlaceSuggestion,
-} from '@/lib/geo/places-schools';
-import { lookupPlaceSuggestions } from '@/lib/geo/places-schools-lookup';
+} from '@/modules/profile/geo/places-schools';
+import { lookupPlaceSuggestions } from '@/modules/profile/geo/places-schools-lookup';
 import { suggestAffiliations } from '@/app/dashboard/profile/affiliation-search-actions';
 import { addSchoolAffiliation } from '@/app/dashboard/profile/actions';
 import { isSchoolPostcodeValid } from '@/app/dashboard/profile/affiliation-fields';

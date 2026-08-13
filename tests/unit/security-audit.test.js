@@ -162,21 +162,45 @@ describe('KAN-150: Security Audit Workflow', () => {
       fs.unlinkSync(tmpFile);
     });
 
-    test('handles invalid JSON gracefully', () => {
+    // ⚠️ THESE TWO ASSERTIONS WERE INVERTED BY SEC-136, AND THE OLD ONES PINNED
+    // THE DEFECT.
+    //
+    // They previously required `has_vulnerabilities === false` for invalid JSON
+    // and for a missing file, under the name "handles … gracefully". That is
+    // exactly the false-green SEC-136 removes: `has_vulnerabilities: false`
+    // SUPPRESSES the alert email, so "could not read the audit" was delivered
+    // to Luisa as silence — indistinguishable from "audited, nothing found".
+    //
+    // Paired with the workflow's `except: print(0)`, which skipped the only
+    // failing step, the whole control reported green having measured nothing.
+    // That is forbidden pattern #3 (the report must distinguish 0 from
+    // fetch-failed) and the SEC-79 shape.
+    //
+    // The word "gracefully" is what let it look right for a year. Swallowing a
+    // failure silently is not grace; it is the failure mode this repo has
+    // catalogued more than any other. Renamed so the intent cannot be misread
+    // again.
+    //
+    // This is a STRENGTHENING, not a weakening: the assertion goes from
+    // "reports clean" to "raises an alert", and the corresponding failure is
+    // now loud in both halves of the control.
+    test('an unreadable audit ALERTS — it must never read as a clean result', () => {
       const tmpFile = path.join('/tmp', 'test-bad-audit.json');
       fs.writeFileSync(tmpFile, 'not json');
 
       const output = runPython(emailScriptPath, tmpFile);
-      const result = JSON.parse(output.trim());
-      expect(result.has_vulnerabilities).toBe(false);
+      const result = JSON.parse(output.trim().split('\n').filter((l) => l.startsWith('{')).pop());
+      expect(result.has_vulnerabilities).toBe(true);
+      expect(result.subject).toMatch(/COULD NOT RUN/);
 
       fs.unlinkSync(tmpFile);
     });
 
-    test('handles missing file gracefully', () => {
+    test('a missing audit file ALERTS — absence of data is not absence of risk', () => {
       const output = runPython(emailScriptPath, '/tmp/nonexistent-file-12345.json');
-      const result = JSON.parse(output.trim());
-      expect(result.has_vulnerabilities).toBe(false);
+      const result = JSON.parse(output.trim().split('\n').filter((l) => l.startsWith('{')).pop());
+      expect(result.has_vulnerabilities).toBe(true);
+      expect(result.subject).toMatch(/COULD NOT RUN/);
     });
   });
 });

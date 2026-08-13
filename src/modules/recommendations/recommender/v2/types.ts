@@ -1,13 +1,13 @@
 /**
  * KAN-200 / KAN-199: shared types for the V2 recommender pipeline.
  *
- * The V2 contract extends V1 (`src/lib/recommend/`): V1's RecommendationResult
+ * The V2 contract extends V1 (`src/modules/recommendations/recommend/`): V1's RecommendationResult
  * is a concept; V2 wraps it with one or more concrete products (with URLs)
  * and the monetised affiliate output.
  */
 
-import type { GiftCategoryKey } from '@/lib/recommend/categories';
-import type { AffiliateProvider } from '@/lib/affiliate/types';
+import type { GiftCategoryKey } from '@/modules/recommendations/recommend/categories';
+import type { AffiliateProvider } from '@/modules/affiliate/types';
 
 /** A concept from V1 — what the recommender thinks the recipient would like. */
 export type ConceptInput = {
