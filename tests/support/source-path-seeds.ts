@@ -184,4 +184,12 @@ export const SEEDED_PATHS = [
   // literal in the test would let a rename read as a pass against a control
   // nobody runs.
   'scripts/check-module-layering.py',
+  // CTL-051 rule 3. The fixture target for "a downward edge nobody declared":
+  // observability is L1, dashboard is L3, and dashboard does not declare it —
+  // so the edge is legal by LAYER and only rule 3 can see it. No counted test
+  // hard-codes this path, so without the seed the key vanishes on the next
+  // regeneration and the fixture would silently target `undefined`, which
+  // `owner_of` answers "no module" for. That inverts the test into one that
+  // asserts a clean result.
+  'src/modules/observability/metrics.ts',
 ] as const;
