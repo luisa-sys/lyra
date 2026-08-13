@@ -1,4 +1,4 @@
-import { betaRedirectUrl, isProdDeploy, isProdFamily } from '@/lib/beta-access/flow';
+import { betaRedirectUrl, isProdDeploy, isProdFamily } from '@/modules/access/beta-access/flow';
 
 const asEnv = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
 

@@ -1,7 +1,7 @@
 /**
  * KAN-200: V2 recommender top-level pipeline.
  *
- *   V1 concepts (already shipped in src/lib/recommend/)
+ *   V1 concepts (already shipped in src/modules/recommendations/recommend/)
  *     ↓
  *   candidate-sourcing (Tier 1 catalogue + Tier 2 Sovrn stub + Tier 3 LLM stub)
  *     ↓
@@ -24,7 +24,7 @@ import {
 import { rankCandidates, type RankerContext } from './rank';
 import { composeRationale } from './explain';
 import { EVERGREEN_FALLBACK_CONCEPTS } from './evergreen';
-import { getAffiliateLink } from '@/lib/affiliate/link-service';
+import { getAffiliateLink } from '@/modules/affiliate/link-service';
 import { isPaidLinksAllowedForRecipient } from '@/modules/features/entitlements-service';
 import type { PipelineRequest, PipelineResult, V2Recommendation } from './types';
 

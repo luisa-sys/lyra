@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/modules/platform/supabase-server';
-import { withDismissal, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
-import { WIDGET_IDS, type WidgetId, type OnboardingState } from '@/lib/dashboard/resolve-widgets';
+import { withDismissal, type DashboardWidgetState } from '@/modules/dashboard/dismissal';
+import { WIDGET_IDS, type WidgetId, type OnboardingState } from '@/modules/dashboard/resolve-widgets';
 
 const STATES: readonly string[] = ['empty', 'drafted', 'published_activate', 'published_grow'];
 

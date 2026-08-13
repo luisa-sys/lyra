@@ -12,7 +12,7 @@ import {
   detectSpam,
   containsPII,
   moderateContent,
-} from '@/lib/content-moderation';
+} from '@/modules/contracts/content-moderation';
 
 describe('containsProfanity', () => {
   test('returns flagged=false for clean text', () => {

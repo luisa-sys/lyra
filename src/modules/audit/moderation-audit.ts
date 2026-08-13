@@ -20,8 +20,8 @@
  *     module — same pattern, different supabase client.
  */
 
-import { moderateContent, type FieldType } from './content-moderation';
-import { checkModeration, type CheckResult } from './moderation-policy';
+import { moderateContent, type FieldType } from '@/modules/contracts/content-moderation';
+import { checkModeration, type CheckResult } from '@/modules/contracts/moderation-policy';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type ModerationSource = 'web_app' | 'mcp_server';

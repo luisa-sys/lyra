@@ -18,7 +18,7 @@
  */
 
 import Link from 'next/link';
-import type { V2Recommendation } from '@/lib/recommender/v2/types';
+import type { V2Recommendation } from '@/modules/recommendations/recommender/v2/types';
 import AffiliateBadge from '@/components/AffiliateBadge';
 import { formatPriceRange, merchantLabel } from './v2-recommendations-helpers';
 

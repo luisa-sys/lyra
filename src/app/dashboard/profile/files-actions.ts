@@ -12,7 +12,7 @@ import {
   type AllowedMime,
 } from '@/modules/guards/file-magic-bytes';
 import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
-import { dbErrorFor } from '@/lib/db-error-copy';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 /**
  * KAN-142: server actions for the profile_files surface.

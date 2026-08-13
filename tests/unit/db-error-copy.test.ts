@@ -18,7 +18,7 @@ import {
   memberFacingDbError,
   dbErrorFor,
   GENERIC_DB_ERROR,
-} from '@/lib/db-error-copy';
+} from '@/modules/profile/db-error-copy';
 
 jest.mock('@sentry/nextjs', () => ({ captureException: jest.fn() }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports

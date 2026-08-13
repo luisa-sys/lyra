@@ -26,7 +26,7 @@ import { revalidatePath } from 'next/cache';
 import { type ActionResult } from '@/modules/guards/sanitise';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { normaliseDeliveryCountry } from '@/modules/profile/country-codes';
-import { dbErrorFor } from '@/lib/db-error-copy';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 export async function updateDeliveryCountry(
   input: string | null
