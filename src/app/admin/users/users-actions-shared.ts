@@ -7,13 +7,13 @@
  * file may only export async functions).
  *
  * KAN-424 (F2): the transition matrix itself (`computeAccessTransition`,
- * `AccessTransition`) moved OUT of this admin route tree to `@/lib/access-model`
+ * `AccessTransition`) moved OUT of this admin route tree to `@/modules/access/access-model`
  * — it is access policy, not an admin-console detail, and living here made it
  * the codebase's only lib -> app import edge. What remains is genuinely admin's:
  * the console's menu, its caps, and its filter shape.
  */
 
-import type { AccessAction } from '@/lib/access-model';
+import type { AccessAction } from '@/modules/access/access-model';
 
 /** Hard ceiling on a single bulk action (server-enforced). */
 export const BULK_MAX = 500;

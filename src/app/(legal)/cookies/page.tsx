@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getActiveDisclosures } from '@/lib/compliance/disclosures';
+import { getActiveDisclosures } from '@/modules/marketing-legal/disclosures';
 
 export const metadata = {
   title: 'Cookie Policy — Lyra',

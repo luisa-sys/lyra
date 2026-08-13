@@ -2,7 +2,7 @@
  * KAN-451 — the Places call behind the schools / organisations / communities
  * picker.
  *
- * Reuses the KAN-341 town/city integration (`src/lib/geo/places-city.ts`) —
+ * Reuses the KAN-341 town/city integration (`src/modules/profile/geo/places-city.ts`) —
  * same Google Places (New) Text Search endpoint, same existing key, no new
  * vendor and no new secret. The key is read via `src/modules/platform/env.ts` rather than
  * `process.env` directly (CTL-037 — a new file reading env fails the ratchet),

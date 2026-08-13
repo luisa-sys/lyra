@@ -238,6 +238,15 @@ jobs:
         # comparators rot, every environment would report clean for the wrong
         # reason, and that must fail here rather than during a promotion.
         run: python3 scripts/check-live-schema-parity.py --self-test
+      - name: Migration ledger-parity checker self-test (CTL-049)
+        # Same split as CTL-048 above: the LIVE run needs a Management API
+        # token and lives in db-invariants.yml, but the comparison and the
+        # two-way ratchet are pure logic and must be proven to still fail here.
+        # The normaliser is the part that matters — it collapses the repo's
+        # `profile_items_visibility` onto the ledger's
+        # `kan_143_profile_items_visibility`, and one that collapsed too much
+        # would MASK an unrebuildable migration while reporting green.
+        run: python3 scripts/check-migration-ledger-parity.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
@@ -459,12 +468,47 @@ jobs:
         # Fails closed: if dependency-cruiser cannot run (missing/unparseable
         # config, missing binary), the step fails rather than passing quietly.
         run: DEPCRUISE_SEVERITY=warn bash scripts/check-dependency-rules.sh
+      - name: Module layering policy (CTL-051)
+        # KAN-415 C2, the layering half. modules.json declares a layer per
+        # module and an explicit layerPolicy — "edge src->dst allowed iff
+        # layer(dst) < layer(src) OR dst in declaredSameLayer[src]; upward edges
+        # FORBIDDEN ABSOLUTELY" — and until now NOTHING read any of it. All 21
+        # modules carried "enforced": false and no script consumed that field,
+        # so the manifest described an architecture rather than constraining
+        # one. Measured when this landed: 62 cross-module edges, 12 violating.
+        #
+        # Not a dependency-cruiser rule: the policy is a function of two JSON
+        # fields across 21 modules, which as depcruise regexes would be ~400
+        # generated pairwise rules that go stale on every layer change. Reading
+        # the manifest keeps one source of truth; depcruise still produces the
+        # graph.
+        #
+        # Two-way ratchet on modules-layering-baseline.json — a NEW violation
+        # fails, and so does a baselined one that has been FIXED. Fails closed
+        # (exit 2) if the manifest, graph or baseline cannot be read.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-module-layering.py --self-test
+          python3 scripts/check-module-layering.py
+          python3 scripts/check-module-api.py --self-test
+          python3 scripts/check-module-api.py
+          python3 scripts/check-edge-safe.py --self-test
+          python3 scripts/check-edge-safe.py
       - name: Run unit tests
         run: npm run test:unit
         env:
           CI: true
-      - name: Run npm audit (high/critical vulnerabilities block PR)
-        run: npm audit --audit-level=high
+      # SEC-105. Scoped to the production dependency tree and waiver-aware.
+      # This is now the ONLY blocking npm audit in the estate — the four deploy
+      # workflows re-audited a lockfile this step had already passed, adding no
+      # information and a spontaneous-failure window on the release path.
+      # The full tree is still audited weekly by security-audit.yml, which
+      # raises a ticket rather than blocking.
+      - name: npm audit — production tree (high/critical block the PR)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-npm-audit-gate.py --self-test
+          python3 scripts/check-npm-audit-gate.py --scope prod
       - name: Check for lint/type bypasses without Jira reference
         run: |
           set -euo pipefail

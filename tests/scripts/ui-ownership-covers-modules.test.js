@@ -148,7 +148,7 @@ describe('KAN-473 — extracting UI must not un-protect it', () => {
       SRC.slugUtils,
       SRC.v2RecommendationsHelpers,
       SRC.platformEnv,
-      SRC.accessPipeline,
+      SRC.pipeline,
     ]) {
       expect(`${f} founder-owned: ${isProtected(f)}`).toBe(`${f} founder-owned: false`);
     }

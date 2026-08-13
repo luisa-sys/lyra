@@ -73,13 +73,13 @@
     {
       "id": "affiliate-smoke-locale-mismatch",
       "title": "Affiliate smoke probes hit the wrong regional storefront",
-      "summary": "The smoke runner HEAD-probes a single UK source URL (e.g. amazon.co.uk) and expects per-locale storefronts (amazon.com, amazon.de) — which won't happen pre-Sovrn because Accept-Language alone doesn't move users off a regional domain. Fix is in src/lib/affiliate/smoke.ts adding per-country source URLs.",
+      "summary": "The smoke runner HEAD-probes a single UK source URL (e.g. amazon.co.uk) and expects per-locale storefronts (amazon.com, amazon.de) — which won't happen pre-Sovrn because Accept-Language alone doesn't move users off a regional domain. Fix is in src/modules/affiliate/smoke.ts adding per-country source URLs.",
       "workflows": ["Affiliate link smoke", "affiliate-link-smoke"],
       "regex": "\\[smoke\\] FAIL [a-z_]+ [A-Z]{2}: (unexpected_host|head_http_404)",
       "remediation": {
         "kind": "pr_pending",
         "pr_branch_hint": "fix/affiliate-smoke-locale-urls",
-        "fix_summary": "src/lib/affiliate/smoke.ts adds optional representativeUrlsByCountry; populated for Amazon/eBay/Bookshop.org",
+        "fix_summary": "src/modules/affiliate/smoke.ts adds optional representativeUrlsByCountry; populated for Amazon/eBay/Bookshop.org",
         "related_pr_label": "auto-fix-tracked"
       },
       "owner_hint": "ci"

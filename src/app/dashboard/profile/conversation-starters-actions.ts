@@ -3,10 +3,10 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
-import { dbErrorFor } from '@/lib/db-error-copy';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 /**
  * KAN-181: server actions for `profile_conversation_starters`.
@@ -65,7 +65,7 @@ async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
 
 /*
  * `capErrorCopy` lived here until BUGS-87. It moved to
- * src/lib/db-error-copy.ts, where its matchers were ANCHORED per trigger.
+ * src/modules/profile/db-error-copy.ts, where its matchers were ANCHORED per trigger.
  * The generic `/limit \(\d+\) reached/` it used was safe while it was
  * local to this file and became a bug the moment it was shared: it also
  * matches 'Profile file limit (10) reached'. See that module's header.
@@ -150,7 +150,7 @@ export async function addConversationStarter(input: {
 
   if (error) {
     // BUGS-87: the cap messages and 23505 (unique_violation on
-    // profile_id+prompt_id) both live in src/lib/db-error-copy.ts now, so the
+    // profile_id+prompt_id) both live in src/modules/profile/db-error-copy.ts now, so the
     // add and update paths cannot drift apart — the sibling-drift shape this
     // module's header warns about, previously reproduced right here.
     return { success: false, error: dbErrorFor('add-conversation-starter', error) };

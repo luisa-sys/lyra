@@ -119,7 +119,7 @@ queried 18 tables while the deletion cascade erased 32.
 
 This table is the checklist. It is **kept honest by a test**:
 `tests/unit/ropa-table-inventory.test.ts` asserts that every table in
-`src/lib/gdpr/person-keyed-tables.ts` appears below, so the manifest and this
+`src/modules/contracts/person-keyed-tables.ts` appears below, so the manifest and this
 document cannot drift apart. Adding a person-keyed table to a migration without
 recording it here is a red build.
 

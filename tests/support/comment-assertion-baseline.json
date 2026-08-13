@@ -310,7 +310,7 @@
     },
     {
       "test": "tests/unit/moderation-actions.test.ts",
-      "subject": "src/lib/moderation-policy.ts",
+      "subject": "src/modules/contracts/moderation-policy.ts",
       "assertion": "/moderateContent/",
       "severity": "comment-shadowed"
     },

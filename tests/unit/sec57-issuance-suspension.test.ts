@@ -46,7 +46,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 // generateApiKey's module imports getAdminServiceClient (unused here).
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({}),
 }));
 

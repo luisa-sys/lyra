@@ -12,7 +12,7 @@ import {
   isMerchantEligibleInCountry,
   eligibleMerchantsForCountry,
   type MerchantEligibilityRow,
-} from '@/lib/affiliate/eligibility';
+} from '@/modules/affiliate/eligibility';
 
 // ── Minimal Supabase client stub ────────────────────────────────────────
 // Only the methods the helpers call. Returns canned data for the assertions.

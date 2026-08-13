@@ -3,7 +3,7 @@
  * test it directly — every action's exact column changes, the audited action
  * string, and whether an approval email is appropriate.
  */
-import { computeAccessTransition } from '@/lib/access-model';
+import { computeAccessTransition } from '@/modules/access/access-model';
 import {
   isBulkAction,
   BULK_ACTIONS,

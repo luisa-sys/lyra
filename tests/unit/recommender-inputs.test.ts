@@ -22,7 +22,7 @@ import {
   isOccasion,
   isRelationship,
   coerceRecipientAttributes,
-} from '@/lib/recommender/inputs';
+} from '@/modules/recommendations/recommender/inputs';
 
 describe('KAN-198 recommender inputs — AGE_RANGE_BUCKETS', () => {
   test('matches the SQL CHECK constraint exactly', () => {

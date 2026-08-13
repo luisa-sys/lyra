@@ -27,7 +27,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { eligibleMerchantsForCountry } from '@/lib/affiliate/eligibility';
+import { eligibleMerchantsForCountry } from '@/modules/affiliate/eligibility';
 import type { ProductCandidate } from './types';
 
 export type EligibilityFilterInput = {

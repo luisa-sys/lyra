@@ -9,7 +9,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
 import {
   setSuspendState,
   setPublishedState,

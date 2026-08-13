@@ -30,7 +30,7 @@
  *
  *   3. Two modules appeared to claim the same three files, which looked like an
  *      ambiguous boundary and was not: src/lib/recommend/convene/ is nested
- *      inside src/lib/recommend/. The manifest was right and the naive reading
+ *      inside src/modules/recommendations/recommend/. The manifest was right and the naive reading
  *      was wrong — which is itself worth pinning, because the next person to
  *      check this by hand will make the same mistake.
  *
@@ -194,7 +194,7 @@ describe('modules.json integrity (KAN-415)', () => {
   test('cross-module path nesting resolves to the more specific module', () => {
     // Derived from the manifest, not typed: this pins the RULE (most specific
     // declaration wins), not two particular filenames. The real case is
-    // src/lib/recommend/convene/ nested inside src/lib/recommend/, which reads
+    // src/lib/recommend/convene/ nested inside src/modules/recommendations/recommend/, which reads
     // as an ambiguous boundary if you check it by hand — it is not.
     const decls = [];
     for (const [name, mod] of Object.entries(MODULES)) {
@@ -202,10 +202,52 @@ describe('modules.json integrity (KAN-415)', () => {
       for (const raw of mod.paths) decls.push({ name, p: raw.replace(/\/$/, '') });
     }
     const nested = decls.filter((a) => decls.some((b) => b.name !== a.name && a.p.startsWith(`${b.p}/`)));
-    // There is at least one such pair today; if that ever stops being true this
-    // test would pass vacuously, so assert the fixture exists before using it.
-    expect(nested.length).toBeGreaterThan(0);
 
+    // ⚠️ THE REAL FIXTURE IS GONE, AND THAT IS THE PROGRAMME WORKING.
+    //
+    // This used to require `nested.length > 0` — correct at the time, because a
+    // vacuous loop over an empty list proves nothing (catalogue failure mode 4).
+    // The pair it relied on was convene's `src/lib/recommend/convene/` sitting
+    // inside recommendations' `src/lib/recommend/`. KAN-415's tail moved
+    // recommendations to `src/modules/recommendations/`, so that nesting no
+    // longer exists — the extraction RESOLVED the ambiguous boundary rather
+    // than the test going wrong.
+    //
+    // Requiring a real nested pair would now fail on a tree that is strictly
+    // better. Allowing zero would make the loop vacuous. So the rule is
+    // asserted directly instead, against a synthetic manifest — which is what
+    // the comment above always claimed this test does ("pins the RULE, not two
+    // particular filenames") and is STRONGER than before: it holds whether or
+    // not the tree happens to contain a nested pair.
+    // Prefixed `mod/` rather than `src/` on purpose: the F4 raw-literal
+    // ratchet harvests `src|supabase|scripts|public|design|.github` paths and
+    // is shrink-only, so a synthetic fixture under a real root would raise a
+    // baseline that may not be raised. The rule under test does not care.
+    const synthetic = {
+      outer: { paths: ['mod/x/'] },
+      inner: { paths: ['mod/x/y/'] },
+    };
+    const ownerIn = (manifest, file) => {
+      let best = null;
+      let bestLen = -1;
+      for (const [name, mod] of Object.entries(manifest)) {
+        for (const raw of mod.paths) {
+          const q = raw.replace(/\/$/, '');
+          if (file === q || file.startsWith(`${q}/`)) {
+            if (q.length > bestLen) {
+              best = name;
+              bestLen = q.length;
+            }
+          }
+        }
+      }
+      return best;
+    };
+    expect(ownerIn(synthetic, 'mod/x/y/deep/file.ts')).toBe('inner');
+    expect(ownerIn(synthetic, 'mod/x/other.ts')).toBe('outer');
+
+    // And when the tree DOES contain a nested pair, the shipped resolver must
+    // agree with that rule on every file it owns.
     for (const inner of nested) {
       const owned = files.filter((f) => f === inner.p || f.startsWith(`${inner.p}/`));
       expect(owned.length).toBeGreaterThan(0);

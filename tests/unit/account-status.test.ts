@@ -11,7 +11,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 
 /** Build a minimal supabase-shaped client whose profiles read resolves to `res`. */
 function clientReturning(res: { data: unknown; error: unknown }): SupabaseClient {

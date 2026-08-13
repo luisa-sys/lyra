@@ -11,7 +11,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/lib/admin';
+import { getAdminServiceClient } from '@/modules/admin/admin';
 import {
   resolveReport,
   suspendProfileFromReport,
