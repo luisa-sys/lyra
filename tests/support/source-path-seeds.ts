@@ -272,4 +272,19 @@ export const SEEDED_PATHS = [
   // in the test would feed the shrink-only F4 raw-literal ratchet. The ratchet
   // deliberately excludes tests/support/**, so this is the layer it belongs in.
   'src/app',
+  // CTL-062 / SEC-146. Both reached ONLY via `SRC` in
+  // tests/scripts/check-run-log-freshness.test.js, so without seeding they do
+  // not survive a regeneration (gotcha #31). The checker path is also the
+  // registry's `implementation` value and the string the workflow must name, so
+  // the assertion IS the path — a literal in the test would let a rename read as
+  // a pass against a control nobody runs.
+  //
+  // Note what is deliberately NOT seeded: the three run-log documents and the
+  // Control Room mirror. The generator harvests only src, supabase, scripts,
+  // public, design and .github, so no `docs/` key can ever exist, and seeding
+  // one would fail source-path-manifest-integrity's "every seed is in the
+  // manifest" assertion. They stay raw literals in the test, which is free —
+  // the F4 raw-literal ratchet counts the same six prefixes and not `docs/`.
+  'scripts/check-run-log-freshness.py',
+  '.github/workflows/routine-evidence.yml',
 ] as const;

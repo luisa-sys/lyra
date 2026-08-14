@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 232 entries.
+// 234 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -34,6 +34,7 @@ export const SRC = {
   promoteToProduction: '.github/workflows/promote-to-production.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
   releaseIntegrity: '.github/workflows/release-integrity.yml',
+  routineEvidence: '.github/workflows/routine-evidence.yml',
   securityAudit: '.github/workflows/security-audit.yml',
   weeklyReport: '.github/workflows/weekly-report.yml',
   baseline: 'design/BASELINE.json',
@@ -70,6 +71,7 @@ export const SRC = {
   checkReleaseTagged: 'scripts/check-release-tagged.py',
   checkRouteThinness: 'scripts/check-route-thinness.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
+  checkRunLogFreshness: 'scripts/check-run-log-freshness.py',
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
