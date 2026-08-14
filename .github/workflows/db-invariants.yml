@@ -164,8 +164,68 @@ jobs:
           PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
         run: python3 scripts/check-live-schema-parity.py --snapshot-only
 
+      # SEC-143 — the fourth snapshot, which lives in lyra-admin-mcp-server.
+      #
+      # DELIBERATELY A SEPARATE STEP, not a flag on the one above. The two
+      # findings need OPPOSITE remedies: a stale local snapshot is fixed with
+      # `npm run gen:db-types`, a stale admin contract is fixed by regenerating a
+      # file in another repository. Sharing one `if: failure()` handler would
+      # print the wrong instruction for whichever fired — which is precisely
+      # CTL-059, fixed in this same workflow's ledger-parity job hours earlier.
+      - name: Compare the admin server's schema contract with production (SEC-143)
+        id: admin-contract
+        env:
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          # Same mechanism CTL-043 uses for its cross-repo reads — the built-in
+          # token, no new secret provisioned anywhere.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 scripts/check-live-schema-parity.py \
+            --env prod --snapshot-only --with-admin-contract || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Raise the admin-contract finding
+        if: failure() && steps.admin-contract.outcome == 'failure'
+        env:
+          RC: ${{ steps.admin-contract.outputs.rc }}
+        run: |
+          set -euo pipefail
+          case "${RC:-unknown}" in
+            2)
+              echo "::error::The admin schema contract could not be READ or compared."
+              echo ""
+              echo "This is NOT a drift finding. Nothing was compared, so do not go"
+              echo "looking for a stale column — the file could not be fetched, or the"
+              echo "production database could not be read. Check gh auth and the"
+              echo "PROD_SUPABASE_* secrets."
+              ;;
+            1)
+              echo "::error::lyra-admin-mcp-server's schema contract no longer matches production."
+              echo ""
+              echo "That contract is what types the admin server's writes (BUGS-101). A"
+              echo "column it declares but production lacks is the BUGS-101 shape itself:"
+              echo "a write typed against a dropped column, failing at runtime with"
+              echo "PGRST204. A column production has but the contract lacks means the"
+              echo "contract has gone stale and is describing a database that moved."
+              echo ""
+              echo "Fix in lyra-admin-mcp-server, not here: regenerate"
+              echo "src/types/database.ts from this repo's src/types/database/prod.ts"
+              echo "(its header records the exact provenance and how to redo it)."
+              ;;
+            *)
+              echo "::error::admin-contract step failed with rc='${RC:-unknown}'."
+              echo "The guidance above does not apply — neither exit code was reported,"
+              echo "so treat this as a broken step rather than a schema finding."
+              ;;
+          esac
+          exit 1
+
       - name: Raise the finding
-        if: failure()
+        if: failure() && steps.admin-contract.outcome != 'failure'
         run: |
           set -euo pipefail
           echo "::error::A committed schema snapshot no longer matches its own database."
