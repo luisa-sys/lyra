@@ -191,6 +191,85 @@ describe('modules.json integrity (KAN-415)', () => {
     expect(MODULES.convene.modularisationStatus.jira).toBe('KAN-470');
   });
 
+  describe('`enforced` is DERIVED, and fails in both directions (KAN-415 criterion 1)', () => {
+    // The field sat `false` on all 21 modules while NOTHING read it. That is
+    // worse than unused: plan section 4.5 proposed that depcruise skip
+    // unenforced modules, that skip was never built, and CTL-051/053/054/055
+    // apply to every module unconditionally. So the manifest asserted
+    // boundaries were advisory here when the opposite was true — the same
+    // hazard as a comment claiming a live control is off.
+    //
+    // Redefined: `enforced` means "zero baselined exceptions today". A target
+    // that moves as the baselines shrink, rather than a checkbox nobody can
+    // tick.
+    const layering = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'modules-layering-baseline.json'), 'utf8'),
+    ).violations;
+    const tables = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'supabase', 'table-ownership-baseline.json'), 'utf8'),
+    ).violations;
+
+    const withExceptions = new Set(
+      [...Object.keys(layering), ...Object.keys(tables)].map((k) => k.split(' -> ')[0]),
+    );
+
+    test('the baselines are non-empty, or every assertion below is vacuous', () => {
+      // Catalogue failure mode 4: a conclusion drawn from an empty corpus. If
+      // both baselines were empty, "enforced === true for all" would pass while
+      // measuring nothing.
+      expect(Object.keys(layering).length).toBeGreaterThan(0);
+      expect(Object.keys(tables).length).toBeGreaterThan(0);
+      expect(withExceptions.size).toBeGreaterThan(0);
+    });
+
+    test('every module claiming `enforced: true` really has zero exceptions', () => {
+      const lying = Object.entries(MODULES)
+        .filter(([name, m]) => m.enforced === true && withExceptions.has(name))
+        .map(([name]) => name);
+      expect(`modules claiming enforced with baselined exceptions: ${JSON.stringify(lying)}`).toBe(
+        'modules claiming enforced with baselined exceptions: []',
+      );
+    });
+
+    test('every module with zero exceptions CLAIMS it — a stale false is also a lie', () => {
+      // The direction that makes this a ratchet rather than an honour system.
+      // Without it the field could be left `false` forever and never go red,
+      // which is exactly the state it was in.
+      const understating = Object.entries(MODULES)
+        .filter(([name, m]) => m.enforced !== true && !withExceptions.has(name))
+        .map(([name]) => name);
+      expect(`clean modules not claiming enforced: ${JSON.stringify(understating)}`).toBe(
+        'clean modules not claiming enforced: []',
+      );
+    });
+
+    test('the field is a boolean on every module, never absent', () => {
+      const bad = Object.entries(MODULES)
+        .filter(([, m]) => typeof m.enforced !== 'boolean')
+        .map(([name]) => name);
+      expect(`modules with a non-boolean enforced: ${JSON.stringify(bad)}`).toBe(
+        'modules with a non-boolean enforced: []',
+      );
+    });
+
+    test('both values actually occur — a uniform field is indistinguishable from no field', () => {
+      // This is what the old state failed. All-false passed every check that
+      // did not exist; all-true would too. Requiring both present means the
+      // field carries information.
+      const values = new Set(Object.values(MODULES).map((m) => m.enforced));
+      expect([...values].sort()).toEqual([false, true]);
+    });
+
+    test('the manifest states what `enforced` means, next to the data', () => {
+      // A derived field whose derivation lives only in a test is a field the
+      // next person hand-edits to make a build pass.
+      const notes = manifest.$schemaNotes || {};
+      expect(typeof notes.enforced).toBe('string');
+      expect(notes.enforced).toContain('ZERO baselined exceptions');
+      expect(notes.enforced).toContain('NEVER BUILT');
+    });
+  });
+
   test('cross-module path nesting resolves to the more specific module', () => {
     // Derived from the manifest, not typed: this pins the RULE (most specific
     // declaration wins), not two particular filenames. The real case is

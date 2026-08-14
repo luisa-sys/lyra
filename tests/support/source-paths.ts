@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 227 entries.
+// 229 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -65,6 +65,7 @@ export const SRC = {
   checkModuleLayering: 'scripts/check-module-layering.py',
   checkModuleTableOwnership: 'scripts/check-module-table-ownership.py',
   checkNpmAuditGate: 'scripts/check-npm-audit-gate.py',
+  checkRouteThinness: 'scripts/check-route-thinness.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
@@ -241,6 +242,7 @@ export const SRC = {
   migrations20260712033000Sec74AffiliateClicksRetentionPurge: 'supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql',
   migrations20260717033000Sec74GatheringsRetentionPurge: 'supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql',
   migrations20260803160000Kan445CustomConversationPrompts: 'supabase/migrations/20260803160000_kan445_custom_conversation_prompts.sql',
+  routeThinnessBaseline: 'supabase/route-thinness-baseline.json',
   schemaDriftBaseline: 'supabase/schema-drift-baseline.json',
   tableOwnershipBaseline: 'supabase/table-ownership-baseline.json',
 } as const;

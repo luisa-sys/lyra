@@ -280,7 +280,7 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "contracts": {
       "layer": 0,
@@ -410,7 +410,7 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "guards": {
       "layer": 1,
@@ -764,7 +764,7 @@
         "testFiles": 3,
         "testBlocks": 59
       },
-      "enforced": false
+      "enforced": true
     },
     "observability": {
       "layer": 1,
@@ -877,7 +877,7 @@
         "testFiles": 1,
         "testBlocks": 3
       },
-      "enforced": false
+      "enforced": true
     },
     "ui-kit": {
       "layer": 1,
@@ -971,7 +971,7 @@
         "testFiles": 1,
         "testBlocks": 9
       },
-      "enforced": false
+      "enforced": true
     },
     "audit": {
       "layer": 1,
@@ -1091,7 +1091,7 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "access": {
       "layer": 2,
@@ -1620,7 +1620,7 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "age": {
       "layer": 2,
@@ -1906,7 +1906,7 @@
         "testFiles": 4,
         "testBlocks": 41
       },
-      "enforced": false
+      "enforced": true
     },
     "auth": {
       "layer": 3,
@@ -2017,7 +2017,7 @@
         "testFiles": 5,
         "testBlocks": 51
       },
-      "enforced": false
+      "enforced": true
     },
     "profile": {
       "layer": 3,
@@ -3001,7 +3001,7 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "trust-safety": {
       "layer": 3,
@@ -3516,5 +3516,8 @@
       "src/types/database/prod.ts": "generated schema snapshot; see dev.ts",
       "src/types/database/index.ts": "selects which generated snapshot the app compiles against"
     }
+  },
+  "$schemaNotes": {
+    "enforced": "TRUE means this module currently has ZERO baselined exceptions - no entry in modules-layering-baseline.json and none in supabase/table-ownership-baseline.json. It is a DERIVED fact, checked two-way by tests/unit/modules-manifest-integrity.test.js (CTL-041): claiming true while carrying an exception fails, and so does claiming false while clean. Do not hand-edit it to make a build pass - fix or baseline the exception, then set this to match. \u26a0\ufe0f It does NOT mean 'boundary checks apply to this module'. Plan section 4.5 proposed that depcruise skip unenforced modules; that skip was NEVER BUILT, and CTL-051/053/054/055 all apply to every module unconditionally. The field previously read false on all 21, which asserted the opposite of the truth - a manifest claiming a live control is off is the same hazard as a stale comment claiming it."
   }
 }
