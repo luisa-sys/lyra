@@ -241,4 +241,17 @@ export const SEEDED_PATHS = [
   // harness rather than a missing entry.
   'scripts/check-module-table-ownership.py',
   'supabase/table-ownership-baseline.json',
+  // CTL-056. Same reasoning as CTL-055 above: both are reached only via
+  // `SRC` in tests/scripts/check-route-thinness.test.js, and the baseline is
+  // seeded too because the test asserts positive facts about its shape (the
+  // computed totals, and that every baselined path is still tracked).
+  'scripts/check-route-thinness.py',
+  'supabase/route-thinness-baseline.json',
+  // The directory CTL-056 scans. A DIRECTORY rather than a file, and seeded
+  // for the same reason as the two above: the fixtures in
+  // tests/scripts/check-route-thinness.test.js must live under a path of this
+  // name (the checker runs `git ls-files src/app`), and writing it as a literal
+  // in the test would feed the shrink-only F4 raw-literal ratchet. The ratchet
+  // deliberately excludes tests/support/**, so this is the layer it belongs in.
+  'src/app',
 ] as const;
