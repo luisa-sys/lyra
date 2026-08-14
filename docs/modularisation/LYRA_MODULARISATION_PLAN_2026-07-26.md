@@ -359,6 +359,20 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 
 Neither gate needs a repository framework. **They make the existing style illegal outside one directory per module** — which is exactly the incremental pressure that works.
 
+> ✅ **DELIVERED 2026-08-14 as CTL-055 — `scripts/check-module-table-ownership.py`** (Python, not `.sh`; every other KAN-415 gate is Python and the two-way ratchet needs JSON handling). Measured at landing: **242 non-`profiles` call sites, 56 unowned `(module → table)` pairs**, grandfathered in `supabase/table-ownership-baseline.json` as a two-way ratchet, so it ships green and can only shrink.
+>
+> **Two corrections to the paragraph above, both worth keeping:**
+>
+> 1. **`profiles` is NOT enforced at column granularity, and cannot honestly be.** The plan assumed static analysis could read a write's column set. It cannot: of 18 `profiles` writes, **6 pass a variable rather than a literal object**. A gate covering the other 12 and silently passing those 6 would report clean over *exactly the shape BUGS-74 was* — a partial write destroying columns the caller never named. `profiles` is therefore excluded from this gate by policy, with the column contract pinned at **runtime** by `tests/unit/partial-write-safety.test.ts`, which is the right instrument for it. Recording the gap is a finding; covering 12 of 18 and calling it column-granular would have been a regression.
+>
+> 2. **"One directory per module" is not what makes the boundary hold.** The gate keys on the **path assignments in `modules.json`**, not on directory names, which is why it landed without moving a single file — and why relocating Convene into `src/modules/` would buy zero additional enforcement. The incremental pressure comes from the manifest being read, not from the tree being tidy.
+>
+> **What it catches that nothing else could.** Convene passes CTL-051 and CTL-053 cleanly — 2 declared entry points, every outward import edge legal and downward, both enforced two-way — and still reaches **3 tables owned by other modules** (`api_keys`, `consent_log`, `refresh_relationship_signals`). Enforcement on the **import** graph says nothing about the **data** graph.
+>
+> ⚠️ **Read `_concentration` before proposing a cleanup.** 29 of the 56 pairs come from one file — the account erasure/export path, which touches every table a user has data in *by definition*. That figure is computed at `--write-baseline`, never typed, so it cannot go stale. Without it the baseline reads as 56 boundary breaks and invites a "fix" that would be wrong.
+>
+> The `check-service-role-client.sh` half of this section remains as written.
+
 ### 4.4 The ratchet — how a boundary survives an urgent Friday fix
 
 `.boundaries-allowlist.json` is a flat array of `{rule, from, to, reason, ticket, expires}`. `scripts/check-boundary-ratchet.sh` (blocking) asserts:
@@ -533,7 +547,7 @@ These are the "research for the refactor" the request asked for. Each answers on
 |---|---|---|
 | **C1** | ⏸️ **DEFERRED (§2.2).** Create `src/modules/` skeleton, `modules.json`, per-module tsconfig aliases (index-only, no wildcards), mirrored `jest.moduleNameMapper` | R1, F3 |
 | **C2** | ⏸️ **DEFERRED (§2.2)** — and ⚠️ **hard-blocked on [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) whenever it is re-opened** (see §4.2). Add `dependency-cruiser` with all 9 rules as a blocking `Module boundary gate` step in `PR Quality Gate`; unenforced modules skipped | C1, **SEC-105** |
-| **C3** | ✅ **IN SCOPE.** Add `scripts/check-module-table-ownership.sh` (280 → **277** call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh`. ⚠️ **Re-expressed 2026-07-28:** since `src/modules/` is not being created, the gate maps each file to its owning module via the **path assignments already in KAN-416's `modules.json`**, and restricts `createServiceRoleClient` to each module's declared data paths rather than to `src/modules/*/data/**`. The data boundary does not require the file moves — that is why it survives the scope ruling | ~~C1~~, F6, R6 |
+| **C3** | ✅ **DONE 2026-08-14 (table-ownership half) — landed as CTL-055 `scripts/check-module-table-ownership.py`.** Add `scripts/check-module-table-ownership.sh` (280 → **277** call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh`. ⚠️ **Re-expressed 2026-07-28:** since `src/modules/` is not being created, the gate maps each file to its owning module via the **path assignments already in KAN-416's `modules.json`**, and restricts `createServiceRoleClient` to each module's declared data paths rather than to `src/modules/*/data/**`. The data boundary does not require the file moves — that is why it survives the scope ruling | ~~C1~~, F6, R6 |
 | **C4** | Add `scripts/check-boundary-ratchet.sh` + `.boundaries-allowlist.json` + the `BOUNDARY-EXEMPTION-APPROVED` trailer | C2 |
 | **C5** | Add `scripts/check-module-manifest.sh` (index.ts + manifest entry + CODEOWNERS line + test dir); rewrite the 11 per-file CODEOWNERS lines to module paths | C1 |
 | **C6** | ESLint `no-restricted-imports` layer (redundant with C2 by design — fails in the editor, before CI) | C1 |

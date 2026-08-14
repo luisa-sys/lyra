@@ -458,12 +458,21 @@ jobs:
         #
         # Placed after `npm ci` because dependency-cruiser is a dev-dependency.
         #
-        # ROLL-OUT: severity `warn` — violations are printed and annotated, the
-        # build stays green. Flip to blocking by changing DEPCRUISE_SEVERITY to
-        # `error` once the outstanding findings are cleared (they are KAN-424
-        # Defects 2 and 3 plus two more found by this gate; see docs/RUNBOOK.md
-        # → "Dependency-rule gate (KAN-425)"). That variable is the ONLY
-        # intended change — never relax a rule's definition to make it pass.
+        # ⚠️ `DEPCRUISE_SEVERITY=warn` DOES NOT MAKE THIS STEP NON-BLOCKING.
+        # This comment used to read "the build stays green", which has been
+        # FALSE since KAN-414 F3 (2026-07-29) replaced the single global dial
+        # with per-rule severity. `FORCE_ERROR` is a one-way override, so a rule
+        # measured at zero violations resolves to `error` regardless of the env
+        # var: no-module-to-app and no-circular BLOCK today. Only
+        # no-cross-segment-app is genuinely warn, because 2 violations remain.
+        #
+        # Proven by mutation 2026-08-14 rather than by reading the config: a
+        # src/modules/platform → src/app/globals.css import under this exact
+        # invocation exits 1 with `error no-module-to-app`.
+        #
+        # Left as `warn` deliberately — it is the value that keeps the one
+        # unfinished rule advisory while the two finished ones block. Never
+        # relax a rule's definition to make it pass.
         #
         # Fails closed: if dependency-cruiser cannot run (missing/unparseable
         # config, missing binary), the step fails rather than passing quietly.
@@ -494,6 +503,14 @@ jobs:
           python3 scripts/check-module-api.py
           python3 scripts/check-edge-safe.py --self-test
           python3 scripts/check-edge-safe.py
+          # CTL-055. The three checks above constrain the IMPORT graph; this one
+          # constrains the DATA graph, and they are not the same boundary.
+          # Convene is the proof: it passes CTL-051 and CTL-053 cleanly — 2
+          # declared entry points, every outward edge legal and downward — and
+          # still reaches 3 tables owned by other modules. `modules.json` has
+          # carried `owns.tables` since it was written and nothing read it.
+          python3 scripts/check-module-table-ownership.py --self-test
+          python3 scripts/check-module-table-ownership.py
       - name: Run unit tests
         run: npm run test:unit
         env:

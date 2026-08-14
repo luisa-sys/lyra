@@ -121,6 +121,32 @@ BASELINE_PATH = REPO_ROOT / "supabase" / "migration-ledger-baseline.json"
 TIMEOUT_SECONDS = 30
 API_ROOT = "https://api.supabase.com"
 
+# ⚠️ THIS HEADER IS LOAD-BEARING. Without it CTL-049 CANNOT WORK, with any
+# token, from any IP.
+#
+# `api.supabase.com` sits behind Cloudflare, and Cloudflare bans Python's
+# default `User-Agent: Python-urllib/3.x` by browser signature — **error 1010**,
+# returned as a bare `403 Forbidden`. The request never reaches Supabase's auth
+# layer at all.
+#
+# That 403 is indistinguishable at a glance from "your token lacks permission",
+# and it cost real time on 2026-08-14: a freshly minted PAT was blamed and
+# nearly regenerated. The tell was the Supabase dashboard still reporting the
+# token as **"Never used"** after two CI runs — a token that had been presented
+# and REFUSED would have registered a use. Measured, no credentials, from a
+# residential IP:
+#
+#   default python-urllib UA  -> 403  Cloudflare error 1010
+#   browser-like UA           -> 401  Unauthorized   <- reached Supabase
+#   bogus bearer + python UA  -> 403  Cloudflare error 1010
+#
+# So a 401 is the HEALTHY failure here and a 403 is the infrastructure one.
+# This is CLAUDE.md gotcha #7 ("Cloudflare 403 from CI") one layer deeper: it is
+# not only the runner's IP, it is the user agent, and it reproduces anywhere.
+#
+# Pinned by `--self-test` so the header cannot be dropped as tidying.
+USER_AGENT = "lyra-ci-migration-ledger-parity/1.0 (+https://github.com/luisa-sys/lyra; CTL-049)"
+
 # Project refs per CLAUDE.md gotcha #19. Not secrets — they appear in every
 # project URL — but overridable so a fork or a restored project can be pointed
 # elsewhere without editing the script.
@@ -190,7 +216,13 @@ def fetch_ledger(project_ref: str, token: str) -> list[dict]:
     endpoint = f"{API_ROOT}/v1/projects/{project_ref}/database/migrations"
     request = urllib.request.Request(
         endpoint,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            # See USER_AGENT above — without this Cloudflare 403s the request
+            # before Supabase ever sees the token.
+            "User-Agent": USER_AGENT,
+        },
         method="GET",
     )
     try:
@@ -445,6 +477,28 @@ def self_test() -> int:
     methods = set(re.findall(r'method\s*=\s*"([A-Z]+)"', code))
     check("the file issues at least one request", len(methods) > 0, True)
     check("every request method is GET", methods, {"GET"})
+
+    # --- the User-Agent is load-bearing, not decoration --------------------
+    # Cloudflare fronts api.supabase.com and bans Python's default UA by
+    # browser signature (error 1010), returning a bare 403 BEFORE Supabase
+    # sees the token. Dropping this header does not degrade the check — it
+    # makes it impossible, while producing a failure that reads exactly like
+    # a credential problem. It cost a nearly-regenerated PAT on 2026-08-14.
+    #
+    # Asserted on the header actually sent, and on the request wiring, so
+    # deleting either the constant or its use reddens this.
+    check("a User-Agent constant is defined", bool(re.search(r'^USER_AGENT\s*=', code, re.M)), True)
+    check(
+        "the outbound request sends that User-Agent",
+        bool(re.search(r'"User-Agent"\s*:\s*USER_AGENT', code)),
+        True,
+    )
+    check(
+        "the User-Agent is not Python's default",
+        USER_AGENT.lower().startswith("python-urllib"),
+        False,
+    )
+    check("the User-Agent identifies this control", "CTL-049" in USER_AGENT, True)
 
     if failures:
         print("SELF-TEST FAILED")

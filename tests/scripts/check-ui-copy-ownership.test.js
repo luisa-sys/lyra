@@ -185,4 +185,103 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(output).toMatch(/::warning::/);
     expect(output).toMatch(/not found/);
   });
+  // ─── KAN-474: --describe is DERIVED from is_protected(), not restated ───
+  //
+  // The surface used to live in two places — this guard and the Backlog
+  // Autopilot's prompt, a SaaS routine no CI job can read. They drifted twice
+  // (KAN-415 moved two copy modules; KAN-473 added src/modules/*.tsx), and
+  // neither drift could go red because nothing in CI can see a prompt.
+  //
+  // The fix is removing the second copy: the autopilot reads --describe at
+  // runtime. These cases exist to keep that promise honest — a hand-written
+  // description would be a THIRD copy and would drift exactly as the second
+  // did, so the load-bearing assertion is the last one, which adds a rule to
+  // the function and requires it to appear with no other edit.
+  describe('--describe (KAN-474)', () => {
+    const describeOut = () =>
+      execSync(`bash ${JSON.stringify(SCRIPT)} --describe`, { encoding: 'utf-8' });
+
+    /** Every `[[ $f == X ]] && return N` in is_protected(), read from source. */
+    function rulesInFunction() {
+      const src = fs.readFileSync(SCRIPT, 'utf-8');
+      const body = src.slice(src.indexOf('\nis_protected()')).split('\n}\n')[0];
+      return [...body.matchAll(/^\s*\[\[\s*\$f\s*==\s*(.*?)\s*\]\]\s*&&\s*return\s*([01])/gm)]
+        .map((m) => ({ glob: m[1], protected: m[2] === '0' }));
+    }
+
+    function emitted() {
+      return describeOut()
+        .split('\n')
+        .filter((l) => l.startsWith('PROTECTED ') || l.startsWith('CARVE-OUT '))
+        .map((l) => ({ glob: l.slice(l.indexOf(' ') + 1), protected: l.startsWith('PROTECTED ') }));
+    }
+
+    // Two-way ratchet on the SIZE of the surface. The equality case above
+    // proves guard and description agree; it cannot tell "a rule was removed
+    // deliberately" from "a rule was removed silently", because deleting it
+    // from is_protected() removes it from BOTH and they still agree. Measured
+    // by mutation: dropping `src/components/*` left all other cases green.
+    //
+    // So the count is pinned. RAISE it when you add a protection. If you are
+    // LOWERING it you are removing founder ownership from a surface, which is
+    // Luisa's call (KAN-411) and should not pass on a green diff.
+    const EXPECTED_RULES = { carveOuts: 4, protected: 17 };
+
+    it('emits a non-empty surface', () => {
+      // Guards the vacuous case: a parser that matched nothing would make
+      // every assertion below pass over an empty set.
+      expect(emitted().length).toBeGreaterThanOrEqual(15);
+    });
+
+    it('⚠️ the surface has not SHRUNK — removing a protection must be deliberate', () => {
+      const got = emitted();
+      expect({
+        carveOuts: got.filter((r) => !r.protected).length,
+        protected: got.filter((r) => r.protected).length,
+      }).toEqual(EXPECTED_RULES);
+    });
+
+    it('emits EXACTLY the rules in is_protected() — none missing, none invented', () => {
+      const key = (r) => `${r.protected ? 'P' : 'C'} ${r.glob}`;
+      const declared = rulesInFunction().map(key).sort();
+      const got = emitted().map(key).sort();
+      expect(got).toEqual(declared);
+    });
+
+    it('tolerates trailing comments and irregular spacing', () => {
+      // The first cut anchored on `]] && return N$` and silently emitted 1
+      // carve-out instead of 4, dropping src/*.css — several rules carry a
+      // trailing comment. These three are the ones it missed.
+      const globs = emitted().map((r) => r.glob);
+      expect(globs).toContain('src/app/admin/*');   // trailing comment
+      expect(globs).toContain('*/route.ts');        // comment + extra spacing
+      expect(globs).toContain('src/*.css');         // trailing comment
+    });
+
+    it('carve-outs are emitted BEFORE protected rules, matching evaluation order', () => {
+      const lines = emitted();
+      const lastCarveOut = lines.map((r) => r.protected).lastIndexOf(false);
+      const firstProtected = lines.map((r) => r.protected).indexOf(true);
+      expect(lastCarveOut).toBeLessThan(firstProtected);
+    });
+
+    it('⚠️ a NEW rule appears with no other edit — this is what makes it derived', () => {
+      // The whole claim of KAN-474 in one case. Add a rule to is_protected()
+      // in a scratch copy; if --describe is truly parsed from the function it
+      // shows up untouched. If anyone later replaces the parser with a
+      // hand-written list, this goes red.
+      const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kan474-')), 'guard.sh');
+      const src = fs.readFileSync(SCRIPT, 'utf-8');
+      const sentinel = 'src/kan474-sentinel/*.tsx';
+      const mutated = src.replace(
+        '  [[ $f == src/modules/*.tsx ]] && return 0',
+        `  [[ $f == ${sentinel} ]] && return 0\n  [[ $f == src/modules/*.tsx ]] && return 0`,
+      );
+      expect(mutated).not.toBe(src); // the mutation actually applied
+      fs.writeFileSync(tmp, mutated, { mode: 0o755 });
+
+      const out = execSync(`bash ${JSON.stringify(tmp)} --describe`, { encoding: 'utf-8' });
+      expect(out).toContain(`PROTECTED ${sentinel}`);
+    });
+  });
 });

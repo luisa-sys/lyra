@@ -48,7 +48,10 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 // Import the actual server actions
-import { signUp, signIn, signOut, signInWithGoogle } from '@/app/(auth)/actions';
+import { signUp, signIn, signInWithGoogle } from '@/app/(auth)/actions';
+// KAN-415 moved `signOut` to the app root so /dashboard could stop importing
+// across route segments. Same function, same behaviour — only the home changed.
+import { signOut } from '@/app/session-actions';
 
 function makeFormData(data: Record<string, string>): FormData {
   const fd = new FormData();

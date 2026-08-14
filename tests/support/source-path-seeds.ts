@@ -104,6 +104,18 @@ export const SEEDED_PATHS = [
   // KAN-88 wiring survives; the literal lives here rather than in that file so
   // the next move updates one line instead of four assertions.
   'src/modules/oauth-as/consent-flow.ts',
+  // KAN-415 moved `signOut` to the app root to clear the last
+  // no-cross-segment-app edge. Read via SRC by qa-sweep-preflight.test.js,
+  // which pins the derived denylist key — so the literal lives here and the
+  // next move updates one line rather than an assertion. Unlike the module
+  // moves above this one MUST stay under src/app/: the qa-sweep denylist key
+  // has to name a `'use server'` action or inventory.py cannot see it.
+  'src/app/session-actions.ts',
+  // KAN-415 pulled the depcruise severity dial out of .dependency-cruiser.cjs
+  // so it could be unit-tested directly once no unfinished rule was left to
+  // infer it from. Two suites reach it by path; seeded so neither needs a raw
+  // literal, which the F4 ratchet correctly refuses to let rise.
+  'scripts/depcruise-severity.cjs',
   // D8 moved the profile domain core out of the editor's app tree. All three
   // keys were DROPPED by the regeneration — read only via SRC, hard-coded
   // nowhere that counts — which is the self-sustaining loop breaking exactly as
@@ -221,4 +233,12 @@ export const SEEDED_PATHS = [
   '.github/workflows/deploy-beta.yml',
   '.github/workflows/deploy-production.yml',
   '.github/workflows/security-audit.yml',
+  // CTL-055. Both reached ONLY via `SRC` in
+  // tests/scripts/check-module-table-ownership.test.js. The baseline is seeded
+  // as well as the script because the test asserts POSITIVE facts about its
+  // shape (two-way ratchet, computed concentration) — and gotcha #31 would turn
+  // a lost key into `resolve(root, undefined)`, which reads like a broken
+  // harness rather than a missing entry.
+  'scripts/check-module-table-ownership.py',
+  'supabase/table-ownership-baseline.json',
 ] as const;

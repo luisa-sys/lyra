@@ -185,9 +185,13 @@ DESTRUCTIVE_DENYLIST: Dict[str, str] = {
     # `tests/scripts/qa-sweep-preflight.test.js` derives that set from source
     # and fails if any member is missing. Adding a name here is the fix; the
     # derived test is the control.
-    "src/app/(auth)/actions.ts::signOut": (
+    "src/app/session-actions.ts::signOut": (
         "Terminates the session. Not destructive to data, but every subsequent "
-        "step in the run silently becomes a test of the login redirect."
+        "step in the run silently becomes a test of the login redirect. "
+        "KAN-415 moved this out of src/app/(auth)/actions.ts to clear the last "
+        "no-cross-segment-app edge; the key is PATH-ANCHORED, so it moved with "
+        "the function in the same commit. It stayed in the app tree precisely "
+        "so this key still names an inventoried action."
     ),
     "src/app/(auth)/actions.ts::updateRecoveryPassword": (
         "Sets a NEW account password and then calls auth.signOut() to force "
