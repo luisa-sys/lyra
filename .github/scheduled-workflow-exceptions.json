@@ -47,6 +47,10 @@
       "key": "BUGS-90",
       "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
     },
+    ".github/workflows/routine-evidence.yml": {
+      "key": "SEC-146",
+      "reason": "NOT YET REGISTERED, not deliberately off. Added in this PR (CTL-062, routine run-log freshness), so GitHub has not indexed it yet and the API reports no state for it at all. Expected to go STALE within about a minute of merging to develop and to be deleted in the same session — see the second kind described above. If this line is still here tomorrow, that is the finding, and the fix is to DELETE it rather than suppress the STALE failure."
+    },
     ".github/workflows/auto-promote-to-staging.yml": {
       "key": "SEC-98",
       "reason": "Weekly develop->staging auto-promote. SEC-98 made production change control manual-only and withdrew the fix-only auto-promote exception on 2026-07-23; an unattended promote sits awkwardly beside that even though staging is not production. Decided 2026-08-09 (Luisa): stay off. NOTE: CLAUDE.md's Deployment Pipeline section still describes this as auto-running Sunday 23:00 UTC — that line is now wrong and is corrected in this commit."
