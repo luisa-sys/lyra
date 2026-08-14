@@ -443,7 +443,8 @@
         "SEC-29",
         "SEC-42",
         "SEC-43",
-        "SEC-60"
+        "SEC-60",
+        "SEC-112"
       ],
       "self_test": "python3 scripts/check-db-invariants.py --self-test",
       "escape_hatch": "supabase/security-invariants-waivers.json",
@@ -1080,6 +1081,22 @@
         "SEC-117"
       ],
       "escape_hatch": "none for the assertion - a table that genuinely must not be exported goes in DELIBERATELY_EXCLUDED in src/modules/contracts/person-keyed-tables.ts with a written reason (the live-credential oauth token tables, and moderation_logs under its ON DELETE RESTRICT Art.17(3)(b) retention). Never widen the test to make a red build pass; that is how the original defect was born.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-062",
+      "name": "the publish write stays on a credential the user cannot wield",
+      "defect_class": "guard-that-cannot-distinguish-the-attack-from-the-product",
+      "summary": "SEC-112: profiles.is_published was writable by any authenticated user straight at PostgREST (table-level UPDATE grant to authenticated, 'Update own profile' RLS with a NULL with_check, no trigger on the column), bypassing publishProfile() and therefore the KAN-408 provider age gate. The fix is a BEFORE UPDATE trigger refusing any is_published change from a JWT-bearing caller. The trap this control guards is that the trigger and the code change are only safe TOGETHER: publishProfile() used createClient(), the anon key carrying the end user's session JWT, so the legitimate publish and the attack were the SAME credential. The trigger alone would have refused the real publish flow in every environment - the BUGS-60 shape, and exactly what the ticket's original implementation plan would have shipped, since it asserted the publish path was already service-role and it was not. So the write moved to createServiceRoleClient(), scoped by the server-validated user id. This test asserts BEHAVIOUR - which mocked client receives the update - rather than scanning actions.ts for the factory name, because the file now carries a long comment explaining the fix and a source-text scan of it would be satisfied by that prose (CTL-039 / gotcha #29). Anyone who 'tidies' the write back onto the user client reddens it. Mutation-proven: reverting that one line turns 2 of 5 cases red. The other half - that the trigger is actually RUNNING on each database - is INV-9 under CTL-024, because a migration reaches a database via the Supabase MCP without passing through a PR.",
+      "implementation": "tests/unit/sec112-publish-profile-service-role.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-112"
+      ],
+      "escape_hatch": "none. If the publish write must ever leave the service-role client, the trigger has to be dropped in the SAME change or publishing breaks with 42501 - that coupling is the point, not an inconvenience to route around.",
       "added": "2026-08-14"
     }
   ]

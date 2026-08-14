@@ -32,7 +32,18 @@ function serviceClient() {
 
 /**
  * The full switch map for one environment (defaults to the current deploy env).
- * Absent rows resolve to ON; a read error also resolves to the all-ON baseline.
+ *
+ * An absent row resolves to that key's `defaultEnabled`, which is **per key**,
+ * not a blanket ON — see GLOBAL_FEATURE_CONFIG. Most default ON; the exception
+ * is `age_verification`, which defaults **OFF** because the KAN-407 baseline is
+ * an 18+ self-declaration and the provider check is opt-in. A read error
+ * resolves to the same per-key defaults.
+ *
+ * This docstring used to say "Absent rows resolve to ON", which is wrong for
+ * exactly the one key where it matters. It cost real time during the SEC-112
+ * investigation: it made the prod age gate look like it might be ON (there is
+ * no `age_verification` row on any environment), which would have made a latent
+ * bypass read as a live one.
  */
 export async function getGlobalSwitches(
   environment: DeployEnv = getDeployEnv(),
