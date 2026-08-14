@@ -371,6 +371,39 @@ Neither gate needs a repository framework. **They make the existing style illega
 >
 > ⚠️ **Read `_concentration` before proposing a cleanup.** 29 of the 56 pairs come from one file — the account erasure/export path, which touches every table a user has data in *by definition*. That figure is computed at `--write-baseline`, never typed, so it cannot go stale. Without it the baseline reads as 56 boundary breaks and invites a "fix" that would be wrong.
 >
+> **UPDATE 2026-08-14 — read vs write, and what that means for criterion 2.**
+> The pairs are now classified `read` or `write`, because `owns` means "may
+> WRITE": a cross-module READ is legitimate and only a WRITE is a boundary
+> break. Measured: **44 read, 12 write**.
+>
+> That changes what criterion 2 should ask for. Taken literally — "every entry
+> is dated, ticketed and unexpired" — it would impose a ticket and a renewal
+> date on all 56, i.e. on 44 entries that are fine. A list that must be renewed
+> on a schedule is renewed by reflex, which is how a ratchet decays into the
+> suppression list it was built to replace. **Only the writes are work**, and
+> they are few enough to own individually.
+>
+> A hard expiry is also the one thing every other control here avoids: a gate
+> that can go red with no change to the PR. That is exactly the failure SEC-105
+> had just finished removing from the npm-audit gate, which froze the pipeline
+> for ~11 days and left twelve tested security fixes unshipped. Do not
+> reintroduce it on a clock.
+>
+> **A third failure mode was added: ESCALATED.** A pair is keyed
+> `module -> table`, so a baselined READ that quietly starts WRITING kept its
+> key — the pair count did not move and the control stayed green. A module
+> beginning to mutate state it does not own, with nothing going red: the BUGS-74
+> shape. De-escalation fails as STALE too, so the record follows the code both
+> ways.
+>
+> **An undecidable statement is classified `write`, never `read`.** A write
+> misfiled as a read sits in the accepted bucket where it can never be caught
+> escalating, because it was already a write. The `basis` field records how each
+> verdict was reached, so a conservative flag is visibly conservative: 7 of the
+> 12 writes are `mutation-call` (hard evidence), 5 are `rpc-undecidable`, and
+> `account -> search_by_contact_hash` is provably `return query select` — a
+> deliberate over-flag, labelled rather than hidden.
+>
 > The `check-service-role-client.sh` half of this section remains as written.
 
 ### 4.4 The ratchet — how a boundary survives an urgent Friday fix
