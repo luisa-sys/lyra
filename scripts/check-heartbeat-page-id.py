@@ -35,8 +35,9 @@ R1 — co-location. Every occurrence of 33554434 must be disambiguated within
      the 33554434 the prompt names"). Contrasting the two ids IS disambiguation.
      A sentence naming neither remains ambiguous and still fails.
 
-R2 — heartbeat pointer. A strong heartbeat-pointer phrase ("heartbeat ledger",
-     "watchdog reads", ...) within +/- NEAR_WINDOW of 33554434 is a violation.
+R2 — heartbeat pointer, IN THE POINTER DOC ONLY (see POINTER_DOCS). A strong
+     heartbeat-pointer phrase ("heartbeat ledger", "watchdog reads", ...) within
+     +/- NEAR_WINDOW of 33554434 is a violation.
      R2 is not redundant with R1: the sentence "the Backlog Autopilot Control
      Room 33554434 carries the heartbeat ledger" satisfies R1 and is precisely
      the defect.
@@ -153,6 +154,24 @@ SELF_EXCLUDE = (
     "tests/scripts/check-heartbeat-page-id.test.js",
 )
 
+# R2 asks a SEMANTIC question — "does this sentence point the heartbeat ledger
+# at the wrong page?" — and that question is only meaningful in a doc that tells
+# an agent where to read. It is meaningless in a narrative run-log, where the
+# correct thing to write is a report OF the defect: "OPS_ROUTINES_CONTROL_ROOM.md
+# names <wrong id> as the heartbeat ledger, but that is the Backlog Autopilot
+# Control Room". Three separate rounds of CI chased that prose across
+# docs/DAILY_SECURITY_CHECK.md, and the Daily Security routine appends another
+# such sentence on every run — so R2 applied estate-wide is permanently red or
+# permanently annotated, which is the same thing as switched off.
+#
+# STATED GAP (KAN-167 says record it rather than hide it): if some doc OTHER
+# than the one below starts pointing the heartbeat at the wrong page, only R1
+# covers it — and R1 is satisfied by merely naming the right page nearby. That
+# is accepted. The realistic re-introduction vector is an edit to the pointer
+# doc itself (exactly what BUGS-81 was) or to the stored routine prompt, which
+# is outside the repo and which no CI check can see.
+POINTER_DOCS = (ANCHOR_DOC,)
+
 ESCAPE_HATCH = "heartbeat-page-id-ok:"
 
 # Tokens that turn a nearby heartbeat phrase into a DENIAL rather than a
@@ -202,7 +221,7 @@ def _line_of(text: str, index: int) -> tuple[int, str]:
 
 
 def find_violations(text: str, path: str) -> list[str]:
-    """R1 + R2 over one file's text. Returns human-readable violation strings."""
+    """R1 everywhere; R2 only on the pointer doc. See POINTER_DOCS."""
     problems: list[str] = []
 
     for match in re.finditer(AUTOPILOT_PAGE_ID, text):
@@ -231,6 +250,9 @@ def find_violations(text: str, path: str) -> list[str]:
                 f"      fix: name the page it actually is, or cite "
                 f"{OPS_ROUTINES_PAGE_ID} if you meant the heartbeat ledger."
             )
+
+        if path not in POINTER_DOCS:
+            continue
 
         near = _norm(_window(text, match.start(), match.end(), NEAR_WINDOW))
         hit = next((p for p in HEARTBEAT_PHRASES if _norm(p) in near), None)
@@ -419,17 +441,58 @@ _ANCHOR_CASES: list[tuple[str, str, int]] = [
 ]
 
 
+# R2 is scoped to the pointer doc, so the scoping itself needs its own cases —
+# otherwise "R2 fires" and "R2 fires anywhere" are indistinguishable, and the
+# day someone widens POINTER_DOCS nothing would notice.
+_SCOPE_CASES: list[tuple[str, str, str, int]] = [
+    (
+        "R2 fires on the pointer doc",
+        _PLAUSIBLE_CONFLATION,
+        ANCHOR_DOC,
+        1,
+    ),
+    (
+        "the SAME text in a narrative run-log is NOT caught (R2 out of scope)",
+        _PLAUSIBLE_CONFLATION,
+        "docs/DAILY_SECURITY_CHECK.md",
+        0,
+    ),
+    (
+        "a run-log FILING the defect is NOT caught",
+        "**New finding -> BUGS-81:** docs/OPS_ROUTINES_CONTROL_ROOM.md names "
+        "Confluence **33554434** as the Ops Routines Control Room / heartbeat "
+        "ledger, but 33554434 is the *Backlog Autopilot* Control Room; the real "
+        "page is **34275370**.\n",
+        "docs/DAILY_SECURITY_CHECK.md",
+        0,
+    ),
+    (
+        "R1 still applies off the pointer doc — an undisambiguated id is caught",
+        _BARE,
+        "docs/DAILY_SECURITY_CHECK.md",
+        1,
+    ),
+]
+
+
 def self_test() -> int:
     # Failure mode #4: a parameterised run over an empty corpus registers zero
     # cases and reports green. Assert the corpus before iterating it.
-    if len(_CASES) < 12 or len(_ANCHOR_CASES) < 3:
+    if len(_CASES) < 12 or len(_SCOPE_CASES) < 4 or len(_ANCHOR_CASES) < 3:
         print("::error::check-heartbeat-page-id self-test: fixture list is truncated.")
         return 1
 
     failures = 0
 
     for label, source, expected in _CASES:
-        found = len(find_violations(source, "fixture.md"))
+        found = len(find_violations(source, ANCHOR_DOC))
+        ok = found == expected
+        print(f"  {'PASS' if ok else 'FAIL'}  {label} (expected {expected}, got {found})")
+        if not ok:
+            failures += 1
+
+    for label, source, path, expected in _SCOPE_CASES:
+        found = len(find_violations(source, path))
         ok = found == expected
         print(f"  {'PASS' if ok else 'FAIL'}  {label} (expected {expected}, got {found})")
         if not ok:
@@ -448,7 +511,7 @@ def self_test() -> int:
         print(f"::error::check-heartbeat-page-id self-test: {failures} case(s) failed.")
         return 1
 
-    total = len(_CASES) + len(_ANCHOR_CASES)
+    total = len(_CASES) + len(_SCOPE_CASES) + len(_ANCHOR_CASES)
     print(f"Self-test: all {total} fixture case(s) behave as specified. ✓")
     return 0
 
