@@ -26,10 +26,14 @@ guard.
 
 ## The rules
 
-R1 — co-location. Every occurrence of 33554434 must have the words
-     "Backlog Autopilot" within +/- WINDOW characters. This is BUGS-81's
-     acceptance criterion "33554434 is only ever named alongside Backlog
-     Autopilot" made mechanical.
+R1 — co-location. Every occurrence of 33554434 must be disambiguated within
+     +/- WINDOW characters, EITHER by the words "Backlog Autopilot" or by naming
+     34275370 in the same breath. BUGS-81's acceptance criterion says "only ever
+     named alongside Backlog Autopilot"; taken literally that flagged eleven
+     sentences in docs/DAILY_SECURITY_CHECK.md, all of them correct and several
+     written by the very routine this defect degrades ("read from 34275370, NOT
+     the 33554434 the prompt names"). Contrasting the two ids IS disambiguation.
+     A sentence naming neither remains ambiguous and still fails.
 
 R2 — heartbeat pointer. A strong heartbeat-pointer phrase ("heartbeat ledger",
      "watchdog reads", ...) within +/- NEAR_WINDOW of 33554434 is a violation.
@@ -47,6 +51,13 @@ R2 — heartbeat pointer. A strong heartbeat-pointer phrase ("heartbeat ledger",
      is what "this ledger is on that page" actually looks like. A docs-ledger row
      narrating this defect keeps ~140 characters between the two and is spared.
      That mutation is pinned as a fixture below.
+
+     One exemption, added after CI found eleven real instances R2 could not
+     read: an explicit NEGATION inside the tight window. "still cites 33554434,
+     which has no Heartbeat table" is the exact opposite of a pointer, and it is
+     the sentence anyone correcting this defect writes. The mutation stays
+     caught because "Heartbeat / Run-ledger table lives on 33554434" carries no
+     negation.
 
 R3 — positive assertion. `docs/OPS_ROUTINES_CONTROL_ROOM.md` must state 34275370
      within +/- NEAR_WINDOW of a heartbeat-pointer phrase. R1 and R2 only ever fire on
@@ -144,6 +155,16 @@ SELF_EXCLUDE = (
 
 ESCAPE_HATCH = "heartbeat-page-id-ok:"
 
+# Tokens that turn a nearby heartbeat phrase into a DENIAL rather than a
+# pointer. Matched against the normalised tight window only.
+NEGATIONS = (
+    " no ",
+    " not ",
+    " never ",
+    " instead of ",
+    " rather than ",
+)
+
 # Strong pointer phrases only — see the module docstring on why bare
 # "heartbeat" is not in this list.
 HEARTBEAT_PHRASES = (
@@ -191,10 +212,20 @@ def find_violations(text: str, path: str) -> list[str]:
 
         window = _norm(_window(text, match.start(), match.end()))
 
-        if "backlog autopilot" not in window:
+        # Naming the CORRECT id in the same breath is disambiguation too, and
+        # this is how real run-log prose actually reads: "still cites <wrong>,
+        # which has no Heartbeat table" / "read from <right> ... NOT <wrong>".
+        # Requiring the literal words "Backlog Autopilot" flagged eleven such
+        # sentences in docs/DAILY_SECURITY_CHECK.md — every one of them correct,
+        # several of them written BY the routine this defect degrades. A guard
+        # that punishes writing the explanation down is pointed the wrong way.
+        # R1 stays meaningful because a sentence naming neither the page nor the
+        # correct id is genuinely ambiguous; R2 is the sharp rule regardless.
+        disambiguated = "backlog autopilot" in window or OPS_ROUTINES_PAGE_ID in window
+        if not disambiguated:
             problems.append(
-                f"{path}:{line_no}: R1 — page {AUTOPILOT_PAGE_ID} is named without "
-                f'"Backlog Autopilot" anywhere within {WINDOW} characters.\n'
+                f"{path}:{line_no}: R1 — page {AUTOPILOT_PAGE_ID} is named with neither "
+                f'"Backlog Autopilot" nor {OPS_ROUTINES_PAGE_ID} within {WINDOW} characters.\n'
                 f"      why: {AUTOPILOT_PAGE_ID} is the Backlog Autopilot Control Room. "
                 f"The ops-heartbeat ledger lives on {OPS_ROUTINES_PAGE_ID}.\n"
                 f"      fix: name the page it actually is, or cite "
@@ -203,7 +234,13 @@ def find_violations(text: str, path: str) -> list[str]:
 
         near = _norm(_window(text, match.start(), match.end(), NEAR_WINDOW))
         hit = next((p for p in HEARTBEAT_PHRASES if _norm(p) in near), None)
-        if hit is not None:
+        # "<wrong page>, which has NO Heartbeat table" is the exact opposite of
+        # a pointer, and it is the sentence anyone correcting this defect writes.
+        # Only an explicit negation inside the TIGHT window earns the exemption,
+        # so the mutation this rule exists to catch — "Heartbeat / Run-ledger
+        # table lives on <wrong page>" — carries no negation and still fails.
+        negated = any(n in near for n in NEGATIONS)
+        if hit is not None and not negated:
             problems.append(
                 f"{path}:{line_no}: R2 — {AUTOPILOT_PAGE_ID} sits within "
                 f'{NEAR_WINDOW} characters of "{hit}", i.e. in the same clause.\n'
@@ -322,6 +359,23 @@ _ONE_LINE_REPOINT = (
     "> routine-watchdog reads.\n"
 )
 
+# Two REAL sentences from docs/DAILY_SECURITY_CHECK.md that CI flagged and the
+# self-test did not. Both are correct prose — written by the Daily Security
+# routine while working around this very defect — and each defeats a different
+# rule: the first has no "Backlog Autopilot" (R1) and denies a heartbeat table
+# rather than pointing at one (R2); the second contrasts the two ids directly.
+_RUNLOG_DENIAL = (
+    "`routine-watchdog.sh` (fed from the corrected Ops Routines Control Room "
+    "page **34275370** per BUGS-81 — the stored routine prompt still cites "
+    "33554434, which has no Heartbeat table): **PASS=3 FAIL=3 UNVERIFIED=0**\n"
+)
+
+_RUNLOG_CONTRAST = (
+    "read the full 38-row Heartbeat table on the Ops Routines Control Room "
+    "(Confluence page **34275370**, the correct ID per **BUGS-81** — NOT "
+    "33554434) covering 2026-07-23 to 2026-08-12 and found zero rows.\n"
+)
+
 _ESCAPED = (
     "A historical quote reproduced verbatim: 33554434  "
     "<!-- heartbeat-page-id-ok: BUGS-81 quoting the original defect -->\n"
@@ -344,6 +398,8 @@ _CASES: list[tuple[str, str, int]] = [
         _ONE_LINE_REPOINT,
         1,
     ),
+    ("real run-log prose DENYING a heartbeat table is NOT caught", _RUNLOG_DENIAL, 0),
+    ("real run-log prose CONTRASTING the two ids is NOT caught", _RUNLOG_CONTRAST, 0),
     ("the escape hatch suppresses exactly its own line", _ESCAPED, 0),
     ("a bare id with no disambiguation is caught", _BARE, 1),
 ]
@@ -366,7 +422,7 @@ _ANCHOR_CASES: list[tuple[str, str, int]] = [
 def self_test() -> int:
     # Failure mode #4: a parameterised run over an empty corpus registers zero
     # cases and reports green. Assert the corpus before iterating it.
-    if len(_CASES) < 10 or len(_ANCHOR_CASES) < 3:
+    if len(_CASES) < 12 or len(_ANCHOR_CASES) < 3:
         print("::error::check-heartbeat-page-id self-test: fixture list is truncated.")
         return 1
 
