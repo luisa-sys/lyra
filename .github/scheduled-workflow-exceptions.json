@@ -50,18 +50,27 @@
     "  is when to expect that, and therefore when its continued presence is a",
     "  finding rather than a normal in-flight state.",
     "",
-    "So an entry of the second kind that is still here even a day later is itself",
-    "a finding — either the merge never happened, or the workflow registered and",
-    "somebody suppressed the STALE failure instead of deleting the line."
+    "So an entry of the second kind that is still here once `main` carries its",
+    "workflow is itself a finding — either the promote never happened, or the",
+    "workflow registered and somebody suppressed the STALE failure instead of",
+    "deleting the line. Do not read it as 'still here after a day': a promote to",
+    "`main` legitimately takes longer than that, which is exactly what the",
+    "correction above is about.",
+    "",
+    "WORKED EXAMPLE, start to finish (routine-evidence.yml, CTL-062, SEC-146).",
+    "Added to this file 2026-08-14 in PR #803 because the API reported no state",
+    "for it at all. It stayed unregistered through the merge to develop and",
+    "through the staging and beta promotes, and registered as `state: active`",
+    "immediately once `beta -> main` merged it onto the default branch. The check",
+    "then failed it as STALE on the very next run, and the line was deleted rather",
+    "than suppressed. That is the whole intended lifecycle, and it took one",
+    "session and four branches rather than the ninety seconds this file used to",
+    "claim."
   ],
   "exceptions": {
     ".github/workflows/affiliate-link-smoke.yml": {
       "key": "BUGS-90",
       "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
-    },
-    ".github/workflows/routine-evidence.yml": {
-      "key": "SEC-146",
-      "reason": "NOT YET REGISTERED, not deliberately off. Added 2026-08-14 in PR #803 (CTL-062, routine run-log freshness). GitHub has not indexed it and reports no state for it at all: `gh run list --workflow=routine-evidence.yml` answers `HTTP 404: workflow routine-evidence.yml not found on the default branch`. It registers when it reaches `main` via the normal promote chain, and goes STALE at that moment — the promote carrying it is in flight as this lands. DELETE this line then; do not suppress the STALE failure. If it is still here once `main` carries the workflow, that is the finding."
     },
     ".github/workflows/auto-promote-to-staging.yml": {
       "key": "SEC-98",
