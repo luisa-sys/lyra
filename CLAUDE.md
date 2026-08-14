@@ -623,6 +623,7 @@ trust what the suite says about it.**
 | 6 | **Passes locally for the wrong reason** | A ratchet used `fs.existsSync` to check a moved directory. `git mv` leaves the source dir behind **empty**, so it stayed green on the exact defect it guarded and would only have reddened in CI. Use `git ls-files` — tracked state, not disk state |
 | 7 | **A red you have learned to expect** | 18 macOS failures were annotated "expected" for ten days. They were two real defects, one of them a security guard scanning nothing (gotcha #30). **An expected red is a switched-off control** |
 | 8 | **A hand-maintained number** | The test floor read 29 files/320 blocks against an actual 260/2,963 — **89% of the estate could have been deleted without tripping CI**. Generate baselines; never hand-type them |
+| 9 | **Assertions that run but are never evaluated** | 8 self-test cases were added to `check-npm-audit-gate.py` **after** its `if failures:` check, so every `check()` appended to a list nothing read. Three mutations — removing the retry entirely, making exhausted retries report clean, making deterministic failures retryable — **all reported `Self-test passed (27 cases)`**. The count went UP. Distinct from #4: the corpus is non-empty and the assertions genuinely execute; the verdict is simply never read. In a hand-rolled harness, check WHERE the failure list is consumed, not just that you appended to it (SEC-140) |
 
 ### What to do instead
 
@@ -643,7 +644,9 @@ trust what the suite says about it.**
 
 **Enforced by:** CTL-038 (reimplementation), CTL-039 (comment-shadowed
 assertions), `test-regression-guard.test.js` (the two-way floor). These catch
-three of eight. The other five need you to break the thing on purpose.
+three of nine. The other six need you to break the thing on purpose — and #9
+was found that way, in a change whose own ticket demanded mutation proof, by
+someone who had just written the ticket.
 
 ## Test Integrity Policy
 
