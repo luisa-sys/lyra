@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 229,
+  "count": 232,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -18,7 +18,9 @@
     "deployProduction": ".github/workflows/deploy-production.yml",
     "deployStaging": ".github/workflows/deploy-staging.yml",
     "prChecks": ".github/workflows/pr-checks.yml",
+    "promoteToProduction": ".github/workflows/promote-to-production.yml",
     "promoteToStaging": ".github/workflows/promote-to-staging.yml",
+    "releaseIntegrity": ".github/workflows/release-integrity.yml",
     "securityAudit": ".github/workflows/security-audit.yml",
     "weeklyReport": ".github/workflows/weekly-report.yml",
     "baseline": "design/BASELINE.json",
@@ -52,6 +54,7 @@
     "checkModuleLayering": "scripts/check-module-layering.py",
     "checkModuleTableOwnership": "scripts/check-module-table-ownership.py",
     "checkNpmAuditGate": "scripts/check-npm-audit-gate.py",
+    "checkReleaseTagged": "scripts/check-release-tagged.py",
     "checkRouteThinness": "scripts/check-route-thinness.py",
     "checkRoutineOwnership": "scripts/check-routine-ownership.sh",
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",

@@ -134,6 +134,24 @@ export const SEEDED_PATHS = [
   // registry's `implementation` field and the workflows both name this exact
   // path — the assertion IS the path, so a literal in the test would make a
   // rename look like a passing test against a script nobody runs.
+  // CTL-056's implementation. check-release-tagged.test.js asserts the control
+  // registry's `implementation` field and release-integrity.yml both name this
+  // exact path — the assertion IS the path, so a literal in the test would make
+  // a rename look like a passing test against a script nobody runs.
+  'scripts/check-release-tagged.py',
+  // CTL-056's workflow. Its tests read it via SRC to assert fetch-depth and the
+  // workflow_run trigger, so once those literals are routed through the
+  // manifest nothing hard-codes the path and the key would vanish on the next
+  // regeneration — the self-sustaining loop breaking exactly as described above.
+  '.github/workflows/release-integrity.yml',
+  // ⚠️ NOT a key CTL-057 created — one it nearly DELETED. check-release-tagged
+  // asserts its `workflow_run` trigger names the promote workflow that really
+  // exists, and routing that assertion through SRC removed the last full-path
+  // literal in the estate: the other three tests that mention this workflow use
+  // the BARE filename ('promote-to-production.yml'), which does not resolve on
+  // disk and so is never harvested. The key vanished and two suites went red.
+  // Gotcha #31 reaching a key the change did not introduce.
+  '.github/workflows/promote-to-production.yml',
   'scripts/check-live-schema-parity.py',
   'scripts/check-docs-updated.py',
   // SEC-133 gave CTL-048 a DAILY half, and these three are the residue: no
