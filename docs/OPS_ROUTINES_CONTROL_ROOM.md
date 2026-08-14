@@ -113,6 +113,69 @@ conclusion via `gh run list`.
 
 ---
 
+## How a run-log row LANDS in the repo (SEC-146, decided 2026-08-14)
+
+The heartbeat above answers *"did the routine run?"*. This section is the other
+question — **did its output survive?** — and they are not the same question.
+
+Three routines write a durable, version-controlled run-log row to `docs/` as
+well as a heartbeat: **Daily Security** → `docs/DAILY_SECURITY_CHECK.md`,
+**Staging Soak** → `docs/STAGING_SOAK_ROUTINE.md`, **Weekly Health +
+Regression** → `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`. Cross-routine
+conflict is therefore impossible — three routines, three files. Siblings of the
+*same* routine can conflict, but only if a queue has built up, so the conflict is
+a symptom of the backlog rather than a cause of it.
+
+**What went wrong.** Between 2026-07-28 and 2026-08-14 roughly 24 run-log PRs
+sat open and the repo lost **17 days** of audit trail across all three logs.
+Every "did it run?" control was correct and green throughout, because the
+routines *were* running. The cause was mechanical, not discipline: **every one of
+those PRs was opened as a DRAFT**, and a draft cannot auto-merge and cannot be
+merged at all until a human marks it ready. The routines did exactly what they
+were told, and what they were told terminated in a state nothing could advance.
+Backfilled in PRs [#800](https://github.com/luisa-sys/lyra/pull/800) and
+[#802](https://github.com/luisa-sys/lyra/pull/802).
+
+**The mechanism — option (a), decided 2026-08-14.** Each routine:
+
+1. opens its run-log PR **ready for review, never a draft**;
+2. enables **auto-merge** (`gh pr merge <n> --squash --auto`), so the row lands
+   when CI passes with nobody in the loop and no waiting inside the run;
+3. **verifies its PREVIOUS row is present on `develop` before reporting PASS**,
+   and backfills in the same PR if it is not — oldest first, with each row's
+   original date and content preserved **verbatim**;
+4. reports `ACTION NEEDED: run-log row did not land` rather than PASS if it
+   cannot land the row.
+
+Step 3 is the load-bearing one. Steps 1–2 fix a backlog; only step 3 makes a
+recurrence *visible*, and it makes the system self-healing — one missed merge is
+repaired by the next run instead of accumulating for a month.
+
+**Option (b), committing the row straight to `develop`, was rejected**: it needs
+a token that can push to a protected branch, creating a second and less-gated
+write path to the integration branch (the BUGS-19 "two paths and only one is
+auditable" shape). **Option (c), Confluence only, was rejected** because BUGS-100
+wiped the Control Room page on 2026-08-13 — the repo mirror is precisely the copy
+that survives a wiki incident, and on that day it was 17 days stale.
+
+⚠️ **These four steps live in the founder-owned claude.ai routine prompts, not in
+this repo**, so nothing here can enforce them directly. That is why the detector
+below exists rather than a gate.
+
+**CTL-062 — `scripts/check-run-log-freshness.py`**, run daily by
+`.github/workflows/routine-evidence.yml`. It asserts the newest dated row in each
+run-log is within that routine's cadence budget, and it reads those budgets from
+the **watchdog registrations in the next section** rather than carrying its own
+copy, so this document and the checker cannot drift onto different numbers. Exit
+0 fresh · 1 stale · 2 could-not-measure, with the two failure wordings kept
+deliberately distinct.
+
+It is **not** in `pr-checks.yml`, deliberately: it goes red with the passage of
+*time* rather than the contents of a diff, so in the PR gate it would fail every
+unrelated PR the moment a routine missed a day.
+
+---
+
 ## Watchdog (missed / failed-run detector)
 
 `scripts/routine-watchdog.sh` is a deterministic, **READ-ONLY** detector. It
