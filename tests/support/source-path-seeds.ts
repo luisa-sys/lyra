@@ -272,4 +272,11 @@ export const SEEDED_PATHS = [
   // in the test would feed the shrink-only F4 raw-literal ratchet. The ratchet
   // deliberately excludes tests/support/**, so this is the layer it belongs in.
   'src/app',
+  // CTL-061 (BUGS-81). Reached only via `SRC` in
+  // tests/scripts/check-heartbeat-page-id.test.js, so gotcha #31 would turn a
+  // lost key into `resolve(root, undefined)`. The guard's anchor doc
+  // (docs/OPS_ROUTINES_CONTROL_ROOM.md) is deliberately NOT seeded here —
+  // `docs/` is not one of the roots LITERAL_RE admits, so a seed for it could
+  // never be harvested and would dangle. That test names it directly.
+  'scripts/check-heartbeat-page-id.py',
 ] as const;

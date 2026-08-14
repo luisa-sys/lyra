@@ -80,6 +80,22 @@ jobs:
         # heading, has substance); content drift-vs-wiki stays a separate
         # founder/ops-gated leg of KAN-363.
         run: bash scripts/check-doc-mirror-content.sh
+      - name: Ops-heartbeat page-id guard (BUGS-81, CTL-061)
+        # Two Confluence Control Rooms are trivially confusable. 33554434 is
+        # the Backlog Autopilot Control Room, which has a "Run ledger" section
+        # of its own; the ops-routines Heartbeat / Run-ledger table that the
+        # routine-watchdog reads lives on the other one, 34275370.
+        # A doc pointing the heartbeat at the autopilot page makes the watchdog
+        # either
+        # report UNVERIFIED for every routine or misread the autopilot's rows as
+        # heartbeats (a false PASS from the one control that detects a silently
+        # dead routine). Fails both on a WRONG page id and on an ABSENT one.
+        run: python3 scripts/check-heartbeat-page-id.py
+      - name: Ops-heartbeat page-id guard self-test (CTL-061)
+        # A guard whose matcher has never been seen to fire is indistinguishable
+        # from no guard. Runs the pinned fixtures, including the one-line
+        # repoint that defeated this control's first cut.
+        run: python3 scripts/check-heartbeat-page-id.py --self-test
       - name: CODEOWNERS single-source-of-truth check (SEC-3)
         # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
         # docs/) and silently ignores the rest, so two CODEOWNERS files means
