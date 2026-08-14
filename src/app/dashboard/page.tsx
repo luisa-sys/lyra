@@ -2,7 +2,7 @@ import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { signOut } from '../(auth)/actions';
+import { signOut } from '../session-actions';
 import ShareBeta from './share-beta';
 import DashboardWidgets, { type WidgetContext } from './widgets/dashboard-widgets';
 import { betaInviteLink, publicSignupUrl } from '@/modules/access/beta-access/invite-link';
