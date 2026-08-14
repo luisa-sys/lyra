@@ -34,6 +34,22 @@ const yaml = require('js-yaml');
 const ROOT = path.resolve(__dirname, '../..');
 const WORKFLOW = path.join(ROOT, '.github', 'workflows', 'db-invariants.yml');
 
+/**
+ * Shell comments stripped before any source-text match.
+ *
+ * CLAUDE.md catalogue failure mode 2, met head-on while writing this file: the
+ * `set +e` assertion below failed because the run block's COMMENT says
+ * "`|| rc=$?` rather than `set +e`" — the prose explaining why we do not use it
+ * contains the string. A scan that reads comments cannot tell an explanation
+ * from an occurrence, and the better the reasoning is written down the more
+ * likely it is to trip.
+ */
+const codeOnly = (block) =>
+  String(block || '')
+    .split('\n')
+    .filter((l) => !/^\s*#/.test(l))
+    .join('\n');
+
 const doc = yaml.load(fs.readFileSync(WORKFLOW, 'utf-8'));
 const steps = doc?.jobs?.['ledger-parity']?.steps ?? [];
 const compare = steps.find((s) => s.id === 'compare');
@@ -50,18 +66,18 @@ describe('CTL-049 — the failure handler branches on the exit code', () => {
 
   test('the compare step publishes its exit code instead of just failing', () => {
     // Without this the handler has nothing to branch on and the bug returns.
-    expect(compare.run).toContain('GITHUB_OUTPUT');
-    expect(compare.run).toMatch(/rc=\$\?|rc=0/);
+    expect(codeOnly(compare.run)).toContain('GITHUB_OUTPUT');
+    expect(codeOnly(compare.run)).toMatch(/rc=\$\?|rc=0/);
     // It must still FAIL — capturing the code must not swallow it.
-    expect(compare.run).toContain('exit "$rc"');
+    expect(codeOnly(compare.run)).toContain('exit "$rc"');
   });
 
   test('capturing the code does not disable `set -euo pipefail`', () => {
     // The Workflow Integrity Policy requires it on every multi-line run block.
     // `set +e` would satisfy the capture and violate the policy; `|| rc=$?`
     // does both.
-    expect(compare.run).toContain('set -euo pipefail');
-    expect(`compare uses set +e: ${compare.run.includes('set +e')}`).toBe(
+    expect(codeOnly(compare.run)).toContain('set -euo pipefail');
+    expect(`compare uses set +e: ${codeOnly(compare.run).includes('set +e')}`).toBe(
       'compare uses set +e: false',
     );
   });
@@ -110,10 +126,19 @@ describe('CTL-049 — the HTTP error carries what is needed to diagnose it', () 
 
   test('a non-2xx includes the response BODY, not just the reason phrase', () => {
     // `exc.reason` for a 403 is the literal string "Forbidden". That is
-    // unactionable, and it is what the 2026-08-14 failures reported for three
-    // days. The body is what distinguishes the two 403 sources.
-    expect(script).toContain('body: ');
-    expect(script).toMatch(/exc\.read\(\)/);
+    // unactionable, and it is what the 2026-08-14 failures reported. The body
+    // is what distinguishes the two 403 sources.
+    //
+    // ⚠️ ASSERT THE RAISE, NOT THE MACHINERY. The first version of this test
+    // checked that `exc.read()` and the "body:" prefix appeared ANYWHERE in the
+    // file — and a mutation deleting `{detail}` from the raised message passed
+    // it, because the code computing `detail` was left untouched above. The
+    // parts existing is not the same fact as the parts being used.
+    const raise = /raise LedgerError\(\s*f"HTTP \{exc\.code\}[^)]*\)/.exec(script)?.[0] ?? '';
+    expect(`HTTPError raise found: ${raise !== ''}`).toBe('HTTPError raise found: true');
+    expect(`the raised message interpolates the body: ${raise.includes('{detail}')}`).toBe(
+      'the raised message interpolates the body: true',
+    );
   });
 
   test('a body that cannot be read does not mask the HTTP error', () => {
