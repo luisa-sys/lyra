@@ -103,11 +103,24 @@ describe('SEC-105 — the checker itself', () => {
     // failures retryable — all passed. Only mutation caught it.
     const { code, out } = run(['--self-test']);
     expect(code).toBe(0);
-    const retries = (out.match(/failed transiently .*retrying in/g) || []).length;
-    expect(`retry warnings emitted during self-test: ${retries}`).not.toBe(
-      'retry warnings emitted during self-test: 0',
+    const n = Number(/retry loop exercised \((\d+) retry notifications\)/.exec(out)?.[1] ?? 0);
+    expect(`retry notifications during self-test: ${n}`).not.toBe(
+      'retry notifications during self-test: 0',
     );
-    expect(retries).toBeGreaterThanOrEqual(4);
+    expect(n).toBeGreaterThanOrEqual(4);
+  });
+
+  test('a GREEN run emits no ::warning:: — standing noise is how warnings stop being read', () => {
+    // The self-test's transient fixtures originally annotated the run summary
+    // of every passing PR four times over. Four permanent warnings on a green
+    // build train people to scroll past warnings, which is the same erosion
+    // that lets a switched-off control keep looking fine (SEC-79).
+    const { code, out } = run(['--self-test']);
+    expect(code).toBe(0);
+    const annotations = (out.match(/::warning::/g) || []).length;
+    expect(`::warning:: annotations on a green self-test: ${annotations}`).toBe(
+      '::warning:: annotations on a green self-test: 0',
+    );
   });
 
   test.each([

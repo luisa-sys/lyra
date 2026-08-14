@@ -129,7 +129,11 @@ def _audit_once(scope: str, runner=None) -> dict:
     return parse_audit(proc.stdout)
 
 
-def run_audit(scope: str, runner=None, sleep=time.sleep) -> dict:
+def _warn(msg: str) -> None:
+    print(f"::warning::{msg}")
+
+
+def run_audit(scope: str, runner=None, sleep=time.sleep, notify=_warn) -> dict:
     """Audit with bounded retry on transient failure only.
 
     A deterministic failure — output that is not JSON, a missing
@@ -146,8 +150,13 @@ def run_audit(scope: str, runner=None, sleep=time.sleep) -> dict:
                 raise
             last = exc
             if attempt < AUDIT_ATTEMPTS - 1:
-                print(
-                    f"::warning::check-npm-audit-gate: attempt {attempt + 1}/{AUDIT_ATTEMPTS} "
+                # Routed through `notify` so the SELF-TEST's transient fixtures
+                # do not emit `::warning::` into the run summary of every green
+                # PR. Four standing annotations on a passing build is how people
+                # learn to scroll past warnings — the same erosion that keeps a
+                # switched-off control looking fine.
+                notify(
+                    f"check-npm-audit-gate: attempt {attempt + 1}/{AUDIT_ATTEMPTS} "
                     f"failed transiently ({exc}); retrying in {AUDIT_BACKOFF_S[attempt]}s"
                 )
                 sleep(AUDIT_BACKOFF_S[attempt])
@@ -341,12 +350,14 @@ def self_test() -> int:
         return run
 
     noop_sleep = lambda _s: None
+    retry_notes: list[str] = []
+    quiet = retry_notes.append
 
     # Fails twice, then succeeds. The CALL COUNT is the assertion — without it
     # this passes even if the retry never happened.
     r = runner([REGISTRY_ERR, REGISTRY_ERR, GOOD])
     try:
-        run_audit("prod", runner=r, sleep=noop_sleep)
+        run_audit("prod", runner=r, sleep=noop_sleep, notify=quiet)
         ok = True
     except AuditError:
         ok = False
@@ -357,7 +368,7 @@ def self_test() -> int:
     # clean would be strictly worse than no retry at all.
     r = runner([REGISTRY_ERR])
     try:
-        run_audit("prod", runner=r, sleep=noop_sleep)
+        run_audit("prod", runner=r, sleep=noop_sleep, notify=quiet)
         raised = False
     except AuditError:
         raised = True
@@ -368,7 +379,7 @@ def self_test() -> int:
     # reaching the identical answer.
     r = runner(["<html>502</html>"])
     try:
-        run_audit("prod", runner=r, sleep=noop_sleep)
+        run_audit("prod", runner=r, sleep=noop_sleep, notify=quiet)
     except AuditError:
         pass
     check("a deterministic failure is NOT retried", len(r.calls), 1)
@@ -379,13 +390,19 @@ def self_test() -> int:
         "metadata": {"vulnerabilities": {"critical": 0, "high": 1, "moderate": 0, "low": 0}},
         "vulnerabilities": {"pkg": node("high", "GHSA-xxxx-yyyy-zzzz")},
     })])
-    got = run_audit("prod", runner=r, sleep=noop_sleep)
+    got = run_audit("prod", runner=r, sleep=noop_sleep, notify=quiet)
     check("a real HIGH finding is returned on attempt 1", len(r.calls), 1)
     check("...and is not swallowed", got["metadata"]["vulnerabilities"]["high"], 1)
 
     # The backoff table must match the attempt count, or the last retry throws
     # IndexError instead of retrying.
     check("backoff table matches attempt count", len(AUDIT_BACKOFF_S), AUDIT_ATTEMPTS - 1)
+
+    # ONE line, not four ::warning:: annotations — but it still proves the
+    # loop executed rather than merely that its cases exist. The jest layer
+    # asserts on this line for exactly that reason.
+    check("the retry loop actually ran during this self-test", len(retry_notes) >= 4, True)
+    print(f"Self-test: retry loop exercised ({len(retry_notes)} retry notifications).")
 
     if failures:
         print("SELF-TEST FAILED")
@@ -396,7 +413,7 @@ def self_test() -> int:
     return 0
 
 
-SELF_TEST_CASES = 27
+SELF_TEST_CASES = 28
 
 
 # --------------------------------------------------------------------------
