@@ -41,14 +41,33 @@ form-backed table by scanning the tree and checks each field allowlist against
 the actually-migrated columns. That is the right instrument for it. This script
 records the boundary rather than pretending to cover it.
 
-⚠️ TWO-WAY RATCHET.
+⚠️ RATCHET WITH THREE WAYS TO FAIL.
 The 56 (module, table) pairs present when this landed are grandfathered in
 `supabase/table-ownership-baseline.json`, because a control red on the day it
 ships is a control someone turns off. A NEW pair fails; a baselined pair that
-has been FIXED also fails as STALE, so the list can only shrink. Many baselined
-entries are READS of another module's table — legitimate today under a model
-where `owns` means "may write" — and the baseline is where that judgement gets
-made explicitly, one pair at a time, rather than by a blanket carve-out.
+has been FIXED fails as STALE; and a pair baselined as a READ that starts
+WRITING fails as ESCALATED.
+
+That third case is the one the first cut of this control could not see. A pair
+is keyed `module -> table`, so a baselined read that quietly became a write kept
+its key and stayed green — a module beginning to mutate state it does not own,
+with nothing going red. That is the BUGS-74 shape.
+
+⚠️ `mode` IS THE FIELD THAT MATTERS.
+`owns` means "this module may WRITE this table", so a cross-module READ is
+legitimate and is not work; a cross-module WRITE is a real boundary break. At
+landing: **44 read, 12 write**. Only the writes are a list of things to fix.
+Demanding a ticket and an expiry on all 56 would be a renewal ritual over
+mostly-fine entries, which is how a ratchet decays into a suppression list.
+
+⚠️ `basis` SAYS HOW MUCH TO TRUST EACH `write`.
+Of the 12: **7 are `mutation-call`** — a literal `.insert/.update/.upsert/
+.delete`, hard evidence. **5 are `rpc-undecidable`** — the function body is SQL
+and not in this import tree, so they are flagged conservatively rather than
+guessed at. Verify one against `supabase/migrations/` before treating it as a
+find: `account -> search_by_contact_hash` is provably a pure `return query
+select` and is an over-flag, exactly as designed. A list of 12 "boundary breaks"
+containing an over-flag nobody labelled is a list people stop trusting.
 
 ⚠️ READ `_concentration` BEFORE PROPOSING A CLEANUP.
 29 of the 56 pairs come from ONE file — the account erasure/export path, which
@@ -63,7 +82,7 @@ USAGE
 
 EXIT CODES
     0  every database call is on a table its module owns, or is baselined
-    1  a NEW unowned access, or a STALE baseline entry
+    1  a NEW pair, a STALE baseline entry, or a read that ESCALATED to a write
     2  the check could not run
 """
 
@@ -85,6 +104,19 @@ COLUMN_OWNED_TABLES = {"profiles"}
 CALL_RE = re.compile(r"""\.(?:from|rpc)\(\s*['"]([A-Za-z0-9_]+)['"]""")
 # A commented-out call is documentation, not an access (CTL-039).
 COMMENT_RE = re.compile(r"^\s*(//|\*|/\*)")
+
+# The four PostgREST mutations. `.rpc()` is deliberately NOT here: a function
+# may do either, its body is not in this tree, and guessing from the name would
+# be a classification nobody could check.
+WRITE_RE = re.compile(r"\.(?:insert|update|upsert|delete)\s*\(")
+# The only decidable READ marker. `.single()`/`.maybeSingle()` always follow a
+# `.select()`, so this one pattern is sufficient and nothing else is guessed at.
+READ_RE = re.compile(r"\.select\s*\(")
+# Used only to explain WHY a call was undecidable, never to classify it.
+RPC_RE = re.compile(r"\.rpc\s*\(")
+# How far a chained statement may run before it is called undecidable. Measured:
+# the longest real chain in this tree closes well inside this.
+STATEMENT_LINES = 8
 
 # A floor well below the measured 242, so a scan that silently stops finding
 # call sites fails rather than reporting a clean estate.
@@ -133,9 +165,65 @@ def tracked_sources(root: Path) -> list[str]:
     return files
 
 
+def mode_of(lines: list[str], i: int) -> tuple[str, str]:
+    """`(mode, basis)` for the call starting at line `i`.
+
+    ⚠️ WHICH WAY THIS FAILS IS THE WHOLE DESIGN.
+
+    A cross-module READ is legitimate under the model `owns` encodes — "this
+    module may WRITE this table" — and 44 of the 56 baselined pairs are reads.
+    A cross-module WRITE is a real boundary break. So the classification is what
+    makes the baseline a short list of 12 things to look at rather than a
+    renewal ritual over 56 things that are mostly fine.
+
+    Misclassifying a write as a read is therefore the dangerous direction: the
+    pair lands in the accepted-reads bucket and a later escalation cannot be
+    detected, because it was already a write in truth. Misclassifying a read as
+    a write costs one annotation.
+
+    So an UNDECIDABLE statement is classified `write`. Concretely, that is a
+    statement whose chain runs past the window without terminating — usually
+    because the builder was assigned to a variable and mutated elsewhere, which
+    static analysis cannot follow. Failing toward scrutiny is the only honest
+    default when the alternative is a silent gap of exactly the BUGS-74 shape.
+    """
+    depth = 0
+    saw_read = False
+    for j in range(i, min(i + STATEMENT_LINES, len(lines))):
+        seg = lines[j]
+        if j > i and COMMENT_RE.match(seg):
+            continue
+        if WRITE_RE.search(seg):
+            return "write", "mutation-call"
+        if READ_RE.search(seg):
+            saw_read = True
+        depth += seg.count("(") - seg.count(")")
+        if depth <= 0 and (seg.rstrip().endswith(";") or not seg.strip()):
+            break  # statement closed; everything it does has been seen
+
+    # Terminated with a `.select()` and no mutation: a read, decidably.
+    if saw_read:
+        return "read", "select-call"
+
+    # Everything else is UNDECIDABLE, and undecidable means `write`. The BASIS
+    # is recorded so a reader knows which writes are evidence and which are
+    # caution — a list of 12 "boundary breaks" where one is an over-flagged
+    # read is a list people stop trusting.
+    if RPC_RE.search(lines[i]):
+        #   `db.rpc('do_the_thing')` — the function body is SQL, not in this
+        #   import tree. Guessing from its name would be a classification
+        #   nobody could check, which is why `.rpc` is absent from WRITE_RE.
+        #   Verify against supabase/migrations/ before treating one as a find.
+        return "write", "rpc-undecidable"
+    #   `const q = db.from('x');` — a terminated statement that does nothing on
+    #   its own; the mutation happens later through the variable, which static
+    #   analysis cannot follow. This is the shape that matters most.
+    return "write", "opaque-builder"
+
+
 def scan(files: list[str], modules: dict, root: Path) -> dict:
     """Every (module, table) access pair, plus the call-site count."""
-    pairs: dict[tuple[str, str], list[str]] = {}
+    pairs: dict[tuple[str, str], dict] = {}
     unowned: dict[str, int] = {}
     total = 0
     for rel in files:
@@ -144,7 +232,7 @@ def scan(files: list[str], modules: dict, root: Path) -> dict:
         except (OSError, UnicodeDecodeError):
             continue
         mod = owner_of(rel, modules)
-        for line in lines:
+        for i, line in enumerate(lines):
             if COMMENT_RE.match(line):
                 continue
             for table in CALL_RE.findall(line):
@@ -154,7 +242,18 @@ def scan(files: list[str], modules: dict, root: Path) -> dict:
                 if mod is None:
                     unowned[table] = unowned.get(table, 0) + 1
                     continue
-                pairs.setdefault((mod, table), []).append(rel)
+                entry = pairs.setdefault(
+                    (mod, table), {"sites": [], "mode": "read", "basis": "select-call"}
+                )
+                entry["sites"].append(rel)
+                # A pair is a WRITE if ANY of its call sites writes. One write
+                # among twenty reads is still a module writing another's table,
+                # and the strongest basis seen is the one worth recording.
+                m, basis = mode_of(lines, i)
+                if m == "write" and (
+                    entry["mode"] != "write" or basis == "mutation-call"
+                ):
+                    entry["mode"], entry["basis"] = "write", basis
     return {"pairs": pairs, "unowned": unowned, "total": total}
 
 
@@ -167,14 +266,16 @@ def classify(scanned: dict, manifest: dict) -> dict:
             owned.setdefault(t, set()).add(name)
 
     violations = []
-    for (mod, table), sites in sorted(scanned["pairs"].items()):
+    for (mod, table), entry in sorted(scanned["pairs"].items()):
         if mod not in owned.get(table, set()):
             violations.append(
                 {
                     "module": mod,
                     "table": table,
-                    "sites": len(sites),
-                    "example": sites[0],
+                    "mode": entry["mode"],
+                    "basis": entry["basis"],
+                    "sites": len(entry["sites"]),
+                    "example": entry["sites"][0],
                     "owner": sorted(owned.get(table, set())) or None,
                 }
             )
@@ -185,20 +286,59 @@ def key(v: dict) -> str:
     return f"{v['module']} -> {v['table']}"
 
 
+def baseline_mode(entry) -> str:
+    """The recorded mode. Tolerates the pre-mode string form as `read`."""
+    if isinstance(entry, dict):
+        return entry.get("mode", "read")
+    return "read"
+
+
 def evaluate(actual: dict, baseline: dict) -> list[str]:
-    """Two-way: NEW fails, and FIXED-but-still-baselined fails."""
-    was = set(baseline.get("violations", {}))
+    """Three ways to fail: NEW, STALE, and ESCALATED.
+
+    The first two are the ordinary two-way ratchet. The third is the one that
+    matters most and the one the first cut of this control could not see: a pair
+    is keyed `module -> table`, so a baselined READ that quietly becomes a WRITE
+    kept the same key and stayed green. That is precisely the BUGS-74 shape — a
+    module beginning to mutate state it does not own, with no diff to any
+    baseline and nothing going red.
+
+    De-escalation (write -> read) is a FIX, so it fails as stale-ish too: the
+    record must follow the code, or the file stops describing reality.
+    """
+    was_raw = baseline.get("violations", {})
+    was = set(was_raw)
     now = {key(v): v for v in actual["violations"]}
     failures = []
     for k in sorted(set(now) - was):
         v = now[k]
         owner = f"owned by {', '.join(v['owner'])}" if v["owner"] else "owned by NO module"
-        failures.append(f"NEW    {k}  ({v['sites']} site(s), {owner})\n           e.g. {v['example']}")
+        failures.append(
+            f"NEW    {k}  [{v['mode'].upper()}] ({v['sites']} site(s), {owner})"
+            f"\n           e.g. {v['example']}"
+        )
     for k in sorted(was - set(now)):
         failures.append(
             f"STALE  {k} is baselined but no longer occurs. "
             f"Remove it in the same commit that fixed it."
         )
+    for k in sorted(was & set(now)):
+        before, after = baseline_mode(was_raw[k]), now[k]["mode"]
+        if before == after:
+            continue
+        if after == "write":
+            failures.append(
+                f"ESCALATED  {k} is baselined as a READ and now WRITES.\n"
+                f"           e.g. {now[k]['example']}\n"
+                f"           A cross-module read is legitimate under `owns` = "
+                f"'may write'. A cross-module write is not, and this pair just "
+                f"became one without changing its key."
+            )
+        else:
+            failures.append(
+                f"STALE  {k} is baselined as a WRITE and now only READS. "
+                f"That is a fix — record it with --write-baseline."
+            )
     return failures
 
 
@@ -257,11 +397,64 @@ def self_test() -> int:
         check("a file in no module is reported, not failed", r["violations"], [])
         check("...but is surfaced separately", r["unowned"], {"account": 1})
 
+        # --- read / write classification ----------------------------------
+        (root / "src" / "orders" / "reads.ts").write_text(
+            "const { data } = await db.from('account').select('*').eq('id', x);\n"
+        )
+        (root / "src" / "orders" / "writes.ts").write_text(
+            "await db.from('account').update({ name }).eq('id', x);\n"
+        )
+        (root / "src" / "orders" / "multiline.ts").write_text(
+            "await db\n  .from('account')\n  .insert({ a: 1 })\n  .select();\n"
+        )
+        (root / "src" / "orders" / "mixed.ts").write_text(
+            "await db.from('account').select('*');\n"
+            "await db.from('account').delete().eq('id', x);\n"
+        )
+        (root / "src" / "orders" / "opaque.ts").write_text(
+            "const q = db.from('account');\n" + "// ...\n" * 12 + "await q.update({ a: 1 });\n"
+        )
+
+        def mode(fs):
+            v = run(fs)["violations"]
+            return v[0]["mode"] if v else None
+
+        check("a plain select is a read", mode(["src/orders/reads.ts"]), "read")
+        check("an update is a write", mode(["src/orders/writes.ts"]), "write")
+        check("a write chained across lines is still a write", mode(["src/orders/multiline.ts"]), "write")
+        check("one write among reads makes the PAIR a write", mode(["src/orders/mixed.ts"]), "write")
+        check(
+            "an undecidable statement is a WRITE, never a silent read",
+            mode(["src/orders/opaque.ts"]),
+            "write",
+        )
+
         # --- ratchet ------------------------------------------------------
         actual = run(["src/orders/foreign.ts"])
         check("a NEW violation fails", any("NEW" in f for f in evaluate(actual, {"violations": {}})), True)
-        base = {"violations": {"orders -> account": "fixture"}}
+        base = {"violations": {"orders -> account": {"mode": "read"}}}
         check("a baselined violation passes", evaluate(actual, base), [])
+
+        # --- escalation: the case the first cut could not see --------------
+        esc = run(["src/orders/writes.ts"])
+        check(
+            "a baselined READ that starts WRITING fails as ESCALATED",
+            any("ESCALATED" in f for f in evaluate(esc, {"violations": {"orders -> account": {"mode": "read"}}})),
+            True,
+        )
+        check(
+            "...and the same pair passes when baselined as a write",
+            evaluate(esc, {"violations": {"orders -> account": {"mode": "write"}}}),
+            [],
+        )
+        check(
+            "a WRITE that de-escalates to a read fails as STALE",
+            any(
+                "STALE" in f
+                for f in evaluate(actual, {"violations": {"orders -> account": {"mode": "write"}}})
+            ),
+            True,
+        )
         check(
             "a FIXED baselined violation fails as STALE",
             any("STALE" in f for f in evaluate({"violations": [], "total": 0, "unowned": {}}, base)),
@@ -290,7 +483,7 @@ def self_test() -> int:
     return 0
 
 
-SELF_TEST_CASES = 13
+SELF_TEST_CASES = 21
 
 
 # --------------------------------------------------------------------------
@@ -351,14 +544,34 @@ def main() -> int:
                 "does not declare in owns.tables/owns.rpcs, as they stood when the control",
                 "landed. Grandfathered so it could ship green.",
                 "",
-                "SHRINK-ONLY, BOTH WAYS. A new pair fails; a baselined pair that no longer",
-                "occurs fails as STALE. Regenerate with --write-baseline in the same commit",
-                "that fixes one.",
+                "SHRINK-ONLY, AND THREE WAYS TO FAIL. A new pair fails; a baselined pair",
+                "that no longer occurs fails as STALE; and a pair baselined as a READ that",
+                "starts WRITING fails as ESCALATED. Regenerate with --write-baseline in the",
+                "same commit that changes one.",
                 "",
-                "Many entries are READS of another module's table, which is legitimate under",
-                "a model where `owns` means 'may write'. That judgement belongs here, one",
-                "pair at a time, rather than in a blanket carve-out that would also hide the",
-                "writes.",
+                "READ THE `mode` FIELD — IT IS THE POINT OF THIS FILE.",
+                "`owns` means 'this module may WRITE this table'. So a cross-module READ is",
+                "legitimate and is not work; a cross-module WRITE is a real boundary break.",
+                "Only the `write` ones are a list of things to look at. Asking for a ticket",
+                "and an expiry on all 56 would be a renewal ritual over mostly-fine entries,",
+                "which is how a ratchet decays into a suppression list.",
+                "",
+                "AND READ `basis` BEFORE TREATING A `write` AS A FINDING.",
+                "`mutation-call` is hard evidence: a literal .insert/.update/.upsert/.delete.",
+                "`rpc-undecidable` and `opaque-builder` are CONSERVATIVE — the statement could",
+                "not be decided statically, so it was called a write rather than assumed",
+                "harmless. Verify those against supabase/migrations/ before acting:",
+                "`account -> search_by_contact_hash` is provably `return query select` and is",
+                "an over-flag, exactly as intended.",
+                "",
+                "The ESCALATED case is what the first cut of this control could not see. A",
+                "pair is keyed `module -> table`, so a baselined read that quietly became a",
+                "write kept its key and stayed green -- a module beginning to mutate state it",
+                "does not own, with nothing going red. That is the BUGS-74 shape.",
+                "",
+                "An UNDECIDABLE statement is classified `write`, never `read`. A write hidden",
+                "in the accepted-reads bucket can never be caught escalating, because it was",
+                "already a write; an over-flagged read costs one annotation.",
                 "",
                 "`profiles` is absent by policy, not by omission: it is co-owned at COLUMN",
                 "granularity (8 modules, 37 of 42 columns) and its column contract is pinned",
@@ -373,16 +586,29 @@ def main() -> int:
                     "boundary breaks — read the count here before proposing a cleanup."
                 ),
                 "pairs": len(actual["violations"]),
+                "writes": sum(1 for v in actual["violations"] if v["mode"] == "write"),
                 "topFiles": {f: n for f, n in top},
             },
             "violations": {
-                key(v): f"{v['sites']} site(s); owned by {', '.join(v['owner']) if v['owner'] else 'NO module'} | e.g. {v['example']}"
+                key(v): {
+                    "mode": v["mode"],
+                    "basis": v["basis"],
+                    "sites": v["sites"],
+                    "owner": v["owner"],
+                    "example": v["example"],
+                }
                 for v in actual["violations"]
             },
         }
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
         baseline_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        print(f"Wrote {baseline_path.name}: {len(actual['violations'])} pair(s) over {actual['total']} call sites")
+        w = [v for v in actual["violations"] if v["mode"] == "write"]
+        hard = sum(1 for v in w if v["basis"] == "mutation-call")
+        print(
+            f"Wrote {baseline_path.name}: {len(actual['violations'])} pair(s) "
+            f"({len(w)} write — {hard} by mutation call, {len(w) - hard} conservative; "
+            f"{len(actual['violations']) - len(w)} read) over {actual['total']} call sites"
+        )
         return 0
 
     if not baseline_path.exists():
@@ -396,9 +622,13 @@ def main() -> int:
         return 2
 
     failures = evaluate(actual, baseline)
+    ws = [v for v in actual["violations"] if v["mode"] == "write"]
+    hard = sum(1 for v in ws if v["basis"] == "mutation-call")
     print(
         f"{actual['total']} database call site(s) outside `profiles`; "
         f"{len(actual['violations'])} (module -> table) pair(s) unowned "
+        f"— {len(ws)} WRITE ({hard} by mutation call, {len(ws) - hard} conservative), "
+        f"{len(actual['violations']) - len(ws)} read "
         f"({len(baseline.get('violations', {}))} baselined)"
     )
     if actual["unowned"]:

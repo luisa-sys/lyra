@@ -299,6 +299,143 @@ describe('CTL-055 — it fails closed rather than reporting a clean estate', () 
   });
 });
 
+describe('CTL-055 — read vs write, and the direction the classifier fails', () => {
+  // `owns` means "may WRITE". So a cross-module read is legitimate and a
+  // cross-module write is a boundary break, and getting the classification
+  // right is what keeps the baseline a short list of real work instead of a
+  // renewal ritual over 56 mostly-fine entries.
+  const cases = [
+    ['a plain select is a read', "db.from('account').select('*').eq('id', x);\n", 'read'],
+    ['an update is a write', "db.from('account').update({ a: 1 }).eq('id', x);\n", 'write'],
+    ['an insert is a write', "db.from('account').insert({ a: 1 });\n", 'write'],
+    ['a delete is a write', "db.from('account').delete().eq('id', x);\n", 'write'],
+    [
+      'a write chained across lines is still a write',
+      "await db\n  .from('account')\n  .upsert({ a: 1 })\n  .select();\n",
+      'write',
+    ],
+    [
+      'one write among many reads makes the PAIR a write',
+      "db.from('account').select('*');\ndb.from('account').select('id');\ndb.from('account').delete();\n",
+      'write',
+    ],
+  ];
+
+  test.each(cases)('%s', (_label, body, expected) => {
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: body },
+      modules: MODS,
+      baseline: { violations: { 'orders -> account': { mode: expected } } },
+    });
+    // Baselined with the EXPECTED mode: a mismatch surfaces as ESCALATED or
+    // STALE, so exit 0 is a positive assertion about the classification rather
+    // than merely "nothing blew up".
+    const r = check(dir);
+    expect(`${_label}: code=${r.code}\n${r.out}`).toContain(`${_label}: code=0`);
+  });
+
+  test('an UNDECIDABLE statement is a write, never a silent read', () => {
+    // `const q = db.from('x');` terminates without doing anything — the write
+    // happens later through the variable, which static analysis cannot follow.
+    // Classifying it `read` would park a real write in the accepted bucket,
+    // where it could never be caught escalating because it was already a write.
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: "const q = db.from('account');\nawait q.update({ a: 1 });\n" },
+      modules: MODS,
+      baseline: { violations: { 'orders -> account': { mode: 'read' } } },
+    });
+    const r = check(dir);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('ESCALATED');
+  });
+
+  test('an `.rpc()` is undecidable and labelled as such, not guessed at', () => {
+    // The function body is SQL and not in this import tree. It is flagged
+    // conservatively AND marked `rpc-undecidable`, so a reader knows to verify
+    // it against supabase/migrations/ rather than treat it as a finding.
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: "await db.rpc('some_account_fn');\n" },
+      modules: MODS,
+      baseline: { violations: {} },
+    });
+    const r = check(dir);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('[WRITE]');
+    const written = fixture({
+      files: { [fx('orders/a.ts')]: "await db.rpc('some_account_fn');\n" },
+      modules: MODS,
+      baseline: { violations: {} },
+    });
+    expect(run(['--root', written, '--min-call-sites', '1', '--write-baseline'], { cwd: written }).code).toBe(0);
+    const b = JSON.parse(
+      fs.readFileSync(path.join(written, 'supabase', 'table-ownership-baseline.json'), 'utf-8'),
+    );
+    expect(b.violations['orders -> some_account_fn'].basis).toBe('rpc-undecidable');
+  });
+});
+
+describe('CTL-055 — ESCALATION: the hole the first cut could not see', () => {
+  // A pair is keyed `module -> table`. A baselined READ that quietly becomes a
+  // WRITE keeps the same key, so the pair count does not move and the old
+  // control stayed green — a module beginning to mutate state it does not own,
+  // with nothing going red. That is the BUGS-74 shape.
+  const readBody = "db.from('account').select('*');\n";
+  const writeBody = "db.from('account').select('*');\ndb.from('account').update({ a: 1 });\n";
+
+  test('read -> write fails as ESCALATED, and says why it matters', () => {
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: writeBody },
+      modules: MODS,
+      baseline: { violations: { 'orders -> account': { mode: 'read' } } },
+    });
+    const r = check(dir);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('ESCALATED  orders -> account');
+    expect(r.out).toContain("owns` = 'may write'");
+  });
+
+  test('the pair count is UNCHANGED across the escalation — which is the whole point', () => {
+    // If the count moved, the plain NEW/STALE ratchet would already have caught
+    // it and this mechanism would be redundant. Pin that it does not.
+    const mk = (body) =>
+      fixture({
+        files: { [fx('orders/a.ts')]: body },
+        modules: MODS,
+        baseline: { violations: { 'orders -> account': { mode: 'read' } } },
+      });
+    const asRead = check(mk(readBody));
+    const asWrite = check(mk(writeBody));
+    const pairs = (out) => /(\d+) \(module -> table\) pair\(s\) unowned/.exec(out)?.[1];
+    expect(pairs(asRead.out)).toBe('1');
+    expect(`escalated pair count: ${pairs(asWrite.out)}`).toBe('escalated pair count: 1');
+    expect(asRead.code).toBe(0);
+    expect(asWrite.code).toBe(1);
+  });
+
+  test('write -> read fails as STALE — the record must follow the code both ways', () => {
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: readBody },
+      modules: MODS,
+      baseline: { violations: { 'orders -> account': { mode: 'write' } } },
+    });
+    const r = check(dir);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('STALE');
+  });
+
+  test('a legacy string baseline entry is read as a READ, not crashed on', () => {
+    // The first baseline format stored a prose string per pair. Tolerating it
+    // matters because the alternative — a TypeError — would fail closed in a
+    // way that looks like a broken harness rather than a format change.
+    const dir = fixture({
+      files: { [fx('orders/a.ts')]: readBody },
+      modules: MODS,
+      baseline: { violations: { 'orders -> account': '1 site(s); owned by users' } },
+    });
+    expect(check(dir).code).toBe(0);
+  });
+});
+
 describe('CTL-055 — `profiles` is out of scope BY POLICY, and the policy is stated', () => {
   test('a `profiles` access is neither counted nor flagged', () => {
     const dir = fixture({
@@ -341,6 +478,39 @@ describe('CTL-055 — this repo, as it actually stands', () => {
     expect(r.code).toBe(0);
     const n = Number(/Self-test passed \((\d+) cases\)/.exec(r.out)?.[1]);
     expect(n).toBeGreaterThanOrEqual(13);
+  });
+
+  test('every baselined pair carries a mode and a basis', () => {
+    // Without these the file is a flat list of 56 "boundary breaks", 44 of
+    // which are legitimate reads. The fields are what make it a short list of
+    // real work rather than a renewal ritual.
+    const b = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE), 'utf-8'));
+    const entries = Object.entries(b.violations);
+    expect(entries.length).toBeGreaterThan(20);
+    const bad = entries.filter(
+      ([, v]) => !['read', 'write'].includes(v.mode) || typeof v.basis !== 'string',
+    );
+    expect(`entries missing mode/basis: ${JSON.stringify(bad.map(([k]) => k))}`).toBe(
+      'entries missing mode/basis: []',
+    );
+    // Both modes must actually occur, or the classification is doing nothing.
+    const modes = new Set(entries.map(([, v]) => v.mode));
+    expect([...modes].sort()).toEqual(['read', 'write']);
+  });
+
+  test('a conservative write is labelled, so an over-flag is not read as a finding', () => {
+    // `account -> search_by_contact_hash` is provably `return query select` in
+    // supabase/migrations/, and is flagged write on purpose because an RPC body
+    // is not in the import tree. If nothing distinguished it from hard evidence,
+    // the write list would contain an unexplained false positive — and a list
+    // with one of those is a list people stop trusting.
+    const b = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE), 'utf-8'));
+    const writes = Object.entries(b.violations).filter(([, v]) => v.mode === 'write');
+    expect(writes.length).toBeGreaterThan(0);
+    const bases = new Set(writes.map(([, v]) => v.basis));
+    // Hard evidence must exist, or `mutation-call` detection has broken.
+    expect(bases.has('mutation-call')).toBe(true);
+    expect(b._concentration.writes).toBe(writes.length);
   });
 
   test('the baseline records the concentration, so 56 pairs are not read as 56 tangles', () => {
