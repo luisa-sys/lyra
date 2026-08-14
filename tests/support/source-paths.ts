@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 229 entries.
+// 232 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -31,7 +31,9 @@ export const SRC = {
   deployProduction: '.github/workflows/deploy-production.yml',
   deployStaging: '.github/workflows/deploy-staging.yml',
   prChecks: '.github/workflows/pr-checks.yml',
+  promoteToProduction: '.github/workflows/promote-to-production.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
+  releaseIntegrity: '.github/workflows/release-integrity.yml',
   securityAudit: '.github/workflows/security-audit.yml',
   weeklyReport: '.github/workflows/weekly-report.yml',
   baseline: 'design/BASELINE.json',
@@ -65,6 +67,7 @@ export const SRC = {
   checkModuleLayering: 'scripts/check-module-layering.py',
   checkModuleTableOwnership: 'scripts/check-module-table-ownership.py',
   checkNpmAuditGate: 'scripts/check-npm-audit-gate.py',
+  checkReleaseTagged: 'scripts/check-release-tagged.py',
   checkRouteThinness: 'scripts/check-route-thinness.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',

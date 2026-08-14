@@ -1,0 +1,101 @@
+name: Release Integrity
+
+# CTL-057 / BUGS-97 — is the thing on production identifiable?
+#
+# `promote-to-production.yml` can finish green with `Create release tag` SKIPPED,
+# because a deploy parked on the SEC-106 required-reviewer gate is treated as a
+# terminal state (deliberately — failing it once fired a spurious auto-rollback).
+# The workflow prints "skipped, not passed" and names the remedy, but nothing
+# checks that anybody actually performed it.
+#
+# Measured 2026-08-14: SEVEN of the last fourteen production releases are
+# untagged, and every untagged one is after the reviewer gate landed on
+# 2026-07-30. So for two weeks `git describe --tags` — the authoritative version
+# here, because package.json drifts (gotcha #12, BUGS-89) — has been wrong for
+# roughly half of production, with nothing red.
+#
+# BUGS-97's Prevention section states the principle this workflow exists to
+# satisfy:
+#
+#     "a workflow cannot be the only witness to its own completion."
+#
+# So this asks the question from OUTSIDE promote-to-production, and does not
+# care which run tagged, whether anything paused, or how the remedy was applied.
+#
+# WHY NOT A JOB INSIDE promote-to-production.yml: because the failure mode being
+# detected is that workflow finishing early. A check it hosts cannot observe its
+# own premature exit — that is the whole shape of BUGS-97.
+#
+# WHY NOT health-check.yml: one concern, one owner (KAN-361). That workflow owns
+# LIVENESS. "Is production identifiable" is release integrity, and folding it in
+# would make a liveness failure and a tagging failure share an alert.
+
+on:
+  schedule:
+    # 09:10 UTC daily — after the 06:15 db-invariants and well after any
+    # overnight promote has had time to finish and tag.
+    - cron: '10 9 * * *'
+  workflow_run:
+    # Also immediately after a production promote, so an untagged release is
+    # caught in minutes rather than up to a day later. `workflow_run` fires
+    # regardless of the promote's conclusion — which is the point: the case
+    # being detected is a promote that reported SUCCESS.
+    workflows: ['Promote to Production']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release-tagged:
+    name: Production release carries a tag (CTL-057)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          # Tags are the entire subject of this check and a shallow clone omits
+          # them (gotcha #11). Without this the check would find no tag on any
+          # commit and report every release as untagged — a gate that fires
+          # always is as useless as one that never fires, and louder.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Self-test the checker
+        # Prove the comparison and its fail-closed path still work before
+        # trusting anything this job says about the real branch.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-release-tagged.py --self-test
+
+      - name: Assert main's HEAD carries a release tag
+        run: |
+          set -euo pipefail
+          python3 scripts/check-release-tagged.py --ref origin/main
+
+      - name: Report recent release history
+        # Always runs, including after a failure, so the annotation is followed
+        # by the context needed to act on it. Informational: `--report` only
+        # fails on an empty corpus, which would mean the scan found nothing.
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 scripts/check-release-tagged.py --ref origin/main --report
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A production release on main has no tag."
+          echo "::error::"
+          echo "::error::Most likely: promote-to-production.yml finished while the"
+          echo "::error::deploy sat on the SEC-106 approval gate, so its tag job"
+          echo "::error::was SKIPPED (BUGS-97). main is still CORRECT — this is a"
+          echo "::error::missing label, not a bad deploy, and no rollback is warranted."
+          echo "::error::"
+          echo "::error::Fix: approve the deploy-production run if it is still"
+          echo "::error::waiting, then re-run promote-to-production.yml. Its tag job"
+          echo "::error::runs once the deploy has completed."
