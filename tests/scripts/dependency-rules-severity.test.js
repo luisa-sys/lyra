@@ -85,13 +85,49 @@ describe('depcruise severity — `warn` does not mean "switched off"', () => {
     },
   );
 
-  test('the unfinished rule IS genuinely warn — the gate is not uniformly blocking', () => {
-    // If every rule were error, the first assertion would be trivially true and
-    // would prove nothing about the mechanism. This is the contrast case.
+  test('the dial still HAS a warn branch — the contrast case, no longer borrowed from unfinished work', () => {
+    // This assertion used to read "no-cross-segment-app is warn", because an
+    // unfinished rule was the only available proof that severityFor varies.
+    // KAN-415 finished it (2026-08-14), so every rule now resolves to error and
+    // that evidence is gone — at which point `severityFor = () => 'error'` would
+    // pass every other test in this file, and the next rule landed at NOT_YET
+    // would block on day one instead of reporting.
+    //
+    // So the mechanism is asserted directly instead of being inferred from which
+    // rules happen to be incomplete. Same property, no longer dependent on the
+    // codebase staying dirty to prove the gate is clean.
+    jest.resetModules();
+    const prev = process.env.DEPCRUISE_SEVERITY;
+    delete process.env.DEPCRUISE_SEVERITY;
+    try {
+      const { severityFor, BLOCKING, NOT_YET } = require(
+        path.join(ROOT, SRC.depcruiseSeverity),
+      );
+      expect(`NOT_YET -> ${severityFor(NOT_YET)}`).toBe('NOT_YET -> warn');
+      expect(`BLOCKING -> ${severityFor(BLOCKING)}`).toBe('BLOCKING -> error');
+      // ...and the override lifts warn to error, never the reverse.
+      process.env.DEPCRUISE_SEVERITY = 'error';
+      expect(`NOT_YET under override -> ${severityFor(NOT_YET)}`).toBe(
+        'NOT_YET under override -> error',
+      );
+      process.env.DEPCRUISE_SEVERITY = 'warn';
+      expect(`BLOCKING under warn -> ${severityFor(BLOCKING)}`).toBe(
+        'BLOCKING under warn -> error',
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DEPCRUISE_SEVERITY;
+      else process.env.DEPCRUISE_SEVERITY = prev;
+      jest.resetModules();
+    }
+  });
+
+  test('every cross-segment rule now blocks — the work that retired the contrast case', () => {
+    // The other half: prove the rule actually flipped, so this file records the
+    // new state rather than merely tolerating it.
     const cfg = loadConfig('warn');
     const cross = cfg.forbidden.filter((r) => r.name.startsWith('no-cross-segment-app/'));
     expect(cross.length).toBeGreaterThan(0);
-    expect([...new Set(cross.map((r) => r.severity))]).toEqual(['warn']);
+    expect([...new Set(cross.map((r) => r.severity))]).toEqual(['error']);
   });
 
   test('DEPCRUISE_SEVERITY=error forces EVERY rule to error — the override is one-way', () => {

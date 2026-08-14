@@ -51,12 +51,27 @@ describe('Auth pages', () => {
     expect(fs.existsSync(path.join(root, SRC.middleware))).toBe(true);
   });
 
-  test('server actions file exists with signUp, signIn, signOut', () => {
+  test('server actions file exists with signUp, signIn', () => {
     const actionsPath = path.join(root, SRC.actions);
     expect(fs.existsSync(actionsPath)).toBe(true);
     const content = fs.readFileSync(actionsPath, 'utf8');
     expect(content).toContain('export async function signUp');
     expect(content).toContain('export async function signIn');
+  });
+
+  test('signOut is a server action at the app root, not inside a route segment', () => {
+    // KAN-415 moved it out of (auth)/actions.ts: /dashboard imported it across
+    // route segments, which was the last `no-cross-segment-app` violation.
+    //
+    // Asserted at its new home rather than deleted, and the `'use server'`
+    // check is the load-bearing half — the qa-sweep destructive denylist keys
+    // on an INVENTORIED action, and inventory.py inventories only `'use
+    // server'` functions. Lose that directive and the sign-out hazard silently
+    // leaves the safety envelope while this file still says signOut exists.
+    const sessionActionsPath = path.join(root, SRC.sessionActions);
+    expect(fs.existsSync(sessionActionsPath)).toBe(true);
+    const content = fs.readFileSync(sessionActionsPath, 'utf8');
+    expect(content).toContain("'use server'");
     expect(content).toContain('export async function signOut');
   });
 });
