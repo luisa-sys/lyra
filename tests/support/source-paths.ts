@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 225 entries.
+// 227 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -75,6 +75,7 @@ export const SRC = {
   checkWaiverHygiene: 'scripts/check-waiver-hygiene.py',
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
+  depcruiseSeverity: 'scripts/depcruise-severity.cjs',
   docSyncHealthcheck: 'scripts/doc-sync-healthcheck.sh',
   genDbTypes: 'scripts/gen-db-types.sh',
   genTestPaths: 'scripts/gen-test-paths.mjs',
@@ -172,6 +173,7 @@ export const SRC = {
   rsvpForm: 'src/app/r/[token]/rsvp-form.tsx',
   searchPage: 'src/app/search/page.tsx',
   serviceWorkerRegister: 'src/app/service-worker-register.tsx',
+  sessionActions: 'src/app/session-actions.ts',
   sitemap: 'src/app/sitemap.ts',
   statusPage: 'src/app/status/page.tsx',
   components: 'src/components',
