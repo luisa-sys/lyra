@@ -65,9 +65,19 @@ Of the 12: **7 are `mutation-call`** — a literal `.insert/.update/.upsert/
 .delete`, hard evidence. **5 are `rpc-undecidable`** — the function body is SQL
 and not in this import tree, so they are flagged conservatively rather than
 guessed at. Verify one against `supabase/migrations/` before treating it as a
-find: `account -> search_by_contact_hash` is provably a pure `return query
-select` and is an over-flag, exactly as designed. A list of 12 "boundary breaks"
-containing an over-flag nobody labelled is a list people stop trusting.
+find: `account -> search_by_contact_hash` is a pure `return query select` in
+`20260713093000_sec80_contact_hash_suspended_guard.sql`, so it is an over-flag,
+exactly as designed. A list of 12 "boundary breaks" containing an over-flag
+nobody labelled is a list people stop trusting.
+
+⚠️ That last example carries a SEPARATE, worse problem, and the two are easy to
+conflate. The daily security routine reports under **SEC-107** that
+`search_by_contact_hash` does not exist on PRODUCTION at all — so the migration
+above says one thing and the live database says another. Nothing here can see
+that: this control reads the repo, and a call site to a function that was never
+applied looks identical to one that works. The classification above is a
+statement about the migration, not about prod. Do not read a green run here as
+evidence that any RPC exists where it is called.
 
 ⚠️ READ `_concentration` BEFORE PROPOSING A CLEANUP.
 29 of the 56 pairs come from ONE file — the account erasure/export path, which
