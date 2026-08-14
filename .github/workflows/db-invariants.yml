@@ -164,8 +164,68 @@ jobs:
           PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
         run: python3 scripts/check-live-schema-parity.py --snapshot-only
 
+      # SEC-143 — the fourth snapshot, which lives in lyra-admin-mcp-server.
+      #
+      # DELIBERATELY A SEPARATE STEP, not a flag on the one above. The two
+      # findings need OPPOSITE remedies: a stale local snapshot is fixed with
+      # `npm run gen:db-types`, a stale admin contract is fixed by regenerating a
+      # file in another repository. Sharing one `if: failure()` handler would
+      # print the wrong instruction for whichever fired — which is precisely
+      # CTL-059, fixed in this same workflow's ledger-parity job hours earlier.
+      - name: Compare the admin server's schema contract with production (SEC-143)
+        id: admin-contract
+        env:
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          # Same mechanism CTL-043 uses for its cross-repo reads — the built-in
+          # token, no new secret provisioned anywhere.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 scripts/check-live-schema-parity.py \
+            --env prod --snapshot-only --with-admin-contract || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Raise the admin-contract finding
+        if: failure() && steps.admin-contract.outcome == 'failure'
+        env:
+          RC: ${{ steps.admin-contract.outputs.rc }}
+        run: |
+          set -euo pipefail
+          case "${RC:-unknown}" in
+            2)
+              echo "::error::The admin schema contract could not be READ or compared."
+              echo ""
+              echo "This is NOT a drift finding. Nothing was compared, so do not go"
+              echo "looking for a stale column — the file could not be fetched, or the"
+              echo "production database could not be read. Check gh auth and the"
+              echo "PROD_SUPABASE_* secrets."
+              ;;
+            1)
+              echo "::error::lyra-admin-mcp-server's schema contract no longer matches production."
+              echo ""
+              echo "That contract is what types the admin server's writes (BUGS-101). A"
+              echo "column it declares but production lacks is the BUGS-101 shape itself:"
+              echo "a write typed against a dropped column, failing at runtime with"
+              echo "PGRST204. A column production has but the contract lacks means the"
+              echo "contract has gone stale and is describing a database that moved."
+              echo ""
+              echo "Fix in lyra-admin-mcp-server, not here: regenerate"
+              echo "src/types/database.ts from this repo's src/types/database/prod.ts"
+              echo "(its header records the exact provenance and how to redo it)."
+              ;;
+            *)
+              echo "::error::admin-contract step failed with rc='${RC:-unknown}'."
+              echo "The guidance above does not apply — neither exit code was reported,"
+              echo "so treat this as a broken step rather than a schema finding."
+              ;;
+          esac
+          exit 1
+
       - name: Raise the finding
-        if: failure()
+        if: failure() && steps.admin-contract.outcome != 'failure'
         run: |
           set -euo pipefail
           echo "::error::A committed schema snapshot no longer matches its own database."
@@ -246,12 +306,71 @@ jobs:
         # Deliberately NOT --ledger-dir. That seam reads local files and exists
         # only for generating the first baseline; a control that can be handed
         # its own answer is a control that can be made to agree with anything.
-        run: python3 scripts/check-migration-ledger-parity.py
+        id: compare
+        run: |
+          set -euo pipefail
+          # `|| rc=$?` rather than `set +e`: keeps the Workflow Integrity
+          # Policy's `set -euo pipefail` in force for every OTHER line while
+          # still capturing a non-zero exit instead of aborting on it.
+          rc=0
+          python3 scripts/check-migration-ledger-parity.py || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Raise the finding
         if: failure()
+        # ⚠️ BRANCH ON THE EXIT CODE. This handler used to print the divergence
+        # story on ANY non-zero, so an exit 2 — "could not read a ledger at
+        # all" — rendered as exit 1, "a migration is missing from the repo".
+        # Observed 2026-08-14: the dev project 403'd, and the annotation told
+        # the reader to go and commit SQL that was never missing.
+        #
+        # A finding that describes itself wrongly is how an operator learns to
+        # skim the annotations — the reason this job is separate from
+        # `invariants` in the first place, per the comment at the top.
+        env:
+          RC: ${{ steps.compare.outputs.rc }}
         run: |
           set -euo pipefail
+          case "${RC:-unknown}" in
+            2)
+              echo "::error::A ledger could not be READ. This is not a divergence finding."
+              echo ""
+              echo "The check failed closed: it could not contact one or more databases,"
+              echo "so it refused to report agreement it had not verified. Nothing here"
+              echo "says the repo and the databases disagree — only that the question"
+              echo "could not be asked."
+              echo ""
+              echo "The annotation above names the project and the HTTP status, and"
+              echo "carries the response BODY, which is what tells the two 403 sources"
+              echo "apart:"
+              echo ""
+              echo "  an HTML challenge page  -> Cloudflare bot protection, which 403s"
+              echo "      before Supabase sees the token. Usually transient; the"
+              echo "      User-Agent header in the script exists for this."
+              echo "  a JSON error            -> Supabase refusing the token's scope."
+              echo "      Check SUPABASE_ACCESS_TOKEN has not expired or been narrowed"
+              echo "      (SEC-139 tracks its 2027-08-13 expiry)."
+              echo ""
+              echo "Do NOT go looking for an uncommitted migration on the strength of"
+              echo "this failure. Context: SEC-137."
+              exit 0
+              ;;
+            1)
+              : # fall through to the divergence text below
+              ;;
+            *)
+              echo "::error::The ledger-parity check exited with an unexpected status: ${RC:-<none>}."
+              echo ""
+              echo "Exit 1 means a divergence was found; exit 2 means a ledger could not"
+              echo "be read. Anything else means the step itself broke before it could"
+              echo "report — a missing interpreter, a syntax error, a killed process."
+              echo "Read the step log directly; the guidance below does not apply."
+              echo ""
+              echo "Context: SEC-137."
+              exit 0
+              ;;
+          esac
           echo "::error::The repo and a database no longer agree about what has been applied."
           echo ""
           echo "Two shapes, and the annotations above say which:"

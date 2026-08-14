@@ -42,6 +42,26 @@ on:
         required: false
         default: 'manual'
 
+# SEC-141: promotes must not run simultaneously.
+#
+# A single dispatch of promote-staging-to-beta produced TWO runs 63 seconds
+# apart on 2026-08-14 (cause unconfirmed; a client retry on a slow 204 is the
+# leading hypothesis). Each promote fetches, merges and pushes, so two in
+# flight can interleave in the lost-update window. That day it was harmless
+# only because someone noticed and cancelled one, which is not a control.
+#
+# ⚠️ cancel-in-progress MUST stay false. The reflexive `true` is actively
+# worse here: it would kill an in-flight promote MID-MERGE OR MID-PUSH, a
+# nastier failure than the race it prevents. With false the second run
+# queues, then finds the merge already done — a harmless no-op.
+#
+# Each workflow gets its OWN group. staging→beta and beta→main target
+# different branches and are independent; serialising them across workflows
+# would only make a release slower.
+concurrency:
+  group: promote-${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: read
