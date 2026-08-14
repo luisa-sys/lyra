@@ -503,6 +503,14 @@ jobs:
           python3 scripts/check-module-api.py
           python3 scripts/check-edge-safe.py --self-test
           python3 scripts/check-edge-safe.py
+          # CTL-055. The three checks above constrain the IMPORT graph; this one
+          # constrains the DATA graph, and they are not the same boundary.
+          # Convene is the proof: it passes CTL-051 and CTL-053 cleanly — 2
+          # declared entry points, every outward edge legal and downward — and
+          # still reaches 3 tables owned by other modules. `modules.json` has
+          # carried `owns.tables` since it was written and nothing read it.
+          python3 scripts/check-module-table-ownership.py --self-test
+          python3 scripts/check-module-table-ownership.py
       - name: Run unit tests
         run: npm run test:unit
         env:

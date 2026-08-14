@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 223,
+  "count": 225,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -50,6 +50,7 @@
     "checkMigrationLedgerParity": "scripts/check-migration-ledger-parity.py",
     "checkModuleApi": "scripts/check-module-api.py",
     "checkModuleLayering": "scripts/check-module-layering.py",
+    "checkModuleTableOwnership": "scripts/check-module-table-ownership.py",
     "checkNpmAuditGate": "scripts/check-npm-audit-gate.py",
     "checkRoutineOwnership": "scripts/check-routine-ownership.sh",
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",
@@ -225,6 +226,7 @@
     "migrations20260712033000Sec74AffiliateClicksRetentionPurge": "supabase/migrations/20260712033000_sec74_affiliate_clicks_retention_purge.sql",
     "migrations20260717033000Sec74GatheringsRetentionPurge": "supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql",
     "migrations20260803160000Kan445CustomConversationPrompts": "supabase/migrations/20260803160000_kan445_custom_conversation_prompts.sql",
-    "schemaDriftBaseline": "supabase/schema-drift-baseline.json"
+    "schemaDriftBaseline": "supabase/schema-drift-baseline.json",
+    "tableOwnershipBaseline": "supabase/table-ownership-baseline.json"
   }
 }

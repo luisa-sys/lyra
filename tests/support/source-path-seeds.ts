@@ -221,4 +221,12 @@ export const SEEDED_PATHS = [
   '.github/workflows/deploy-beta.yml',
   '.github/workflows/deploy-production.yml',
   '.github/workflows/security-audit.yml',
+  // CTL-055. Both reached ONLY via `SRC` in
+  // tests/scripts/check-module-table-ownership.test.js. The baseline is seeded
+  // as well as the script because the test asserts POSITIVE facts about its
+  // shape (two-way ratchet, computed concentration) — and gotcha #31 would turn
+  // a lost key into `resolve(root, undefined)`, which reads like a broken
+  // harness rather than a missing entry.
+  'scripts/check-module-table-ownership.py',
+  'supabase/table-ownership-baseline.json',
 ] as const;
