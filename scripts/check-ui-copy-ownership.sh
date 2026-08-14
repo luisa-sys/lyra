@@ -35,6 +35,74 @@
 #   overridable via env so the unit tests can drive crafted histories.
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# --describe : emit the founder-owned surface, DERIVED from is_protected()
+# ---------------------------------------------------------------------------
+#
+# KAN-474. This exists because the surface was maintained in TWO places — this
+# guard, and the Backlog Autopilot's prompt, which is a SaaS routine no CI job
+# can read. They are supposed to be 1:1 mirrors. They drifted twice:
+#
+#   * KAN-415 moved `src/lib/invite-text.ts` and `src/lib/beta-access/email.ts`
+#     into `src/modules/`. The guard was updated; the prompt was not, so two
+#     copy modules were protected by CI and unprotected by the robot.
+#   * KAN-473 added `src/modules/*.tsx`. Again the guard only. The autopilot
+#     would have read three founder-owned components as fair game.
+#
+# Neither drift could go red, because nothing in CI can see a routine prompt.
+# So the fix is not another checker — it is removing the second copy. The
+# autopilot now reads this at runtime instead of restating it, and the guard
+# becomes the single source of truth.
+#
+# ⚠️ THE OUTPUT IS PARSED OUT OF is_protected() ITSELF, not hand-written
+# alongside it. That distinction is the whole point: a hand-written
+# description is a third copy and would drift exactly like the second one did.
+# Add a rule to the function and it appears here with no further edit —
+# `tests/scripts/check-ui-copy-ownership.test.js` proves that by adding one.
+#
+# Contract: line-oriented and stable, because a routine prompt parses it.
+#   PROTECTED <glob>     founder-owned; autopilot must not touch
+#   CARVE-OUT <glob>     explicitly NOT founder-owned; checked first, wins
+# Carve-outs are printed FIRST because that is the order they are evaluated in.
+describe_surface() {
+  local body
+  body="$(sed -n '/^is_protected()/,/^}/p' "$0")"
+
+  echo "# Founder-owned UI/copy surface — KAN-411."
+  echo "# Derived from is_protected() in scripts/check-ui-copy-ownership.sh."
+  echo "# Do not restate this list anywhere; read it."
+  echo "#"
+  echo "# CARVE-OUT lines are evaluated FIRST and win over PROTECTED lines."
+  echo
+
+  # ⚠️ The extraction must tolerate a TRAILING COMMENT and arbitrary internal
+  # whitespace, because the function is written for humans and several rules
+  # carry both. The first cut of this anchored on `]] && return N$` and
+  # silently emitted 1 carve-out instead of 4, dropping `src/*.css` — a list
+  # that LOOKS right while omitting rules is the exact failure mode KAN-474
+  # exists to end, so the parser is strict about the shape it matches and the
+  # test below pins the counts rather than trusting the output looks sensible.
+  extract_rules() {  # $1 = return code to select
+    printf '%s\n' "$body" \
+      | sed -n "s/^[[:space:]]*\[\[[[:space:]]*\\\$f[[:space:]]*==[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*\]\][[:space:]]*\&\&[[:space:]]*return[[:space:]]*$1[[:space:]]*\(#.*\)\{0,1\}\$/\1/p"
+  }
+
+  # `return 1` inside the function = explicitly not protected.
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf 'CARVE-OUT %s\n' "$line"
+  done < <(extract_rules 1)
+
+  # `return 0` = founder-owned.
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf 'PROTECTED %s\n' "$line"
+  done < <(extract_rules 0)
+}
+
+if [ "${1:-}" = "--describe" ]; then
+  describe_surface
+  exit 0
+fi
+
 BASE_REF="${BASE_REF:-origin/develop}"
 HEAD_REF="${HEAD_REF:-HEAD}"
 

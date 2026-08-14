@@ -170,7 +170,8 @@
         "KAN-411"
       ],
       "escape_hatch": null,
-      "added": "2026-07-24"
+      "added": "2026-07-24",
+      "notes": "KAN-474: the script also exposes `--describe`, which emits the founder-owned surface DERIVED from is_protected() itself (parsed from the function body, not restated). The Backlog Autopilot routine reads that at runtime instead of carrying its own copy of the list. Two prior drifts \u2014 KAN-415 moving two copy modules, KAN-473 adding src/modules/*.tsx \u2014 were invisible to CI because a SaaS routine prompt is not readable from CI, so the fix was removing the second copy rather than adding a third checker. tests/scripts/check-ui-copy-ownership.test.js pins it, including a count ratchet: silently deleting a rule keeps guard and description in agreement, so equality alone cannot catch it."
     },
     {
       "id": "CTL-010",
