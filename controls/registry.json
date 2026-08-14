@@ -1030,6 +1030,23 @@
       "added": "2026-08-14"
     },
     {
+      "id": "CTL-059",
+      "name": "A CI finding describes the failure it actually had",
+      "defect_class": "annotation-misdescribes-the-failure",
+      "summary": "db-invariants.yml's ledger-parity job raised its finding under a bare `if: failure()`, so EVERY non-zero exit printed the divergence story - 'the repo and a database no longer agree ... someone applied SQL that was never committed ... commit the migration SQL'. On 2026-08-14 the dev project returned HTTP 403 and the check exited 2, which means 'I could not read a ledger' and says nothing whatever about agreement. The annotation nonetheless sent the reader hunting for an uncommitted migration that did not exist, on three separate days. That job's own header explains why this matters: it is SEPARATE from the `invariants` job precisely because 'a finding that describes itself wrongly is how an operator learns to skim the annotations'. The handler was doing the exact thing the job was split up to avoid. The compare step now publishes its exit code and the handler branches: exit 1 keeps the divergence text, exit 2 gets a 'could not READ' message that explicitly warns the reader OFF looking for a missing migration, and anything else gets a third branch saying the guidance does not apply - without that fallback a broken interpreter would produce a red run with NO annotation, which reads as infrastructure noise. The script's HTTP error now carries the response BODY. `exc.reason` for a 403 is the literal string 'Forbidden', and this endpoint has two 403 sources needing opposite responses: Cloudflare bot protection (transient; the User-Agent header exists for it) versus Supabase refusing the token's scope (not transient). They are told apart ONLY by the body. \u26a0\ufe0f Numbered 059 rather than 058: SEC-141's branch had already claimed 058 for the promote concurrency guard. Both branches computed 'next free' from develop, which carried neither, so the registry validator - which reads one working tree - could not see the collision. When two controls are in flight at once, check the sibling BRANCH, not just the merge base.",
+      "implementation": "tests/scripts/ledger-parity-messaging.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-137"
+      ],
+      "escape_hatch": "none - a wrong finding is worse than no finding.",
+      "self_test": "9 cases. Comments are STRIPPED before every source-text match, and that was not defensive writing: the `set +e` assertion failed on first run because the run block's own comment says '`|| rc=$?` rather than `set +e`' - CLAUDE.md catalogue failure mode 2, hit while writing the test for it. Mutation-proven 2026-08-14: reverting the handler to unconditional divergence text, dropping the exit-code output, and swallowing the failure each redden the suite. \u26a0\ufe0f A FOURTH mutation initially did NOT redden it - deleting `{detail}` from the raised HTTP message passed, because the test asserted `exc.read()` and 'body:' appeared ANYWHERE in the file and the code computing them was left intact above the raise. The parts existing is not the same fact as the parts being used. The assertion now targets the raise expression itself and the mutation reddens it.",
+      "added": "2026-08-14"
+    },
+    {
       "id": "CTL-058",
       "name": "Promote workflows are serialised",
       "defect_class": "release-automation-races-itself",
