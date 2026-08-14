@@ -1913,10 +1913,11 @@
       "paths": [
         "src/app/(auth)/",
         "src/app/auth/",
+        "src/app/session-actions.ts",
         "src/modules/auth/"
       ],
       "owns": {
-        "files": 11,
+        "files": 12,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -1933,7 +1934,7 @@
         },
         {
           "symbol": "signOut",
-          "file": "src/app/(auth)/actions.ts",
+          "file": "src/app/session-actions.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1943,7 +1944,7 @@
       ],
       "declaredApi": [
         {
-          "file": "src/app/(auth)/actions.ts",
+          "file": "src/app/session-actions.ts",
           "consumedBy": [
             "dashboard"
           ]
