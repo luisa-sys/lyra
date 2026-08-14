@@ -246,12 +246,71 @@ jobs:
         # Deliberately NOT --ledger-dir. That seam reads local files and exists
         # only for generating the first baseline; a control that can be handed
         # its own answer is a control that can be made to agree with anything.
-        run: python3 scripts/check-migration-ledger-parity.py
+        id: compare
+        run: |
+          set -euo pipefail
+          # `|| rc=$?` rather than `set +e`: keeps the Workflow Integrity
+          # Policy's `set -euo pipefail` in force for every OTHER line while
+          # still capturing a non-zero exit instead of aborting on it.
+          rc=0
+          python3 scripts/check-migration-ledger-parity.py || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Raise the finding
         if: failure()
+        # ⚠️ BRANCH ON THE EXIT CODE. This handler used to print the divergence
+        # story on ANY non-zero, so an exit 2 — "could not read a ledger at
+        # all" — rendered as exit 1, "a migration is missing from the repo".
+        # Observed 2026-08-14: the dev project 403'd, and the annotation told
+        # the reader to go and commit SQL that was never missing.
+        #
+        # A finding that describes itself wrongly is how an operator learns to
+        # skim the annotations — the reason this job is separate from
+        # `invariants` in the first place, per the comment at the top.
+        env:
+          RC: ${{ steps.compare.outputs.rc }}
         run: |
           set -euo pipefail
+          case "${RC:-unknown}" in
+            2)
+              echo "::error::A ledger could not be READ. This is not a divergence finding."
+              echo ""
+              echo "The check failed closed: it could not contact one or more databases,"
+              echo "so it refused to report agreement it had not verified. Nothing here"
+              echo "says the repo and the databases disagree — only that the question"
+              echo "could not be asked."
+              echo ""
+              echo "The annotation above names the project and the HTTP status, and"
+              echo "carries the response BODY, which is what tells the two 403 sources"
+              echo "apart:"
+              echo ""
+              echo "  an HTML challenge page  -> Cloudflare bot protection, which 403s"
+              echo "      before Supabase sees the token. Usually transient; the"
+              echo "      User-Agent header in the script exists for this."
+              echo "  a JSON error            -> Supabase refusing the token's scope."
+              echo "      Check SUPABASE_ACCESS_TOKEN has not expired or been narrowed"
+              echo "      (SEC-139 tracks its 2027-08-13 expiry)."
+              echo ""
+              echo "Do NOT go looking for an uncommitted migration on the strength of"
+              echo "this failure. Context: SEC-137."
+              exit 0
+              ;;
+            1)
+              : # fall through to the divergence text below
+              ;;
+            *)
+              echo "::error::The ledger-parity check exited with an unexpected status: ${RC:-<none>}."
+              echo ""
+              echo "Exit 1 means a divergence was found; exit 2 means a ledger could not"
+              echo "be read. Anything else means the step itself broke before it could"
+              echo "report — a missing interpreter, a syntax error, a killed process."
+              echo "Read the step log directly; the guidance below does not apply."
+              echo ""
+              echo "Context: SEC-137."
+              exit 0
+              ;;
+          esac
           echo "::error::The repo and a database no longer agree about what has been applied."
           echo ""
           echo "Two shapes, and the annotations above say which:"
