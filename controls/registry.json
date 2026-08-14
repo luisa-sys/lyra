@@ -1045,6 +1045,23 @@
       "escape_hatch": "none - a wrong finding is worse than no finding.",
       "self_test": "9 cases. Comments are STRIPPED before every source-text match, and that was not defensive writing: the `set +e` assertion failed on first run because the run block's own comment says '`|| rc=$?` rather than `set +e`' - CLAUDE.md catalogue failure mode 2, hit while writing the test for it. Mutation-proven 2026-08-14: reverting the handler to unconditional divergence text, dropping the exit-code output, and swallowing the failure each redden the suite. \u26a0\ufe0f A FOURTH mutation initially did NOT redden it - deleting `{detail}` from the raised HTTP message passed, because the test asserted `exc.read()` and 'body:' appeared ANYWHERE in the file and the code computing them was left intact above the raise. The parts existing is not the same fact as the parts being used. The assertion now targets the raise expression itself and the mutation reddens it.",
       "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-058",
+      "name": "Promote workflows are serialised",
+      "defect_class": "release-automation-races-itself",
+      "summary": "The three promote workflows declared no `concurrency` block, so two runs of the same promote could execute simultaneously. Observed 2026-08-14: a single workflow_dispatch of promote-staging-to-beta produced TWO runs 63 seconds apart. Each promote fetches, merges and pushes, so two in flight sit in the classic lost-update window - one can push over the other's merge, or a promote can act on a ref the sibling run has already moved. That day the outcome was harmless only because someone was watching the run list and cancelled the duplicate by hand, which is not a control. The duplicate dispatch is the SYMPTOM and its cause is unconfirmed - a client retry on a slow 204 is the leading hypothesis, and GitHub's dispatch API is documented at-least-once rather than exactly-once. Chasing the cause is the wrong instinct: the guard makes the cause irrelevant, and covers every future source of a double fire including a human double-click. Each workflow gets its OWN group via `promote-${{ github.workflow }}` - staging to beta and beta to main target different branches and are genuinely independent, so a shared literal group would only make a release slower without making it safer.",
+      "implementation": "tests/scripts/promote-concurrency.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-141"
+      ],
+      "escape_hatch": "None. In particular `cancel-in-progress` may not be flipped to true - that is the reflexive choice and is actively worse here, because it would kill an in-flight promote MID-MERGE OR MID-PUSH, a nastier failure than the race it prevents. With false the second run queues, then finds the merge already done and no-ops harmlessly. A future edit to true would read as a tightening and would likely be waved through at review, which is exactly why a test holds it rather than a comment alone.",
+      "self_test": "9 Jest cases. The workflow corpus is DISCOVERED by globbing promote-*.yml rather than hand-listed, so a fourth promote workflow landing tomorrow is covered on arrival; the first case asserts the discovered corpus is exactly the three known files, because every other case iterates it and an empty corpus would report clean while checking nothing (catalogue failure mode 4). Assertions parse the YAML rather than grepping text, so a commented-out concurrency block cannot satisfy them (catalogue failure mode 2). The load-bearing case is cancel-in-progress being false, not merely present. A fifth case pins the REASONING in each workflow file - if someone deletes the explanation they lose the argument for the value, so the explanation is part of the contract. Mutation-proven 2026-08-14 and the mutation was not hypothetical: the first commit on this branch shipped the test and this registry entry WITHOUT the three workflow edits, and CI turned all nine cases red with `concurrency.group: undefined`. GAP, stated rather than hidden: scripts/check-control-registry.py rule 4 sweeps the scripts directory (the check-*.sh and check-*.py globs) and requires every control script it finds to be registered, but it has no equivalent sweep for controls implemented as TEST FILES. This entry was lost once (a `git stash pop` restores the working tree but not the index) and the registry check stayed green throughout, because an unregistered test-kind control is invisible to it. The test itself still ran and still guarded the workflows; what was missing was the feedback-loop memory.",
+      "added": "2026-08-14"
     }
   ]
 }
