@@ -1011,6 +1011,23 @@
       "escape_hatch": "none by annotation - move the query into the owning module and call it from the route. An accepted count goes in supabase/route-thinness-baseline.json via --write-baseline, never by hand, and it may only shrink.",
       "self_test": "16 in-process cases via --self-test, covering route detection, comment exclusion, and all four ratchet directions (NEW / WORSE / STALE-shrunk / STALE-fixed). Two cases pin the pattern traps specifically: Array.from and Buffer.from must NOT count, and a hyphenated storage bucket plus a variable table name MUST. Mutation-proven 2026-08-14: removing WORSE detection, removing NEW detection, dropping the builtin exclusion, and counting commented-out lines each redden the self-test. Proven on the real tree too - appending one supabase.from('profiles').select() to src/app/api/health/route.ts turns the gate red as NEW, exit 1.",
       "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-057",
+      "name": "Production release is tagged",
+      "defect_class": "release-shipped-without-an-identifier",
+      "summary": "Asserts main's HEAD carries a release tag, checked from OUTSIDE promote-to-production.yml. That workflow can finish green with `Create release tag` SKIPPED: a deploy parked on the SEC-106 required-reviewer gate is treated as terminal (deliberately - failing it once fired a spurious auto-rollback on 2026-07-31, run 30666194572, which then died on a Vercel 409), so the promote exits 0 with deploy_state=awaiting-approval and the tag job never runs. It prints 'skipped, not passed' and names the remedy; nothing checked that anyone performed it. Measured 2026-08-14: SEVEN of the last fourteen production releases are untagged, and every untagged one postdates the reviewer gate landing on 2026-07-30 - so for two weeks `git describe --tags`, the authoritative version here because package.json drifts (gotcha #12, BUGS-89), was wrong for about half of production with nothing red. Deliberately a DETECTOR of the end state rather than a change to the promote's exit condition: BUGS-97 proposes failing the wait step, but auto-rollback is `if: failure()` over `needs: [verify-source, smoke-tests]`, so getting that wrong reintroduces a spurious production rollback - worse than an untagged release. States BUGS-97's own principle: a workflow cannot be the only witness to its own completion.",
+      "implementation": "scripts/check-release-tagged.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/release-integrity.yml"
+      ],
+      "prevents": [
+        "BUGS-97"
+      ],
+      "escape_hatch": "None, and deliberately none. The remedy is to create the missing tag by re-running promote-to-production.yml once the deploy has completed - a release that cannot be identified is not a state worth suppressing. The only latitude is --grace-minutes (default 40), which covers a promote that has merged but not yet reached its tag job; inside that window the check WARNS and exits 0, and says so, rather than skipping silently.",
+      "self_test": "10 cases via --self-test, each driving the real script as a subprocess against throwaway git repos so `git tag --points-at` is genuinely exercised rather than stubbed (CTL-038). Covers: a tagged head passes; a YOUNG untagged head warns and exits 0; an OLD untagged head (forced with --grace-minutes 0) FAILS and names both BUGS-97 and the remedy; a tagged head still passes at grace 0, so the gate is not always-fire; an unresolvable ref exits 2 rather than reporting clean; and --report refuses an empty corpus instead of printing '0 untagged' (catalogue failure mode 4). That fail-closed case caught a REAL bug in the first draft: `git rev-parse bad-ref` exits non-zero but ECHOES THE REF NAME, so a truthiness check accepted 'no-such-branch' as a SHA and reported a missing branch as an untagged release - a finding invented from a typo. Fixed with `rev-parse --verify <ref>^{commit}` plus a 40-hex assertion. Proven against reality 2026-08-14 rather than fixtures alone: green on the live main branch at v0.1.97, and RED on c8662fbe (the untagged 2026-08-13 release, 824m old).",
+      "added": "2026-08-14"
     }
   ]
 }
