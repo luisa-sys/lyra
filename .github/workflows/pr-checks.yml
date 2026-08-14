@@ -511,6 +511,17 @@ jobs:
           # carried `owns.tables` since it was written and nothing read it.
           python3 scripts/check-module-table-ownership.py --self-test
           python3 scripts/check-module-table-ownership.py
+          # CTL-056. `app-routes-are-thin` — the last of the nine rules KAN-415
+          # criterion 2 names, and the only one never built, because "thin" was
+          # never defined. Defined now as a shrink-only ratchet on direct
+          # database calls inside request entry points: 48 of 99 route files,
+          # 217 calls at landing. Not "zero calls" — that is a 48-file
+          # relocation, exactly the work criterion 3 concluded was unnecessary,
+          # and a rule that reddens 48 files on day one is a rule someone turns
+          # off. Per file, not a total, so one file improving cannot mask
+          # another regressing.
+          python3 scripts/check-route-thinness.py --self-test
+          python3 scripts/check-route-thinness.py
       - name: Run unit tests
         run: npm run test:unit
         env:
