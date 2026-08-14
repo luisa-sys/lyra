@@ -3316,7 +3316,7 @@
     }
   },
   "serviceRoleClient": {
-    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time; the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh. Any module NOT listed here must not gain the import without security review.",
+    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time. \u26a0\ufe0f CORRECTED 2026-08-14 \u2014 this field previously read 'the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh'. That asserted a control THAT DOES NOT EXIST. check-service-role-client.sh enforces KAN-352 only: it forbids calling env.supabaseServiceRoleKey() outside the single factory src/modules/platform/supabase-service.ts. It imposes NO path restriction on the callers that IMPORT createServiceRoleClient \u2014 measured 2026-08-14 at 39 import sites, none of them under any src/modules/*/data/ directory, because no such directory exists anywhere in the tree. An auditor reading this field would have concluded KAN-415 criterion 3 was guarded. It is not: the data-layer convention is unbuilt and is tracked as remaining work on KAN-415. Any module NOT listed here must not gain the import without review.",
     "measuredImporters": {
       "convene": [
         "src/app/api/convene/cron/token-health/route.ts",

@@ -97,6 +97,26 @@ const APP_SEGMENTS = (() => {
     .readdirSync(appDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
+    // A LEADING UNDERSCORE IS NEXT.JS FOR "NOT A ROUTE" (a private folder).
+    // Next opts `_foo` out of routing entirely, so `src/app/_marketing/` is a
+    // colocation directory, not a route segment — no URL maps to it and nothing
+    // is served from it.
+    //
+    // This is a CORRECTION TO THE RULE'S DEFINITION, not a relaxation of it, and
+    // the distinction matters because relaxing a rule to make it pass is
+    // forbidden here. The rule's own stated rationale is "segments are
+    // independent ROUTE TREES; a cross-segment edge silently couples two
+    // features so neither can be changed or extracted alone." A private folder
+    // is not a route tree and has no independent existence to protect — it is
+    // shared code already, which is precisely what the rule tells you to create.
+    // Reading directories off disk is what let a colocation folder become a
+    // "segment"; the fix is to read them the way Next.js does.
+    //
+    // Measured: this removes exactly one violation,
+    // src/app/(legal)/about/page.tsx -> src/app/_marketing/sections.tsx, which
+    // was never a real cross-segment edge. The other violation is untouched and
+    // the rule stays `warn` because of it.
+    .filter((name) => !name.startsWith('_'))
     .sort();
 })();
 
@@ -110,7 +130,13 @@ const crossSegmentRules = APP_SEGMENTS.map((segment) => ({
     'module) and let both segments depend on that instead.',
   from: { path: `^src/app/${rx(segment)}/` },
   to: {
-    path: '^src/app/[^/]+/',
+    // `(?!_)` applies the SAME private-folder definition to the target as
+    // APP_SEGMENTS applies to the source. Excluding `_foo` from the segment list
+    // alone was not enough: it stopped rules being generated FOR `_marketing`,
+    // while every other segment still flagged an import INTO it, because this
+    // pattern matched `src/app/<anything>/`. Measured after the first attempt —
+    // still 2 violations, unchanged. Both ends need the same rule.
+    path: '^src/app/(?!_)[^/]+/',
     pathNot: `^src/app/${rx(segment)}/`,
   },
 }));
