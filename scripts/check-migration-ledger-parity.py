@@ -229,7 +229,27 @@ def fetch_ledger(project_ref: str, token: str) -> list[dict]:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:  # noqa: PERF203 - each needs its own message
-        raise LedgerError(f"HTTP {exc.code} from {endpoint} — {exc.reason}") from exc
+        # ⚠️ INCLUDE THE BODY. `exc.reason` for a 403 is the literal string
+        # "Forbidden", which is unactionable — and this endpoint has TWO
+        # distinct 403 sources that need opposite responses:
+        #
+        #   * Cloudflare bot protection, which 403s before Supabase ever sees
+        #     the token (see USER_AGENT above — that header exists for exactly
+        #     this). Its body is an HTML challenge page.
+        #   * Supabase itself, refusing the token's scope. Its body is JSON
+        #     naming the reason.
+        #
+        # Told apart only by the body, so a message that omits it forces the
+        # next person to re-derive what this run already knew. Truncated
+        # because a challenge page is large and the first line is the tell.
+        detail = ""
+        try:
+            raw = exc.read().decode("utf-8", "replace").strip()
+            if raw:
+                detail = f" — body: {' '.join(raw.split())[:300]}"
+        except Exception:  # noqa: BLE001 - a body we cannot read must not mask the HTTP error
+            detail = " — body: <unreadable>"
+        raise LedgerError(f"HTTP {exc.code} from {endpoint} — {exc.reason}{detail}") from exc
     except urllib.error.URLError as exc:
         raise LedgerError(f"could not reach {endpoint} — {exc.reason}") from exc
 
