@@ -67,6 +67,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -77,24 +78,81 @@ BLOCKING_SEVERITIES = ("high", "critical")
 
 
 class AuditError(RuntimeError):
-    """The gate could not run. Never collapsed into a clean result."""
+    """The gate could not run. Never collapsed into a clean result.
+
+    `retryable` marks a failure that a second attempt could plausibly resolve —
+    i.e. one that says something about the NETWORK rather than about this repo.
+    It is set at each raise site rather than inferred from the message, because
+    a message-matched retry would silently start retrying a real finding the
+    day someone reworded a string (SEC-140).
+    """
+
+    def __init__(self, message: str, *, retryable: bool = False):
+        super().__init__(message)
+        self.retryable = retryable
 
 
-def run_audit(scope: str) -> dict:
+# SEC-140. `npm audit` reaches a third-party registry, which makes this the one
+# control in the estate that can go red with NO change to the PR. That class has
+# now recurred seven times (SEC-89/90/91/92/94/97, then this). SEC-105 fixed the
+# blast radius — off the four deploys, production tree only — and left the class.
+#
+# ⚠️ The fix is NOT to make the gate advisory. A production tree genuinely needs
+# a blocking audit, and "switch off the control that fired for the wrong reason"
+# is the estate's single most-repeated mistake. The distinction to encode is
+# TRANSIENT vs CANNOT RUN — so retries are bounded, apply only to network-shaped
+# failures, and STILL exit 2 once exhausted.
+AUDIT_ATTEMPTS = 3
+AUDIT_BACKOFF_S = (2, 4)  # len == AUDIT_ATTEMPTS - 1; no sleep after the last try
+
+
+def _audit_once(scope: str, runner=None) -> dict:
     cmd = ["npm", "audit", "--json"]
     if scope == "prod":
         cmd.insert(2, "--omit=dev")
+    run = runner or (
+        lambda c: subprocess.run(c, cwd=REPO_ROOT, capture_output=True, text=True, timeout=600)
+    )
     try:
-        proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=600)
+        proc = run(cmd)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise AuditError(f"could not run npm audit: {exc}") from exc
+        # The process did not start. Nothing about the repo caused this.
+        raise AuditError(f"could not run npm audit: {exc}", retryable=True) from exc
     # npm audit exits NON-ZERO simply because findings exist. The return code
     # says nothing about whether the audit ran, so judge the output instead.
     if not proc.stdout.strip():
         raise AuditError(
-            f"npm audit produced no output (exit {proc.returncode}): {proc.stderr.strip()[:400] or '<no stderr>'}"
+            f"npm audit produced no output (exit {proc.returncode}): "
+            f"{proc.stderr.strip()[:400] or '<no stderr>'}",
+            retryable=True,
         )
     return parse_audit(proc.stdout)
+
+
+def run_audit(scope: str, runner=None, sleep=time.sleep) -> dict:
+    """Audit with bounded retry on transient failure only.
+
+    A deterministic failure — output that is not JSON, a missing
+    `metadata.vulnerabilities` — is NOT retried: three attempts would spend
+    three minutes reaching the identical answer, and a gate that is slow for no
+    reason is one people learn to skip.
+    """
+    last: AuditError | None = None
+    for attempt in range(AUDIT_ATTEMPTS):
+        try:
+            return _audit_once(scope, runner)
+        except AuditError as exc:
+            if not exc.retryable:
+                raise
+            last = exc
+            if attempt < AUDIT_ATTEMPTS - 1:
+                print(
+                    f"::warning::check-npm-audit-gate: attempt {attempt + 1}/{AUDIT_ATTEMPTS} "
+                    f"failed transiently ({exc}); retrying in {AUDIT_BACKOFF_S[attempt]}s"
+                )
+                sleep(AUDIT_BACKOFF_S[attempt])
+    assert last is not None  # unreachable: the loop either returns or sets `last`
+    raise AuditError(f"{last} (after {AUDIT_ATTEMPTS} attempts)", retryable=True)
 
 
 def parse_audit(text: str) -> dict:
@@ -108,7 +166,12 @@ def parse_audit(text: str) -> dict:
         detail = data["error"]
         if isinstance(detail, dict):
             detail = detail.get("summary") or detail.get("detail") or detail
-        raise AuditError(f"npm audit reported an error instead of a report: {str(detail)[:300]}")
+        # An npm-side error object is what an unreachable registry produces —
+        # SEC-140 observed exactly `{'summary': '', 'detail': ''}` here.
+        raise AuditError(
+            f"npm audit reported an error instead of a report: {str(detail)[:300]}",
+            retryable=True,
+        )
     # The presence of `metadata.vulnerabilities` is what makes this an audit
     # report rather than some other JSON document that happens to parse.
     meta = data.get("metadata")
@@ -259,6 +322,71 @@ def self_test() -> int:
     check("a waiver matching nothing is STALE", len(classify(clean, waiver)["stale"]), 1)
     check("an empty waiver list is never stale", classify(clean, [])["stale"], [])
 
+    # --- SEC-140: retry ONLY the transient, and never into a clean result ---
+    class FakeProc:
+        def __init__(self, out): self.stdout, self.stderr, self.returncode = out, "", 0
+
+    GOOD = json.dumps({
+        "metadata": {"vulnerabilities": {"critical": 0, "high": 0, "moderate": 0, "low": 0}},
+        "vulnerabilities": {},
+    })
+    REGISTRY_ERR = '{"error":{"summary":"","detail":""}}'   # the exact SEC-140 shape
+
+    def runner(seq):
+        calls = []
+        def run(cmd):
+            calls.append(cmd)
+            return FakeProc(seq[min(len(calls) - 1, len(seq) - 1)])
+        run.calls = calls
+        return run
+
+    noop_sleep = lambda _s: None
+
+    # Fails twice, then succeeds. The CALL COUNT is the assertion — without it
+    # this passes even if the retry never happened.
+    r = runner([REGISTRY_ERR, REGISTRY_ERR, GOOD])
+    try:
+        run_audit("prod", runner=r, sleep=noop_sleep)
+        ok = True
+    except AuditError:
+        ok = False
+    check("a transient failure is retried and then succeeds", ok, True)
+    check("...on exactly the 3rd attempt", len(r.calls), 3)
+
+    # Fails every time. MUST still fail — a retry that gives up and reports
+    # clean would be strictly worse than no retry at all.
+    r = runner([REGISTRY_ERR])
+    try:
+        run_audit("prod", runner=r, sleep=noop_sleep)
+        raised = False
+    except AuditError:
+        raised = True
+    check("exhausted retries still FAIL, never report clean", raised, True)
+    check("...after exactly AUDIT_ATTEMPTS tries", len(r.calls), AUDIT_ATTEMPTS)
+
+    # A DETERMINISTIC failure is not retried: 3 attempts would spend minutes
+    # reaching the identical answer.
+    r = runner(["<html>502</html>"])
+    try:
+        run_audit("prod", runner=r, sleep=noop_sleep)
+    except AuditError:
+        pass
+    check("a deterministic failure is NOT retried", len(r.calls), 1)
+
+    # A real report is returned on the first attempt and never retried, so a
+    # genuine finding is neither delayed nor masked by this mechanism.
+    r = runner([json.dumps({
+        "metadata": {"vulnerabilities": {"critical": 0, "high": 1, "moderate": 0, "low": 0}},
+        "vulnerabilities": {"pkg": node("high", "GHSA-xxxx-yyyy-zzzz")},
+    })])
+    got = run_audit("prod", runner=r, sleep=noop_sleep)
+    check("a real HIGH finding is returned on attempt 1", len(r.calls), 1)
+    check("...and is not swallowed", got["metadata"]["vulnerabilities"]["high"], 1)
+
+    # The backoff table must match the attempt count, or the last retry throws
+    # IndexError instead of retrying.
+    check("backoff table matches attempt count", len(AUDIT_BACKOFF_S), AUDIT_ATTEMPTS - 1)
+
     if failures:
         print("SELF-TEST FAILED")
         for f in failures:
@@ -268,7 +396,7 @@ def self_test() -> int:
     return 0
 
 
-SELF_TEST_CASES = 19
+SELF_TEST_CASES = 27
 
 
 # --------------------------------------------------------------------------
