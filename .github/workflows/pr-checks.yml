@@ -522,6 +522,19 @@ jobs:
           # another regressing.
           python3 scripts/check-route-thinness.py --self-test
           python3 scripts/check-route-thinness.py
+          # CTL-063 / SEC-99. SEC-98 forbids pushing directly to main/beta/
+          # staging, and until now that rule existed only in CLAUDE.md while the
+          # repo shipped two scripts that did exactly it — six direct pushes,
+          # three of them --force onto main. A documented convention with no
+          # gate erodes (the gotcha #28 lesson). Scans every TRACKED file under
+          # scripts/ with no extension filter: SEC-99's own §1 called those
+          # scripts unreferenced on the strength of a grep over
+          # *.md/*.yml/*.json/*.sh, and missed docs/lyra-project-reference.jsx.
+          # .github/workflows/ is out of scope by design — the promote workflows
+          # push to release branches because that IS the supervised path, and
+          # CTL-016 already governs them.
+          python3 scripts/check-release-branch-push.py --self-test
+          python3 scripts/check-release-branch-push.py
       - name: Run unit tests
         run: npm run test:unit
         env:

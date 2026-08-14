@@ -287,4 +287,11 @@ export const SEEDED_PATHS = [
   // the F4 raw-literal ratchet counts the same six prefixes and not `docs/`.
   'scripts/check-run-log-freshness.py',
   '.github/workflows/routine-evidence.yml',
+
+  // CTL-063 / SEC-99 — no committed script pushes to a release branch.
+  // Seeded for the same reason as the two above: the test reaches the checker
+  // only through `SRC`, so without a literal here the key would vanish on the
+  // next regeneration and `spawnSync(undefined)` would read as a broken
+  // harness rather than a lost control (gotcha #31).
+  'scripts/check-release-branch-push.py',
 ] as const;
