@@ -225,8 +225,8 @@ above, kept rather than edited away because each was load-bearing:
    `20260622170000_block_admin_suspended_self_set.sql`'s final line has done
    nothing since 2026-06-22 and only its **trigger** is enforcing. Narrowing the
    table grant to an explicit column list is the real second layer and is
-   tracked separately. Note this also means §5's proposal to "narrow the column
-   grant" is a table-grant rewrite, not a column revoke.
+   tracked as **SEC-147**. Note this also means §5's proposal to "narrow the
+   column grant" is a table-grant rewrite, not a column revoke.
 
 The `is_published` row in §4's table therefore keeps two writers as recommended,
 but both are now on the **service-role** client: `publishProfile()` (user

@@ -59,7 +59,7 @@
 -- `revoke update (b) on t from authenticated;`, attacl stays NULL and
 -- has_column_privilege('authenticated', t, 'b', 'UPDATE') is still true.
 -- Narrowing the table-level grant to an explicit column list is the real fix and
--- is tracked separately — it is a 38-column change that diverges by environment
+-- is tracked as SEC-147 — it is a 38-column change that diverges by environment
 -- (dev has 42) and does not belong in a trigger migration.
 --
 -- The trigger is sufficient on its own regardless: a grant controls whether the
