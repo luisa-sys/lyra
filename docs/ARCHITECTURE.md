@@ -399,7 +399,7 @@ All operations run via GitHub Actions — no local machine needed:
 ### Pipeline Security — implemented
 - **CodeQL**: security-extended analysis on every push/PR + weekly Sunday 03:00 UTC
 - **GitHub Actions SHA-pinned**: All 9 workflows use full SHA hashes (no tag-based supply chain risk)
-- **npm audit**: Blocking at high/critical level on all 3 deployment pipelines
+- **npm audit**: rescoped 2026-08-13 (SEC-105/CTL-052) — blocking, production-dependency-tree-only (`--omit=dev`) in the PR gate (`pr-checks.yml`); removed entirely from all four deploy workflows (redundant given the SEC-98 chain guard — every commit reaching them already passed the PR gate); weekly full-tree scan (`security-audit.yml`, includes dev deps) opens/updates a GitHub issue instead of blocking. Known-unfixable advisories are recorded in `security/npm-audit-waivers.json` (advisory+package+severity+ticket+owner+dated `expires`, two-way, fails closed on expiry).
 - **Dependabot**: Weekly scans for npm and GitHub Actions dependencies
 - **Secret scanning**: GitHub secret scanning with push protection enabled
 - **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference
