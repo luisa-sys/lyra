@@ -1065,6 +1065,22 @@
       "escape_hatch": "None. In particular `cancel-in-progress` may not be flipped to true - that is the reflexive choice and is actively worse here, because it would kill an in-flight promote MID-MERGE OR MID-PUSH, a nastier failure than the race it prevents. With false the second run queues, then finds the merge already done and no-ops harmlessly. A future edit to true would read as a tightening and would likely be waved through at review, which is exactly why a test holds it rather than a comment alone.",
       "self_test": "9 Jest cases. The workflow corpus is DISCOVERED by globbing promote-*.yml rather than hand-listed, so a fourth promote workflow landing tomorrow is covered on arrival; the first case asserts the discovered corpus is exactly the three known files, because every other case iterates it and an empty corpus would report clean while checking nothing (catalogue failure mode 4). Assertions parse the YAML rather than grepping text, so a commented-out concurrency block cannot satisfy them (catalogue failure mode 2). The load-bearing case is cancel-in-progress being false, not merely present. A fifth case pins the REASONING in each workflow file - if someone deletes the explanation they lose the argument for the value, so the explanation is part of the contract. Mutation-proven 2026-08-14 and the mutation was not hypothetical: the first commit on this branch shipped the test and this registry entry WITHOUT the three workflow edits, and CI turned all nine cases red with `concurrency.group: undefined`. GAP, stated rather than hidden: scripts/check-control-registry.py rule 4 sweeps the scripts directory (the check-*.sh and check-*.py globs) and requires every control script it finds to be registered, but it has no equivalent sweep for controls implemented as TEST FILES. This entry was lost once (a `git stash pop` restores the working tree but not the index) and the registry check stayed green throughout, because an unregistered test-kind control is invisible to it. The test itself still ran and still guarded the workflows; what was missing was the feedback-loop memory.",
       "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-060",
+      "name": "SAR export covers every person-keyed table",
+      "defect_class": "completeness-check-that-copies-the-thing-it-checks",
+      "summary": "exportUserData() answers a UK-GDPR Art.15/20 request, and deleteAccount() relies on FK cascade to erase every person-keyed table. The two drifted, and the test that existed to stop exactly that drift (tests/unit/sar-export-completeness.test.js) hard-coded an 18-entry list copied from the export itself, so it discovered nothing from the schema and could only ever agree with the code it was checking. Proven by mutation in both directions before the fix: ADDING a table to the export left it 24/24 green, so the additive direction held no opinion at all. The failure mode is the dangerous one - no query errors, so no export_incomplete_errors key is emitted either, and an incomplete response is indistinguishable from a complete one to both the member and the operator. The replacement derives the person-keyed set by scanning src/types/database/prod.ts for seven person-keying columns and asserts a non-empty corpus floor (> 20) BEFORE iterating, because a derived list that silently comes back empty registers zero tests and reports green. Deriving rather than listing is what found the true scale: 14 tables were missing, not the 9 the ticket named.",
+      "implementation": "tests/unit/sar-export-schema-completeness.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-117"
+      ],
+      "escape_hatch": "none for the assertion - a table that genuinely must not be exported goes in DELIBERATELY_EXCLUDED in src/modules/contracts/person-keyed-tables.ts with a written reason (the live-credential oauth token tables, and moderation_logs under its ON DELETE RESTRICT Art.17(3)(b) retention). Never widen the test to make a red build pass; that is how the original defect was born.",
+      "added": "2026-08-14"
     }
   ]
 }
