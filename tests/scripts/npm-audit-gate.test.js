@@ -84,7 +84,43 @@ describe('SEC-105 — the checker itself', () => {
     expect(`${code}: ${out.trim()}`).toContain('Self-test passed');
     expect(code).toBe(0);
     const n = Number(/Self-test passed \((\d+) cases\)/.exec(out)?.[1] ?? 0);
-    expect(n).toBeGreaterThanOrEqual(19);
+    // Raised from 19 with SEC-140's 8 retry cases. A floor far below reality
+    // cannot detect a deletion — the estate's own test floor sat at 29 files
+    // against an actual 260 for exactly this reason.
+    expect(n).toBeGreaterThanOrEqual(27);
+  });
+
+  test('SEC-140 — the retry path actually EXECUTES during the self-test', () => {
+    // Asserted from outside the script, because the count above would still
+    // pass if the retry cases were present but unreachable. The self-test's
+    // transient fixtures emit a ::warning:: per retry, so their presence is
+    // evidence the loop ran rather than that it exists.
+    //
+    // This test is here because the first draft of those cases was VACUOUS:
+    // the block landed after `if failures:` in the self-test, so every
+    // assertion appended to a list nobody read. Three mutations — removing the
+    // retry, making exhausted retries report clean, and making deterministic
+    // failures retryable — all passed. Only mutation caught it.
+    const { code, out } = run(['--self-test']);
+    expect(code).toBe(0);
+    const n = Number(/retry loop exercised \((\d+) retry notifications\)/.exec(out)?.[1] ?? 0);
+    expect(`retry notifications during self-test: ${n}`).not.toBe(
+      'retry notifications during self-test: 0',
+    );
+    expect(n).toBeGreaterThanOrEqual(4);
+  });
+
+  test('a GREEN run emits no ::warning:: — standing noise is how warnings stop being read', () => {
+    // The self-test's transient fixtures originally annotated the run summary
+    // of every passing PR four times over. Four permanent warnings on a green
+    // build train people to scroll past warnings, which is the same erosion
+    // that lets a switched-off control keep looking fine (SEC-79).
+    const { code, out } = run(['--self-test']);
+    expect(code).toBe(0);
+    const annotations = (out.match(/::warning::/g) || []).length;
+    expect(`::warning:: annotations on a green self-test: ${annotations}`).toBe(
+      '::warning:: annotations on a green self-test: 0',
+    );
   });
 
   test.each([
