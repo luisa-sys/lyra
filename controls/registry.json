@@ -1115,6 +1115,24 @@
       ],
       "escape_hatch": "none. If the publish write must ever leave the service-role client, the trigger has to be dropped in the SAME change or publishing breaks with 42501 - that coupling is the point, not an inconvenience to route around.",
       "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-064",
+      "name": "required status checks are still satisfiable, and live protection matches the committed expectation",
+      "defect_class": "a-control-that-reports-green-while-gating-nothing",
+      "summary": "SEC-106: a required status check is a STRING. GitHub stores the context name a branch demands and never verifies that anything still produces it, so renaming main-chain-guard.yml's `guard` job - a JOB ID, because that job carries no `name:` field - un-gates SEC-98 production change control with no error anywhere: protection keeps waiting for a check nothing reports, the PR waits, and on a repo where enforce_admins is off it is admin-merged and forgotten. THE POINT IS THE QUESTION IT ASKS. CTL-026 proves a control's file exists and something invokes it; CTL-042 proves its workflow is not disabled. Neither proves it BLOCKS anything, because 'the job runs' and 'the merge cannot happen without it' are facts stored in different places - one in the repo, one in GitHub's branch-protection settings. TWO ARMS ON PURPOSE. --local compares .github/expected-protection.json against the jobs this repo defines; it needs no credentials, is decided entirely by the diff, and therefore blocks in pr-checks.yml from day one. --live compares the file against GitHub's real configuration; it needs administration:read and runs on a schedule, because a pull request cannot change branch protection and putting a third-party API on the merge path is the shape that froze the pipeline ~11 days under SEC-88. THREE-VALUED EXIT, with exit 2 given its own vocabulary: CTL-059 showed a bare `if: failure()` making an HTTP 403 print the divergence story and send the reader hunting an uncommitted migration on three separate days, so 'could not measure' must never be described in the language of a measured divergence. Fail-closed is asserted from the PRECONDITION (the branch list came back non-empty), never inferred from an exit code - gotcha #30. DRIFT IS TWO-WAY: a required check quietly ADDED is as much an undocumented divergence as one removed, and an expectation naming a branch that no longer exists fails as STALE. WHAT IT DOES NOT COVER, stated rather than hidden: the --live path has no unit coverage of its end-to-end call (no test has a real token against real branch protection), and the `production` Environment's required reviewer - SEC-106 acceptance criterion 2 - is a different API surface and is not asserted at all. THE EXPECTATION FILE WAS SEEDED FROM CLAUDE.md's DOCUMENTED INTENT, not from a measurement, because the session that wrote it had no branch-protection read. That is deliberate and is how the documentation stops being the only evidence: a red first --live run means the sentence in CLAUDE.md was wrong, which is the finding SEC-106 was raised to obtain.",
+      "implementation": "scripts/check-required-checks.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/required-checks.yml"
+      ],
+      "self_test": "scripts/check-required-checks.py",
+      "prevents": [
+        "SEC-106"
+      ],
+      "escape_hatch": "none for the --local arm - a required context nothing produces is never acceptable; either restore the job name, or change .github/expected-protection.json AND the live branch protection together, which is the point (protection becomes reviewable). The --live arm's only 'hatch' is exit 2 UNVERIFIED when no token with administration:read is present, which is a loud daily red rather than a pass, and is cleared by provisioning BRANCH_PROTECTION_READ_TOKEN.",
+      "added": "2026-08-15"
     }
   ]
 }
