@@ -164,6 +164,21 @@ reachable only through a denylisted action.
 - **Endpoint**: https://mcp.checklyra.com/mcp
 - **Dev Endpoint**: https://mcp-dev.checklyra.com/mcp (points to dev Supabase)
 
+### Admin MCP Server (lyra-admin-mcp-server)
+- **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
+- **Hosting**: Railway — its **own service**, separate from the user-facing MCP for blast-radius isolation (KAN-323)
+- **Repository**: https://github.com/luisa-sys/lyra-admin-mcp-server (**private**, branch `main`)
+- **Endpoint**: https://admin-mcp.checklyra.com/mcp — points at **prod** Supabase
+- **Purpose**: the high-privilege admin surface — suspend/unpublish users, per-user feature entitlements, beta approval, access stage, age-status override. Every mutation is audited to `moderation_logs` **before** it is applied; if the audit write fails, the action aborts.
+- **Access control**, four layers deep, because the server holds the Supabase service-role key and so bypasses RLS:
+  1. **Cloudflare Access + IP allow-list** at the edge. Verified live: an unauthenticated `GET /health` returns `401` with `WWW-Authenticate: Bearer realm="OAuth" … resource_metadata=…/cloudflare-access-protected-resource/health`.
+  2. **App-layer Access verification** (`src/cf-access.ts`) — the origin re-verifies the `Cf-Access-Jwt-Assertion` JWT against the team JWKS, so a request that reaches Railway directly is still refused. In production the server **refuses to boot** with this off unless `ALLOW_CF_ACCESS_OFF=true` is set (first deploy only).
+  3. **Admin gate** (`src/admin-auth.ts`) — a live DB read requiring `is_admin = true` and not suspended, mirroring the web `getCurrentAdmin()`.
+  4. **Audit-first wrapper**, asserted by a positive registry test: a new mutating tool that forgets the wrapper fails that repo's CI.
+- **Deploy**: push to `main` → Railway auto-deploys (same model as `lyra-mcp-server`; "Wait for CI" must stay **OFF** — BUGS-18/BUGS-54). Its Railway project is `resilient-commitment`.
+- **Lockdown scope**: covered under **Railway** in `docs/CYBER_LOCKDOWN.md`, not as a separate inventory entry — see "Service inventory for security lockdown" below.
+- ⚠️ **The repo's own `README.md` still says "It is not deployed yet"**. That is stale as of 2026-08-16: the endpoint is live behind Cloudflare Access (evidence above). Fixing that line is a change in the admin repo, tracked separately (KAN-466).
+
 ### Database
 - **Provider**: Supabase Pro (PostgreSQL 17)
 - **Region**: EU West (Ireland)
@@ -183,7 +198,7 @@ reachable only through a denylisted action.
 ### DNS & CDN
 - **Provider**: Cloudflare
 - **Domain**: checklyra.com
-- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**
+- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**, **admin-mcp.checklyra.com** (Cloudflare Access in front — see "Admin MCP Server")
 
 ## Environments
 
@@ -348,9 +363,17 @@ All operations run via GitHub Actions — no local machine needed:
 - Cloud workflows: fail the job and do not proceed; manual intervention required
 
 ### MCP Server Deployment
-- Railway auto-deploys on push to lyra-mcp-server main branch
-- No staging environment for MCP server (single environment)
-- Health check: GET https://mcp.checklyra.com/health
+There are **three** Railway services deploying MCP code, not one:
+
+| Service | Repo | Supabase | Health check |
+|---|---|---|---|
+| `lyra-mcp-server` (prod) | `luisa-sys/lyra-mcp-server` `main` | prod-lyra | `GET https://mcp.checklyra.com/health` → 200 |
+| `lyra-mcp-dev` | `luisa-sys/lyra-mcp-server` `main` | dev-lyra | `GET https://mcp-dev.checklyra.com/health` → 200 |
+| `lyra-admin-mcp-server` | `luisa-sys/lyra-admin-mcp-server` `main` | prod-lyra | `GET https://admin-mcp.checklyra.com/health` → **401** (Cloudflare Access) |
+
+- All three auto-deploy on push to `main`. **"Wait for CI" must stay OFF on every one of them** — turning it on wedges the deploy on unresolved third-party check suites (BUGS-18, recurred as BUGS-54).
+- No staging environment for any MCP service (single environment each).
+- ⚠️ The admin service's health check is **401 by design**, not a failure: Cloudflare Access refuses the unauthenticated request before it reaches the origin. A monitor that treats non-200 as down will report it permanently red.
 
 ## Database Schema
 
@@ -418,7 +441,7 @@ All operations run via GitHub Actions — no local machine needed:
 | Vercel | Web hosting, CDN, serverless | luisa-sys-projects |
 | Supabase | Database, auth | ilprytcrnqyrsbsrfujj |
 | Cloudflare | DNS, SSL, CDN proxy | checklyra.com zone |
-| Railway | MCP server hosting | lyra-mcp-server |
+| Railway | MCP server hosting — **three** services: `lyra-mcp-server` (prod), `lyra-mcp-dev`, `lyra-admin-mcp-server` (admin surface, project `resilient-commitment`) | luisa-sys |
 | GitHub | Source code, CI/CD, secrets | luisa-sys |
 | Atlassian/Jira | Project management | checklyra.atlassian.net |
 | Claude Design | Design source of truth for UI changes — tokens + per-ticket before/after cards (KAN-441) | Projects `e4682889-…` (Lyra Design System) and `c179aa52-…` (Lyra Web Design) |
@@ -499,6 +522,25 @@ gap recorded above.
 > projects) and record any credential it holds in `docs/SECURITY_ROTATION.md`;
 > then add it here and move the KAN-24 count to 8. **No ticket tracks this yet —
 > one needs raising.**
+
+**`lyra-admin-mcp-server` is covered by the `Railway` entry, and the count stays
+7 (KAN-466).** The decision, recorded so it is not re-litigated: this inventory
+enumerates **providers** — the accounts whose console holds a 2FA setting, an
+access list and an API token — not individual deployed services. Supabase is one
+entry for three projects; Railway is one entry for three services. The admin MCP
+adds no new provider, so adding a row would inflate the KAN-24 count without
+adding a console to audit.
+
+That is only honest if the Railway checklist actually covers all three services,
+which is the gap this ticket found: `docs/CYBER_LOCKDOWN.md` §Railway named
+`lyra-mcp-server` as *the* service and scoped its auto-deploy check to that repo
+alone, so the **highest-privilege surface on the platform** sat outside the
+checklist behind the inventory entry that claimed to cover it. §Railway now
+enumerates all three and carries the admin-specific items (sealed prod
+service-role key, Cloudflare Access + IP allow-list, `ALLOW_CF_ACCESS_OFF`
+removed after first deploy). Coverage-by-provider is the rule; a provider entry
+whose checklist names one of its services is the same presence badge in a
+different shape.
 
 
 ### Token rotation

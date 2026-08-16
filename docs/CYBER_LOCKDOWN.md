@@ -96,14 +96,34 @@ For each project:
 
 ## Railway
 
-**Console:** <https://railway.com/dashboard>  •  **Service:** `lyra-mcp-server`
+**Console:** <https://railway.com/dashboard>  •  **Services (3):** `lyra-mcp-server` (prod, project `elegant-tranquility`), `lyra-mcp-dev` (project `overflowing-laughter`), `lyra-admin-mcp-server` (project `resilient-commitment`)
+
+Railway is one provider entry covering three deployed services — see
+`docs/ARCHITECTURE.md` → "Service inventory for security lockdown" for why the
+inventory counts providers rather than services. **Every item below is per
+service**; tick it three times, not once.
 
 - [ ] **2FA on the owning Railway account**
-- [ ] **Project access reviewed**
-- [ ] **Env vars sealed** — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` for prod-lyra MUST be marked sealed (one-way write)
-- [ ] **Auto-deploy source restricted** — only from `main` of `luisa-sys/lyra-mcp-server`, no fork PRs
+- [ ] **Project access reviewed** — on all three projects
+- [ ] **Env vars sealed** — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` for prod-lyra MUST be marked sealed (one-way write) on **both** prod-pointing services (`lyra-mcp-server`, `lyra-admin-mcp-server`)
+- [ ] **Auto-deploy source restricted** — only from `main` of the service's own repo (`luisa-sys/lyra-mcp-server` for the two user-facing services, `luisa-sys/lyra-admin-mcp-server` for the admin one), no fork PRs
+- [ ] **"Wait for CI" is OFF on all three** — on means Railway waits for third-party check suites that may never resolve, and deploys silently report `SKIPPED` (BUGS-18, recurred as BUGS-54). Verify per service; it is a per-service trigger setting.
 - [ ] **API token rotated** quarterly per `SECURITY_ROTATION.md`
 - [ ] **Cost / usage alert** set so a runaway loop doesn't silently bill out
+
+### `lyra-admin-mcp-server` — additional items (KAN-323 / KAN-466)
+
+This is the **highest-privilege surface on the platform**: it holds the prod
+service-role key (so it bypasses RLS) and can suspend users, unpublish profiles,
+grant feature entitlements and override age status. It is a separate Railway
+service specifically so its blast radius is separate.
+
+- [ ] **Cloudflare Access application** exists in front of `admin-mcp.checklyra.com`, with an explicit allowed-identity list (not "anyone in the org")
+- [ ] **IP allow-list** attached to that Access policy
+- [ ] **`ALLOW_CF_ACCESS_OFF` is absent** from the service's variables — it is a first-deploy-only escape hatch, and while it is set the origin accepts requests that never passed the CF edge
+- [ ] **`CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD` are set**, so app-layer Access verification is ON (boot log reads `Cloudflare Access app-layer verification: ON`)
+- [ ] **Verified from outside**: `curl -sS -o /dev/null -w '%{http_code}' https://admin-mcp.checklyra.com/health` returns **401**, not 200. A 200 means the edge is not enforcing.
+- [ ] **`admin.checklyra.com` and `admin-mcp.checklyra.com` are distinct surfaces** — the first is the web back-office, the second this MCP service; confirm each has its own Access policy
 
 ## Google Cloud Console
 
@@ -195,7 +215,8 @@ Append a row each time the full pass is completed:
 
 - KAN-36 — Cybersecurity (broad backlog)
 - KAN-90 — Google Cloud + Apple OAuth dashboards (this doc's primary trigger)
-- KAN-24 — 2FA audit across all services
+- KAN-24 — 2FA audit across all services (7 providers — see `docs/ARCHITECTURE.md` → "Service inventory for security lockdown")
+- KAN-323 / KAN-466 — `lyra-admin-mcp-server`: the admin MCP service and its lockdown coverage under §Railway
 - KAN-125 — Move Google OAuth consent screen to Production (gated by removing Cloudflare lockdown)
 - KAN-85 — Replace staging Vercel SSO with Cloudflare Access
 - `docs/SECURITY_ROTATION.md` — secrets inventory + rotation cadence + emergency playbook

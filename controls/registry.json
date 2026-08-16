@@ -1202,6 +1202,22 @@
       ],
       "escape_hatch": "none for the --local arm - a required context nothing produces is never acceptable; either restore the job name, or change .github/expected-protection.json AND the live branch protection together, which is the point (protection becomes reviewable). The --live arm's only 'hatch' is exit 2 UNVERIFIED when no token with administration:read is present, which is a loud daily red rather than a pass, and is cleared by provisioning BRANCH_PROTECTION_READ_TOKEN.",
       "added": "2026-08-15"
+    },
+    {
+      "id": "CTL-068",
+      "name": "security-lockdown inventory agrees with itself and with its checklist",
+      "defect_class": "estate-inventory-drift",
+      "summary": "KAN-466: lyra-admin-mcp-server - a deployed Railway service holding the PROD Supabase service-role key, able to suspend users and override age status - appeared in no inventory in docs/ at all. Two independent things made that invisible. (1) The enumeration of lockdown services and the '7 services to verify (KAN-24)' count are written in two different places by hand and nothing compared them, so adding a service and forgetting the count, or the reverse, reads as complete. (2) A provider entry can claim coverage its checklist does not deliver: docs/CYBER_LOCKDOWN.md SS Railway named lyra-mcp-server as THE service while three exist, so the highest-privilege surface on the platform sat inside the inventory entry that was supposed to cover it and outside every checklist item. That is the SEC-79 presence-badge shape one level down - the badge is on the provider and the hole is inside it, which is exactly what a per-entry existence check would miss. The control parses the enumeration rather than restating it (a copy in the test is a copy that drifts), asserts the corpus is non-empty before iterating it (catalogue failure mode 4), requires a checklist section per enumerated provider, and requires SS Railway to name all three deployed services plus the admin-specific edge controls (admin-mcp.checklyra.com, ALLOW_CF_ACCESS_OFF) - so 'covered under Railway' is a claim the build can check. Mutation-proven in three directions: reverting SS Railway to one service, bumping the stated count without touching the enumeration, and dropping the repo name from the ARCHITECTURE.md heading each redden exactly one case.",
+      "implementation": "tests/unit/lockdown-inventory-consistency.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-466"
+      ],
+      "escape_hatch": "none - the inventory, its count and its checklist are three statements of one fact; if they disagree one of them is wrong. A service that genuinely needs no checklist belongs outside the inventory, recorded with its reason (the Claude Design / KAN-441 precedent in ARCHITECTURE.md).",
+      "added": "2026-08-16"
     }
   ]
 }
