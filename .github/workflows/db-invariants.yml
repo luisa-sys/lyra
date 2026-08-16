@@ -177,9 +177,21 @@ jobs:
         env:
           PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
           PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
-          # Same mechanism CTL-043 uses for its cross-repo reads — the built-in
-          # token, no new secret provisioned anywhere.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ⚠️ CORRECTED 2026-08-16. This said "same mechanism CTL-043 uses for
+          # its cross-repo reads — the built-in token, no new secret provisioned
+          # anywhere", and that is why this step had never once succeeded.
+          #
+          # CTL-043's target (lyra-mcp-server) is PUBLIC, which is the whole
+          # reason the built-in token reaches it — shared-code-manifest.json
+          # records that precondition explicitly. lyra-admin-mcp-server is
+          # PRIVATE, and a workflow's GITHUB_TOKEN is scoped to its own
+          # repository, so it can never read it. The mechanism was copied
+          # without the precondition that made it valid.
+          #
+          # ADMIN_CONTRACT_READ_TOKEN is the fix. Until it exists the step fails
+          # closed and names the gap — which is honest, but is not the control
+          # running. Tracked in SEC-150.
+          GH_TOKEN: ${{ secrets.ADMIN_CONTRACT_READ_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           rc=0
