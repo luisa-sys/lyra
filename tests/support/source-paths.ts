@@ -13,12 +13,13 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 237 entries.
+// 241 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
   pullRequestTemplate: '.github/PULL_REQUEST_TEMPLATE.md',
   dependabot: '.github/dependabot.yml',
+  expectedProtection: '.github/expected-protection.json',
   scheduledWorkflowExceptions: '.github/scheduled-workflow-exceptions.json',
   signupSurface: '.github/signup-surface.paths',
   workflows: '.github/workflows',
@@ -30,10 +31,12 @@ export const SRC = {
   deployDev: '.github/workflows/deploy-dev.yml',
   deployProduction: '.github/workflows/deploy-production.yml',
   deployStaging: '.github/workflows/deploy-staging.yml',
+  mainChainGuard: '.github/workflows/main-chain-guard.yml',
   prChecks: '.github/workflows/pr-checks.yml',
   promoteToProduction: '.github/workflows/promote-to-production.yml',
   promoteToStaging: '.github/workflows/promote-to-staging.yml',
   releaseIntegrity: '.github/workflows/release-integrity.yml',
+  requiredChecks: '.github/workflows/required-checks.yml',
   routineEvidence: '.github/workflows/routine-evidence.yml',
   securityAudit: '.github/workflows/security-audit.yml',
   weeklyReport: '.github/workflows/weekly-report.yml',
@@ -72,6 +75,7 @@ export const SRC = {
   checkProductionDeployDrift: 'scripts/check-production-deploy-drift.py',
   checkReleaseBranchPush: 'scripts/check-release-branch-push.py',
   checkReleaseTagged: 'scripts/check-release-tagged.py',
+  checkRequiredChecks: 'scripts/check-required-checks.py',
   checkRouteThinness: 'scripts/check-route-thinness.py',
   checkRoutineOwnership: 'scripts/check-routine-ownership.sh',
   checkRunLogFreshness: 'scripts/check-run-log-freshness.py',
