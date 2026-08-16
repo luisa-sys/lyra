@@ -91,7 +91,35 @@ describe('the script is wired in and self-consistent', () => {
     // The whole point: fired by the deploy's completion, so the reviewer gate
     // cannot strand it.
     expect(wf).toMatch(/workflow_run:/);
-    expect(wf).toContain('Deploy to Production');
+  });
+
+  test('the workflow_run name matches deploy-production.yml`s ACTUAL name', () => {
+    // ⚠️ THIS IS THE ONE THAT MATTERS, and it is not the same assertion as
+    // `toContain('Deploy to Production')`.
+    //
+    // A `workflow_run` trigger keys on the triggering workflow's DISPLAY NAME,
+    // a free-text string. Rename `deploy-production.yml`'s `name:` and this
+    // workflow silently stops firing — no error, no red, nothing invalid about
+    // either file. `main` just goes untagged again, which is BUGS-104 returning
+    // by a different route.
+    //
+    // A hard-coded `toContain` cannot see that: it agrees with itself forever
+    // while the two files drift apart. So read the name from the DEPLOY file
+    // and require the trigger to carry that exact value. This is the same shape
+    // as SEC-152's regex-vs-help-text case — two places that must agree, each
+    // individually valid, with nothing comparing them.
+    const deploy = fs.readFileSync(
+      path.join(REPO_ROOT, '.github', 'workflows', 'deploy-production.yml'), 'utf8');
+    const m = deploy.match(/^name:\s*(.+?)\s*$/m);
+    // Assert the corpus before asserting over it: a `name:` that stopped
+    // matching would make `m` null, and a guard that skips on null is a guard
+    // that reports clean having compared nothing.
+    expect(m).not.toBeNull();
+    const deployName = m[1].replace(/^["']|["']$/g, '');
+    expect(deployName.length).toBeGreaterThan(0);
+
+    const wf = fs.readFileSync(WORKFLOW, 'utf8');
+    expect(wf).toContain(`workflows: ["${deployName}"]`);
   });
 
   test('it does NOT silent-skip on a missing PAT', () => {
