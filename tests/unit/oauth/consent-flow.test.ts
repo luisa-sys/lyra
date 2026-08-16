@@ -58,8 +58,8 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 
 // The real `shouldRefuseIssuance` is used deliberately — mocking it would make
 // the fail-closed test assert against a stub of the very decision under test.
-jest.mock('@/lib/account-status', () => ({
-  ...jest.requireActual('@/lib/account-status'),
+jest.mock('@/modules/access/account-status', () => ({
+  ...jest.requireActual('@/modules/access/account-status'),
   getAccountStanding: jest.fn(async () => standing),
 }));
 
@@ -97,6 +97,7 @@ const VALID: DecideInput = {
   state: 'xyz',
   code_challenge: 'abc123',
   code_challenge_method: 'S256',
+  resource: 'https://mcp-dev.checklyra.com/mcp',
   decision: 'allow',
 };
 

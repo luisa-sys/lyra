@@ -124,3 +124,64 @@ guard, plus the E2E + soak layer (confirmed URL-coupled, resilient to file
 moves). Full inventory, path-manifest design, `jest.mock` re-pointing plan and
 the F4 sign-off request: `docs/modularisation/KAN-417-test-decoupling.md`
 (re-runnable classifier: `docs/modularisation/kan417-classify-tests.mjs`).
+
+---
+
+## Addendum — 2026-08-16 (SEC-46 / SEC-112 / SEC-152 / SEC-153)
+
+Recorded because the KAN-359 Documentation Definition-of-Done requires this doc
+to be refreshed when **test gates, floors, or coverage change**, and all three
+moved in one day.
+
+**Floor: 3,926 → 4,000 tests (295 → 301 suites).** Net-new coverage, not drift.
+The enforced floor is `tests/support/test-floor-baseline.json`, regenerated in
+the same commit as each change; the prose line in `CLAUDE.md` was re-measured
+against it each time rather than incremented by hand.
+
+| ticket | tests | subject |
+|---|---|---|
+| SEC-46 Phase C | +10, one suite | RFC 8707 resource binding at `/oauth/authorize` |
+| SEC-46 follow-up | +14, one suite | the default resource, as a TABLE over all four deployments |
+| SEC-153 / CTL-065 | +9, one suite (+12 in-script `--self-test` cases) | production deploy drift |
+| SEC-152 | +4, existing suite | the third UI-ownership trailer |
+
+**Every one of them was mutation-proven**, each mutation asserted to have
+actually applied before the suite's verdict was trusted (the KAN-415 D7 lesson:
+a replace that silently matches nothing produces a green run indistinguishable
+from a green run), and each restore verified byte-exact with `cmp` rather than
+by "the tests pass again".
+
+Three observations worth carrying forward, all of them about *test shape*
+rather than test count:
+
+1. **A rule that holds on the environment you develop against will look
+   correct.** SEC-46's default-resource fallback was right on dev and wrong on
+   beta and production. It was caught by enumerating environments, not by
+   adding assertions — so its suite is written as a **table over all four
+   deployments** rather than a spot check. Reinstating the defect reddens 7 of
+   14. Prefer a table wherever a value varies per environment.
+
+2. **A control's help text and its logic drift apart independently.** SEC-152
+   needed two mutations, not one: dropping the regex alternative reddens the
+   accept case, and removing the trailer from the *help text alone* reddens a
+   different one. Telling someone to write a trailer the gate will reject is
+   the CTL-042 shape. Where a control prints instructions, assert the
+   instructions too.
+
+3. **Check where a hand-rolled harness consumes its failure list.** CTL-065's
+   `--self-test` deliberately evaluates its verdict at the end, because SEC-140
+   found eight cases appended *after* the `if failures:` check — assertions
+   that ran, were never read, and raised the case count while covering nothing.
+
+**Gates added:** CTL-065 (`scripts/check-production-deploy-drift.py`,
+registered, wired into `weekly-report.yml`). **Gates widened:**
+`check-ui-copy-ownership.sh` accepts a third trailer, with the surface
+(`is_protected`) deliberately UNCHANGED; `check-routine-ownership.sh` gained a
+marker pinning Section 15b's deferral to the release owner.
+
+**Stated gap:** SEC-151 — the committed schema snapshots can be stale in
+dimensions no control measures (nullability, enum membership, view
+updatability). Investigated the same day and deliberately **not** built: the
+cheap route (extending CTL-048) rests on PostgREST's OpenAPI `required` array,
+which is NOT a NOT NULL list. Reasoning and the two sound alternatives are on
+the ticket.

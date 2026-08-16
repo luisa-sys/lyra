@@ -29,12 +29,12 @@ jobs:
       # tags. Without this, the default shallow clone returns "unknown" for
       # the version and we get the false-positive that landed in production
       # for the past 4 weeks.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '20'
 
@@ -767,6 +767,56 @@ jobs:
           grep "^section-15=" "$RUNNER_TEMP/shaper-15.err" >> "$QUALITY_FILE"
 
           echo "::notice::Section 15 — latest tag=$LATEST_TAG, drift rc=$DRIFT_RC"
+
+      # ── Section 15b: Production deploy drift (CTL-065 / SEC-153) ──
+      # Section 15 answers "is work flowing towards main?". This answers the
+      # DIFFERENT question "is main actually SERVING?" — which on 2026-08-16 had
+      # been NO for ~2 days and two promotes, with nothing red anywhere, because
+      # the deploy run sits in `waiting` on the SEC-106 Production review and a
+      # gated run never fails. It appends to Section 15's own file so the gap
+      # reaches the emailed report rather than only a run annotation.
+      #
+      # KAN-361 OWNERSHIP: this REPORTS, it does not own. Release is owned by
+      # the Weekly Health + Regression routine (docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md);
+      # this section is a convenience figure that defers to that routine's
+      # run-log, exactly as Sections 4/6/7 do. Source of record: **Weekly Health
+      # + Regression routine**. Do not grow this into a second release authority.
+      - name: Section 15b — Production deploy drift
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/sections/15-release-cadence.md"
+
+          git fetch --quiet origin main 2>/dev/null || true
+
+          # rc is DATA here, not an error: 1 = drifted, 2 = unverifiable. Both
+          # must be rendered, so pipefail must not abort on them. Never
+          # `|| echo`-swallowed into something that reads like a clean zero.
+          set +e
+          DEPLOY_OUT=$(python3 scripts/check-production-deploy-drift.py 2>&1)
+          DEPLOY_RC=$?
+          set -e
+
+          {
+            echo ""
+            echo "**Deployed build vs \`main\` (CTL-065)**"
+            echo ""
+            if [ "$DEPLOY_RC" -eq 2 ]; then
+              echo "> ⚠️ DATA UNAVAILABLE — the deployed build could not be determined. This is NOT \"up to date\"."
+            elif [ "$DEPLOY_RC" -eq 1 ]; then
+              echo "> 🔴 Production is running a build materially behind \`main\`. \`main\` containing a commit is not evidence it shipped."
+            else
+              echo "> 🟢 Production is serving a current build."
+            fi
+            echo ""
+            echo '```'
+            printf '%s\n' "$DEPLOY_OUT"
+            echo '```'
+          } >> "$OUT"
+
+          echo "::notice::Section 15b — production deploy drift rc=$DEPLOY_RC"
 
       # ── Section 16: In-Flight Work (Jira: In Progress) ─────
       # KAN-165: pulls open "In Progress" Jira tickets via the REST API.

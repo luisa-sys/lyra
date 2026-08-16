@@ -5,7 +5,7 @@
     "Machine-readable index of every preventive control in this repo, and the",
     "defect it exists to stop. This is the memory of the Defect Feedback Loop:",
     "when a BUGS or SEC ticket closes, its root cause is traced to a control",
-    "here \u2014 either one that already exists (and failed to fire, which is itself",
+    "here — either one that already exists (and failed to fire, which is itself",
     "a finding) or a new one that gets added.",
     "",
     "Enforced by scripts/check-control-registry.py, which fails the build if a",
@@ -23,7 +23,7 @@
       "id": "CTL-001",
       "name": "Workflow integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
+      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing — GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
       "implementation": "scripts/check-workflow-integrity.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -127,7 +127,7 @@
       "id": "CTL-007",
       "name": "Doc mirror content check",
       "defect_class": "doc-drift",
-      "summary": "Fails the PR if a listed mirror exists but is an empty or stub file \u2014 the 'backup that looks successful but contains placeholder content' failure mode.",
+      "summary": "Fails the PR if a listed mirror exists but is an empty or stub file — the 'backup that looks successful but contains placeholder content' failure mode.",
       "implementation": "scripts/check-doc-mirror-content.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -170,7 +170,8 @@
         "KAN-411"
       ],
       "escape_hatch": null,
-      "added": "2026-07-24"
+      "added": "2026-07-24",
+      "notes": "KAN-474: the script also exposes `--describe`, which emits the founder-owned surface DERIVED from is_protected() itself (parsed from the function body, not restated). The Backlog Autopilot routine reads that at runtime instead of carrying its own copy of the list. Two prior drifts — KAN-415 moving two copy modules, KAN-473 adding src/modules/*.tsx — were invisible to CI because a SaaS routine prompt is not readable from CI, so the fix was removing the second copy rather than adding a third checker. tests/scripts/check-ui-copy-ownership.test.js pins it, including a count ratchet: silently deleting a rule keeps guard and description in agreement, so equality alone cannot catch it."
     },
     {
       "id": "CTL-010",
@@ -192,7 +193,7 @@
       "id": "CTL-011",
       "name": "Auto-heal pattern catalogue self-test",
       "defect_class": "false-green-ci",
-      "summary": "Verifies every auto-fix pattern still matches its fixture and does not false-positive on a sibling \u2014 the regression guard that stops the auto-fix workflow silently breaking.",
+      "summary": "Verifies every auto-fix pattern still matches its fixture and does not false-positive on a sibling — the regression guard that stops the auto-fix workflow silently breaking.",
       "implementation": "scripts/auto-fix-known-failures.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -242,7 +243,7 @@
       "id": "CTL-014",
       "name": "Backup integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Fails if a backup artefact is a placeholder rather than real data \u2014 a dump that does not start with '--', contains no CREATE statements, or is suspiciously short.",
+      "summary": "Fails if a backup artefact is a placeholder rather than real data — a dump that does not start with '--', contains no CREATE statements, or is suspiciously short.",
       "implementation": "scripts/check-backup-integrity.sh",
       "kind": "scheduled",
       "wired_in": [
@@ -309,7 +310,7 @@
       "id": "CTL-018",
       "name": "Main-chain guard",
       "defect_class": "release-control",
-      "summary": "Fails loud if main gains any commit not present on beta \u2014 i.e. a change that did not arrive through develop \u2192 staging \u2192 beta \u2192 main \u2014 and blocks any PR targeting main.",
+      "summary": "Fails loud if main gains any commit not present on beta — i.e. a change that did not arrive through develop → staging → beta → main — and blocks any PR targeting main.",
       "implementation": ".github/workflows/main-chain-guard.yml",
       "kind": "ci-gate",
       "wired_in": [
@@ -321,13 +322,13 @@
       ],
       "escape_hatch": "BYPASS CONTROLS commit marker",
       "added": "2026-07-25",
-      "notes": "NOT yet in main's required status checks \u2014 see docs/DEFECT_FEEDBACK_LOOP.md open gaps."
+      "notes": "NOT yet in main's required status checks — see docs/DEFECT_FEEDBACK_LOOP.md open gaps."
     },
     {
       "id": "CTL-019",
       "name": "Dashboard loading.tsx guard",
       "defect_class": "framework-footgun",
-      "summary": "Fails any PR that reintroduces a src/app/**/loading.* without an explicit marker \u2014 the Next 16 Suspense boundary that never reveals on hard load and blanks the dashboard.",
+      "summary": "Fails any PR that reintroduces a src/app/**/loading.* without an explicit marker — the Next 16 Suspense boundary that never reveals on hard load and blanks the dashboard.",
       "implementation": "tests/unit/bugs66-dashboard-loading-guard.test.js",
       "kind": "test",
       "wired_in": [
@@ -397,7 +398,7 @@
       "id": "CTL-023",
       "name": "Migration privilege lint",
       "defect_class": "postgres-privilege-drift",
-      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES \u2014 the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink. R6 (BUGS-77, 2026-07-30): every function named by an UNGUARDED REVOKE/GRANT must be CREATEd earlier in the lineage - ordering, not just presence, since a function created in a later migration is still a replay failure. Revokes inside a do-block are excluded because they no-op on a fresh database. Also fixed an R4 false positive: DDL text inside a string literal (an event trigger's 'CREATE TABLE AS' tag list) was read as a real CREATE TABLE.",
+      "summary": "Every migration must revoke a SECURITY DEFINER function from public, anon AND authenticated. Revoking from PUBLIC alone is a no-op on Supabase, which grants anon/authenticated directly via ALTER DEFAULT PRIVILEGES — the first version of this rule required only the PUBLIC revoke and passed a fixture shipping an anon-callable function. That mis-specified revoke in 20260622120000_two_axis_access_model.sql is the actual root cause of SEC-28/29/42/43. Also pins search_path, forbids GRANT to anon, requires RLS on new public tables, and (R5) blocks duplicate migration version timestamps. Ratcheted against a baseline that may only shrink. R6 (BUGS-77, 2026-07-30): every function named by an UNGUARDED REVOKE/GRANT must be CREATEd earlier in the lineage - ordering, not just presence, since a function created in a later migration is still a replay failure. Revokes inside a do-block are excluded because they no-op on a fresh database. Also fixed an R4 false positive: DDL text inside a string literal (an event trigger's 'CREATE TABLE AS' tag list) was read as a real CREATE TABLE.",
       "implementation": "scripts/check-migration-privileges.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -442,7 +443,8 @@
         "SEC-29",
         "SEC-42",
         "SEC-43",
-        "SEC-60"
+        "SEC-60",
+        "SEC-112"
       ],
       "self_test": "python3 scripts/check-db-invariants.py --self-test",
       "escape_hatch": "supabase/security-invariants-waivers.json",
@@ -471,7 +473,7 @@
       "id": "CTL-026",
       "name": "Control registry integrity",
       "defect_class": "control-rot",
-      "summary": "The meta-control. Fails if a registered control's implementation is missing, if it is no longer referenced by any workflow (the SEC-79 'silently disabled for weeks' mode), or if a check script exists in the repo but is not registered \u2014 so the registry cannot drift away from reality.",
+      "summary": "The meta-control. Fails if a registered control's implementation is missing, if it is no longer referenced by any workflow (the SEC-79 'silently disabled for weeks' mode), or if a check script exists in the repo but is not registered — so the registry cannot drift away from reality.",
       "implementation": "scripts/check-control-registry.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -509,7 +511,7 @@
       "id": "CTL-028",
       "name": "Suspension-guard coverage",
       "defect_class": "authz-coverage-drift",
-      "summary": "A PUBLIC-SURFACE file may not read the `profiles` BASE TABLE; public surfaces read `public_profiles`, whose view body carries every visibility predicate and therefore applies even to service_role (RLS does not). Default-deny: everything under src/app/ is public unless it matches a short authenticated carve-out list, so a NEW public route is covered the day it is written. KAN-473 added named PUBLIC-FACING MODULE ROOTS after KAN-415 D9 moved five public-profile files out of src/app/ and narrowed the surface 74 -> 69 files \u2014 the same quiet-narrowing failure, one commit after the rewrite that fixed it. SEC-104 step 3 replaced the original column-keyed rule, which triggered on the presence of a PARTIAL guard and so could not see an unguarded read at all \u2014 and which the SEC-104 migration then blinded completely, taking its public-surface coverage from 4 chains to 0 while its vacuous-pass guard (keyed on a raw count of 2) never fired.",
+      "summary": "A PUBLIC-SURFACE file may not read the `profiles` BASE TABLE; public surfaces read `public_profiles`, whose view body carries every visibility predicate and therefore applies even to service_role (RLS does not). Default-deny: everything under src/app/ is public unless it matches a short authenticated carve-out list, so a NEW public route is covered the day it is written. KAN-473 added named PUBLIC-FACING MODULE ROOTS after KAN-415 D9 moved five public-profile files out of src/app/ and narrowed the surface 74 -> 69 files — the same quiet-narrowing failure, one commit after the rewrite that fixed it. SEC-104 step 3 replaced the original column-keyed rule, which triggered on the presence of a PARTIAL guard and so could not see an unguarded read at all — and which the SEC-104 migration then blinded completely, taking its public-surface coverage from 4 chains to 0 while its vacuous-pass guard (keyed on a raw count of 2) never fired.",
       "implementation": "scripts/check-suspension-guard-coverage.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -554,7 +556,7 @@
       "id": "CTL-030",
       "name": "Structural dependency rules (module/segment/cycle)",
       "defect_class": "regression-risk",
-      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/modules/platform/deploy-env.ts \u2014 built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
+      "summary": "Three structural import rules, enforced so the codebase cannot regress while the modularisation programme (KAN-415) runs: nothing under src/lib/** may import src/app/** (a library owned by a route folder is how the access-transition matrix ended up inside the admin console, KAN-424 Defect 1); one top-level src/app segment may not import another (a cross-segment edge couples two features so neither can be changed or extracted alone); and no import cycles. The precedent for needing a gate rather than a convention is src/modules/platform/deploy-env.ts — built to be the single environment resolver, it never displaced the six inline derivations because nothing stopped new ones being written. Ships at severity warn and flips to error once the outstanding findings clear.",
       "implementation": "scripts/check-dependency-rules.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -571,7 +573,7 @@
       "id": "CTL-031",
       "name": "Bash 3.2 portability",
       "defect_class": "dev-ci-environment-parity",
-      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS \u2014 a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
+      "summary": "Fails any script under scripts/ using a bash-4-only construct (mapfile/readarray, declare -A, ${v^^}/${v,,}, &>>, coproc, shopt -s globstar). macOS ships bash 3.2 and CI ships bash 5, so these work in CI and exit 127 where releases are prepared. staging-soak.sh documented the rule in a comment from day one and two scripts shipped with mapfile anyway, making the whole unit suite unpassable on macOS — a convention without a gate erodes. Comments are stripped before matching so the fix's own explanatory prose does not trip it; that case is pinned in the self-test. Workflow YAML is out of scope by design: inline run: blocks execute only on the runner, so findings there would only ever be allow-listed, and standing noise is what teaches people to wave a gate through.",
       "implementation": "scripts/check-bash-portability.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -588,7 +590,7 @@
       "id": "CTL-032",
       "name": "Dependabot target-branch",
       "defect_class": "release-pipeline-config-drift",
-      "summary": "Fails the build if any .github/dependabot.yml ecosystem block omits target-branch: develop. The github-actions ecosystem had no target-branch and fell back to the repo default (main), so every weekly Actions bump opened a PR that main-chain-guard.yml (SEC-98) correctly blocks as a chain-bypass attempt \u2014 a permanently-red required check on a benign PR, which trains reviewers to stop reading it.",
+      "summary": "Fails the build if any .github/dependabot.yml ecosystem block omits target-branch: develop. The github-actions ecosystem had no target-branch and fell back to the repo default (main), so every weekly Actions bump opened a PR that main-chain-guard.yml (SEC-98) correctly blocks as a chain-bypass attempt — a permanently-red required check on a benign PR, which trains reviewers to stop reading it.",
       "implementation": "tests/unit/dependabot-target-branch.test.js",
       "kind": "test",
       "wired_in": [
@@ -604,7 +606,7 @@
       "id": "CTL-033",
       "name": "Extraction Definition-of-Done",
       "defect_class": "path-coupling-drift",
-      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green \u2014 KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
+      "summary": "Fails any PR that deletes or renames a file under src/ while an artefact that classifies files BY PATH still names the old path: .github/ (signup-surface manifest, CODEOWNERS, workflows), scripts/ guard path-lists, docs/ (incl. the mirror manifest), modules.json and tests/. A glob that matches nothing protects nothing while CI stays green — KAN-419 measured the docs layer at 18% dead path literals before a single file was moved on purpose. Also requires the PR body to answer the two couplings CI can never see (~/lyra-design-system/build.py and the claude.ai routine prompts, neither in any repo CI can read) and to name the covering Playwright project + soak clause, or record 'no coverage' as a finding. Fails closed (exit 2) when it cannot verify.",
       "implementation": "scripts/check-extraction-dod.sh",
       "kind": "ci-gate",
       "wired_in": [
@@ -752,10 +754,11 @@
         ".github/workflows/pr-checks.yml"
       ],
       "prevents": [
-        "SEC-79"
+        "SEC-79",
+        "BUGS-102"
       ],
-      "escape_hatch": "An entry in .github/scheduled-workflow-exceptions.json carrying BOTH a Jira key and a reason. An entry for a workflow that has since been re-enabled is a STALE exception and fails outright, so the list cannot only grow. Ships WARN-first (SCHEDULED_WORKFLOW_GATE_ENFORCE=1 to block) because the four live findings need a founder decision, and a gate that blocks every unrelated PR on something nobody can clear is a gate that gets switched off.",
-      "self_test": "--self-test covers the seven parsing decisions, notably that a COMMENTED-OUT cron is not a live schedule (backup-complete.yml ships its cadence commented until commissioning, and reading that as scheduled would raise a permanent unresolvable finding). Verified live 2026-08-09: warn mode exits 0 naming all four inactive workflows, --enforce exits 1.",
+      "escape_hatch": "An entry in .github/scheduled-workflow-exceptions.json carrying BOTH a Jira key and a reason. An entry for a workflow that has since been re-enabled is a STALE exception and fails outright, so the list cannot only grow. BUGS-102 (2026-08-14): this description was ALREADY written this way and was only half true - the exceptions lookup sat behind the `state != active` branch, so it could cover a registered-but-disabled workflow and NEVER an unregistered one. Since GitHub does not register a `schedule` trigger until the file is on the default branch, any PR ADDING a scheduled workflow was failed by the gate its file had to pass to reach that branch - a deadlock with no documented way out. The lookup now runs on both branches, so the hatch matches what this field always claimed. An unregistered workflow with NO exception still fails; a 'not yet registered' entry is expected to be SHORT-LIVED and becomes a build failure as STALE the moment the workflow registers and runs. Still ships WARN-first locally (SCHEDULED_WORKFLOW_GATE_ENFORCE=1 to block, which pr-checks.yml sets).",
+      "self_test": "13 cases. Seven cover the parsing decisions, notably that a COMMENTED-OUT cron is not a live schedule (backup-complete.yml ships its cadence commented until commissioning, and reading that as scheduled would raise a permanent unresolvable finding). SIX cover the CLASSIFICATION decision and are net-new under BUGS-102, which is the lesson worth keeping: the original seven all tested declares_cron() and the Jira-key regex, so the judgement this control actually makes had NO fixtures at all and the deadlock lived comfortably in main()'s untested body. classify() was extracted so it could be exercised directly: unregistered+exception -> excepted (the defect); unregistered without one -> FAILS (no regression); exception on a now-ACTIVE workflow -> STALE (the ratchet); registered-but-disabled with and without an exception -> unchanged; and ACTIVE with no exception -> clean, so the others are not satisfiable by a classifier that flags everything. Mutation-proven 2026-08-14, each mutation asserted to have applied: reverting the fix reddens exactly the first case, removing the STALE arm reddens exactly the third. The jest test also gained a FLOOR on the corpus - it matched the passed-count line with a regex whose denominator moves with its numerator, so it caught a fixture that FAILED and never one that was DELETED; gutting the corpus to 2 now reddens 2 tests. Verified live 2026-08-09: warn mode exits 0 naming all four inactive workflows, --enforce exits 1. Re-verified 2026-08-14: 20 scheduled workflows, 2 excepted (BUGS-90, SEC-98), all active.",
       "added": "2026-08-09"
     },
     {
@@ -807,7 +810,7 @@
         "KAN-415"
       ],
       "escape_hatch": "None. Changing an order means editing the expected literal, which is a visible diff a reviewer can weigh against ORDER_CONSTRAINTS' stated reasons. Landed LAST in D4 on purpose: written earlier, every subsequent commit would have edited its own expected list, and in a log that is indistinguishable from weakening it.",
-      "self_test": "Mutation-proven 2026-08-10. Also guarded at the TYPE level by a dedicated type-level file under tests/types \u2014 an @ts-expect-error on assigning an authed gate into a pre-auth pipeline, which fails the build if the error DISAPPEARS. Verified by flipping Gate.run from a property to a method shorthand - property form gives 1 compile error, shorthand gives 0, and the type file then reports TS2578 unused directive. That difference is invisible in review, which is why it is pinned twice.",
+      "self_test": "Mutation-proven 2026-08-10. Also guarded at the TYPE level by a dedicated type-level file under tests/types — an @ts-expect-error on assigning an authed gate into a pre-auth pipeline, which fails the build if the error DISAPPEARS. Verified by flipping Gate.run from a property to a method shorthand - property form gives 1 compile error, shorthand gives 0, and the type file then reports TS2578 unused directive. That difference is invisible in review, which is why it is pinned twice.",
       "added": "2026-08-10"
     },
     {
@@ -831,16 +834,17 @@
       "id": "CTL-047",
       "name": "Documentation Definition-of-Done",
       "defect_class": "documentation-drift",
-      "summary": "Fails any PR that makes a STRUCTURAL change whose meaning is written down - a file added/removed under src/modules/, a workflow added/removed, a control script or the control registry, a migration, or a path-keyed guard manifest - without either touching a doc (docs/**, CLAUDE.md, README.md, modules.json, controls/registry.json) or recording a Docs-Updated/Docs-N/A trailer. The trigger set is deliberately narrow: a gate that fires on every PR is one people learn to wave through, and that reflex defeats every other gate too. It cannot tell whether a doc is TRUE - nothing can - it answers the narrower question 'you changed something that is written down somewhere, did you go and look?'. Fails closed (exit 2) when the diff base cannot be resolved.",
+      "summary": "Fails any PR that makes a STRUCTURAL change whose meaning is written down - a file added/removed under src/modules/, a workflow added, removed, or changed beyond an action-version pin, a control script or the control registry, a migration, or a path-keyed guard manifest - without either touching a doc (docs/**, CLAUDE.md, README.md, modules.json, controls/registry.json) or recording a Docs-Updated/Docs-N/A trailer. The trigger set is deliberately narrow: a gate that fires on every PR is one people learn to wave through, and that reflex defeats every other gate too. It cannot tell whether a doc is TRUE - nothing can - it answers the narrower question 'you changed something that is written down somewhere, did you go and look?'. Fails closed (exit 2) when the diff base cannot be resolved. SEC-155 narrowed the workflow trigger: a MODIFIED workflow whose every changed line is a `uses: <action>@<ref>` pin is doc-neutral (no doc here records an action version) and is not counted. The exemption is per FILE and demands EVERY changed line be a pin, so a cron/run/if change cannot ride along with a bump; added, removed and renamed workflows are never exempt whatever they contain.",
       "implementation": "scripts/check-docs-updated.py",
       "kind": "ci-gate",
       "wired_in": [
         ".github/workflows/pr-checks.yml"
       ],
       "prevents": [
-        "KAN-359"
+        "KAN-359",
+        "SEC-155"
       ],
-      "escape_hatch": "Docs-Updated: <JIRA-KEY> <what changed and where> or Docs-N/A: <JIRA-KEY> <why no doc describes this> on a commit in the PR. Both require a Jira key AND a reason - a bare key does not satisfy it. Docs-N/A is a legitimate answer and not a loophole: recording that you checked IS the review step. What must not happen is nobody looking.",
+      "escape_hatch": "Docs-Updated: <JIRA-KEY> <what changed and where> or Docs-N/A: <JIRA-KEY> <why no doc describes this> on a commit in the PR. Both require a Jira key AND a reason - a bare key does not satisfy it. Docs-N/A is a legitimate answer and not a loophole: recording that you checked IS the review step. What must not happen is nobody looking. ⚠️ Dependabot cannot use this escape hatch — it writes no commit trailer and no doc here records an action version. Before SEC-155 that made its github-actions group PR unmergeable by construction (#661, red 15 days with seven action bumps incl. three CodeQL); the pin exemption, not the trailer, is what unblocks it.",
       "self_test": "python3 scripts/check-docs-updated.py --self-test",
       "added": "2026-08-10",
       "notes": "Built after a 60-agent audit on 2026-08-10 compared every architecture/runbook/plan doc against the real tree. Three confirmed findings would have made a fresh session do the WRONG thing: the modularisation plan still read 'the extraction programme D1-D15 is DEFERRED ... No file moves into src/modules/' four days after that ruling was reversed and with 44 files already moved on main; CLAUDE.md and RUNBOOK.md both described no-module-to-app as covering src/lib/** only, long after the anchor was widened because 28 files had silently left a BLOCKING rule's scope; and RUNBOOK.md called the dependency gate non-blocking two weeks after it was flipped to error. Every one was written by someone who had just done the work and knew the truth - docs do not drift through carelessness, they drift because nothing is watching and the person who would notice already knows."
@@ -849,7 +853,7 @@
       "id": "CTL-048",
       "name": "Live schema parity",
       "defect_class": "schema-parity-drift",
-      "summary": "Asks the three LIVE Supabase databases for their columns and asserts (a) every table present on more than one database exposes the same columns, except where supabase/schema-drift-baseline.json records a ticketed difference, and (b) each committed src/types/database/<env>.ts matches its own database. Exists because CTL-036 - the repo-side half - compares the three committed SNAPSHOTS to each other and therefore cannot see all three going stale the same way, which is the state they were in on 2026-08-11: every snapshot was missing gift_voucher_hint while all three databases had it, and CTL-036 was green. Runs in the promotion chain because a promotion is when a column gap becomes an outage - code written against one schema reaching a database with another. Detects drift in BOTH directions; dev is behind staging and prod on gathering_invite_messages.claimed_at (BUGS-62), so a prod-is-missing-only check would sail past it. Fails closed with exit 2 when a credential is absent rather than skipping. SEC-133: the live-vs-snapshot half ALSO runs daily via db-invariants.yml (--snapshot-only), because running only on a promote meant drift surfaced at the door of a release and nothing looked for it in between. Only that half runs daily: the cross-database half is red for the whole of any staged migration rollout, and SEC-131 proved the snapshot half is the one that matters - all three databases agreed perfectly while all three snapshots were wrong, so live-vs-live was blind to it. Remediation is one command: npm run gen:db-types -- --env <env>.",
+      "summary": "Asks the three LIVE Supabase databases for their columns and asserts (a) every table present on more than one database exposes the same columns, except where supabase/schema-drift-baseline.json records a ticketed difference, and (b) each committed src/types/database/<env>.ts matches its own database. Exists because CTL-036 - the repo-side half - compares the three committed SNAPSHOTS to each other and therefore cannot see all three going stale the same way, which is the state they were in on 2026-08-11: every snapshot was missing gift_voucher_hint while all three databases had it, and CTL-036 was green. Runs in the promotion chain because a promotion is when a column gap becomes an outage - code written against one schema reaching a database with another. Detects drift in BOTH directions; dev is behind staging and prod on gathering_invite_messages.claimed_at (BUGS-62), so a prod-is-missing-only check would sail past it. Fails closed with exit 2 when a credential is absent rather than skipping. SEC-133: the live-vs-snapshot half ALSO runs daily via db-invariants.yml (--snapshot-only), because running only on a promote meant drift surfaced at the door of a release and nothing looked for it in between. Only that half runs daily: the cross-database half is red for the whole of any staged migration rollout, and SEC-131 proved the snapshot half is the one that matters - all three databases agreed perfectly while all three snapshots were wrong, so live-vs-live was blind to it. Remediation is one command: npm run gen:db-types -- --env <env>. SEC-143 (2026-08-14) extends it to a FOURTH snapshot that lives in ANOTHER REPO: lyra-admin-mcp-server/src/types/database.ts, the copy of prod.ts that BUGS-101 types the admin server's writes against so a dropped column is a compile error. Nothing proved that copy still matched the database - it could rot exactly as the untyped code it replaced did, just in one file instead of many. Run with --with-admin-contract; the cross-repo read uses `gh api` and the built-in GITHUB_TOKEN, the same mechanism CTL-043 uses, so no new secret exists anywhere. It lives HERE rather than in the admin repo for two reasons: SUPABASE_ACCESS_TOKEN would otherwise have to be copied into the repo with the weakest guard estate (SEC-51), and check-control-registry.py requires an implementation file to exist in THIS repo - a checker in the admin repo could not be registered at all, leaving the feedback loop blind to it. Compared BOTH ways: a column the contract declares but prod lacks is the BUGS-101 shape itself; a column prod has but the contract lacks is staleness. The contract is a five-table SUBSET, so a table absent from it is deliberately NOT a finding - treating the subset as drift would make this red on day one forever, and an always-red gate is one someone turns off.",
       "implementation": "scripts/check-live-schema-parity.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -862,10 +866,342 @@
         "BUGS-62",
         "KAN-420",
         "SEC-131",
-        "SEC-133"
+        "SEC-133",
+        "SEC-143",
+        "BUGS-101"
       ],
       "escape_hatch": "none - apply the missing migration, or record the difference in supabase/schema-drift-baseline.json with a ticket",
+      "self_test": "23 cases via --self-test. The SEC-143 half adds 8, built as snapshot-shaped TEXT so the real parser runs rather than a stub. Mutation-proven 2026-08-14: suppressing the contract-declares-a-dropped-column direction, suppressing the staleness direction, and letting an unparseable contract compare clean each redden it. A fourth mutation - reporting prod tables the contract omits - also reddens, and that is the one that matters in practice, because breaking the subset rule is how this becomes permanently red. \\u26a0\\ufe0f One mutation deliberately did NOT redden and is recorded rather than hidden: live_prod.get(table) -> live_prod.get(table, set()) still produces findings, one per column instead of one per table. It degrades the MESSAGE, not the coverage - a badly chosen mutation, not a blind spot. Saying so is cheaper than someone re-deriving it later.",
       "added": "2026-08-11"
+    },
+    {
+      "id": "CTL-049",
+      "name": "Migration ledger parity",
+      "defect_class": "unrebuildable-schema",
+      "summary": "Asks whether supabase/migrations/ can REBUILD the databases, which is the axis no other database control looks at. CTL-036 diffs the three committed snapshots against each other; CTL-048 diffs each live database against its own snapshot; check-db-invariants.py asks each database for its privilege posture. All three ask 'is the schema right?', all three were green on 2026-08-12, and all three were correct - none of them reads supabase/migrations/ at all. Measured when this landed: of 82 committed migrations, exactly 1 could be identified in dev's ledger by both version and name, 0 in staging, 1 in prod. mcp_tool_call_log and content_moderation_flags are live tables on all three environments whose creating SQL does not exist in version control; several of the other orphans are the June 2026 anon-grant and SECURITY DEFINER revokes, so a rebuild would be insecure in exactly the way the repo appears to have fixed. Production's ledger has no row for create_lyra_schema at all, and add_api_keys is in the repo with a live table on every environment while no ledger records it as ever having run. The failure was invisible because it is not drift BETWEEN environments - those are mutually consistent - but between the running system and its source of truth. Root cause is gotcha #9: apply_migration writes to the database and its ledger but not to the repo, so committing the SQL is a separate step. Two-way ratchet against supabase/migration-ledger-baseline.json: a NEW divergence fails, and a baselined one that has been RESOLVED also fails, so the file cannot become a suppression list. Fails closed on a missing token, a non-200, or an unparseable body. Read-only: DELETE on the same path rolls migrations out of the history table, so the method is hard-coded and asserted.",
+      "implementation": "scripts/check-migration-ledger-parity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/db-invariants.yml",
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-137",
+        "SEC-134"
+      ],
+      "escape_hatch": "none - commit the migration SQL that was applied out-of-band, or apply the migration that was committed; a divergence that is accepted goes in supabase/migration-ledger-baseline.json via --write-baseline, never by hand",
+      "added": "2026-08-12"
+    },
+    {
+      "id": "CTL-050",
+      "name": "Audit report readability",
+      "defect_class": "false-green-unmeasured",
+      "summary": "Reads the `npm audit --json` report for the weekly security audit and FAILS CLOSED (exit 2) on anything it cannot measure - missing file, empty file, unparseable body, or a document that is not an npm audit report. Exists because both halves of security-audit.yml previously turned a failure-to-measure into a clean result: the workflow's inline `except: print(0)` fed the `if: ... != '0'` guard on its ONLY failing step, so a parse failure SKIPPED the failure and the run passed; and audit-to-email.py's `except` returned has_vulnerabilities:False, which suppressed the alert email. Green tick, no email, nothing assessed - the SEC-79 shape and forbidden pattern #3 (the report must distinguish 0 from fetch-failed). The trigger was mundane: `> report.json 2>&1` merged npm's warnings into the JSON, and with --json npm writes the report to stdout and warnings to stderr, so any warning corrupted it. A third defect in the same block recorded npm's exit code AFTER `|| true`, so it always read 0. Exit 2 is deliberately distinct from 1 (ran, found something) because a caller that cannot tell those apart is how this started. Extracted from an inline YAML heredoc, where nothing could import or test it.",
+      "implementation": "scripts/audit-summary.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/security-audit.yml"
+      ],
+      "prevents": [
+        "SEC-136",
+        "SEC-79"
+      ],
+      "escape_hatch": "none - a report that cannot be read is not a clean audit; fix the report or the redirect",
+      "added": "2026-08-12"
+    },
+    {
+      "id": "CTL-051",
+      "name": "Module dependency policy (layers, mustNot, mayDependOn)",
+      "defect_class": "declared-but-unenforced-architecture",
+      "summary": "Enforces the dependency architecture modules.json already declared. Every module carries a `layer`, a `mayDependOn` and a `mustNot`, and the manifest states the policy explicitly - edge src->dst is allowed iff layer(dst) < layer(src) or dst is in declaredSameLayer[src], with upward edges FORBIDDEN ABSOLUTELY. Nothing read any of it: all 21 modules carried \"enforced\": false and no script or test consumed that field, so the manifest described an architecture rather than constraining one. Three rules, deliberately independent so that renumbering a layer cannot silently legalise an edge another declaration forbids: (1) the layer rule; (2) `mustNot`; (3) `mayDependOn` - KAN-415 C2's no-undeclared-module-dep, which catches what rule 1 structurally cannot, since a DOWNWARD edge is legal at every layer and without it any module may quietly acquire a dependency on any lower one. Measured across the 62 cross-module edges: 12 violate the layer rule or mustNot; 50 are declared in mayDependOn, 9 sit in mayDependOnCandidatesPendingDecision and are reported as a distinct `pending-decision` kind (the manifest's own record that the question is open, as against plain drift), and 3 were declared nowhere. Before touching the graph it judges the MANIFEST against itself and refuses to proceed on a contradiction - a grant the layer rule overrides is not a permission but a comment, and trust-safety.mayDependOn held exactly one: `admin`, an L3->L4 edge the same file calls forbidden absolutely, simultaneously listed as an open question. Contradictions are NOT baselineable and --write-baseline refuses to launder one, because a baseline records an accepted violation OF the policy and an incoherent policy has nothing to violate. Module-level cycles (access<->admin, admin<->trust-safety, age<->auth, profile<->recommendations - invisible to depcruise's file-level no-circular) are covered by rule 1 rather than a fourth rule: each is one legal downward edge plus one upward edge already flagged. Deliberately not a dependency-cruiser rule - the policy is a function of JSON fields across 21 modules, which as regexes would be ~400 generated pairwise rules going stale on every layer change; depcruise still produces the graph, this classifies it. Two-way ratchet with a third arm: a NEW violation fails, a baselined one that has been FIXED fails as stale, and a baselined edge that starts violating for an ADDITIONAL reason fails as CHANGED - `kinds` is part of the comparison, so a newly-added rule cannot arrive pre-suppressed on every edge already listed. Fails closed (exit 2, distinct from 1) on an unreadable manifest, an empty or unparseable graph, or a missing baseline.",
+      "implementation": "scripts/check-module-layering.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425"
+      ],
+      "escape_hatch": "none - move the shared code down a layer, or declare the dependency in modules.json if the architecture is what changed; an accepted violation goes in modules-layering-baseline.json via --write-baseline, never by hand. A manifest contradiction has NO escape hatch at all: fix modules.json.",
+      "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-052",
+      "name": "npm-audit gate, scoped and waiver-aware",
+      "defect_class": "availability-dependency-masquerading-as-a-quality-gate",
+      "summary": "SEC-105. `npm audit --audit-level=high` ran FULL-TREE at five blocking sites - pr-checks plus all four deploy workflows - while the production dependency tree had 0 vulnerabilities at every severity and 973 of 1249 resolved packages were dev-only. It was also the only gate in the estate keyed on a THIRD-PARTY FEED rather than on Lyra's own code: every other control can only be tripped by a change in the PR, this one went red overnight on an unchanged repo when somebody else published an advisory. In deploy-production.yml it sat in `lint-and-unit-tests`, a transitive `needs:` ancestor of the deploy job, so a rescore killed the release before any other step ran. The cost was paid in unshipped security fixes: SEC-88 froze the pipeline ~11 days with 40+ CI-green PRs queued and twelve tested security fixes left live-vulnerable in every environment, across six outages in five weeks (SEC-89/90/91/92/94/97). The gate also manufactured risk - SEC-94's blanket brace-expansion pin crashed `npm run lint` and needed three nested scoped overrides to work around. This control replaces it: prod-tree scoped, blocking, in pr-checks ONLY; removed from all four deploys, which re-audited a lockfile the PR gate had already passed (every tree reaching them arrived via a PR, per SEC-98 + main-chain-guard) and so added no information and one spontaneous-failure window; full tree still audited weekly by security-audit.yml, which now opens or updates a labelled GitHub issue rather than only emailing. NOTE `--omit=dev` is NOT 'what ships' - npm's split is a DECLARATION, and minimatch/brace-expansion/fast-uri reach the prod tree via @sentry/nextjs bundler plugins and postcss via next, all build-time tools that never execute in the serverless runtime; it is a far better risk proxy than the full tree, not a clean runtime boundary. An unfixable advisory is a decision, not a bug: security/npm-audit-waivers.json carries advisory + package + severity + ticket + owner + reason and a dated `expires` that FAILS the build on lapse (fails CLOSED, unlike Snyk, whose docs concede a malformed expiry persists indefinitely). A waiver names ONE package and does not transfer to another package sharing the advisory. Waivers are two-way: one matching nothing is STALE and fails - asserted only under --scope full, the run with complete information, since a prod-scope run cannot see a dev-only advisory and only warns. Fails closed (exit 2, distinct from 1) on empty output, unparseable JSON, an npm error envelope, or any document lacking metadata.vulnerabilities - 'no findings' and 'no measurement' must not look alike, which is SEC-136. SEC-140 (2026-08-14) — BOUNDED RETRY ON TRANSIENT FAILURE ONLY. Because this gate reaches a third-party registry it is the one control here that can go red with NO change to the PR, and it did: an unreachable registry returned an npm error object with an empty summary and detail, the gate correctly refused to call that clean, and a PR with 3830 green tests was blocked. The same tree audited clean minutes later with only a docstring changed. That is recurrence SEVEN of the class in SEC-101's root-cause table (SEC-89/90/91/92/94/97); SEC-105 had fixed the blast radius and left the class. run_audit now retries up to AUDIT_ATTEMPTS with backoff, but ONLY for network-shaped failures - the process failing to launch, empty stdout, and the npm error envelope - each tagged retryable=True at its raise site rather than matched on message text, because a message-matched retry would silently begin retrying a real finding the day someone reworded a string. A deterministic failure (unparseable JSON, missing metadata.vulnerabilities, npm<7 format) is NOT retried: three attempts would spend minutes reaching the identical answer, and a gate that is slow for no reason is one people learn to skip. Exhausted retries STILL exit 2 - a retry that gave up and reported clean would be strictly worse than no retry. The fix is deliberately not 'make the gate advisory': a production tree needs a blocking audit, and switching off a control that fired for the wrong reason is this estate's single most-repeated mistake. The retry notice is routed through a `notify` seam rather than printed directly, because the self-test's own transient fixtures were annotating the run summary of EVERY green PR four times over. Four standing ::warning:: on a passing build is how people learn to scroll past warnings, which is the same erosion that lets a switched-off control keep looking fine (SEC-79). The self-test collects the notices and prints one summary line instead, and the jest layer asserts BOTH that the line reports a non-zero count (the loop ran) and that a green run emits zero ::warning:: (no standing noise).",
+      "implementation": "scripts/check-npm-audit-gate.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/security-audit.yml"
+      ],
+      "prevents": [
+        "SEC-105",
+        "SEC-88",
+        "SEC-94"
+      ],
+      "escape_hatch": "security/npm-audit-waivers.json - advisory + package + severity + ticket + owner + reason and exactly one of `expires` (fails on lapse) or `review_by`, governed by CTL-025. Empty is the correct steady state. There is no hatch for a prod-tree HIGH that has a fix available: fix it.",
+      "self_test": "Mutation-proven 2026-08-13: a prod-tree HIGH blocks; a MODERATE does not; a matching waiver clears; a waiver does not transfer to another package or another advisory; a stale waiver fails under --scope full and warns under --scope prod; an unparseable report exits 2; re-adding npm audit to a deploy workflow, unwiring the PR gate, and removing the weekly issue each turn the suite red. SEC-140 added 9 cases and they were mutation-proven at BOTH layers, which is how a real defect in them was found: the block was first inserted AFTER the self-test's `if failures:` check, so all eight assertions appended to a list nothing read. Removing the retry, making exhausted retries report clean, and making deterministic failures retryable ALL still passed. Moving the block above the check made every mutation red - three self-test cases for the first, one each for the others - and the jest layer catches the same removal in three of its twenty. The jest test asserts the retry WARNINGS appear during --self-test, so it measures that the loop ran rather than that its cases exist.",
+      "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-053",
+      "name": "No deep module imports (declared API surface)",
+      "defect_class": "module-that-is-really-just-a-directory",
+      "summary": "KAN-415 C2 `no-deep-module-import`. CTL-051 constrains WHICH modules may depend on each other and says nothing about which FILES a permitted dependency may reach, so a consumer could import any file of any allowed module. Measured when this landed: 304 files across 21 modules, of which only 54 are imported from outside - the other 250 were internals in fact and public in policy, and any of them could acquire an external consumer with nothing going red. That gap is the difference between a module and a directory. Asserts that every import crossing a module boundary lands on a file listed in the target's `declaredApi`. TWO-WAY, and the second half is the point: a declaredApi entry nothing outside the module imports is STALE and fails, so the public surface RATCHETS DOWN rather than only growing - without it declaredApi would be a suppression list. Seeded from measurement (the 54 real crossings) so it ships at zero violations, which is not circular: a control red on the day it lands is one someone turns off, and the value is forward-acting - the next deep import fails and the fix is either to route through an existing entry point or to add a reviewed line to modules.json. Plan 4.5 prescribes exactly this basis, an API of 'the symbols measured as consumed, not what looks tidy'. Deliberately NOT tsconfig aliases: KAN-432 established that an alias only governs imports written in alias form, so a relative specifier (../../modules/x/internal/thing) resolves and type-checks regardless - aliases catch the honest mistake and miss the shortcut. Reading the resolved graph sees both, and needs no index.ts to exist (there are none; creating 21 plus their aliases would rewrite every import in the app for enforcement this provides directly). Has NO --write mode on purpose - regenerating policy from observation would mean every deep import legalises itself on the next run and the gate could never fail; --suggest prints and a human commits. Fails closed (exit 2, distinct from 1) on an unreadable manifest, a manifest with no modules, or an empty/unparseable graph.",
+      "implementation": "scripts/check-module-api.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425",
+        "KAN-432"
+      ],
+      "escape_hatch": "add the file to that module's `declaredApi` in modules.json - by hand, reviewed. There is no marker and no baseline: widening a module's API should be a visible decision, not a suppression.",
+      "self_test": "Mutation-proven 2026-08-13. Removing the sanitise entry from the guards module's declaredApi turns its real consumers into DEEP imports (exit 1). Declaring a genuinely-internal convene file - precondition asserted, not assumed - fails as STALE (exit 1); the first attempt at that proof picked an already-declared file, so the byte-level 'mutation applied' check passed while the intended condition was never created. --suggest leaves modules.json byte-identical. An empty graph exits 2.",
+      "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-054",
+      "name": "Edge-safe middleware bundle",
+      "defect_class": "runtime-mismatch-invisible-in-the-import-chain",
+      "summary": "KAN-415 C2 `edge-safe`. src/middleware.ts runs in the Edge runtime, which is not Node: no fs, no crypto module, next/headers is a Server Component API that throws there, and the full @supabase/supabase-js client is the wrong one (@supabase/ssr is the Edge-safe path and is what the middleware uses). The hazard is that NOTHING IN THE IMPORT CHAIN ANNOUNCES ITSELF AS EDGE CODE - a gate file three or four hops from middleware looks like any other module file, so adding a Node-only import to it breaks every request through the gate pipeline, at request time, on a deployed environment rather than at build time. Asserts that no file transitively reachable from an edge entry point imports a banned specifier: any node: builtin, the classic bare builtins, next/headers, and @supabase/supabase-js. Measured when it landed: 23 files reachable from middleware.ts importing exactly three external packages (@supabase/ssr, jose, next/server), all Edge-safe - zero violations, so it ships blocking rather than baselined. Scoped to the REACHABLE SET, not the repo: node:crypto is perfectly legal in Node-runtime code and src/modules/age/didit.ts uses it today, so a repo-wide scan would be red on correct code. A banned list rather than an allowlist, because an allowlist fails on every legitimate new package and a gate that fires on legitimate work is one people learn to wave through. Comments are stripped before matching (CTL-039): this script's own docstring names every banned specifier, and a scan that punished writing the explanation down would be pointed the wrong way. VACUITY GUARD: fewer than 8 reachable files exits 2, because a traversal that silently reached nothing reports zero findings and a green tick, indistinguishable from a clean bundle. Fails closed (exit 2, distinct from 1) on an unusable graph, a missing or renamed entry point, or a collapsed bundle.",
+      "implementation": "scripts/check-edge-safe.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415",
+        "KAN-425"
+      ],
+      "escape_hatch": "none - use an Edge-safe equivalent (@supabase/ssr, Web Crypto, NextRequest headers) or move the work out of the middleware's import chain. There is no marker: a Node-only API in the edge bundle is not a style question.",
+      "self_test": "Mutation-proven 2026-08-13: a node:crypto import added THREE HOPS from middleware, in an ordinary-looking gate file, turns the check red (exit 1) and names the file and line; a graph where middleware reaches nothing exits 2 rather than reporting clean; an entry point absent from the graph exits 2; and a banned import in a file OUTSIDE the bundle correctly does not fire.",
+      "added": "2026-08-13"
+    },
+    {
+      "id": "CTL-055",
+      "name": "Module table ownership",
+      "defect_class": "ownership-map-that-nothing-reads",
+      "summary": "KAN-415 SS4.3. `modules.json` has carried an `owns.tables` / `owns.rpcs` list for every module since the manifest was written, and until this landed NOTHING READ THEM - 242 non-`profiles` `.from()`/`.rpc()` call sites against an ownership map no code consulted. An ownership map that nothing enforces is documentation, and documentation describing a boundary is indistinguishable from an enforced boundary right up until someone crosses it. Asserts that every database call sits in a module that declares the table it touches. THE POINT IS THAT IT SEES WHAT CTL-051 AND CTL-053 CANNOT: those constrain the IMPORT graph, this constrains the DATA graph, and Convene is the proof they are different boundaries - it is the best-contained module in the estate (2 declared entry points, every outward edge legal and downward, both enforced two-way) and still reaches 3 tables owned by other modules. TWO-WAY RATCHET on supabase/table-ownership-baseline.json: the 56 pairs present at landing are grandfathered so it ships green (a control red on day one is a control someone turns off), a NEW pair fails, and a baselined pair that has been FIXED fails as STALE so the list can only shrink. The baseline COMPUTES a `_concentration` field at write time rather than carrying a typed number, because 29 of the 56 pairs come from one file - the account erasure/export path, which touches every table a user has data in by definition - and without that figure the baseline reads as 56 boundary breaks and invites a cleanup that would be wrong. `profiles` is EXCLUDED BY POLICY, not omission: it is co-owned at COLUMN granularity (8 modules, 37 of 42 columns, zero bogus claims) with no module owning the table, so table-granularity enforcement would flag all 68 of its call sites; and COLUMN-granularity enforcement was considered and rejected because it cannot be done honestly in static analysis - 6 of 18 `profiles` writes pass a variable rather than a literal, so a gate covering the other 12 would report clean over exactly the shape BUGS-74 was. That contract is pinned at runtime by tests/unit/partial-write-safety.test.ts instead. Reads TRACKED state via git ls-files, never a disk walk, because `git mv` leaves the source directory behind empty. Commented-out calls are skipped (CTL-039) so the prose explaining a removed access cannot re-create the finding. VACUITY GUARD: fewer than 60 call sites exits 2, because a detector that has stopped matching reports zero violations and a green tick, indistinguishable from a clean estate. READ/WRITE CLASSIFICATION (2026-08-14): `owns` means 'may WRITE', so a cross-module READ is legitimate and a cross-module WRITE is the real boundary break. Measured: 44 read, 12 write. Without the split the baseline is a flat list of 56 'boundary breaks' of which 44 are fine, and demanding a ticket and expiry on all 56 - which KAN-415 criterion 2 asks for literally - would be a renewal ritual, which is how a ratchet decays into a suppression list. THE THIRD FAILURE MODE, ESCALATED, is what the first cut could not see: a pair is keyed `module -> table`, so a baselined READ that quietly became a WRITE kept its key, the pair count did not move, and the control stayed green - a module beginning to mutate state it does not own with nothing going red, which is the BUGS-74 shape. De-escalation (write -> read) fails as STALE too, so the record follows the code both ways. AN UNDECIDABLE STATEMENT IS CLASSIFIED `write`, NEVER `read`, and that direction is the whole design: a write misfiled as a read sits in the accepted bucket where it can never be caught escalating, because it was already a write; an over-flagged read costs one annotation. The `basis` field records HOW each verdict was reached - `mutation-call` (hard evidence: a literal .insert/.update/.upsert/.delete), `rpc-undecidable` (the function body is SQL, not in this import tree), `opaque-builder` (the builder was assigned to a variable and mutated elsewhere, which static analysis cannot follow). Of the 12 writes, 7 are mutation-call and 5 are conservative; `account -> search_by_contact_hash` is provably `return query select` in supabase/migrations/ and is a deliberate over-flag. Labelling it matters because a list of 12 'boundary breaks' containing one unexplained false positive is a list people stop trusting.",
+      "implementation": "scripts/check-module-table-ownership.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415"
+      ],
+      "escape_hatch": "Two, both visible and reviewed: add the table to that module's `owns.tables` in modules.json (a one-line diff a reviewer can weigh), or record the pair with `python3 scripts/check-module-table-ownership.py --write-baseline`. There is deliberately no inline comment marker - a per-pair judgement belongs in a file someone can read end to end, not scattered across the call sites it excuses.",
+      "self_test": "21 in-process cases via --self-test, plus 34 subprocess cases in tests/scripts/check-module-table-ownership.test.js driving fixture git repos through the seams for root, manifest and baseline (so a fixture failing means the CHECKER is wrong, not that this repo's manifest changed - the mistake CTL-053's first draft made). Mutation-proven against the real tree 2026-08-14: a NEW unowned access added to a trust-safety file goes red (exit 1) naming convene as the real owner; disabling the single convene -> refresh_relationship_signals call makes its baseline entry fail as STALE; breaking the call-site regex exits 2 rather than reporting a spotless estate; and a `profiles` access changes neither the count nor the verdict. The read-vs-write layer was mutation-proven separately 2026-08-14: appending a real `.update()` to src/app/[slug]/page.tsx - a file whose `public-profile -> profile_items` pair is baselined as a READ - turns the check red as ESCALATED while the pair count stays at 56, which is precisely why the un-split version stayed green. Its tests were mutation-proven too: removing escalation detection reddens 3 of 34, classifying an undecidable statement as `read` instead of `write` reddens 2, and dropping the any-site-writes upgrade reddens 11. The TEST SUITE was mutation-proven too - inverting the ownership comparison reddens 7 of 20, removing the comment skip reddens 3, and downgrading the missing-baseline path from exit 2 to exit 0 reddens 1.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-056",
+      "name": "Route thinness (app-routes-are-thin)",
+      "defect_class": "request-entry-point-doing-data-access",
+      "summary": "KAN-415 criterion 2 names nine dependency rules. Eight are enforced (two by depcruise, four by CTL-051/053/054, and platform-is-a-leaf plus backoffice-not-in-request-path fall out of CTL-051's layer model). `app-routes-are-thin` was the ninth and was NEVER BUILT, because 'thin' was never defined. Measured at landing: 99 route-ish files under src/app (page/layout/route/*actions), 48 of them making 217 direct database calls, LOC median 102 and max 1060. DEFINED AS A RATCHET, NOT AN ABSOLUTE. 'A route makes no direct database call' is the right end state and the wrong gate: it is a 48-file, 217-call relocation programme - precisely the work criterion 3 concluded was unnecessary once CTL-055 could assert table ownership WITHOUT moving files - and a rule that reddens 48 files on day one is a rule someone turns off, which this estate has six documented instances of ending badly. So the direction is stated and the movement is enforced: the count may only shrink. KEYED PER FILE, NOT A TOTAL - a single aggregate would let one file improve while another regressed and net out to green, the same blindness CTL-055 had before ESCALATED. NOT a duplicate of CTL-055: that asks whether the module owns the table (the data graph), this asks whether data access happens in a request entry point at all (where code lives); a call can pass CTL-055 and fail here. ⚠️ ITS PATTERN IS DELIBERATELY NOT CTL-055's. Borrowing the quoted-identifier regex undercounts silently: it misses supabase.storage.from('profile-files') (7 real sites, hyphenated bucket names) and .from(someVariable) entirely. This matches any .from/.rpc call and excludes the JavaScript builtins by receiver - Array.from and Buffer.from appear 8 times in these files and are not database calls. Excluding by receiver rather than argument shape is what lets it stay loose enough to catch a dynamic table name.",
+      "implementation": "scripts/check-route-thinness.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-415"
+      ],
+      "escape_hatch": "none by annotation - move the query into the owning module and call it from the route. An accepted count goes in supabase/route-thinness-baseline.json via --write-baseline, never by hand, and it may only shrink.",
+      "self_test": "16 in-process cases via --self-test, covering route detection, comment exclusion, and all four ratchet directions (NEW / WORSE / STALE-shrunk / STALE-fixed). Two cases pin the pattern traps specifically: Array.from and Buffer.from must NOT count, and a hyphenated storage bucket plus a variable table name MUST. Mutation-proven 2026-08-14: removing WORSE detection, removing NEW detection, dropping the builtin exclusion, and counting commented-out lines each redden the self-test. Proven on the real tree too - appending one supabase.from('profiles').select() to src/app/api/health/route.ts turns the gate red as NEW, exit 1.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-057",
+      "name": "Production release is tagged",
+      "defect_class": "release-shipped-without-an-identifier",
+      "summary": "Asserts main's HEAD carries a release tag, checked from OUTSIDE promote-to-production.yml. That workflow can finish green with `Create release tag` SKIPPED: a deploy parked on the SEC-106 required-reviewer gate is treated as terminal (deliberately - failing it once fired a spurious auto-rollback on 2026-07-31, run 30666194572, which then died on a Vercel 409), so the promote exits 0 with deploy_state=awaiting-approval and the tag job never runs. It prints 'skipped, not passed' and names the remedy; nothing checked that anyone performed it. Measured 2026-08-14: SEVEN of the last fourteen production releases are untagged, and every untagged one postdates the reviewer gate landing on 2026-07-30 - so for two weeks `git describe --tags`, the authoritative version here because package.json drifts (gotcha #12, BUGS-89), was wrong for about half of production with nothing red. Deliberately a DETECTOR of the end state rather than a change to the promote's exit condition: BUGS-97 proposes failing the wait step, but auto-rollback is `if: failure()` over `needs: [verify-source, smoke-tests]`, so getting that wrong reintroduces a spurious production rollback - worse than an untagged release. States BUGS-97's own principle: a workflow cannot be the only witness to its own completion.",
+      "implementation": "scripts/check-release-tagged.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/release-integrity.yml"
+      ],
+      "prevents": [
+        "BUGS-97"
+      ],
+      "escape_hatch": "None, and deliberately none. The remedy is to create the missing tag by re-running promote-to-production.yml once the deploy has completed - a release that cannot be identified is not a state worth suppressing. The only latitude is --grace-minutes (default 40), which covers a promote that has merged but not yet reached its tag job; inside that window the check WARNS and exits 0, and says so, rather than skipping silently.",
+      "self_test": "10 cases via --self-test, each driving the real script as a subprocess against throwaway git repos so `git tag --points-at` is genuinely exercised rather than stubbed (CTL-038). Covers: a tagged head passes; a YOUNG untagged head warns and exits 0; an OLD untagged head (forced with --grace-minutes 0) FAILS and names both BUGS-97 and the remedy; a tagged head still passes at grace 0, so the gate is not always-fire; an unresolvable ref exits 2 rather than reporting clean; and --report refuses an empty corpus instead of printing '0 untagged' (catalogue failure mode 4). That fail-closed case caught a REAL bug in the first draft: `git rev-parse bad-ref` exits non-zero but ECHOES THE REF NAME, so a truthiness check accepted 'no-such-branch' as a SHA and reported a missing branch as an untagged release - a finding invented from a typo. Fixed with `rev-parse --verify <ref>^{commit}` plus a 40-hex assertion. Proven against reality 2026-08-14 rather than fixtures alone: green on the live main branch at v0.1.97, and RED on c8662fbe (the untagged 2026-08-13 release, 824m old).",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-067",
+      "name": "Release tag is created when the DEPLOY completes",
+      "defect_class": "release-shipped-without-an-identifier",
+      "summary": "Creates main's release tag from the production DEPLOY's completion rather than from the promote's, which is the CAUSE that CTL-057 detects. promote-to-production.yml's release-tag job needs smoke-tests, which needs wait-for-deploy to have reported 'deployed'; a deploy parked on the SEC-106 required-reviewer gate makes wait-for-deploy exit 0 with awaiting-approval (correct and deliberate - failing it once fired a spurious auto-rollback), so BOTH downstream jobs are SKIPPED. The founder then approves, the deploy succeeds, and nothing returns to tag because the promote run finished long ago. Since the reviewer gate landed 2026-07-30 that is the NORMAL path, so effectively every release went untagged. Observed end to end 2026-08-16: promote run 31965557264 green with both jobs skipped, deploy run 31965575474 green, main untagged. Triggered BY the deploy rather than hosted IN it, preserving BUGS-97's principle that a workflow cannot be the only witness to its own completion. Two REFUSALS carry the weight and are what a naive 'deploy went green, tag main' gets wrong: a deploy whose head_sha is not main's current HEAD is refused (exit 1) because tagging HEAD would attach a version to code that deploy never verified, and an already-tagged HEAD is a no-op rather than a second tag - which is what makes the deliberate overlap with promote-to-production's own release-tag job safe. Fails CLOSED (exit 2) on any input it cannot decide, including an unparseable last tag, rather than inventing a version. The decision lives in a script, not inline YAML, because an inline run: block is reachable by no test - the shape that let BUGS-103's soak probe stay red four days.",
+      "implementation": "scripts/decide-release-tag.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/release-tag-on-deploy.yml"
+      ],
+      "prevents": [
+        "BUGS-104",
+        "BUGS-97"
+      ],
+      "escape_hatch": "None. There is no legitimate case for a verified production deploy to leave main unidentifiable. The two non-tagging outcomes are decisions, not escapes: an already-tagged HEAD is a no-op, and a deploy for a superseded SHA is REFUSED with the mismatch named.",
+      "self_test": "11 cases via --self-test, driving the real decision function, with a corpus FLOOR rather than a passed-of-total tally (which stays reassuring when the total silently drops). Plus 19 jest cases in tests/scripts/decide-release-tag.test.js driving the script as a subprocess. Mutation-proven in three directions, each mutation confirmed applied by cmp before the run was trusted and each restore confirmed byte-exact: removing the head_sha equality check reddens 2; removing the idempotency check reddens 2; tagging on a non-success conclusion reddens 5.",
+      "added": "2026-08-16"
+    },
+    {
+      "id": "CTL-059",
+      "name": "A CI finding describes the failure it actually had",
+      "defect_class": "annotation-misdescribes-the-failure",
+      "summary": "db-invariants.yml's ledger-parity job raised its finding under a bare `if: failure()`, so EVERY non-zero exit printed the divergence story - 'the repo and a database no longer agree ... someone applied SQL that was never committed ... commit the migration SQL'. On 2026-08-14 the dev project returned HTTP 403 and the check exited 2, which means 'I could not read a ledger' and says nothing whatever about agreement. The annotation nonetheless sent the reader hunting for an uncommitted migration that did not exist, on three separate days. That job's own header explains why this matters: it is SEPARATE from the `invariants` job precisely because 'a finding that describes itself wrongly is how an operator learns to skim the annotations'. The handler was doing the exact thing the job was split up to avoid. The compare step now publishes its exit code and the handler branches: exit 1 keeps the divergence text, exit 2 gets a 'could not READ' message that explicitly warns the reader OFF looking for a missing migration, and anything else gets a third branch saying the guidance does not apply - without that fallback a broken interpreter would produce a red run with NO annotation, which reads as infrastructure noise. The script's HTTP error now carries the response BODY. `exc.reason` for a 403 is the literal string 'Forbidden', and this endpoint has two 403 sources needing opposite responses: Cloudflare bot protection (transient; the User-Agent header exists for it) versus Supabase refusing the token's scope (not transient). They are told apart ONLY by the body. ⚠️ Numbered 059 rather than 058: SEC-141's branch had already claimed 058 for the promote concurrency guard. Both branches computed 'next free' from develop, which carried neither, so the registry validator - which reads one working tree - could not see the collision. When two controls are in flight at once, check the sibling BRANCH, not just the merge base.",
+      "implementation": "tests/scripts/ledger-parity-messaging.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-137"
+      ],
+      "escape_hatch": "none - a wrong finding is worse than no finding.",
+      "self_test": "9 cases. Comments are STRIPPED before every source-text match, and that was not defensive writing: the `set +e` assertion failed on first run because the run block's own comment says '`|| rc=$?` rather than `set +e`' - CLAUDE.md catalogue failure mode 2, hit while writing the test for it. Mutation-proven 2026-08-14: reverting the handler to unconditional divergence text, dropping the exit-code output, and swallowing the failure each redden the suite. ⚠️ A FOURTH mutation initially did NOT redden it - deleting `{detail}` from the raised HTTP message passed, because the test asserted `exc.read()` and 'body:' appeared ANYWHERE in the file and the code computing them was left intact above the raise. The parts existing is not the same fact as the parts being used. The assertion now targets the raise expression itself and the mutation reddens it.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-058",
+      "name": "Promote workflows are serialised",
+      "defect_class": "release-automation-races-itself",
+      "summary": "The three promote workflows declared no `concurrency` block, so two runs of the same promote could execute simultaneously. Observed 2026-08-14: a single workflow_dispatch of promote-staging-to-beta produced TWO runs 63 seconds apart. Each promote fetches, merges and pushes, so two in flight sit in the classic lost-update window - one can push over the other's merge, or a promote can act on a ref the sibling run has already moved. That day the outcome was harmless only because someone was watching the run list and cancelled the duplicate by hand, which is not a control. The duplicate dispatch is the SYMPTOM and its cause is unconfirmed - a client retry on a slow 204 is the leading hypothesis, and GitHub's dispatch API is documented at-least-once rather than exactly-once. Chasing the cause is the wrong instinct: the guard makes the cause irrelevant, and covers every future source of a double fire including a human double-click. Each workflow gets its OWN group via `promote-${{ github.workflow }}` - staging to beta and beta to main target different branches and are genuinely independent, so a shared literal group would only make a release slower without making it safer.",
+      "implementation": "tests/scripts/promote-concurrency.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-141"
+      ],
+      "escape_hatch": "None. In particular `cancel-in-progress` may not be flipped to true - that is the reflexive choice and is actively worse here, because it would kill an in-flight promote MID-MERGE OR MID-PUSH, a nastier failure than the race it prevents. With false the second run queues, then finds the merge already done and no-ops harmlessly. A future edit to true would read as a tightening and would likely be waved through at review, which is exactly why a test holds it rather than a comment alone.",
+      "self_test": "9 Jest cases. The workflow corpus is DISCOVERED by globbing promote-*.yml rather than hand-listed, so a fourth promote workflow landing tomorrow is covered on arrival; the first case asserts the discovered corpus is exactly the three known files, because every other case iterates it and an empty corpus would report clean while checking nothing (catalogue failure mode 4). Assertions parse the YAML rather than grepping text, so a commented-out concurrency block cannot satisfy them (catalogue failure mode 2). The load-bearing case is cancel-in-progress being false, not merely present. A fifth case pins the REASONING in each workflow file - if someone deletes the explanation they lose the argument for the value, so the explanation is part of the contract. Mutation-proven 2026-08-14 and the mutation was not hypothetical: the first commit on this branch shipped the test and this registry entry WITHOUT the three workflow edits, and CI turned all nine cases red with `concurrency.group: undefined`. GAP, stated rather than hidden: scripts/check-control-registry.py rule 4 sweeps the scripts directory (the check-*.sh and check-*.py globs) and requires every control script it finds to be registered, but it has no equivalent sweep for controls implemented as TEST FILES. This entry was lost once (a `git stash pop` restores the working tree but not the index) and the registry check stayed green throughout, because an unregistered test-kind control is invisible to it. The test itself still ran and still guarded the workflows; what was missing was the feedback-loop memory.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-060",
+      "name": "SAR export covers every person-keyed table",
+      "defect_class": "completeness-check-that-copies-the-thing-it-checks",
+      "summary": "exportUserData() answers a UK-GDPR Art.15/20 request, and deleteAccount() relies on FK cascade to erase every person-keyed table. The two drifted, and the test that existed to stop exactly that drift (tests/unit/sar-export-completeness.test.js) hard-coded an 18-entry list copied from the export itself, so it discovered nothing from the schema and could only ever agree with the code it was checking. Proven by mutation in both directions before the fix: ADDING a table to the export left it 24/24 green, so the additive direction held no opinion at all. The failure mode is the dangerous one - no query errors, so no export_incomplete_errors key is emitted either, and an incomplete response is indistinguishable from a complete one to both the member and the operator. The replacement derives the person-keyed set by scanning src/types/database/prod.ts for seven person-keying columns and asserts a non-empty corpus floor (> 20) BEFORE iterating, because a derived list that silently comes back empty registers zero tests and reports green. Deriving rather than listing is what found the true scale: 14 tables were missing, not the 9 the ticket named.",
+      "implementation": "tests/unit/sar-export-schema-completeness.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-117"
+      ],
+      "escape_hatch": "none for the assertion - a table that genuinely must not be exported goes in DELIBERATELY_EXCLUDED in src/modules/contracts/person-keyed-tables.ts with a written reason (the live-credential oauth token tables, and moderation_logs under its ON DELETE RESTRICT Art.17(3)(b) retention). Never widen the test to make a red build pass; that is how the original defect was born.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-062",
+      "name": "Routine run-logs carry fresh evidence",
+      "defect_class": "routine-output-discarded-while-the-routine-reports-green",
+      "summary": "Asserts that the newest dated row in each of the three routine run-logs is within that routine's own cadence budget, where the budget is READ from the watchdog registrations already published in docs/OPS_ROUTINES_CONTROL_ROOM.md rather than invented here; a routine with no registration is reported as unmeasurable, never guessed. THE POINT IS THE QUESTION IT ASKS. Every other routine control asks 'did the routine run?' - the Confluence heartbeat, scripts/routine-watchdog.sh, CTL-042's workflow-liveness check. Not one asked 'did its output survive?'. Throughout SEC-146's ten-day gap all of them were correct and green, because the routines WERE running; the evidence simply never reached the repository, since all ~24 run-log PRs were opened as DRAFTS and a draft cannot auto-merge or be merged until a human marks it ready. It lives in the repo rather than inside a routine deliberately: a check a routine performs on its own output dies with that routine, which is the SEC-79 shape one level up, and the repo log is also the copy that survives a wiki incident (BUGS-100 wiped the Control Room page on 2026-08-13 while the repo mirror was ten days stale). NOT WIRED INTO pr-checks BY DESIGN: this control goes red with the passage of TIME rather than the contents of a diff, so in the PR gate it would fail every unrelated PR the moment a routine missed a day - the shape that froze the pipeline for about 11 days under SEC-88 (gotcha 23) and the shape of a gate someone switches off. FRESHNESS IS max(date), NOT the last row: the three logs disagree on ordering (two append at the bottom, one prepends at the top) and DAILY_SECURITY_CHECK's tail is genuinely out of chronological order, so a positional parser would need three rules and still be wrong. Re-sorting those rows to suit a parser would be editing dated measurements while claiming to tidy them - an earlier backfill attempt did exactly that and was thrown away. A row dated D is read as evidence produced at the END of day D, the most generous instant the cell supports, so the control cannot invent a finding out of intra-day timing nobody recorded; the stated cost is that a daily routine may be about a day and a half quiet before this fires, against a defect that was ten days wide. The only price of max is that one forward-dated row would hold the control green indefinitely, which is why a row dated after today is itself a finding.",
+      "implementation": "scripts/check-run-log-freshness.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/routine-evidence.yml"
+      ],
+      "prevents": [
+        "SEC-146"
+      ],
+      "escape_hatch": "None by annotation, and deliberately none. A stale run-log is fixed by landing the missing rows on develop, oldest first, with each row's original date and content preserved verbatim. The only latitude is the cadence budget itself, and that is not editable here - it is read from the Control Room mirror, so widening it is a visible change to the document the watchdog also reads, not a quiet edit to a checker.",
+      "self_test": "28 cases via --self-test, each driving the real scripts/check-run-log-freshness.py as a subprocess against a synthetic tree, so parsing, budget lookup, wording and exit codes are exercised together rather than stubbed (CTL-038). Three cases pin hazards the real documents actually contain and a reasonable parser gets wrong: a BLANK LINE inside the table (which per CommonMark terminates it, so an AST parser sees a fresh log as eight days stale), an out-of-order tail (read by max rather than by position), and a decoy first table (the run-log is never the first table in any of the three files). Others pin the fail-closed half: a missing log, a log that is not a regular file, a renamed table header, a table with no dated rows, a missing Control Room, a Control Room carrying no registrations, an unregistered routine, and two registrations disagreeing about one routine. Two cases assert the exit 1 and exit 2 vocabularies stay DISJOINT, per CTL-059 - 'I could not check' and 'I checked and it is stale' are different claims and must not read alike. MUTATION-PROVEN 2026-08-14 against the real documents with 33 assertions, restoring each time: deleting the ten August rows from docs/DAILY_SECURITY_CHECK.md reproduces SEC-146 and turns it red at exit 1 naming 2026-07-28; removing a log, replacing one with a directory, and renaming a table header each give exit 2 with the fail-closed wording and never the stale wording; and both defects at once exit 2 while still printing both findings. THE FIRST MUTATION WAS TOO WEAK AND SAID SO: aging only the newest row left the second-newest inside a 30h budget, so the control correctly stayed green - a one-row edit cannot age a 41-row log, and a mutation that applies is not the same as a mutation that is sufficient.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-063",
+      "name": "the publish write stays on a credential the user cannot wield",
+      "defect_class": "guard-that-cannot-distinguish-the-attack-from-the-product",
+      "summary": "SEC-112: profiles.is_published was writable by any authenticated user straight at PostgREST (table-level UPDATE grant to authenticated, 'Update own profile' RLS with a NULL with_check, no trigger on the column), bypassing publishProfile() and therefore the KAN-408 provider age gate. The fix is a BEFORE UPDATE trigger refusing any is_published change from a JWT-bearing caller. The trap this control guards is that the trigger and the code change are only safe TOGETHER: publishProfile() used createClient(), the anon key carrying the end user's session JWT, so the legitimate publish and the attack were the SAME credential. The trigger alone would have refused the real publish flow in every environment - the BUGS-60 shape, and exactly what the ticket's original implementation plan would have shipped, since it asserted the publish path was already service-role and it was not. So the write moved to createServiceRoleClient(), scoped by the server-validated user id. This test asserts BEHAVIOUR - which mocked client receives the update - rather than scanning actions.ts for the factory name, because the file now carries a long comment explaining the fix and a source-text scan of it would be satisfied by that prose (CTL-039 / gotcha #29). Anyone who 'tidies' the write back onto the user client reddens it. Mutation-proven: reverting that one line turns 2 of 5 cases red. The other half - that the trigger is actually RUNNING on each database - is INV-9 under CTL-024, because a migration reaches a database via the Supabase MCP without passing through a PR.",
+      "implementation": "tests/unit/sec112-publish-profile-service-role.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-112"
+      ],
+      "escape_hatch": "none. If the publish write must ever leave the service-role client, the trigger has to be dropped in the SAME change or publishing breaks with 42501 - that coupling is the point, not an inconvenience to route around.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-061",
+      "name": "Ops-heartbeat Confluence page-id guard",
+      "defect_class": "monitoring-input-misdirected",
+      "summary": "Two Control Rooms are trivially confusable. 33554434 is the Backlog Autopilot Control Room, which has a section called 'Run ledger' of its own; the ops-routines Heartbeat / Run-ledger table that the routine-watchdog reads lives on the other page, 34275370. docs/OPS_ROUTINES_CONTROL_ROOM.md cited the Backlog Autopilot page as the heartbeat source, so an agent following the doc literally lands on the wrong page and either reports '-' for every routine (watchdog UNVERIFIED across the board) or reads the autopilot's Run-ledger rows as heartbeats - a FALSE PASS from the one control that detects a silently-dead routine. Three rules: R1 every mention of the autopilot page id must have 'Backlog Autopilot' within 200 chars; R2 a strong heartbeat-pointer phrase within 60 chars of it is a violation; R3 the anchor doc must state the ops-routines page id within 60 chars of such a phrase, so DELETING the correct pointer fails too rather than only substituting a wrong one. R2's first cut used the wide window and spared any match where the correct id also appeared in it; mutation proof killed that version - repointing the single line 'Heartbeat / Run-ledger table lives on ...' left the guard GREEN because the disambiguation prose two lines up bought the exemption. That mutation is pinned as a --self-test fixture and again as a sandbox case in the jest wrapper, applied to the real doc rather than a synthetic string. Windows are measured in characters across the file, not per line: a line-scoped first draft false-positived on three real files whose 'Backlog Autopilot' wraps to the previous line, and markdown decoration is normalised for the same reason. The phrase list is deliberately narrow ('heartbeat ledger', not bare 'heartbeat') so the registry row reading 'out of scope for the ops-heartbeat' and the docs-ledger row narrating this very defect both stay green - standing noise on the file that documents the fix is how a gate gets waved through. Two false-positive shapes were found by CI, not by the self-test, and both are now pinned as fixtures: R1 taken literally ('only ever named alongside Backlog Autopilot') flagged eleven correct sentences in docs/DAILY_SECURITY_CHECK.md - run-log rows written BY the Daily Security routine while working around this very defect, e.g. 'read from <correct id>, NOT the <wrong id> the prompt names'. R1 now also accepts naming the correct id in the same breath, because contrasting the two IS disambiguation; a sentence naming neither still fails. R2 gained exactly one exemption, an explicit negation inside the tight window, because '<wrong id>, which has no Heartbeat table' is the opposite of a pointer. Both mutations were re-run after the change and both still go red, the one-line repoint via R2. This is the KAN-167 rule applied to the guard itself: a control that fires on the prose documenting its own defect teaches people to wave it through. FINAL SCOPE, after a third CI round: R1 (mere disambiguation) runs estate-wide; R2 (the semantic 'is this a pointer' rule) runs ONLY on the pointer doc, docs/OPS_ROUTINES_CONTROL_ROOM.md. R2's question is only meaningful in a doc that tells an agent where to read; in a narrative run-log the correct sentence is a report OF the defect, and the Daily Security routine appends one on every run - so R2 estate-wide is permanently red or permanently annotated, which is the same thing as switched off. STATED GAP, recorded rather than hidden: if a doc other than the pointer doc starts pointing the heartbeat at the wrong page, only R1 covers it, and R1 is satisfied by naming the correct id nearby. Accepted - the realistic re-introduction vector is an edit to the pointer doc (exactly what BUGS-81 was) or to the stored routine prompt, which is outside the repo and which no CI check can see. The scoping has its own fixtures so that 'R2 fires' and 'R2 fires anywhere' stay distinguishable if POINTER_DOCS is ever widened. 20 self-test cases.",
+      "implementation": "scripts/check-heartbeat-page-id.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-81"
+      ],
+      "escape_hatch": "# heartbeat-page-id-ok: <JIRA-KEY> <reason> on the same line as the id. Intended for text quoting the original defect verbatim, never for a live pointer.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-064",
+      "name": "No committed script pushes to a release branch",
+      "defect_class": "change-control-bypass-shipped-as-a-convenience-wrapper",
+      "summary": "Fails any PR in which a TRACKED file under scripts/ runs `git push` to main, beta or staging. SEC-98 says production changes only via develop -> staging -> beta -> main; that rule lived only in CLAUDE.md while the repo shipped the promote-to-production and promote-to-staging wrappers, which between them held SIX direct pushes - three of them --force onto main - plus a next-step banner advertising staging -> main, skipping beta entirely. Both scripts are deleted by the change that adds this control; the control is the half that stops them returning, because a documented convention with no gate erodes (the staging-soak.sh mapfile lesson, gotcha #28). NO EXTENSION FILTER, and that is the ticket's own lesson turned into code: SEC-99 §1 declared the scripts unreferenced on the strength of a grep over *.md, *.yml, *.json and *.sh, and missed docs/lyra-project-reference.jsx, which presented both of them to a human reader as this repo's promote commands - a signpost to the bypass, which is worse than dead code. So every tracked file under scripts/ is read whatever it is named. MATCHING IS BY TOKEN EQUALITY, NOT SUBSTRING: a fixed-string match for `git push origin main` fires on check-workflow-integrity.sh:194, where that text sits inside a grep PATTERN - a control that detects the defect, misread as the defect - so a line counts only when a `git push` is followed by a token that, after quote-stripping and refspec resolution, is exactly a release branch. That also catches the evasions a fixed string misses: -f, HEAD:main, develop:staging, +main, refs/heads/beta. STATED GAP: .github/workflows/ is deliberately not scanned, because the three promote-*.yml workflows push to release branches legitimately and CTL-016 governs them; nothing outside scripts/ is covered.",
+      "implementation": "scripts/check-release-branch-push.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-99"
+      ],
+      "escape_hatch": "None by annotation, and deliberately none. Most controls here take an `# xxx-ok: <JIRA-KEY>` marker; under SEC-98 there is no legitimate direct push to a release branch from a committed script, so an annotation would be a suppression list for the one behaviour the control exists to forbid - and the real exception process is a two-step human gate in CLAUDE.md, which by definition is not a thing a script does. The supported path is `gh workflow run promote-*.yml`. If this ever false-positives, the fix is a narrower rule in the checker, visible in a diff.",
+      "self_test": "56 cases via --self-test, each driving check() against a real temporary git repository so tokenising, comment-stripping, file discovery and exit codes are exercised together rather than stubbed (CTL-038). 15 violating forms (bare, --force, -f, quoted, trailing semicolon, HEAD:main, develop:staging, +main, and a fully-qualified ref, indented, trailing comment) are each asserted twice - caught AND with the right branch named. 12 clean forms are pinned, six of them REAL LINES from scripts/check-workflow-integrity.sh and scripts/rollback-vercel.sh that a substring matcher fails on. Six cases prove there is no extension filter; one proves nested directories are scanned; one pins that untracked files are out of scope; one pins that .github/workflows/ is out of scope; two assert the fail-closed path uses the exit-2 vocabulary and not the exit-1 one (CTL-059 - 'I could not check' and 'I checked and it is broken' are different claims); one asserts every finding is reported rather than the first; and one runs the checker against this repository's own tree, so the checker becoming a violation itself is caught. NOTE ON THE FIXTURES: the violating lines are assembled from a `_PUSH` constant rather than written as literal text, because literal fixtures would make the checker violate its own rule - the CTL-061 failure, where a guard fired on its own registration prose. Assembling them keeps this file genuinely IN scope, scanned with no exclusion and no annotation. MUTATION-PROVEN 2026-08-14, four mutations, each reverted, each asserted to have actually applied first (the KAN-415 D7 lesson - a sed that matches nothing produces a green run indistinguishable from a green run). (1) Restoring the real deleted production promote wrapper verbatim from develop turns it red at exit 1, naming lines 77, 106 and 154 - exactly the line numbers SEC-99 §1 records. (2) Appending one `git push origin main --force` to the real scripts/rollback-vercel.sh turns it red at exit 1. (3) Neutering scan_line to always return None fails 18 of 56 self-test cases. (4) Dropping comment-stripping fails 2 cases, both false positives on documentation lines. ONE PARTIAL RESULT KEPT HONEST: removing the fail-closed precondition entirely (`if False:`) still exits 2, because the empty-tracked-corpus branch catches a missing scripts/ as a second line of defence - so that mutation is detected by the WORDING assertion (1 case) rather than by the exit code. The two paths overlap; only the message distinguishes them.",
+      "added": "2026-08-14"
+    },
+    {
+      "id": "CTL-065",
+      "name": "Production deploy drift — what is SERVING, not what is on main",
+      "defect_class": "merged-is-not-deployed-and-the-gated-run-never-fails",
+      "summary": "Reports how far the build production last SUCCESSFULLY deployed is behind origin/main, and names every deploy run parked awaiting the Production environment review. Measured 2026-08-16: checklyra.com had been serving 8a2d4681 (2026-08-14 12:21Z) while main was 029896a3 - two promotes and ~2 days behind - with two runs sitting in status=waiting. Nothing reported it, and nothing was broken: the promote workflow correctly reported completed success, because merging beta into main is all it does. The DEPLOY is a separate run, gated by SEC-106's required review, and a gated run waits INDEFINITELY WITHOUT EVER FAILING - so there is no red anywhere. check-release-drift.sh cannot see it: that measures develop -> main, both refs in the repo, and it was green throughout because after a promote main is exactly where it should be. It answers 'has work stopped flowing towards main'; nobody was asking 'is main actually serving'. The consequence is assurance, not tidiness - every claim that a fix shipped (a closed SEC ticket, a PROMOTED design state, a 'live in production' run-log line) rests on main containing the commit, and that inference was wrong about two promotes' worth of changes. Parked runs are reported EVEN WHEN the drift is green, so the notice arrives before the gap turns bad rather than after; each is printed with its run URL, because someone has to go and approve it and a number without a link is a number nobody acts on. STATED GAP: this reads GitHub's record of the run, not the live site - it does not assert the build is healthy or that Vercel serves that artefact (the gotcha #15 class, where a Worker version uploaded but never promoted). Liveness stays with health-check.yml per KAN-361.",
+      "implementation": "scripts/check-production-deploy-drift.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/weekly-report.yml"
+      ],
+      "prevents": [
+        "SEC-153"
+      ],
+      "escape_hatch": "None by annotation. The gap this reports is a state of the world, not a property of a diff, so there is nothing in a PR to annotate. Thresholds are arguments (--max-age-days, --max-commits) rather than a suppression list: a deliberately long freeze is expressed by widening them in a visible diff, with the reason in the commit.",
+      "self_test": "12 fixture cases via --self-test, driving the pure classify() so no network is involved and every decision is exercised. Cases: deployed==main is green; a small recent gap is yellow not red; THE OBSERVED 2026-08-16 SHAPE (one successful run plus two newer parked ones) is not green, counts both parked runs, names them with URLs, and picks the SUCCESSFUL run's sha rather than the newest run's; age alone trips red; commit count alone trips red; parked runs are reported while green; no successful run at all raises Unverifiable rather than reading as 0-behind; an uncomputable commit count surfaces as UNKNOWN and is never silently zeroed (a shallow clone must not be able to report 'not behind'); an unparseable timestamp raises Unverifiable rather than defaulting to now. The failure list is consumed at the END and its verdict is what exits - SEC-140's lesson, where 8 cases were appended after the `if failures:` check and were therefore never read while the case count went up. MUTATION-PROVEN 2026-08-16, both reverted, each asserted to have actually applied before the suite was trusted (the KAN-415 D7 lesson): (1) treating any run as the deployed one - the exact 'main moved so it shipped' error - turns 3 of 12 red, including the case that pins the deployed sha as the successful run's; (2) dropping the parked-run scan turns a different 3 of 12 red. Restore verified byte-exact with cmp rather than by 'the tests pass again'.",
+      "added": "2026-08-16"
+    },
+    {
+      "id": "CTL-066",
+      "name": "required status checks are still satisfiable, and live protection matches the committed expectation",
+      "defect_class": "a-control-that-reports-green-while-gating-nothing",
+      "summary": "SEC-106: a required status check is a STRING. GitHub stores the context name a branch demands and never verifies that anything still produces it, so renaming main-chain-guard.yml's `guard` job - a JOB ID, because that job carries no `name:` field - un-gates SEC-98 production change control with no error anywhere: protection keeps waiting for a check nothing reports, the PR waits, and on a repo where enforce_admins is off it is admin-merged and forgotten. THE POINT IS THE QUESTION IT ASKS. CTL-026 proves a control's file exists and something invokes it; CTL-042 proves its workflow is not disabled. Neither proves it BLOCKS anything, because 'the job runs' and 'the merge cannot happen without it' are facts stored in different places - one in the repo, one in GitHub's branch-protection settings. TWO ARMS ON PURPOSE. --local compares .github/expected-protection.json against the jobs this repo defines; it needs no credentials, is decided entirely by the diff, and therefore blocks in pr-checks.yml from day one. --live compares the file against GitHub's real configuration; it needs administration:read and runs on a schedule, because a pull request cannot change branch protection and putting a third-party API on the merge path is the shape that froze the pipeline ~11 days under SEC-88. THREE-VALUED EXIT, with exit 2 given its own vocabulary: CTL-059 showed a bare `if: failure()` making an HTTP 403 print the divergence story and send the reader hunting an uncommitted migration on three separate days, so 'could not measure' must never be described in the language of a measured divergence. Fail-closed is asserted from the PRECONDITION (the branch list came back non-empty), never inferred from an exit code - gotcha #30. DRIFT IS TWO-WAY: a required check quietly ADDED is as much an undocumented divergence as one removed, and an expectation naming a branch that no longer exists fails as STALE. WHAT IT DOES NOT COVER, stated rather than hidden: the --live path has no unit coverage of its end-to-end call (no test has a real token against real branch protection), and the `production` Environment's required reviewer - SEC-106 acceptance criterion 2 - is a different API surface and is not asserted at all. THE EXPECTATION FILE WAS SEEDED FROM CLAUDE.md's DOCUMENTED INTENT, not from a measurement, because the session that wrote it had no branch-protection read. That is deliberate and is how the documentation stops being the only evidence: a red first --live run means the sentence in CLAUDE.md was wrong, which is the finding SEC-106 was raised to obtain.",
+      "implementation": "scripts/check-required-checks.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/required-checks.yml"
+      ],
+      "self_test": "scripts/check-required-checks.py",
+      "prevents": [
+        "SEC-106"
+      ],
+      "escape_hatch": "none for the --local arm - a required context nothing produces is never acceptable; either restore the job name, or change .github/expected-protection.json AND the live branch protection together, which is the point (protection becomes reviewable). The --live arm's only 'hatch' is exit 2 UNVERIFIED when no token with administration:read is present, which is a loud daily red rather than a pass, and is cleared by provisioning BRANCH_PROTECTION_READ_TOKEN.",
+      "added": "2026-08-15"
     }
   ]
 }

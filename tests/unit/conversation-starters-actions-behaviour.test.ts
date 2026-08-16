@@ -94,7 +94,7 @@ jest.mock('@/modules/guards/profile-rate-limit', () => ({
 }));
 // Moderation is a separate concern with its own tests; allow everything so the
 // sanitising and capping are what these cases actually exercise.
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: jest.fn(async () => ({ ok: true })),
 }));
 

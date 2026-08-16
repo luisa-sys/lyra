@@ -23,7 +23,7 @@ This is the **active** companion to Lyra's existing **passive** product. Today L
 | Existing Lyra asset | How Convene re-uses it |
 |---|---|
 | Profile graph (name, city, dietary clues, likes/dislikes, boundaries) | Direct input to attendee proposals + venue ranking |
-| Recommendation engine (`src/lib/recommend/`) | Extended from "gift" scoring to "venue" and "attendee match" scoring |
+| Recommendation engine (`src/modules/recommendations/recommend/`) | Extended from "gift" scoring to "venue" and "attendee match" scoring |
 | MCP server with public/auth tool surface | Convene ships as new MCP tools — agents already know how to call Lyra |
 | User-generated content discipline (visibility, sanitisation, prompt-injection notices) | Same patterns apply to attendee data, calendar pulls, venue notes |
 | OAuth-ready stack (Google Sign-In already live) | Calendar/Contacts OAuth scopes added to the same Google client |
@@ -246,7 +246,7 @@ All names prefixed `lyra_` for consistency. Read-vs-write annotations follow the
 
 ## 8. Recommendation engine — extension
 
-The existing engine (`src/lib/recommend/`) scores **items for a person**. Convene needs two new scoring functions:
+The existing engine (`src/modules/recommendations/recommend/`) scores **items for a person**. Convene needs two new scoring functions:
 
 ### 8.1 `scoreAttendee(candidate, intent, host, existing_invitees)`
 

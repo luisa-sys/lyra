@@ -35,7 +35,7 @@
  *     text scan could not have caught.
  */
 import { redirect } from 'next/navigation';
-import { getAccountStanding } from '@/lib/account-status';
+import { getAccountStanding } from '@/modules/access/account-status';
 import { validateAuthorizeRequest } from '@/modules/oauth-as/lib/authorize';
 
 jest.mock('next/navigation', () => ({
@@ -55,7 +55,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   })),
 }));
 
-jest.mock('@/lib/account-status', () => ({
+jest.mock('@/modules/access/account-status', () => ({
   getAccountStanding: jest.fn(),
 }));
 

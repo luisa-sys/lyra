@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 
 import { env } from '@/modules/platform/env';
-import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
+import { INVITE_COOKIE } from '@/modules/access/beta-access/invite-cookie';
 import { isEmailResendCooldown } from './auth-errors';
 import {
   AGE_DECLARATION_COOKIE,
@@ -130,11 +130,10 @@ export async function signIn(formData: FormData) {
   return redirect('/login?message=' + encodeURIComponent('Check your email for a sign-in link.'));
 }
 
-export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  return redirect('/');
-}
+// `signOut` moved to `src/app/session-actions.ts` (KAN-415). It is needed by
+// both this segment and /dashboard, and a segment may not import another's
+// internals — see the header of that file for why it stayed in the app tree
+// rather than becoming a module.
 
 /**
  * KAN-225 — request a password-reset email.

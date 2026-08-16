@@ -46,7 +46,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 // generateApiKey's module imports getAdminServiceClient (unused here).
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({}),
 }));
 
@@ -78,6 +78,7 @@ const VALID_CONSENT_INPUT = {
   state: 'xyz',
   code_challenge: 'abc123',
   code_challenge_method: 'S256' as const,
+  resource: 'https://mcp-dev.checklyra.com/mcp',
   decision: 'allow' as const,
 };
 

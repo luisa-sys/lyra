@@ -14,7 +14,7 @@ import {
   DEFAULT_GATHERINGS_RETENTION_MONTHS,
   gatheringsRetentionMonths,
   gatheringsCutoff,
-} from '@/lib/retention/gatherings';
+} from '@/modules/account/retention/gatherings';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const ORIG = process.env.RETENTION_GATHERINGS_MONTHS;

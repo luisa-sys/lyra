@@ -67,7 +67,7 @@ jest.mock('@/modules/platform/env', () => ({
 }));
 
 const mockModerate = jest.fn();
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (...args: unknown[]) => mockModerate(...args),
 }));
 

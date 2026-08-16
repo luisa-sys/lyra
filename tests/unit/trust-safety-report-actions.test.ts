@@ -40,7 +40,7 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: jest.fn(async () => currentAdmin),
   logModerationAction: jest.fn(async (input: { action: string; targetProfileId?: unknown }) => {
     calls.push(`log:${input.action}`);
@@ -69,7 +69,7 @@ jest.mock('@/lib/admin', () => ({
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const adminModule = require('@/lib/admin');
+const adminModule = require('@/modules/admin/admin');
 
 beforeEach(() => {
   calls = [];

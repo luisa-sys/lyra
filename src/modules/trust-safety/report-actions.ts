@@ -37,7 +37,7 @@
  * `tests/unit/trust-safety-report-actions.test.ts` rather than trusted.
  */
 import { redirect } from 'next/navigation';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
 
 /** The two ways a report can be closed without suspending anyone. */
 export type ReportResolution = 'actioned' | 'dismissed';

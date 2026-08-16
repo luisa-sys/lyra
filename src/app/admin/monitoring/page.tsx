@@ -13,7 +13,7 @@
  */
 
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/lib/admin';
+import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/modules/observability/metrics';
 import { getMonitoringIntegrations } from './integration-status';
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createServiceRoleClient } from "@/modules/platform/supabase-service";
-import { isProdDeploy } from "@/lib/beta-access/flow";
+import { isProdDeploy } from "@/modules/access/beta-access/flow";
 import { jsonLdSafe } from "@/modules/guards/json-ld";
 
 /**

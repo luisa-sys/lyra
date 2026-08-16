@@ -12,7 +12,7 @@
  * `prevent_beta_self_elevation` / feature-entitlement self-grant guards — no
  * prod bypass, since the service-role key is absent in the prod app runtime.
  *
- * State model (mirrors src/lib/dashboard/resolve-widgets.ts +
+ * State model (mirrors src/modules/dashboard/resolve-widgets.ts +
  * docs/DEV_E2E_REGRESSION.md §2):
  *   empty              — not published, completion < 40 (name only)
  *   drafted            — not published, completion >= 40 (name + short intro)

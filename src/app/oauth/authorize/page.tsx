@@ -12,7 +12,7 @@
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/modules/platform/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/modules/oauth-as/lib/authorize';
-import { getAccountStanding } from '@/lib/account-status';
+import { getAccountStanding } from '@/modules/access/account-status';
 import { getConsent } from '@/modules/oauth-as/lib/consents';
 import { clientTrust, redirectHost } from '@/modules/oauth-as/lib/client-trust';
 import { buildAuthorizePath } from '@/modules/oauth-as/consent-flow';
@@ -46,6 +46,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     state: pick('state'),
     code_challenge: pick('code_challenge'),
     code_challenge_method: pick('code_challenge_method'),
+    resource: pick('resource'),
   });
 
   if (!validation.ok) {
@@ -247,6 +248,9 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
             state: req.state ?? '',
             code_challenge: req.codeChallenge,
             code_challenge_method: req.codeChallengeMethod,
+            // SEC-46: the RESOLVED resource, not the raw query param — an absent
+            // one has already become the environment default by here.
+            resource: req.resource,
             decision,
           });
         }}
@@ -301,6 +305,7 @@ function authorizePath(req: {
   state?: string | null;
   codeChallenge: string;
   codeChallengeMethod: string;
+  resource?: string;
 }): string {
   return buildAuthorizePath({
     clientId: req.client.client_id,
@@ -309,6 +314,7 @@ function authorizePath(req: {
     state: req.state ?? undefined,
     codeChallenge: req.codeChallenge,
     codeChallengeMethod: req.codeChallengeMethod,
+    resource: req.resource,
   });
 }
 

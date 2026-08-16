@@ -390,8 +390,25 @@ reconstruct user accounts (`auth`) — restoring it alone leaves profiles whose
   GitHub Artifacts, 90-day retention.
 - **Weekly real restore drill**: `backup-restore-test.yml` (Sun 05:00 UTC) now
   restores the latest backup into a throwaway Postgres and asserts the data
-  round-trips (table count + RLS + per-table row counts) — it is no longer a
-  schema-only check, and no longer silently passes on a missing secret.
+  round-trips (table count + RLS + per-table row counts + **foreign keys**) — it
+  is no longer a schema-only check, and no longer silently passes on a missing
+  secret.
+
+  ⚠️ **The FK assertion was added 2026-08-16, and it closed a real blind spot.**
+  The dump is public-schema-only, so every FK pointing at `auth.users(id)` had
+  no target row, and `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` validates on
+  creation — `session_replication_role = replica` defers trigger firing on DML
+  but *not* constraint validation. So seven constraints (`profiles`, `api_keys`,
+  `moderation_logs`, and the four `oauth_*` tables) failed to be created on
+  **every run**, and the drill passed anyway from June to 2026-08-09 because
+  nothing checked. A restore that dropped every foreign key would have reported
+  success. The drill now seeds `auth.users` from the UUIDs the dump references —
+  standing in for restoring auth from Supabase's own backup, which is what a
+  real recovery does — and then asserts the constraint count matches the dump.
+
+  This does **not** close the SEC-23 gap: the dump still contains no auth data.
+  Seeding makes the drill measure what it claims to measure; it does not make
+  the backup complete.
 - Manually trigger any of these: GitHub → Actions → select workflow → Run.
 
 ### Supabase built-in backups
@@ -550,6 +567,26 @@ columns were live on all three databases and absent from all three snapshots.
 | **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
 | **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
 
+> ⚠️ **The SEC-143 admin schema-contract step in this same workflow is currently
+> INERT, and its daily red is not a schema finding.** It reads
+> `lyra-admin-mcp-server`'s committed contract with the workflow's built-in
+> `GITHUB_TOKEN` — which is scoped to *this* repository and can never read
+> another **private** repo. The step cites CTL-043 as precedent, but CTL-043
+> works precisely because *its* target is public, a precondition
+> `shared-code-manifest.json` records explicitly. So the check has never once
+> succeeded, and it has been red every day since it reached `main` on
+> 2026-08-15.
+>
+> **If you are triaging a red `db-invariants` run, read the step name before the
+> job name.** The job is called *"Committed schema snapshots match their
+> databases (CTL-048, daily)"*, so this failure looks like schema drift and is
+> not. CTL-048's own comparison passes; the admin-contract step is a separate
+> control sharing the job. Splitting them is tracked in
+> [SEC-150](https://checklyra.atlassian.net/browse/SEC-150), along with the fix:
+> provision `ADMIN_CONTRACT_READ_TOKEN` (fine-grained, contents-read, admin repo
+> only). The workflow already reads it when present, so no code change is
+> needed once it exists.
+
 The daily job runs only the snapshot half on purpose. During a staged migration
 rollout the three databases genuinely differ, so the cross-database half would
 be red for the whole multi-day window — and a red you learn to expect is a
@@ -562,6 +599,76 @@ see SEC-131, because there all three databases agreed perfectly.
 DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns found
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
+
+### Release tag on deploy (event-driven) — BUGS-104 / CTL-067
+
+`release-tag-on-deploy.yml` fires on `workflow_run` when **Deploy to Production**
+completes, and creates `main`'s release tag if the deploy earned one.
+
+**Why it is not part of the promote.** `promote-to-production.yml`'s
+`release-tag` job needs `smoke-tests`, which needs `wait-for-deploy` to have
+reported `deployed`. A deploy parked on the SEC-106 required-reviewer gate makes
+`wait-for-deploy` exit 0 with `awaiting-approval` — correct and deliberate, since
+failing it once fired a spurious auto-rollback — so **both downstream jobs are
+skipped**. The founder then approves, the deploy succeeds, and nothing returns to
+tag: the promote run finished long ago.
+
+Since the reviewer gate landed on 2026-07-30 that is the *normal* path, so
+effectively every release was going untagged. CTL-057 (`release-integrity.yml`)
+detects the end state; this prevents it.
+
+**Two refusals, and they are the load-bearing half:**
+
+| situation | outcome |
+|---|---|
+| deploy's `head_sha` ≠ `main` HEAD | **REFUSE** (exit 1) — tagging HEAD would attach a version to code that deploy never verified |
+| `main` HEAD already tagged | **no-op** (exit 0) — this is what makes the deliberate overlap with the promote's own `release-tag` job safe |
+| deploy concluded anything but `success` | no tag |
+| any undecidable input (empty SHA, unparseable last tag) | **UNVERIFIED** (exit 2), never a silent skip |
+
+`workflow_dispatch` is available for manual recovery; it asserts that `main` HEAD
+is what deployed, and the idempotency check still protects against a double tag.
+
+⚠️ **Verify a pushed tag against the REMOTE.** `git describe --tags
+--exact-match origin/main` reads the *local* tag store and does not care whether
+a push succeeded — on 2026-08-16 that reported `v0.1.101` while the push had
+403'd, and a retry loop had swallowed the failure because the pipeline's exit
+status came from `tail` rather than `git push`. The workflow's own push step
+re-checks with `git ls-remote` for exactly this reason.
+
+### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-066
+
+`required-checks.yml` runs `scripts/check-required-checks.py --live`: it reads
+the live branch protection on `develop`, `staging`, `beta` and `main` and diffs
+it against the committed expectation in `.github/expected-protection.json`.
+Three-valued by design — 0 matches, 1 measured drift, **2 UNVERIFIED (could not
+measure)** — and exit 2 uses deliberately different wording from exit 1, because
+CTL-059 showed a control that describes an HTTP 403 in the language of a
+divergence sends the reader hunting a problem that was never observed.
+
+⚠️ **Expect UNVERIFIED, and a red daily run, until a token exists.** Reading
+branch protection needs `administration:read`, which `GITHUB_TOKEN` cannot be
+granted at any `permissions:` setting. Clearing it is one owner action: create a
+fine-grained PAT on `luisa-sys/lyra` with **Administration: Read-only** and
+nothing else, and add it as the repository secret
+`BRANCH_PROTECTION_READ_TOKEN`. Until then the workflow reports honestly that it
+measured nothing — which is the intended outcome, not a placeholder. Skipping the
+step when the secret is absent would be the `if: env.X != ''` silent-skip this
+runbook forbids, and is how `health-check.yml` and `weekly-report.yml` sat dark
+for a month while reporting green (SEC-79).
+
+**Reading a failure.** Exit 1 names the branch, the expected contexts and the
+live ones, and is a real finding either way round: a required check quietly
+*added* is as much an undocumented divergence as one removed. Resolve it by
+changing branch protection to match the file, or by committing a change to the
+file — which is the point of SEC-106 §6, that protection becomes reviewable.
+
+The other half of the control, `--local`, runs on every PR in `pr-checks.yml`
+and needs no credentials: it fails if any required context is no longer produced
+by a job in `.github/workflows/`. That is the case in this ticket's title —
+`main` requires the context `guard`, which is `main-chain-guard.yml`'s **job
+id** (the job carries no `name:`), so a one-character rename would leave SEC-98
+production change control gated by a check nothing reports.
 
 ### Staging testing program (KAN-176)
 

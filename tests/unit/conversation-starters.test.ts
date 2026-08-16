@@ -17,7 +17,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
-import { memberFacingDbError } from '@/lib/db-error-copy';
+import { memberFacingDbError } from '@/modules/profile/db-error-copy';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -89,7 +89,7 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
 
   test('server-actions file surfaces the answer cap as a clean error', () => {
     // BUGS-87: was a source-text scan of the actions file. The cap copy moved
-    // to src/lib/db-error-copy.ts, and CTL-039 immediately flagged the
+    // to src/modules/profile/db-error-copy.ts, and CTL-039 immediately flagged the
     // relocated scan as comment-shadowed — the copy appears in that module's
     // header AND in its code, so deleting the code would have left the
     // assertion green. So this is now BEHAVIOURAL: it calls the mapper.

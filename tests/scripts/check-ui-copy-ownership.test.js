@@ -143,7 +143,7 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(status).toBe(0);
   });
 
-  it('FAILS a named copy module change (src/lib/invite-text.ts) with no trailer', () => {
+  it('FAILS a named copy module change (src/modules/dashboard/invite-text.ts) with no trailer', () => {
     const { status, output } = runOverCommits([
       { files: [SRC.inviteText], message: 'reword the invite copy' },
     ]);
@@ -176,6 +176,59 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(status).not.toBe(0);
   });
 
+  // ── SEC-152: the third trailer ─────────────────────────────────
+  //
+  // The guard matches on PATH, so a change that alters no pixel and no word
+  // still trips it. Before this, BOTH available trailers were false statements
+  // for such a diff — `UI-Change-Approved` asserts an approval that does not
+  // exist, `UI-Bugfix-Only` a bug that does not exist. A rule that forces a
+  // routine misstatement teaches people the trailer is a formality, and a
+  // formality carries no founder-approval signal at all.
+
+  it('PASSES a protected .tsx change with a UI-No-Visual-Change trailer', () => {
+    const { status, output } = runOverCommits([
+      {
+        files: [SRC.appPage],
+        message: 'refactor: thread the resource param through\n\nUI-No-Visual-Change: SEC-152',
+      },
+    ]);
+    expect(status).toBe(0);
+    expect(output).toMatch(/UI-No-Visual-Change: SEC-152/);
+  });
+
+  it('still FAILS the same change with NO trailer — the surface is not widened', () => {
+    // The point of adding a trailer is to make an honest claim available, not
+    // to make the gate easier to pass. Silence must still fail.
+    const { status } = runOverCommits([
+      { files: [SRC.appPage], message: 'refactor: thread the resource param through' },
+    ]);
+    expect(status).not.toBe(0);
+  });
+
+  it('requires a JIRA key on UI-No-Visual-Change too (KAN-xxx does not match)', () => {
+    // Digits are required. A literal placeholder must fail the gate rather than
+    // sneak past it — the same contract the other two trailers already hold to.
+    const { status } = runOverCommits([
+      {
+        files: [SRC.appPage],
+        message: 'refactor: thread a prop\n\nUI-No-Visual-Change: KAN-xxx',
+      },
+    ]);
+    expect(status).not.toBe(0);
+  });
+
+  it('the guard still names all three trailers in its failure message', () => {
+    // If the help text and the regex drift apart, someone is told to write a
+    // trailer the gate will reject — the CTL-042 shape (documentation
+    // describing a behaviour is indistinguishable from the behaviour).
+    const { output } = runOverCommits([
+      { files: [SRC.appPage], message: 'change home' },
+    ]);
+    expect(output).toMatch(/UI-Change-Approved/);
+    expect(output).toMatch(/UI-Bugfix-Only/);
+    expect(output).toMatch(/UI-No-Visual-Change/);
+  });
+
   it('WARNS and passes (fail-open) when the base ref cannot be resolved', () => {
     const { status, output } = runOverCommits(
       [{ files: [SRC.appPage], message: 'change home' }],
@@ -184,5 +237,104 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(status).toBe(0);
     expect(output).toMatch(/::warning::/);
     expect(output).toMatch(/not found/);
+  });
+  // ─── KAN-474: --describe is DERIVED from is_protected(), not restated ───
+  //
+  // The surface used to live in two places — this guard and the Backlog
+  // Autopilot's prompt, a SaaS routine no CI job can read. They drifted twice
+  // (KAN-415 moved two copy modules; KAN-473 added src/modules/*.tsx), and
+  // neither drift could go red because nothing in CI can see a prompt.
+  //
+  // The fix is removing the second copy: the autopilot reads --describe at
+  // runtime. These cases exist to keep that promise honest — a hand-written
+  // description would be a THIRD copy and would drift exactly as the second
+  // did, so the load-bearing assertion is the last one, which adds a rule to
+  // the function and requires it to appear with no other edit.
+  describe('--describe (KAN-474)', () => {
+    const describeOut = () =>
+      execSync(`bash ${JSON.stringify(SCRIPT)} --describe`, { encoding: 'utf-8' });
+
+    /** Every `[[ $f == X ]] && return N` in is_protected(), read from source. */
+    function rulesInFunction() {
+      const src = fs.readFileSync(SCRIPT, 'utf-8');
+      const body = src.slice(src.indexOf('\nis_protected()')).split('\n}\n')[0];
+      return [...body.matchAll(/^\s*\[\[\s*\$f\s*==\s*(.*?)\s*\]\]\s*&&\s*return\s*([01])/gm)]
+        .map((m) => ({ glob: m[1], protected: m[2] === '0' }));
+    }
+
+    function emitted() {
+      return describeOut()
+        .split('\n')
+        .filter((l) => l.startsWith('PROTECTED ') || l.startsWith('CARVE-OUT '))
+        .map((l) => ({ glob: l.slice(l.indexOf(' ') + 1), protected: l.startsWith('PROTECTED ') }));
+    }
+
+    // Two-way ratchet on the SIZE of the surface. The equality case above
+    // proves guard and description agree; it cannot tell "a rule was removed
+    // deliberately" from "a rule was removed silently", because deleting it
+    // from is_protected() removes it from BOTH and they still agree. Measured
+    // by mutation: dropping `src/components/*` left all other cases green.
+    //
+    // So the count is pinned. RAISE it when you add a protection. If you are
+    // LOWERING it you are removing founder ownership from a surface, which is
+    // Luisa's call (KAN-411) and should not pass on a green diff.
+    const EXPECTED_RULES = { carveOuts: 4, protected: 17 };
+
+    it('emits a non-empty surface', () => {
+      // Guards the vacuous case: a parser that matched nothing would make
+      // every assertion below pass over an empty set.
+      expect(emitted().length).toBeGreaterThanOrEqual(15);
+    });
+
+    it('⚠️ the surface has not SHRUNK — removing a protection must be deliberate', () => {
+      const got = emitted();
+      expect({
+        carveOuts: got.filter((r) => !r.protected).length,
+        protected: got.filter((r) => r.protected).length,
+      }).toEqual(EXPECTED_RULES);
+    });
+
+    it('emits EXACTLY the rules in is_protected() — none missing, none invented', () => {
+      const key = (r) => `${r.protected ? 'P' : 'C'} ${r.glob}`;
+      const declared = rulesInFunction().map(key).sort();
+      const got = emitted().map(key).sort();
+      expect(got).toEqual(declared);
+    });
+
+    it('tolerates trailing comments and irregular spacing', () => {
+      // The first cut anchored on `]] && return N$` and silently emitted 1
+      // carve-out instead of 4, dropping src/*.css — several rules carry a
+      // trailing comment. These three are the ones it missed.
+      const globs = emitted().map((r) => r.glob);
+      expect(globs).toContain('src/app/admin/*');   // trailing comment
+      expect(globs).toContain('*/route.ts');        // comment + extra spacing
+      expect(globs).toContain('src/*.css');         // trailing comment
+    });
+
+    it('carve-outs are emitted BEFORE protected rules, matching evaluation order', () => {
+      const lines = emitted();
+      const lastCarveOut = lines.map((r) => r.protected).lastIndexOf(false);
+      const firstProtected = lines.map((r) => r.protected).indexOf(true);
+      expect(lastCarveOut).toBeLessThan(firstProtected);
+    });
+
+    it('⚠️ a NEW rule appears with no other edit — this is what makes it derived', () => {
+      // The whole claim of KAN-474 in one case. Add a rule to is_protected()
+      // in a scratch copy; if --describe is truly parsed from the function it
+      // shows up untouched. If anyone later replaces the parser with a
+      // hand-written list, this goes red.
+      const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kan474-')), 'guard.sh');
+      const src = fs.readFileSync(SCRIPT, 'utf-8');
+      const sentinel = 'src/kan474-sentinel/*.tsx';
+      const mutated = src.replace(
+        '  [[ $f == src/modules/*.tsx ]] && return 0',
+        `  [[ $f == ${sentinel} ]] && return 0\n  [[ $f == src/modules/*.tsx ]] && return 0`,
+      );
+      expect(mutated).not.toBe(src); // the mutation actually applied
+      fs.writeFileSync(tmp, mutated, { mode: 0o755 });
+
+      const out = execSync(`bash ${JSON.stringify(tmp)} --describe`, { encoding: 'utf-8' });
+      expect(out).toContain(`PROTECTED ${sentinel}`);
+    });
   });
 });

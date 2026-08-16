@@ -38,6 +38,14 @@ WHAT IT ASSERTS
    production but NOT dev (BUGS-62) — so "prod is behind" is the common case,
    not the rule, and a check that only looks for prod-is-missing would sail past
    the reverse.
+4. THE FOURTH SNAPSHOT (SEC-143, --with-admin-contract). lyra-admin-mcp-server
+   types its writes against a COPY of prod.ts (BUGS-101). That copy lives in
+   another repo and nothing proved it still matched the database, so it could
+   rot exactly as the untyped code it replaced did. Compared both ways: a column
+   the contract declares but prod lacks is the BUGS-101 shape (a write typed
+   against a dropped column); a column prod has but the contract lacks is
+   staleness. The contract is a SUBSET (five tables), so a table absent from it
+   is NOT a finding — only columns of tables it actually declares are compared.
 
 WHY IT BLOCKS A PROMOTION RATHER THAN JUST REPORTING
 ----------------------------------------------------
@@ -57,6 +65,8 @@ USAGE
     python3 scripts/check-live-schema-parity.py            # all three
     python3 scripts/check-live-schema-parity.py --self-test
     python3 scripts/check-live-schema-parity.py --env prod
+    python3 scripts/check-live-schema-parity.py --env prod --snapshot-only \
+        --with-admin-contract     # SEC-143; needs `gh` authenticated
 
 ENVIRONMENT
     NEXT_PUBLIC_SUPABASE_URL     / SUPABASE_SERVICE_ROLE_KEY          (dev)
@@ -67,9 +77,11 @@ ENVIRONMENT
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -115,14 +127,22 @@ def columns_from_openapi(doc: dict) -> dict[str, set[str]]:
 
 
 def columns_from_snapshot(env: str) -> dict[str, set[str]]:
-    """Parse `Row: { ... }` blocks out of a committed Database type snapshot.
+    """Parse `Row: { ... }` blocks out of a committed Database type snapshot."""
+    return columns_from_snapshot_text((SNAPSHOT_DIR / f"{env}.ts").read_text(encoding="utf-8"))
+
+
+def columns_from_snapshot_text(text: str) -> dict[str, set[str]]:
+    """Parse `Row: { ... }` blocks out of Database-type SOURCE TEXT.
 
     Deliberately a parser over the committed text rather than a TypeScript
     import: this must report what the FILE says, including when the file is
     wrong. Importing it would make the check agree with itself.
+
+    Split from `columns_from_snapshot` for SEC-143, which feeds it text fetched
+    from ANOTHER REPO rather than a path on disk. Same parser on both sides on
+    purpose — a second implementation for the remote copy is exactly the
+    duplication CTL-043 exists to detect.
     """
-    path = SNAPSHOT_DIR / f"{env}.ts"
-    text = path.read_text(encoding="utf-8")
     out: dict[str, set[str]] = {}
     # Tables appear as `      <name>: {` followed eventually by `Row: {`.
     for match in re.finditer(r"\n      (\w+): \{\n        Row: \{\n(.*?)\n        \}", text, re.S):
@@ -135,6 +155,140 @@ def columns_from_snapshot(env: str) -> dict[str, set[str]]:
         if cols:
             out[table] = cols
     return out
+
+
+# ── SEC-143: the fourth snapshot, which lives in another repo ────────────────
+#
+# BUGS-101 typed `lyra-admin-mcp-server`'s writes against a COPY of this repo's
+# src/types/database/prod.ts, so a dropped column became a compile error rather
+# than a runtime PGRST204. That fixed the defect and created a new silence:
+# nothing proved the copy still matched the database. It can go stale exactly as
+# the untyped code it replaced did — just in one file instead of many.
+#
+# This is deliberately NOT a new control. It is the same assertion CTL-048
+# already makes ("a committed snapshot must match its own database") applied to
+# a fourth snapshot that happens to live in a different repository. A parallel
+# script would mean two implementations of one idea, which is the duplication
+# CTL-043 exists to detect.
+#
+# It runs HERE rather than in the admin repo because:
+#   - SUPABASE_ACCESS_TOKEN already exists here and nowhere else. Copying the
+#     estate's highest-value secret into the repo with the weakest guard estate
+#     (SEC-51) to run one check would be a poor trade.
+#   - controls/registry.json requires a control's implementation file to exist
+#     IN THIS REPO. A checker living in the admin repo could not be registered
+#     at all, so the Defect Feedback Loop would be blind to it.
+ADMIN_REPO = "luisa-sys/lyra-admin-mcp-server"
+ADMIN_CONTRACT_PATH = "src/types/database.ts"
+# The admin contract is typed against PROD deliberately (see its own header):
+# prod is a strict subset of dev/staging, so it is the intersection and is safe
+# whichever project that service is pointed at.
+ADMIN_CONTRACT_ENV = "prod"
+
+
+def fetch_admin_contract() -> str:
+    """Read the admin repo's committed schema contract. Fails CLOSED.
+
+    ⚠️ CORRECTED 2026-08-16. This docstring previously said the check "needs no
+    new secret, the built-in GITHUB_TOKEN covers it, and the alternative (a PAT)
+    would add a credential to buy nothing", citing CTL-043 as precedent.
+
+    **That was wrong, and it is why this check has never once succeeded.**
+    CTL-043 works because its target is PUBLIC — `shared-code-manifest.json`
+    records exactly that precondition next to the repo it names:
+
+        "public": true,
+        "note": "Public, so CI reads it with the built-in GITHUB_TOKEN."
+
+    `lyra-admin-mcp-server` is PRIVATE, and a workflow's built-in GITHUB_TOKEN is
+    scoped to the repository it runs in — it cannot read a different private
+    repo, ever. The mechanism was copied without the precondition that made it
+    valid, so the step went red the day it reached `main` and stayed red.
+
+    Set `ADMIN_CONTRACT_READ_TOKEN` (a token that can read the admin repo's
+    contents) to make this work. Until then it fails closed and says so, which
+    is correct but is NOT the same as the control running.
+    """
+    try:
+        res = subprocess.run(
+            ["gh", "api", f"/repos/{ADMIN_REPO}/contents/{ADMIN_CONTRACT_PATH}", "--jq", ".content"],
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise AdminContractUnavailable(f"{type(exc).__name__}: {exc}") from exc
+    if res.returncode != 0 or not res.stdout.strip():
+        detail = res.stderr.strip()[:300] or f"exit {res.returncode}"
+        # Distinguish "not authorised to read a private repo" from every other
+        # read failure. GitHub returns 404 (not 403) for a private repo the
+        # credential cannot see, so "Not Found" here does NOT mean the file was
+        # deleted — and sending the operator to look for a missing file, or at
+        # the PROD_SUPABASE_* secrets, is the wrong direction entirely.
+        if "404" in detail or "Not Found" in detail or "403" in detail:
+            raise AdminContractUnavailable(
+                f"cannot read {ADMIN_REPO} ({detail.splitlines()[0][:120]}). That repo is "
+                "PRIVATE, and a workflow's built-in GITHUB_TOKEN is scoped to its own "
+                "repository — it can never read another private repo. Provide a token that "
+                "can (ADMIN_CONTRACT_READ_TOKEN). This is an authorisation gap, not a "
+                "missing file and not a database problem."
+            )
+        raise AdminContractUnavailable(detail)
+    try:
+        return base64.b64decode(res.stdout.strip()).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise AdminContractUnavailable(f"response was not decodable UTF-8: {exc}") from exc
+
+
+class AdminContractUnavailable(RuntimeError):
+    """The contract could not be READ. Distinct from 'the contract is wrong'."""
+
+
+def compare_admin_contract(contract_text: str, live_prod: dict[str, set[str]]) -> list[str]:
+    """Both directions, per table the contract declares.
+
+    ⚠️ The contract is a SUBSET — five tables, not the whole database — so a
+    table present in prod and absent from the contract is NOT a finding. Only
+    columns of tables the contract actually declares are compared. Treating the
+    subset as drift would make this red forever on day one, which is how a gate
+    gets switched off.
+    """
+    contract = columns_from_snapshot_text(contract_text)
+    findings: list[str] = []
+    if not contract:
+        # An empty parse is indistinguishable from a clean contract if we just
+        # iterate it — catalogue failure mode 4. Say so instead.
+        return [
+            f"{ADMIN_REPO}/{ADMIN_CONTRACT_PATH}: parsed ZERO tables. Either the file shape "
+            "changed or the parser no longer matches it; a contract that parses to nothing "
+            "would compare clean against anything."
+        ]
+    for table, declared in sorted(contract.items()):
+        actual = live_prod.get(table)
+        if actual is None:
+            findings.append(
+                f"{ADMIN_REPO} contract declares table '{table}', which does not exist on "
+                f"{ADMIN_CONTRACT_ENV}. The admin server is typed against a table that is gone."
+            )
+            continue
+        # Direction 1 — the BUGS-101 shape. The contract promises a column the
+        # database does not have, so the admin server can be typed into writing
+        # it and fail at runtime with PGRST204.
+        for col in sorted(declared - actual):
+            findings.append(
+                f"{ADMIN_REPO} contract has {table}.{col}, which does NOT exist on "
+                f"{ADMIN_CONTRACT_ENV} — this is the BUGS-101 shape: a write typed against "
+                "a column that was dropped."
+            )
+        # Direction 2 — staleness. Not a runtime break today, but it is how the
+        # contract silently stops describing reality, and a one-way check would
+        # let it rot until direction 1 fires.
+        for col in sorted(actual - declared):
+            findings.append(
+                f"{ADMIN_REPO} contract is MISSING {table}.{col}, which exists on "
+                f"{ADMIN_CONTRACT_ENV} — the contract has gone stale; regenerate it."
+            )
+    return findings
 
 
 def load_baseline() -> set[tuple[str, str, str]]:
@@ -255,6 +409,67 @@ def self_test() -> int:
     single = {"dev": {"only_here": {"id"}}, "prod": {}}
     checks.append(("a single-database table is not drift", compare_live(single, set()) == []))
 
+    # ── SEC-143: the admin repo's schema contract ────────────────────────────
+    # Built as TEXT in the snapshot file's real shape, so the parser is exercised
+    # rather than stubbed. Indentation matters: columns_from_snapshot_text keys
+    # off `\n      <table>: {\n        Row: {`.
+    def contract(tables: dict[str, list[str]]) -> str:
+        out = ["export type Database = {", "  public: {", "    Tables: {"]
+        for t, cols in tables.items():
+            out.append(f"      {t}: {{")
+            out.append("        Row: {")
+            out += [f"          {c}: string | null" for c in cols]
+            out.append("        }")
+            out.append("      }")
+        out += ["    }", "  }", "}"]
+        return "\n".join(out)
+
+    prod_live = {
+        "profiles": {"id", "user_status", "access_tier"},
+        "api_keys": {"id", "key_hash"},
+        "some_other_table": {"id"},
+    }
+
+    matched = contract({"profiles": ["id", "user_status", "access_tier"], "api_keys": ["id", "key_hash"]})
+    checks.append(
+        ("a matching contract is clean", compare_admin_contract(matched, prod_live) == [])
+    )
+    checks.append(
+        (
+            "a table prod has but the contract omits is NOT a finding (it is a subset)",
+            all("some_other_table" not in v for v in compare_admin_contract(matched, prod_live)),
+        )
+    )
+
+    # Direction 1 — the BUGS-101 shape: the contract keeps a dropped column.
+    dropped = contract({"profiles": ["id", "user_status", "access_tier", "is_beta_eligible"]})
+    v = compare_admin_contract(dropped, prod_live)
+    checks.append(
+        ("a contract column absent from prod is detected", any("is_beta_eligible" in x for x in v))
+    )
+    checks.append(
+        ("that finding names BUGS-101 so the reader knows the shape", any("BUGS-101" in x for x in v))
+    )
+
+    # Direction 2 — staleness: prod gained a column the contract never learned.
+    stale = contract({"profiles": ["id", "user_status"]})
+    v = compare_admin_contract(stale, prod_live)
+    checks.append(
+        ("a column prod has but the contract lacks is detected", any("access_tier" in x for x in v))
+    )
+    checks.append(("that finding says STALE, not dropped", any("stale" in x.lower() for x in v)))
+
+    # A contract naming a table that no longer exists at all.
+    gone = contract({"deleted_table": ["id"]})
+    v = compare_admin_contract(gone, prod_live)
+    checks.append(("a contract table missing from prod is detected", any("deleted_table" in x for x in v)))
+
+    # Catalogue failure mode 4: a contract that parses to nothing must REPORT,
+    # never compare clean. This is the case that would otherwise turn a parser
+    # regression into a permanently green check.
+    v = compare_admin_contract("// nothing parseable here", prod_live)
+    checks.append(("an unparseable contract reports rather than passing", len(v) == 1 and "ZERO tables" in v[0]))
+
     # The real baseline file's shape, not a hand-built stand-in. Every check
     # above calls compare_live() with a baseline set it constructed itself,
     # so none of them exercise load_baseline()'s own parsing of the committed
@@ -333,6 +548,15 @@ def main() -> int:
             "against its own database). This is the daily mode. See the note in main()."
         ),
     )
+    parser.add_argument(
+        "--with-admin-contract",
+        action="store_true",
+        help=(
+            "SEC-143: also compare lyra-admin-mcp-server's committed schema contract "
+            "against the LIVE production database, both directions. Needs `gh` "
+            "authenticated (GITHUB_TOKEN is enough)."
+        ),
+    )
     args = parser.parse_args()
 
     if args.self_test:
@@ -397,6 +621,40 @@ def main() -> int:
         violations = compare_snapshots(live)
     else:
         violations = compare_live(live, load_baseline()) + compare_snapshots(live)
+
+    # SEC-143 — the fourth snapshot. Deliberately AFTER the local halves so a
+    # network-dependent step cannot mask a local finding.
+    if args.with_admin_contract:
+        prod = live.get(ADMIN_CONTRACT_ENV)
+        if prod is None:
+            # Fail CLOSED, and say which thing was unavailable. Exit 2 means
+            # "could not measure"; exit 1 means "measured, found a problem".
+            # Conflating them is CTL-059 — the finding then describes a failure
+            # it did not have, and the reader is sent after the wrong thing.
+            print(
+                f"::error::check-live-schema-parity: --with-admin-contract needs the "
+                f"{ADMIN_CONTRACT_ENV} database, which was not read."
+            )
+            return 2
+        try:
+            contract_text = fetch_admin_contract()
+        except AdminContractUnavailable as exc:
+            print(
+                f"::error::check-live-schema-parity: could not READ "
+                f"{ADMIN_REPO}/{ADMIN_CONTRACT_PATH} — {exc}"
+            )
+            print(
+                "::error::  This is NOT a drift finding. Nothing has been compared, so do "
+                "not go looking for a stale column: the file could not be fetched at all."
+            )
+            print(
+                "::error::  Fix: set ADMIN_CONTRACT_READ_TOKEN to a token that can read "
+                f"{ADMIN_REPO} contents. The built-in GITHUB_TOKEN cannot — it is scoped to "
+                "this repository, and that repo is private. CTL-043 gets away with the same "
+                "mechanism only because ITS target is public, which its manifest records."
+            )
+            return 2
+        violations += compare_admin_contract(contract_text, prod)
 
     if violations:
         for v in violations:

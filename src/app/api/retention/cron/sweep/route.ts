@@ -18,8 +18,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isRetentionEnabled } from '@/lib/retention/flags';
-import { runRetentionSweep } from '@/lib/retention/sweep';
+import { isRetentionEnabled } from '@/modules/account/retention/flags';
+import { runRetentionSweep } from '@/modules/account/retention/sweep';
 import { timingSafeStrEqual } from '@/lib/convene/cron-auth';
 
 export const maxDuration = 60;
