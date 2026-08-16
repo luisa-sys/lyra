@@ -14,8 +14,8 @@
  */
 
 import { revalidatePath } from 'next/cache';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
-import { isGlobalFeatureKey } from '@/lib/features/global-features';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
+import { isGlobalFeatureKey } from '@/modules/features/global-features';
 import { isDeployEnv, manageableEnvironments } from '@/modules/platform/deploy-env';
 
 export async function setGlobalFeature(formData: FormData): Promise<void> {

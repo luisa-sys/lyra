@@ -5,7 +5,31 @@
 **Method:** 8 parallel read-only code surveys + 2 competing architecture proposals, synthesised. Every number below is re-derivable from the repos.
 **Relationship to existing work:** this is the successor programme to **KAN-350** Phase 3. It absorbs, re-scopes or depends on KAN-353, KAN-355, KAN-356, KAN-358 (see §7).
 
+> ## 🔴 SUPERSEDED — the deferral below was REVERSED on 2026-08-04. READ THIS FIRST.
+>
+> **The extraction programme is RE-OPENED and IN FLIGHT.** As of 2026-08-10, `src/modules/`
+> holds live code on `main`: `access` (16 files), `oauth-as` (10), `guards` (10),
+> `platform` (6), `observability` (2), plus `features`, `age` and `auth` in flight.
+> **D1, D2, D3 and D4 are DONE.** Verify with `git ls-files src/modules/`, not with this
+> document.
+>
+> Two paragraphs below still read *"the extraction programme D1–D15 is DEFERRED"* and
+> *"No file moves into `src/modules/` under the current scope"*, and the Workstream D
+> section repeats it. **Both were true on 2026-07-28 and are false now.** They are left
+> in place rather than deleted because this is a dated plan and rewriting a founder
+> ruling would destroy the record of what was decided when — but a session acting on
+> them today would refuse work that is already approved, already merged, and already in
+> production.
+>
+> **Authoritative current state:** [`RE-DECISION-2026-08-09.md`](./RE-DECISION-2026-08-09.md)
+> for the ruling, `modules.json` for module ownership, and the KAN-415 section of the
+> repo-root `CLAUDE.md` for the live sequencing table. Convene is **permanently out**
+> ([`CONVENE-DEFERRED.md`](./CONVENE-DEFERRED.md), KAN-470) unless Convene itself is
+> turned back on.
+
 > **⚠️ Baseline re-validated 2026-07-28 against `674f0a7`** — see [`PLAN-REVALIDATION-2026-07-28.md`](./PLAN-REVALIDATION-2026-07-28.md) (KAN-432). Unless a figure is explicitly marked *re-validated*, every number below is **as-surveyed 2026-07-26** and should be re-derived before it is relied on.
+>
+> **🔴 REVERSED 2026-08-04 — see the banner at the top of this file. The ruling below is a dated record, not current instruction.**
 >
 > **⚠️ SCOPE RULING — founder decision, 2026-07-28 (KAN-432 §5, option A): the extraction programme D1–D15 is DEFERRED.** The adopted scope is **Phase 0 in full + `@lyra/contracts` + the data boundary (C3) + the `profiles` ADR**. D1–D15 are not cancelled — they are re-decided after Phase 0, on evidence measured against a decoupled test estate and a typed schema, rather than on the 2026-07-26 survey. The reasoning is in §2.2 and §6. **No file moves into `src/modules/` under the current scope.**
 
@@ -252,12 +276,135 @@ Chosen over `eslint-plugin-boundaries` because it also reports cycles and orphan
 
 > **⚠️ HARD DEPENDENCY: C2 must not start before [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) resolves.** This section and story **C2** specify all 9 rules blocking at severity `error`. SEC-105 (open) says that gate has **already caused six pipeline outages over dev-only code that never ships**, while the production tree it was protecting was never dirty. Both cannot be right, and enacting C2 as written would scale a control a live SEC ticket says is mis-scoped. This matters beyond the gate itself: §1.4's *"only a CI gate does the 90%"* is the justification for this programme's cost, so if the gate's **scoping** is wrong, the argument needs re-stating rather than the gate merely re-tuning. Resolve SEC-105 first, then re-derive what C2 should block on.
 
+> **📌 Amended 2026-08-13 (KAN-415, CTL-051) — two of the nine rules have landed, and the hard dependency above STILL STANDS for the other seven.**
+>
+> **SEC-105 is still `To Do`** (checked 2026-08-13; untouched since 2026-07-27). Read the paragraph above before adding any further rule.
+>
+> **What landed** — `scripts/check-module-layering.py`, blocking in `pr-checks.yml`:
+>
+> | rule | source | violations when it landed |
+> |---|---|---|
+> | the layer rule (incl. `platform-is-a-leaf`, which it subsumes: platform is L0 with an empty `mayDependOn`, so every outgoing edge is upward or undeclared) | `layer` + `layerPolicy.declaredSameLayer` | 12 |
+> | `mustNot` | `mustNot` | (overlapping) |
+> | `no-undeclared-module-dep` | `mayDependOn` | 1 |
+>
+> **Why these two do not trip the hard dependency.** SEC-105's defect is not "a gate blocks"; it is three specific properties, and CTL-051 has none of them:
+>
+> 1. *It is keyed on a third-party feed and can go red overnight on an unchanged repo.* CTL-051 reads Lyra's own import graph and `modules.json`. It can only be tripped by a change in the PR — the property SEC-105 says every other gate in the estate has and the npm-audit gate lacks.
+> 2. *It blocks a deploy over code that never ships.* CTL-051 runs in `pr-checks.yml` only, never in a deploy workflow.
+> 3. *It has no waiver primitive.* CTL-051 ships **green** against a shrink-only two-way baseline, and the escape route is explicit: declare the dependency in `modules.json`, or record it via `--write-baseline`. The one exception is a manifest self-contradiction, which is deliberately un-waivable — see the script's docstring.
+>
+> **What is still blocked, and why the line falls where it does.** The two landed rules had **12** and **1** violations. The remaining ones do not:
+>
+> - `no-deep-module-import` — **142**
+> - `app-routes-are-thin` — *"many"*
+>
+> Making either blocking means shipping either a red build or a ~142-entry suppression list, and *that* is precisely the "scale a control before its scoping is settled" move the hard dependency exists to prevent. A 142-entry baseline is a suppression list wearing a ratchet's clothes. Neither may land until SEC-105 resolves and C2's blocking scope is re-derived.
+>
+> Two of the remaining seven are also blocked on missing data rather than on SEC-105, and would be even if it closed tomorrow:
+>
+> - `no-deep-module-import` needs each module's **`declaredApi`**, which is `[]` for all 21. `publicApi` is populated but is *observed* data — enforcing it as policy would freeze today's graph and call it an architecture. Somebody has to decide what each module's public API **is**.
+> - `app-routes-are-thin` has no definition of "thin" anywhere in `modules.json`.
+>
+> `edge-safe` and `backoffice-not-in-request-path` need neither SEC-105 nor new manifest data, but were not landed here: the Next build already fails on a Node-only import reachable from `middleware.ts`, so `edge-safe` would largely duplicate it, and neither was measured. Both remain open.
+>
+> **Also measured and recorded here so it is not re-derived:** the module graph has **four cycles** — `access↔admin`, `admin↔trust-safety`, `age↔auth`, `profile↔recommendations` — all invisible to depcruise's file-level `no-circular`, which reports zero. Each is one legal downward edge plus one upward edge the layer rule already flags, so no cycle rule was added; driving the upward edges to zero makes them unrepresentable.
+>
+> ---
+>
+> **📌 Updated 2026-08-13 — SEC-105 is RESOLVED, and `no-deep-module-import` has landed.**
+>
+> SEC-105 shipped as CTL-052 (PR #777): the npm-audit gate is prod-tree scoped, blocking in `pr-checks.yml` only, removed from all four deploys, with a dated waiver file. The hard dependency above is therefore **discharged** — but read what it actually argued before treating C2 as open season. Its point was that scoping must be settled before blocking gates are scaled, not that a date had to pass.
+>
+> **`no-deep-module-import` is done** (CTL-053, `scripts/check-module-api.py`). The 145→142 violation count in the table above was never the real obstacle; the obstacle was that nothing defined a module's public surface. Now measured: **304 files across 21 modules, of which 54 are imported from outside**. `declaredApi` is populated for all 21 from those 54, and the rule is two-way — an undeclared cross-module import fails, and a declared entry nothing imports fails as STALE, so the surface can only shrink without a reviewed line.
+>
+> Three manifest corrections went with it:
+>
+> - **`declaredApi` is now POLICY** (file-based, hand-edited, read by CTL-053). It was `[]` for 20 of 21 modules.
+> - **`plannedApi` is new**, holding `audit`'s three aspirational symbols — they name symbols that *do not exist yet* (`todayImplementedBy: moderateAndAudit()`), and feeding intent to an enforcement gate makes its input part-real, part-wish.
+> - **`publicApi` is DESCRIPTIVE** and was 5 entries short. The gaps were all real files that became externally imported during D1–D9 (`guards/client-ip.ts`, `profile/favourites.ts`, `recommendations/recommend/dismissals.ts`, and both `trust-safety` action files) — the KAN-416 derivation predates those moves.
+>
+> **Note what this makes true of §4.1.** The alias scheme is not merely "deferred" — it is *unnecessary for enforcement*, which KAN-432's correction already implied without saying. There are no `index.ts` files and none are needed: creating 21 plus their aliases would rewrite every import in the app to buy enforcement CTL-053 provides by reading the resolved graph. Keep §4.1 as ergonomics if someone wants it; do not treat it as blocking.
+>
+> **📌 C2 CLOSED OUT 2026-08-13. Of the nine rules, six are enforced, one is unimplementable as written, and two need a decision rather than code.**
+>
+> | rule | state |
+> |---|---|
+> | `no-module-to-app` | ✅ blocking (CTL-030) |
+> | `no-circular` | ✅ blocking (CTL-030) |
+> | `platform-is-a-leaf` | ✅ subsumed by CTL-051 — platform is L0 with an empty `mayDependOn`, so every outgoing edge is upward or undeclared |
+> | `no-undeclared-module-dep` | ✅ blocking (CTL-051 rule 3) |
+> | `no-deep-module-import` | ✅ blocking (CTL-053) |
+> | `edge-safe` | ✅ blocking (CTL-054) — measured at **0 violations**: 23 files reachable from `middleware.ts`, importing only `@supabase/ssr`, `jose`, `next/server` |
+> | `backoffice-not-in-request-path` | 🚫 **no target exists** — see below |
+> | `app-routes-are-thin` | ⏸ needs a decision — see below |
+> | `no-cross-segment-app` | ⏸ 2 edges left, 1 unrouted — see below |
+>
+> **`backoffice-not-in-request-path` cannot be written, and should not be faked.** §5's affiliate row says "affiliate/backoffice stays unreachable from the request path", but `src/modules/affiliate/` contains **seven flat files and no `backoffice/` directory** (`eligibility`, `fx`, `link-service`, `merchant-detector`, `reporting`, `smoke`, `types`). A rule anchored on a path that does not exist matches nothing — it would report CLEAN forever and CTL-035 would correctly flag it as a dead pattern. **Recording the gap is the honest move; a green rule guarding nothing is worse than no rule.** If a backoffice surface is ever built, this rule becomes writable and should be written then.
+>
+> **`app-routes-are-thin` needs its definition restated, and that is a founder/architect call.** The table above defines thin as *"`src/app/**` may import only module index files, same-segment files, framework packages"*. There are **no index files** and (per the note above) none are needed for enforcement — so the first clause has no referent. The natural restatement is *"only files in some module's `declaredApi`"*, which CTL-053 already computes. That would be a genuine, enforceable rule; it is not landed here because choosing it changes what "thin" means, and the current violation count under that reading has not been measured.
+>
+> **`no-cross-segment-app` is down to 2** (from 5 → 3 → 2), and one still has no owner:
+>
+> - `src/app/(legal)/about/page.tsx → src/app/_marketing/sections.tsx` — implicated in KAN-422's DELETE list.
+> - `src/app/dashboard/page.tsx → src/app/(auth)/actions.ts` — **routed nowhere**, exactly as the `.dependency-cruiser.cjs` scope note has said since KAN-425. It needs an owner before the rule can flip to `error`.
+>
+> The rule stays `warn` until both are resolved. Flipping it with two live violations would mean either a red build or a suppression entry, and the second is what the ratchet discipline exists to prevent.
+
+
 ### 4.3 The data boundary — where the real coupling is
 
 - **`scripts/check-module-table-ownership.sh`** — parses every `.from('<table>')` and `.rpc('<fn>')` in `src/`, maps the file to its module by path, fails if the table is not in that module's `owns` list. `profiles` is enforced at **column** granularity.
 - **`scripts/check-service-role-client.sh`** (extend the existing one) — restricts importing `createServiceRoleClient` to `src/modules/*/data/**`. 40 files hold it today.
 
 Neither gate needs a repository framework. **They make the existing style illegal outside one directory per module** — which is exactly the incremental pressure that works.
+
+> ✅ **DELIVERED 2026-08-14 as CTL-055 — `scripts/check-module-table-ownership.py`** (Python, not `.sh`; every other KAN-415 gate is Python and the two-way ratchet needs JSON handling). Measured at landing: **242 non-`profiles` call sites, 56 unowned `(module → table)` pairs**, grandfathered in `supabase/table-ownership-baseline.json` as a two-way ratchet, so it ships green and can only shrink.
+>
+> **Two corrections to the paragraph above, both worth keeping:**
+>
+> 1. **`profiles` is NOT enforced at column granularity, and cannot honestly be.** The plan assumed static analysis could read a write's column set. It cannot: of 18 `profiles` writes, **6 pass a variable rather than a literal object**. A gate covering the other 12 and silently passing those 6 would report clean over *exactly the shape BUGS-74 was* — a partial write destroying columns the caller never named. `profiles` is therefore excluded from this gate by policy, with the column contract pinned at **runtime** by `tests/unit/partial-write-safety.test.ts`, which is the right instrument for it. Recording the gap is a finding; covering 12 of 18 and calling it column-granular would have been a regression.
+>
+> 2. **"One directory per module" is not what makes the boundary hold.** The gate keys on the **path assignments in `modules.json`**, not on directory names, which is why it landed without moving a single file — and why relocating Convene into `src/modules/` would buy zero additional enforcement. The incremental pressure comes from the manifest being read, not from the tree being tidy.
+>
+> **What it catches that nothing else could.** Convene passes CTL-051 and CTL-053 cleanly — 2 declared entry points, every outward import edge legal and downward, both enforced two-way — and still reaches **3 tables owned by other modules** (`api_keys`, `consent_log`, `refresh_relationship_signals`). Enforcement on the **import** graph says nothing about the **data** graph.
+>
+> ⚠️ **Read `_concentration` before proposing a cleanup.** 29 of the 56 pairs come from one file — the account erasure/export path, which touches every table a user has data in *by definition*. That figure is computed at `--write-baseline`, never typed, so it cannot go stale. Without it the baseline reads as 56 boundary breaks and invites a "fix" that would be wrong.
+>
+> **UPDATE 2026-08-14 — read vs write, and what that means for criterion 2.**
+> The pairs are now classified `read` or `write`, because `owns` means "may
+> WRITE": a cross-module READ is legitimate and only a WRITE is a boundary
+> break. Measured: **44 read, 12 write**.
+>
+> That changes what criterion 2 should ask for. Taken literally — "every entry
+> is dated, ticketed and unexpired" — it would impose a ticket and a renewal
+> date on all 56, i.e. on 44 entries that are fine. A list that must be renewed
+> on a schedule is renewed by reflex, which is how a ratchet decays into the
+> suppression list it was built to replace. **Only the writes are work**, and
+> they are few enough to own individually.
+>
+> A hard expiry is also the one thing every other control here avoids: a gate
+> that can go red with no change to the PR. That is exactly the failure SEC-105
+> had just finished removing from the npm-audit gate, which froze the pipeline
+> for ~11 days and left twelve tested security fixes unshipped. Do not
+> reintroduce it on a clock.
+>
+> **A third failure mode was added: ESCALATED.** A pair is keyed
+> `module -> table`, so a baselined READ that quietly starts WRITING kept its
+> key — the pair count did not move and the control stayed green. A module
+> beginning to mutate state it does not own, with nothing going red: the BUGS-74
+> shape. De-escalation fails as STALE too, so the record follows the code both
+> ways.
+>
+> **An undecidable statement is classified `write`, never `read`.** A write
+> misfiled as a read sits in the accepted bucket where it can never be caught
+> escalating, because it was already a write. The `basis` field records how each
+> verdict was reached, so a conservative flag is visibly conservative: 7 of the
+> 12 writes are `mutation-call` (hard evidence), 5 are `rpc-undecidable`, and
+> `account -> search_by_contact_hash` is provably `return query select` — a
+> deliberate over-flag, labelled rather than hidden.
+>
+> The `check-service-role-client.sh` half of this section remains as written.
 
 ### 4.4 The ratchet — how a boundary survives an urgent Friday fix
 
@@ -433,7 +580,7 @@ These are the "research for the refactor" the request asked for. Each answers on
 |---|---|---|
 | **C1** | ⏸️ **DEFERRED (§2.2).** Create `src/modules/` skeleton, `modules.json`, per-module tsconfig aliases (index-only, no wildcards), mirrored `jest.moduleNameMapper` | R1, F3 |
 | **C2** | ⏸️ **DEFERRED (§2.2)** — and ⚠️ **hard-blocked on [SEC-105](https://checklyra.atlassian.net/browse/SEC-105) whenever it is re-opened** (see §4.2). Add `dependency-cruiser` with all 9 rules as a blocking `Module boundary gate` step in `PR Quality Gate`; unenforced modules skipped | C1, **SEC-105** |
-| **C3** | ✅ **IN SCOPE.** Add `scripts/check-module-table-ownership.sh` (280 → **277** call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh`. ⚠️ **Re-expressed 2026-07-28:** since `src/modules/` is not being created, the gate maps each file to its owning module via the **path assignments already in KAN-416's `modules.json`**, and restricts `createServiceRoleClient` to each module's declared data paths rather than to `src/modules/*/data/**`. The data boundary does not require the file moves — that is why it survives the scope ruling | ~~C1~~, F6, R6 |
+| **C3** | ✅ **DONE 2026-08-14 (table-ownership half) — landed as CTL-055 `scripts/check-module-table-ownership.py`.** Add `scripts/check-module-table-ownership.sh` (280 → **277** call sites, 33 tables, `profiles` column-granular) + extend `check-service-role-client.sh`. ⚠️ **Re-expressed 2026-07-28:** since `src/modules/` is not being created, the gate maps each file to its owning module via the **path assignments already in KAN-416's `modules.json`**, and restricts `createServiceRoleClient` to each module's declared data paths rather than to `src/modules/*/data/**`. The data boundary does not require the file moves — that is why it survives the scope ruling | ~~C1~~, F6, R6 |
 | **C4** | Add `scripts/check-boundary-ratchet.sh` + `.boundaries-allowlist.json` + the `BOUNDARY-EXEMPTION-APPROVED` trailer | C2 |
 | **C5** | Add `scripts/check-module-manifest.sh` (index.ts + manifest entry + CODEOWNERS line + test dir); rewrite the 11 per-file CODEOWNERS lines to module paths | C1 |
 | **C6** | ESLint `no-restricted-imports` layer (redundant with C2 by design — fails in the editor, before CI) | C1 |
@@ -442,6 +589,8 @@ These are the "research for the refactor" the request asked for. Each answers on
 
 ### Workstream D — Module extractions, in dependency order
 
+> **🔴 REVERSED 2026-08-04. Workstream D is IN FLIGHT — D1–D4 are merged. See the banner at the top of this file.**
+>
 > **⏸️ ALL OF WORKSTREAM D IS DEFERRED — scope ruling 2026-07-28 (§2.2).** D1–D15 are **not cancelled**; they are re-decided after Phase 0 closes, against a decoupled test estate and a generated `Database` type, per the binding re-decision trigger in §2.2. **No file moves into `src/modules/` under the current scope.**
 >
 > The sequencing below is retained because it is the most expensive artefact in this plan to reconstruct, and because two of its steps carry constraints that survive the deferral: **D9 is gated on SEC-104** and **D8 absorbs two app→app edges from F2**. Two items are also promoted out of D entirely because they are in scope on their own merits: **D3 (`@lyra/contracts`)** and the domain-model half of **D8**'s privacy finding, now tracked as **SEC-109** rather than waiting for D13.
@@ -629,6 +778,8 @@ The first draft sequenced docs and verification rework as a **closing phase**. T
 
 **Critical path (as planned 2026-07-26):** R2 → F4 (test decoupling) → C1 → D1 → D2 → D4 → D5 → everything else. **F4 is the choke point.** It is the largest, least glamorous item, delivers no visible modularity, and shortening it is the single most likely way this programme fails.
 
+> **🔴 REVERSED 2026-08-04 — see the banner at the top of this file.**
+>
 > **⏸️ Re-scoped 2026-07-28 (§2.2).** Everything below the `C1 ▶ C2 ▶ …` line in the diagram above — Workstreams C (except C3), D and G — is **deferred**. The **current critical path is `R2 → F4 → F5`**, with `F6 → F7` and `C3` in parallel, plus `@lyra/contracts` (R3/D3, founder-gated on KAN-418) and the `profiles` ADR.
 >
 > **F4 remains the choke point, and the re-validation strengthened that claim rather than weakening it:** the path-coupling tax grew 18–31% in the two days between the survey and the re-validation, with no modularisation work in flight. F4 is now urgent on its own merits — it is the prerequisite for per-module CI, for honest test floors, and for the measurement that the §2.2 re-decision trigger depends on.

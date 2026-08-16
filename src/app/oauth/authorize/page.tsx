@@ -12,9 +12,10 @@
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseServer } from '@/modules/platform/supabase-server';
 import { validateAuthorizeRequest, buildErrorRedirect } from '@/modules/oauth-as/lib/authorize';
-import { getAccountStanding } from '@/lib/account-status';
+import { getAccountStanding } from '@/modules/access/account-status';
 import { getConsent } from '@/modules/oauth-as/lib/consents';
 import { clientTrust, redirectHost } from '@/modules/oauth-as/lib/client-trust';
+import { buildAuthorizePath } from '@/modules/oauth-as/consent-flow';
 import { submitConsent, switchAccountAndContinue } from './actions';
 import type { Metadata } from 'next';
 
@@ -45,6 +46,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     state: pick('state'),
     code_challenge: pick('code_challenge'),
     code_challenge_method: pick('code_challenge_method'),
+    resource: pick('resource'),
   });
 
   if (!validation.ok) {
@@ -73,15 +75,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   } = await sb.auth.getUser();
 
   if (!user) {
-    const next = new URL('/oauth/authorize', 'https://placeholder');
-    next.searchParams.set('client_id', req.client.client_id);
-    next.searchParams.set('redirect_uri', req.redirectUri);
-    next.searchParams.set('response_type', 'code');
-    next.searchParams.set('scope', req.scope);
-    if (req.state) next.searchParams.set('state', req.state);
-    next.searchParams.set('code_challenge', req.codeChallenge);
-    next.searchParams.set('code_challenge_method', req.codeChallengeMethod);
-    redirect(`/login?next=${encodeURIComponent(next.pathname + next.search)}`);
+    redirect(`/login?next=${encodeURIComponent(authorizePath(req))}`);
   }
 
   // SEC-57: don't even show the consent screen to a suspended user (the
@@ -114,17 +108,11 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
                      // to the consent screen UI in a follow-up so users
                      // can see "previously granted on …".
 
-  // Build the exact authorize URL we're currently rendering, so that the
-  // "switch account" link can preserve the OAuth state through a re-login.
-  const currentAuthorizeUrl = new URL('/oauth/authorize', 'https://placeholder');
-  currentAuthorizeUrl.searchParams.set('client_id', req.client.client_id);
-  currentAuthorizeUrl.searchParams.set('redirect_uri', req.redirectUri);
-  currentAuthorizeUrl.searchParams.set('response_type', 'code');
-  currentAuthorizeUrl.searchParams.set('scope', req.scope);
-  if (req.state) currentAuthorizeUrl.searchParams.set('state', req.state);
-  currentAuthorizeUrl.searchParams.set('code_challenge', req.codeChallenge);
-  currentAuthorizeUrl.searchParams.set('code_challenge_method', req.codeChallengeMethod);
-  const authorizePathWithQuery = currentAuthorizeUrl.pathname + currentAuthorizeUrl.search;
+  // The exact authorize URL we're currently rendering, so the "switch account"
+  // link can preserve the OAuth state through a re-login. Same builder as the
+  // not-signed-in bounce above and as the action's session-expired bounce —
+  // one implementation, because the authorize URL is a frozen contract.
+  const authorizePathWithQuery = authorizePath(req);
 
   // SEC-76 (web-oauth-7) — DCR anti-phishing. client_name is self-asserted at
   // registration (RFC 7591), so a phishing client can call itself "Lyra
@@ -260,6 +248,9 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
             state: req.state ?? '',
             code_challenge: req.codeChallenge,
             code_challenge_method: req.codeChallengeMethod,
+            // SEC-46: the RESOLVED resource, not the raw query param — an absent
+            // one has already become the environment default by here.
+            resource: req.resource,
             decision,
           });
         }}
@@ -298,6 +289,33 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
       </form>
     </main>
   );
+}
+
+/**
+ * Adapt a validated authorize request to the shared path builder.
+ *
+ * The only reason this adapter exists is that the validator names its fields in
+ * camelCase and the form payload names them in snake_case; the URL both produce
+ * is identical, and `buildAuthorizePath` is the single implementation of it.
+ */
+function authorizePath(req: {
+  client: { client_id: string };
+  redirectUri: string;
+  scope: string;
+  state?: string | null;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  resource?: string;
+}): string {
+  return buildAuthorizePath({
+    clientId: req.client.client_id,
+    redirectUri: req.redirectUri,
+    scope: req.scope,
+    state: req.state ?? undefined,
+    codeChallenge: req.codeChallenge,
+    codeChallengeMethod: req.codeChallengeMethod,
+    resource: req.resource,
+  });
 }
 
 function scopeDescription(scope: string): string {

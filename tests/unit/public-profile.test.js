@@ -65,7 +65,7 @@ describe('Public Profile', () => {
   // dropped from the group, whereas a source scan cannot tell a rendered
   // category from a mentioned one.
   test("public profile renders the 'plays' favourites category (KAN-404/KAN-444)", () => {
-    const content = fs.readFileSync(path.join(root, SRC.profile, 'favourites.ts'), 'utf8');
+    const content = fs.readFileSync(path.join(root, SRC.favourites), 'utf8');
     expect(content).toContain("'plays'");
     // Assert the group DEFINITION, not its heading: the heading text also
     // appears in that module's explanatory comment, so matching it would

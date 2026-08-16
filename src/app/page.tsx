@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createServiceRoleClient } from "@/modules/platform/supabase-service";
-import { isProdDeploy } from "@/lib/beta-access/flow";
+import { isProdDeploy } from "@/modules/access/beta-access/flow";
 import { jsonLdSafe } from "@/modules/guards/json-ld";
 
 /**
@@ -65,17 +65,14 @@ async function getPublishedProfiles(): Promise<HomeProfile[]> {
     // flag (default false) that a DB trigger restricts to @seed.checklyra.com
     // accounts, so no real profile (incl. Ben/Luisa) can ever appear here.
     const { data } = await supabase
-      .from("profiles")
+      // SEC-104: the `public_profiles` VIEW, not the table. This reads through
+      // the SERVICE-ROLE client, so RLS never applied — the invariant "a public
+      // query filters suspension" now lives in the view body, where it binds
+      // service_role too. Previously each call site had to remember it, and the
+      // re-derivation of which sites were safe is what SEC-44/80/81/83/85/100
+      // kept getting wrong.
+      .from("public_profiles")
       .select("display_name, slug, headline, avatar_url")
-      .eq("is_published", true)
-      // SEC-100: read through the SERVICE-ROLE client, so RLS (which enforces
-      // is_published AND NOT is_suspended) does not apply. The
-      // is_homepage_example allowlist already excludes real members, so this is
-      // defence in depth — but the invariant "public query filters suspension"
-      // must hold everywhere, or the next reviewer has to re-derive which call
-      // sites are safe. That re-derivation is what SEC-44/80/81/83/85 kept
-      // getting wrong. Guarded by scripts/check-suspension-guard-coverage.py.
-      .eq("is_suspended", false)
       .eq("is_homepage_example", true)
       .order("homepage_example_order", { ascending: true })
       .limit(6);

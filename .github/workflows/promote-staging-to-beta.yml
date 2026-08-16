@@ -17,6 +17,26 @@ on:
         description: 'Type "promote" to confirm'
         required: true
 
+# SEC-141: promotes must not run simultaneously.
+#
+# A single dispatch of promote-staging-to-beta produced TWO runs 63 seconds
+# apart on 2026-08-14 (cause unconfirmed; a client retry on a slow 204 is the
+# leading hypothesis). Each promote fetches, merges and pushes, so two in
+# flight can interleave in the lost-update window. That day it was harmless
+# only because someone noticed and cancelled one, which is not a control.
+#
+# ⚠️ cancel-in-progress MUST stay false. The reflexive `true` is actively
+# worse here: it would kill an in-flight promote MID-MERGE OR MID-PUSH, a
+# nastier failure than the race it prevents. With false the second run
+# queues, then finds the merge already done — a harmless no-op.
+#
+# Each workflow gets its OWN group. staging→beta and beta→main target
+# different branches and are independent; serialising them across workflows
+# would only make a release slower.
+concurrency:
+  group: promote-${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   # `write` (was `read`) so this workflow can DISPATCH soak-journey against the
@@ -39,7 +59,7 @@ jobs:
     outputs:
       staging_sha: ${{ steps.check.outputs.staging_sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 1
           ref: staging
@@ -218,7 +238,7 @@ jobs:
     steps:
       # Use LYRA_RELEASE_PAT — GITHUB_TOKEN does not trigger downstream
       # workflows on push (deploy-beta.yml would never fire). See gotcha #16.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}

@@ -1,0 +1,531 @@
+{
+  "_why": [
+    "CTL-055. (module -> table) pairs where a module reads or writes a table it",
+    "does not declare in owns.tables/owns.rpcs, as they stood when the control",
+    "landed. Grandfathered so it could ship green.",
+    "",
+    "SHRINK-ONLY, AND THREE WAYS TO FAIL. A new pair fails; a baselined pair",
+    "that no longer occurs fails as STALE; and a pair baselined as a READ that",
+    "starts WRITING fails as ESCALATED. Regenerate with --write-baseline in the",
+    "same commit that changes one.",
+    "",
+    "READ THE `mode` FIELD \u2014 IT IS THE POINT OF THIS FILE.",
+    "`owns` means 'this module may WRITE this table'. So a cross-module READ is",
+    "legitimate and is not work; a cross-module WRITE is a real boundary break.",
+    "Only the `write` ones are a list of things to look at. Asking for a ticket",
+    "and an expiry on all 56 would be a renewal ritual over mostly-fine entries,",
+    "which is how a ratchet decays into a suppression list.",
+    "",
+    "AND READ `basis` BEFORE TREATING A `write` AS A FINDING.",
+    "`mutation-call` is hard evidence: a literal .insert/.update/.upsert/.delete.",
+    "`rpc-undecidable` and `opaque-builder` are CONSERVATIVE \u2014 the statement could",
+    "not be decided statically, so it was called a write rather than assumed",
+    "harmless. Verify those against supabase/migrations/ before acting:",
+    "`account -> search_by_contact_hash` is provably `return query select` and is",
+    "an over-flag, exactly as intended.",
+    "",
+    "The ESCALATED case is what the first cut of this control could not see. A",
+    "pair is keyed `module -> table`, so a baselined read that quietly became a",
+    "write kept its key and stayed green -- a module beginning to mutate state it",
+    "does not own, with nothing going red. That is the BUGS-74 shape.",
+    "",
+    "An UNDECIDABLE statement is classified `write`, never `read`. A write hidden",
+    "in the accepted-reads bucket can never be caught escalating, because it was",
+    "already a write; an over-flagged read costs one annotation.",
+    "",
+    "`profiles` is absent by policy, not by omission: it is co-owned at COLUMN",
+    "granularity (8 modules, 37 of 42 columns) and its column contract is pinned",
+    "by tests/unit/partial-write-safety.test.ts. See the script docstring."
+  ],
+  "ticket": "KAN-415",
+  "_concentration": {
+    "$comment": "Computed at --write-baseline, never typed. Files contributing the most pairs. A single file with a large share is usually a legitimate cross-cutting concern (erasure, export, admin) rather than N separate boundary breaks \u2014 read the count here before proposing a cleanup.",
+    "pairs": 56,
+    "writes": 12,
+    "topFiles": {
+      "src/app/dashboard/settings/actions.ts": 29,
+      "src/app/[slug]/page.tsx": 7,
+      "src/app/admin/moderation/page.tsx": 2
+    }
+  },
+  "violations": {
+    "account -> affiliate_clicks": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "affiliate"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> affiliate_clicks_purge_expired": {
+      "mode": "write",
+      "basis": "rpc-undecidable",
+      "sites": 1,
+      "owner": [
+        "affiliate"
+      ],
+      "example": "src/modules/account/retention/affiliate-clicks.ts"
+    },
+    "account -> consent_log": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "marketing-legal"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> contact_methods": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> contacts": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> content_moderation_flags": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "audit"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> external_links": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> feature_entitlements": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "features"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gathering_events_log": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gathering_invite_messages": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gathering_invitees": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gathering_proposed_slots": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gatherings": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> gatherings_purge_expired": {
+      "mode": "write",
+      "basis": "rpc-undecidable",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/modules/account/retention/gatherings.ts"
+    },
+    "account -> gift_suggestion_dismissals": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> oauth_connections": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> oauth_consents": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "oauth-as"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> oauth_scopes_granted": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> profile_conversation_starters": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> profile_files": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> profile_items": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> profile_manual_of_me": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> recommendation_events": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> record_erasure_obligation": {
+      "mode": "write",
+      "basis": "rpc-undecidable",
+      "sites": 1,
+      "owner": [
+        "trust-safety"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> relationship_signals": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> reports": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "trust-safety"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> school_affiliations": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> search_by_contact_hash": {
+      "mode": "write",
+      "basis": "rpc-undecidable",
+      "sites": 1,
+      "owner": [
+        "convene"
+      ],
+      "example": "src/app/dashboard/settings/discoverability-actions.ts"
+    },
+    "account -> tribe_members": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> tribes": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> venue_ratings": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> venue_visits": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "admin -> affiliate_clicks": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "affiliate"
+      ],
+      "example": "src/app/admin/affiliate-reporting/page.tsx"
+    },
+    "admin -> content_moderation_flags": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 2,
+      "owner": [
+        "audit"
+      ],
+      "example": "src/app/admin/moderation/page.tsx"
+    },
+    "admin -> feature_entitlements": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 1,
+      "owner": [
+        "features"
+      ],
+      "example": "src/app/admin/users/actions.ts"
+    },
+    "admin -> global_feature_switches": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 2,
+      "owner": [
+        "features"
+      ],
+      "example": "src/app/admin/features/actions.ts"
+    },
+    "admin -> moderation_logs": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 3,
+      "owner": [
+        "audit"
+      ],
+      "example": "src/app/admin/audit/page.tsx"
+    },
+    "admin -> profile_items": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/admin/users/[slug]/page.tsx"
+    },
+    "admin -> reports": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 6,
+      "owner": [
+        "trust-safety"
+      ],
+      "example": "src/app/admin/moderation/page.tsx"
+    },
+    "convene -> api_keys": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 2,
+      "owner": [
+        "account"
+      ],
+      "example": "src/lib/convene/auth-bearer.ts"
+    },
+    "convene -> consent_log": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 2,
+      "owner": [
+        "marketing-legal"
+      ],
+      "example": "src/app/api/convene/oauth/google/callback/route.ts"
+    },
+    "convene -> refresh_relationship_signals": {
+      "mode": "write",
+      "basis": "rpc-undecidable",
+      "sites": 1,
+      "owner": [
+        "recommendations"
+      ],
+      "example": "src/lib/convene/post-event.ts"
+    },
+    "dashboard -> profile_items": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/page.tsx"
+    },
+    "dashboard -> school_affiliations": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/page.tsx"
+    },
+    "marketing-legal -> public_profiles": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 3,
+      "owner": null,
+      "example": "src/app/examples/page.tsx"
+    },
+    "profile -> gift_suggestion_dismissals": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 3,
+      "owner": null,
+      "example": "src/app/dashboard/profile/actions.ts"
+    },
+    "public-profile -> external_links": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> gift_suggestion_dismissals": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": null,
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> profile_conversation_starters": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> profile_items": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> profile_manual_of_me": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> public_profiles": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 3,
+      "owner": null,
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "public-profile -> school_affiliations": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 2,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/[slug]/page.tsx"
+    },
+    "recommendations -> profile_items": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 2,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/api/recommendations/[slug]/route.ts"
+    },
+    "recommendations -> public_profiles": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 2,
+      "owner": null,
+      "example": "src/app/api/recommendations/[slug]/route.ts"
+    },
+    "trust-safety -> profile_items": {
+      "mode": "write",
+      "basis": "mutation-call",
+      "sites": 2,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/api/reports/route.ts"
+    }
+  }
+}

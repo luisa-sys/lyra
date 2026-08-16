@@ -1,9 +1,23 @@
 /**
  * SEC-4 — public status page.
  *
- * Structural guards: the page does a LIVE probe (not a hard-coded "operational"),
- * and it is reachable on every environment (exempt from the beta gate + allow-listed
- * in the maintenance worker).
+ * Structural guards: the page probes the MCP API live, and it is reachable on
+ * every environment (exempt from the beta gate + allow-listed in the
+ * maintenance worker).
+ *
+ * ⚠️ SCOPE — read before trusting this file as cover for "the status page is
+ * honest". It is NOT. The header here used to claim the page "does a LIVE probe
+ * (not a hard-coded 'operational')", which is true of the MCP row and false of
+ * the Website row — the one SEC-96 instance 3 is about, which is still the
+ * literal `{ ok: true, detail: 'Serving' }`. Prose asserting a property the code
+ * does not have is exactly the shape CTL-039 exists to catch, and it read as
+ * cover for the defect while the defect was live.
+ *
+ * Stated plainly rather than quietly fixed: nothing in this file asserts the
+ * Website row. The readiness endpoint that lets it stop being a literal now
+ * exists and is tested in `tests/unit/readiness-endpoint.test.ts`; wiring it
+ * into this page is founder-owned under KAN-411 (`src/app/*.tsx`) and is
+ * deliberately not done here.
  */
 const fs = require('fs');
 const path = require('path');

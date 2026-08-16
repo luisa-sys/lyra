@@ -4,9 +4,17 @@
  *
  * WHY THIS EXISTS
  * ---------------
- * modules.json is the input to every boundary rule in the programme: layers,
- * `mayDependOn`, `mustNot`, the dependency-cruiser config, the extraction DoD.
- * Nothing validated it. Three separate defects were sitting in it when this was
+ * modules.json is the declared map of who owns what: layers, `mayDependOn`,
+ * `mustNot`, and the ownership the extraction DoD and CTL-044 read. Nothing
+ * validated it.
+ *
+ * ⚠️ It is NOT read by .dependency-cruiser.cjs. An earlier draft of this
+ * rationale said it was, and that mattered enough to correct: depcruise's rules
+ * are hand-written path regexes that only MENTION modules.json in prose, so the
+ * two can disagree silently. CTL-044 exists precisely because they did — the
+ * `no-module-to-app` anchor stopped covering the tree modules.json describes,
+ * and nothing connected them. Believing the manifest feeds depcruise would make
+ * that whole class of defect invisible by assumption. Three separate defects were sitting in it when this was
  * written, and each is the same shape — the manifest quietly describing a tree
  * that no longer exists:
  *
@@ -22,7 +30,7 @@
  *
  *   3. Two modules appeared to claim the same three files, which looked like an
  *      ambiguous boundary and was not: src/lib/recommend/convene/ is nested
- *      inside src/lib/recommend/. The manifest was right and the naive reading
+ *      inside src/modules/recommendations/recommend/. The manifest was right and the naive reading
  *      was wrong — which is itself worth pinning, because the next person to
  *      check this by hand will make the same mistake.
  *
@@ -183,10 +191,89 @@ describe('modules.json integrity (KAN-415)', () => {
     expect(MODULES.convene.modularisationStatus.jira).toBe('KAN-470');
   });
 
+  describe('`enforced` is DERIVED, and fails in both directions (KAN-415 criterion 1)', () => {
+    // The field sat `false` on all 21 modules while NOTHING read it. That is
+    // worse than unused: plan section 4.5 proposed that depcruise skip
+    // unenforced modules, that skip was never built, and CTL-051/053/054/055
+    // apply to every module unconditionally. So the manifest asserted
+    // boundaries were advisory here when the opposite was true — the same
+    // hazard as a comment claiming a live control is off.
+    //
+    // Redefined: `enforced` means "zero baselined exceptions today". A target
+    // that moves as the baselines shrink, rather than a checkbox nobody can
+    // tick.
+    const layering = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'modules-layering-baseline.json'), 'utf8'),
+    ).violations;
+    const tables = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'supabase', 'table-ownership-baseline.json'), 'utf8'),
+    ).violations;
+
+    const withExceptions = new Set(
+      [...Object.keys(layering), ...Object.keys(tables)].map((k) => k.split(' -> ')[0]),
+    );
+
+    test('the baselines are non-empty, or every assertion below is vacuous', () => {
+      // Catalogue failure mode 4: a conclusion drawn from an empty corpus. If
+      // both baselines were empty, "enforced === true for all" would pass while
+      // measuring nothing.
+      expect(Object.keys(layering).length).toBeGreaterThan(0);
+      expect(Object.keys(tables).length).toBeGreaterThan(0);
+      expect(withExceptions.size).toBeGreaterThan(0);
+    });
+
+    test('every module claiming `enforced: true` really has zero exceptions', () => {
+      const lying = Object.entries(MODULES)
+        .filter(([name, m]) => m.enforced === true && withExceptions.has(name))
+        .map(([name]) => name);
+      expect(`modules claiming enforced with baselined exceptions: ${JSON.stringify(lying)}`).toBe(
+        'modules claiming enforced with baselined exceptions: []',
+      );
+    });
+
+    test('every module with zero exceptions CLAIMS it — a stale false is also a lie', () => {
+      // The direction that makes this a ratchet rather than an honour system.
+      // Without it the field could be left `false` forever and never go red,
+      // which is exactly the state it was in.
+      const understating = Object.entries(MODULES)
+        .filter(([name, m]) => m.enforced !== true && !withExceptions.has(name))
+        .map(([name]) => name);
+      expect(`clean modules not claiming enforced: ${JSON.stringify(understating)}`).toBe(
+        'clean modules not claiming enforced: []',
+      );
+    });
+
+    test('the field is a boolean on every module, never absent', () => {
+      const bad = Object.entries(MODULES)
+        .filter(([, m]) => typeof m.enforced !== 'boolean')
+        .map(([name]) => name);
+      expect(`modules with a non-boolean enforced: ${JSON.stringify(bad)}`).toBe(
+        'modules with a non-boolean enforced: []',
+      );
+    });
+
+    test('both values actually occur — a uniform field is indistinguishable from no field', () => {
+      // This is what the old state failed. All-false passed every check that
+      // did not exist; all-true would too. Requiring both present means the
+      // field carries information.
+      const values = new Set(Object.values(MODULES).map((m) => m.enforced));
+      expect([...values].sort()).toEqual([false, true]);
+    });
+
+    test('the manifest states what `enforced` means, next to the data', () => {
+      // A derived field whose derivation lives only in a test is a field the
+      // next person hand-edits to make a build pass.
+      const notes = manifest.$schemaNotes || {};
+      expect(typeof notes.enforced).toBe('string');
+      expect(notes.enforced).toContain('ZERO baselined exceptions');
+      expect(notes.enforced).toContain('NEVER BUILT');
+    });
+  });
+
   test('cross-module path nesting resolves to the more specific module', () => {
     // Derived from the manifest, not typed: this pins the RULE (most specific
     // declaration wins), not two particular filenames. The real case is
-    // src/lib/recommend/convene/ nested inside src/lib/recommend/, which reads
+    // src/lib/recommend/convene/ nested inside src/modules/recommendations/recommend/, which reads
     // as an ambiguous boundary if you check it by hand — it is not.
     const decls = [];
     for (const [name, mod] of Object.entries(MODULES)) {
@@ -194,10 +281,52 @@ describe('modules.json integrity (KAN-415)', () => {
       for (const raw of mod.paths) decls.push({ name, p: raw.replace(/\/$/, '') });
     }
     const nested = decls.filter((a) => decls.some((b) => b.name !== a.name && a.p.startsWith(`${b.p}/`)));
-    // There is at least one such pair today; if that ever stops being true this
-    // test would pass vacuously, so assert the fixture exists before using it.
-    expect(nested.length).toBeGreaterThan(0);
 
+    // ⚠️ THE REAL FIXTURE IS GONE, AND THAT IS THE PROGRAMME WORKING.
+    //
+    // This used to require `nested.length > 0` — correct at the time, because a
+    // vacuous loop over an empty list proves nothing (catalogue failure mode 4).
+    // The pair it relied on was convene's `src/lib/recommend/convene/` sitting
+    // inside recommendations' `src/lib/recommend/`. KAN-415's tail moved
+    // recommendations to `src/modules/recommendations/`, so that nesting no
+    // longer exists — the extraction RESOLVED the ambiguous boundary rather
+    // than the test going wrong.
+    //
+    // Requiring a real nested pair would now fail on a tree that is strictly
+    // better. Allowing zero would make the loop vacuous. So the rule is
+    // asserted directly instead, against a synthetic manifest — which is what
+    // the comment above always claimed this test does ("pins the RULE, not two
+    // particular filenames") and is STRONGER than before: it holds whether or
+    // not the tree happens to contain a nested pair.
+    // Prefixed `mod/` rather than `src/` on purpose: the F4 raw-literal
+    // ratchet harvests `src|supabase|scripts|public|design|.github` paths and
+    // is shrink-only, so a synthetic fixture under a real root would raise a
+    // baseline that may not be raised. The rule under test does not care.
+    const synthetic = {
+      outer: { paths: ['mod/x/'] },
+      inner: { paths: ['mod/x/y/'] },
+    };
+    const ownerIn = (manifest, file) => {
+      let best = null;
+      let bestLen = -1;
+      for (const [name, mod] of Object.entries(manifest)) {
+        for (const raw of mod.paths) {
+          const q = raw.replace(/\/$/, '');
+          if (file === q || file.startsWith(`${q}/`)) {
+            if (q.length > bestLen) {
+              best = name;
+              bestLen = q.length;
+            }
+          }
+        }
+      }
+      return best;
+    };
+    expect(ownerIn(synthetic, 'mod/x/y/deep/file.ts')).toBe('inner');
+    expect(ownerIn(synthetic, 'mod/x/other.ts')).toBe('outer');
+
+    // And when the tree DOES contain a nested pair, the shipped resolver must
+    // agree with that rule on every file it owns.
     for (const inner of nested) {
       const owned = files.filter((f) => f === inner.p || f.startsWith(`${inner.p}/`));
       expect(owned.length).toBeGreaterThan(0);

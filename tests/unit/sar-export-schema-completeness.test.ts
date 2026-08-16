@@ -33,7 +33,7 @@ import {
   PERSON_KEYED_TABLES,
   JOIN_KEYED_TABLES,
   DELIBERATELY_EXCLUDED,
-} from '@/lib/gdpr/person-keyed-tables';
+} from '@/modules/contracts/person-keyed-tables';
 import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');

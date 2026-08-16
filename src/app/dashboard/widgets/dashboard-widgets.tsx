@@ -7,7 +7,7 @@ import {
   type WidgetId,
   type OnboardingState,
   type WidgetResolution,
-} from '@/lib/dashboard/resolve-widgets';
+} from '@/modules/dashboard/resolve-widgets';
 
 /**
  * KAN-346/347 (epic KAN-349) — dashboard widget framework + the six widgets.

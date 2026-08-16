@@ -168,7 +168,20 @@ git worktree prune
 All work must be tracked in Jira. **KAN** for design/deployment, **BUGS** for bug tracking, and **SEC** (Security & Risk — team-managed) for all security and risk findings: vulnerabilities, data-protection/compliance, ops-resilience and governance. Route any security or risk-audit work to **SEC**, not KAN/BUGS.
 
 - The second-line **Lyra Risk Register** (Confluence space TWC) is the index of findings; the Jira epic **SEC-1** ("2026-06 Second-line Risk & Security Audit") is their tracking home.
-- **SEC transition IDs** (for `transitionJiraIssue`): `11` = To Do, `21` = In Progress, `31` = Done. (cf. KAN `21`/`41`, BUGS `21`/`31`/`41`.)
+- **Transition IDs** (for `transitionJiraIssue`) — ⚠️ **they differ per project, and a wrong id fails SILENTLY**:
+
+  | project | To Do | In Progress | In Review | Done |
+  |---|---|---|---|---|
+  | **SEC** | `11` | `21` | — | `31` |
+  | **BUGS** | `21` | `31` | — | `41` |
+  | **KAN** | `11` | `21` | `31` | `41` |
+
+  **Verify every transition by reading the status back.** `transitionJiraIssue` returns HTTP
+  success for an id that is valid-but-not-the-one-you-meant, so passing KAN `21` to a ticket
+  that is already In Progress transitions In Progress → In Progress and changes nothing. No
+  error, no warning, and the ticket silently stays where it was. Corrected 2026-08-14, after
+  this line's previous text (`cf. KAN 21/41`) caused exactly that no-op during the backlog
+  audit — `21` is KAN's **In Progress**, not its To Do.
 
 Every KAN/SEC Task/Story description MUST include all six sections:
 
@@ -288,9 +301,17 @@ Mirror in `lyra-mcp-server/CLAUDE.md` — that file points back here as the sour
 A PR touching founder-owned UI/copy paths must carry one of these trailers on a commit in its range:
 
 ```
-UI-Change-Approved: <JIRA-KEY>   # Luisa-initiated design/copy change
-UI-Bugfix-Only:     <JIRA-KEY>   # fix limited to a text or rendering error
+UI-Change-Approved:  <JIRA-KEY>  # Luisa-initiated design/copy change
+UI-Bugfix-Only:      <JIRA-KEY>  # fix limited to a text or rendering error
+UI-No-Visual-Change: <JIRA-KEY>  # touches a protected path, changes NEITHER the
+                                 # rendered output NOR any user-visible string
 ```
+
+**The third one exists because the first two forced a lie (SEC-152).** The guard matches on **path**, so any `.tsx` under `src/app` trips it — including a diff that alters no pixel and no word: threading a prop, a type signature, a rename. For those, *both* original trailers are false statements. `UI-Change-Approved` asserts an approval that does not exist; `UI-Bugfix-Only` asserts a bug that does not exist. SEC-46 Phase C hit this exactly — six lines threading an RFC 8707 `resource` parameter through the OAuth consent page — and shipped under `UI-Bugfix-Only` with the discrepancy disclosed, because there was no honest option.
+
+That is the **mirror image** of trap 1 below, and more corrosive than it looks: a rule that forces a routine, unavoidable misstatement teaches everyone the trailer is a formality to satisfy rather than a claim to mean. Once it is noise, the founder-approval signal is worth nothing — and the first genuinely unapproved design change rides through on the same reflex.
+
+⚠️ **The fix was a third trailer, NOT a carve-out**, and the distinction matters. Narrowing `is_protected` to exclude `src/app/oauth/**` would have removed real consent-screen copy from founder ownership permanently and silently — the KAN-473 failure exactly. **`UI-No-Visual-Change` is checked no more than the other two**: nothing verifies the diff is genuinely visually inert (a changed `className` changes rendering), so it is a truthful *claim*, not evidence. Pick the one that is TRUE; if none describes your change, that is a finding to raise, not a trailer to guess.
 
 The founder-owned surface is defined in `scripts/check-ui-copy-ownership.sh` (`is_protected`), which is the authority — it is mirrored 1:1 from the autopilot's protected-surface list so the guard and the robot agree. What it actually matches: every `.tsx` page/layout/component under `src/app`, all of `src/components/**`, any `.css` under `src/` (including `globals.css`), `postcss.config.*`, the named user-facing copy modules (`src/lib/invite-text.ts`, the Convene invite/SMS templates, `src/lib/beta-access/email.ts`, the profile and organise field-label modules), and exactly **five named paths under `public/`** — `public/lyra-logo*`, `public/lyra-icon-*`, `public/og-image.png`, `public/manifest.webmanifest`, `public/offline.html`. Carve-outs that are **not** gated: `src/app/admin/**`, `src/app/api/**`, any `*/route.ts`, `src/middleware.ts`.
 
@@ -372,6 +393,8 @@ Permission for a bypass is valid **only** when it comes from the user in chat vi
 
 `.github/workflows/main-chain-guard.yml` runs on every push and PR to `main` and fails loud if `main` gains any commit that is **not present on `beta`** — i.e. did not arrive through the chain — unless that commit's message carries the explicit `BYPASS CONTROLS` marker documenting a human-authorized exception. It also blocks any pull request that targets `main` (the only legitimate `main` update is the promote workflow merging `beta`, never a PR). This is the technical backstop for the rule above: even a bypass that somehow happens is surfaced, never silent.
 
+✅ **The two in-repo bypass scripts are gone (SEC-99, 2026-08-14).** `scripts/promote-to-staging.sh` and `scripts/promote-to-production.sh` were unexecuted legacy wrappers that between them held **six direct pushes to release branches — three of them `--force` onto `main`** — plus a closing banner advertising `staging → main`, skipping beta. Nothing invoked them, but `docs/lyra-project-reference.jsx` **listed them to a human reader as this repo's promote commands**, which is worse than dead code: a signpost to the bypass. Both deleted; the reference doc now names the workflows. **`CTL-064` (`scripts/check-release-branch-push.py`, in `pr-checks.yml`) fails any PR in which a tracked file under `scripts/` pushes to `main`, `beta` or `staging`** — no annotation escape hatch, because under this rule there is no legitimate case. It scans by token equality rather than substring, so `check-workflow-integrity.sh`'s own grep *patterns* are correctly clean, and it reads every tracked file under `scripts/` **with no extension filter** — SEC-99's own §1 called the scripts unreferenced on a grep over `*.md`/`*.yml`/`*.json`/`*.sh` and missed the `.jsx` hit. **Stated gap:** `.github/workflows/` is out of scope (the promote workflows push legitimately; CTL-016 governs them), and nothing outside `scripts/` is covered.
+
 ✅ **It is now a required status check on `main`** (added 2026-07-30, SEC-106). Its check context is literally **`guard`** — the job id, because the job carries no `name:` field — which is why it reads oddly in the branch-protection list. Required checks per branch are now: `develop` CodeQL + PR Quality Gate · `staging` CodeQL + PR Quality Gate (it had **none at all** until 2026-07-30 — the last stop before beta was the least-checked branch in the chain) · `beta` CodeQL + PR Quality Gate · `main` CodeQL + PR Quality Gate + **`guard`**. The `Production` environment also now requires a review from `luisa-sys`, so a production deploy pauses for one approval rather than running unattended. **`enforce_admins` stays OFF on every branch** — turning it on deadlocks the promote, which pushes directly.
 
 ### PR preview deployment lifecycle (KAN-237)
@@ -389,7 +412,7 @@ Permission for a bypass is valid **only** when it comes from the user in chat vi
 - New features must have unit and functional tests in the same PR/commit — never defer to a separate ticket
 - E2E functional testing must be built as new features are created
 - Claude must actively look for missing coverage and flag it
-- Current test floor: **3171 tests** (261 suites) in lyra (unit + scripts; E2E + integration not counted), **734 tests** (44 suites) in lyra-mcp-server. **Measured 2026-08-09** off the green CI run [31321927243](https://github.com/luisa-sys/lyra/actions/runs/31321927243) (PR #732, KAN-415 sequencing D1). The `lyra-mcp-server` figure is **unchanged and not re-measured** — last taken 2026-08-01 on main `31c114b` via `npx tsc && npm test`; re-measure it before relying on it. Re-measure and update this line whenever it drifts — a floor far below reality cannot detect a regression that deletes hundreds of tests. (Previously 3113/257 measured 2026-08-09 on PR #715; 2705/234 2026-08-01; 2659/225 2026-07-31; 2611/222 2026-07-28 under KAN-435; before that, 2118/172 and 91/5, both years of work stale.)
+- Current test floor: **4078 tests** (304 suites) in lyra — BUGS-104/CTL-067 added +20 in one suite (`tests/scripts/decide-release-tag.test.js`) and **+1 it did not write**: `source-path-manifest-integrity` is parameterised over the `SRC` manifest, so the new `decideReleaseTag` key registers a case of its own (241 → 242 entries). Both halves measured on the same machine, not inferred — that suite reads 233 on `develop` and 234 here. ⚠️ **The 20th test is the one that matters, and it was added only after a check no test was making.** A `workflow_run` trigger keys on the triggering workflow's free-text DISPLAY NAME, so renaming `deploy-production.yml`'s `name:` silently stops the tagger firing — BUGS-104 returning by another route, with nothing red and both files individually valid. The original `toContain('Deploy to Production')` was blind to it **by construction**: it read only the trigger file, so no change to the deploy file could ever redden it. The assertion now reads the name FROM `deploy-production.yml` and requires the trigger to carry that exact value (SEC-152's regex-vs-help-text shape: two places that must agree, with nothing comparing them). Mutation-proven by renaming the deploy workflow. ⚠️ **The one raw path literal in the new suite was routed through `SRC`, not absorbed by raising the F4 baseline.** It tripped the shrink-only raw-literal ratchet at 36 > 35, and raising a shrink-only baseline to accommodate one new line is how a ratchet decays into the suppression list it replaced. 📌 And the generated floor caught its own staleness here — 3511 → 3512 blocks failed as STALE on the run that added test 20, which is the half of a two-way ratchet people forget to build. Previously **4057 tests** (303 suites) in lyra — SEC-155 added +10 to the existing `check-docs-updated` suite (no new suite), driven against a **real git sandbox** because the `--files` harness has no diff and cannot reach the code path at all. Its `--self-test` went 19 → 29 cases, with a corpus FLOOR rather than an "N/N passed" tally and the verdict list read after BOTH case loops (catalogue failure mode 9). Mutation-proven in both directions, and the informative one is (b): loosening `USES_PIN_RE` to match any line makes the end-to-end cron-change case *wrongly pass* — so the strictness, not the exemption, is what stops a schedule change being smuggled through alongside a pin bump. Previously **4047 tests** (303 suites) in lyra — BUGS-103 added +19 in one new suite (`tests/scripts/classify-sitemap-freshness.test.js`) for the staging soak's C1 sitemap-freshness clause. ⚠️ **The probe it replaces had never passed once and could not have caught the defect it existed for.** It asserted `Cache-Control: no-store|no-cache`; `src/app/sitemap.ts` is a Next *metadata route* and Next's loader hardcodes that header to a constant. Measured on two real production builds of this repo — `force-dynamic` present gives route table `ƒ /sitemap.xml`, removed gives `○ /sitemap.xml` (the SEC-100 defect genuinely reintroduced) — and **both emit `public, max-age=0, must-revalidate`, byte-identical**. So the instrument was informationless in both directions: permanently red, and blind to the regression. Replaced with `x-vercel-cache`/`age`, UNVERIFIED when a proxy strips the telemetry, and mutation-proven both ways (downgrading the FAIL branch reddens 6; reinstating a Cache-Control read in the soak reddens the regression guard). Previously **4028 tests** (302 suites) in lyra — SEC-106/CTL-066 required-checks satisfiability added +20 in one suite (`tests/scripts/check-required-checks.test.js`) and **+4 more it did not write**: `source-path-manifest-integrity` is parameterised over the `SRC` manifest, and the four new keys (`expectedProtection`, `mainChainGuard`, `requiredChecks`, `checkRequiredChecks`) each register a case. Both halves measured, not inferred — `develop` `5dbf3b1` was re-run standing alone in a sibling worktree at exactly **4004/301**, and the per-suite diff against this branch shows those two suites and no others. ⚠️ **Its control id was CTL-065 until this merge.** `develop` had independently taken CTL-065 for SEC-153 production-deploy drift while this branch sat open, so two live controls claimed one id — the registry's uniqueness check cannot see a collision that exists only across two unmerged branches, and a positive-control scan across all 73 branch tips (`CTL-064` → 25 hits, `CTL-065` → 19, `CTL-066` → 0) is what proved 066 genuinely free rather than merely invisible. Previously **4004 tests** (301 suites) in lyra — BUGS-86 added +3 to the existing `tests/unit/convene/google-oauth.test.ts` (no new suite): the scope assertion no longer derives its expected value from `GOOGLE_SCOPES`. Mutation-proven in the strongest available form — the **old** assertion stayed 6/6 green under all four mutations (drop a scope, empty the array, add `https://mail.google.com/`, `join(',')`) and the **new** one goes red under every one. Measured 2026-08-16 on `develop` `5934bf3`. Previously **4001 tests** (301 suites) in lyra — SEC-153 follow-up added +1 to `check-routine-ownership` (the KAN-361 marker pinning Section 15b's deferral to the release owner, proven load-bearing by its own removal case). Previously **4000 tests** (301 suites) in lyra — SEC-152 added +4 to the existing `check-ui-copy-ownership` suite (no new suite), mutation-proven in both directions: dropping the new alternative from `TRAILER_RE` reddens the accept case, and removing the trailer from the HELP TEXT reddens a different case — regex and help text can drift apart independently, which is the CTL-042 shape. Previously **3996 tests** (301 suites) in lyra — SEC-153/CTL-065 production-deploy drift added +9 in one suite (`tests/scripts/check-production-deploy-drift.test.js`), plus 12 `--self-test` fixture cases inside the checker itself. Previously **3986 tests** (300 suites) in lyra — SEC-46 Phase C added +10 in one suite, and the Phase C follow-up +14 in one more (`tests/unit/oauth/sec46-default-resource.test.ts`), which exists because Phase C's own default-resource fallback was correct ONLY on dev — the environment it was developed against — and produced a nonexistent host on production. That suite is written as a TABLE over all four deployments rather than a spot check, because the failure mode was "a rule that happens to hold where you can see it". Mutation-proven: reinstating the string transform turns 7 of its 14 red. Phase C itself added +10 in one suite (`tests/unit/oauth/sec46-resource-binding.test.ts`), each of the three properties it pins proven by mutation (ignore an unknown `resource` → 2 red; `aud` back to `client_id` → 2 red in `jwt-pkce`; drop `resource` from the `/login` bounce → 2 red). **Measured 2026-08-16** on this branch rebased onto `develop` `4294075`. ⚠️ The headline it replaces read 3926/295 while its OWN enumeration already listed CTL-061 (+7) and CTL-064 (+17) — the number and the list it sits in had drifted apart, which is the failure mode the generated floor exists to absorb. Previously **3926 tests** (295 suites) in lyra (unit + scripts; E2E + integration not counted), **752 tests** (44 suites) in lyra-mcp-server. **Measured 2026-08-14** on the SEC-112 branch after merging `develop` `42123f0` (lyra), and on the KAN-354 branch off `main` `4930561` (lyra-mcp-server). SEC-112/CTL-063 added **+20 tests across two suites** — `sec112-publish-profile-service-role` (5, behavioural: which client receives the `is_published` write) and `sec112-is-published-guard-migration` (15, trigger + INV-9 migration content). ⚠️ An earlier draft of this line said +29; that was a miscount of my own two suites (5 + 15 = 20), caught by re-measuring after the merge rather than by trusting the arithmetic. ⚠️ The previous reading (3881 / 291, on the CTL-055 branch off `f64fe43`) was **already stale by 11 tests and one suite** before this change added 14 and one: `develop` moved on underneath it. That is the normal state of a hand-typed number and the reason the ENFORCED floor is generated — see the warning immediately below. The lyra figure moved 3630 -> 3664 -> 3676 -> 3698 -> 3714 across SEC-133 (+5), SEC-104 step 3 (+9 net), KAN-473 (+6, one suite), SEC-137/CTL-049 (+12, one suite), SEC-136/CTL-050 (+22, one suite), KAN-415 C2/CTL-051 (+16, one suite), CTL-051 rule 3 (+6, no new suite) SEC-105/CTL-052 (+25, one suite) KAN-415 C2/CTL-053 (+17, one suite) KAN-415 C2/CTL-054 (+13, one suite) KAN-415 depcruise severity/scope (+9, one suite) KAN-415 C3/CTL-055 (+20, one suite) KAN-474 (+6, merged from develop) KAN-415 cross-segment closeout (+10, no new suite) CTL-055 read-vs-write + escalation (+14, no new suite) SEC-140/CTL-052 audit retry (+1, no new suite) and KAN-415 criterion 1+2 closeout — CTL-056 route thinness (+17, one suite) and the `enforced` contract (+6, no new suite) and BUGS-97/CTL-057 release-tagged (+12, one suite) and SEC-141/CTL-058 promote concurrency (+9, one suite) and SEC-146/CTL-062 run-log freshness (+14, one suite) and BUGS-81/CTL-061 heartbeat page-id (+7, one suite) and SEC-99/CTL-064 release-branch push (+17, one suite), each net-new coverage rather than drift, and each confirmed by the green PR run that carried it — re-read it off the next green CI run and correct it if they differ. The `lyra-mcp-server` count dropped by 1 from the prior 734/44 (2026-08-09); traced to PR [#147](https://github.com/luisa-sys/lyra-mcp-server/pull/147) (fix/SEC-83), which repointed its tests to pin the invariant rather than the retired `ACCESS_MODEL_V2` dual-path shape — that commit's own message records `733/733 tests, build clean`, so this is expected drift, not a silent deletion. Re-measure and update this line whenever it drifts — a floor far below reality cannot detect a regression that deletes hundreds of tests. (Previously 3544/273 measured 2026-08-10 on `feat/kan-415-d6-age-auth`; 3113/257 measured 2026-08-09 on PR #715; 2705/234 2026-08-01; 2659/225 2026-07-31; 2611/222 2026-07-28 under KAN-435; before that, 2118/172 and 91/5, both years of work stale.)
 
   ⚠️ **This prose line is no longer the enforced floor, and must not be treated as one.** The enforced floor is `tests/support/test-floor-baseline.json`, generated by `npm run gen:test-floor` and checked by `tests/unit/test-regression-guard.test.js`. It fails in **both** directions — too few tests means something was deleted, too many means the baseline is stale and is overstating how much of the estate is actually protected. That second half is the point: the previous hand-typed floor sat at **29 files / 320 blocks against an actual 260 / 2,963**, so roughly **89% of the test estate could have been deleted without tripping CI**, and it had been independently flagged in four places and fixed in none. Keep this line accurate as documentation, but a number a human has to remember to raise is a number that goes stale — regenerate the baseline in the SAME commit as any net-new test.
 
@@ -407,7 +430,7 @@ Five new blocking behaviours. All are **ratchets**: each has a committed baselin
 
 | Gate | Fails when | Escape hatch |
 |---|---|---|
-| **`no-circular` / `no-module-to-app`** are now `severity: error` (F3) | any import cycle, or any `src/lib/**` → `src/app/**` edge | none — fix the import. `no-cross-segment-app` stays `warn`: 3 of its 4 edges belong to D8/KAN-422, and `dashboard/page.tsx → (auth)/actions.ts` is **routed nowhere** and needs an owner before it can flip |
+| **`no-circular` / `no-module-to-app`** are now `severity: error` (F3) | any import cycle, or any `src/lib/**` / `src/modules/**` / `src/components/**` / `src/middleware.ts` → `src/app/**` edge. ⚠️ **The anchor read `^src/lib/` until 2026-08-09** — KAN-415 D1 moved 28 files into `src/modules/` (every security guard and every Supabase client) and all of them silently left this BLOCKING rule's scope with nothing going red. A path-anchored rule does not break when the tree moves; it **quietly covers less**, and CTL-035 could not see it because `^src/lib/` was **narrow, not dead** (it still matched 87 files). CTL-044 (`tests/scripts/dependency-rules-cover-modules.test.js`) now pins the pattern to every library root `modules.json` declares. Never narrow it — if a root must be exempt, remove it from `modules.json`, which is a visible change | none — fix the import. ✅ **`no-cross-segment-app` now blocks too (KAN-415, 2026-08-14)** — all four edges cleared: two by D8, one by the private-folder correction (`_marketing` was never a route segment), and the "routed nowhere" fourth by giving `signOut` an owner at `src/app/session-actions.ts`. ⚠️ **That flip removed the suite's only proof that severity varies per rule** — the contrast case was "no-cross-segment-app is `warn`", which needed a rule to stay unfinished. `severityFor` therefore moved to `scripts/depcruise-severity.cjs` and is unit-tested directly, so `() => 'error'` can no longer pass silently and a future rule landed at `NOT_YET` still reports rather than blocking on day one |
 | **CTL-037 env-access** | a NEW file reads `process.env`, or a baselined file reads MORE. `src/modules/platform/env.ts` is exempt — reading env is its job | `// env-access-ok: <JIRA-KEY> <reason>` |
 | **CTL-036 schema-drift** | the three committed `src/types/database/{dev,staging,prod}.ts` diverge beyond `supabase/schema-drift-baseline.json` | none — add the drift to the baseline with a ticket |
 | **CTL-035 guard-path-drift** | any path pattern in 18 registered artefacts matches no **tracked** file | `# guard-path-ok: <JIRA-KEY> <reason>` |
@@ -418,7 +441,287 @@ Five new blocking behaviours. All are **ratchets**: each has a committed baselin
 1. **`git ls-files` cannot see an unstaged file.** CTL-035 went red twice because a workflow was wired to a script that had not been `git add`ed yet, and the F4 raw-literal baseline under-counted for the same reason. **Stage first, then measure or run the gate.** `npm run gen:test-paths -- --write-baseline` exists so that ratchet is measured by the same code the guard reads, rather than by hand.
 2. **A test that passes locally may be passing for the wrong reason.** F8's fail-closed case asserted "baseline missing → exit 2" by simply not copying the file into a sandbox clone — which only worked while the baseline was untracked. Once committed, `git clone` brought it along and the case silently inverted. *"Absent because I never added it"* and *"absent because I removed it"* are different assertions; only the second is stable.
 
-**The app now compiles against the `dev` schema** (`src/types/database/index.ts`), which means **TypeScript asserts production has columns it does not have** — the KAN-153 discoverability columns and the KAN-143 `draft` visibility label are absent on prod. That is a deliberate, documented trade, and it is why CTL-036 is blocking rather than advisory: the type system cannot be its own control here. Closing the gap is F7/SEC-107.
+**The app now compiles against the `dev` schema** (`src/types/database/index.ts`), which means **TypeScript asserts production has columns it does not have** — the four KAN-153 discoverability columns (`discoverable_by_phone`, `discoverable_by_postcode`, `phone_search_hash`, `postcode_search_hash`) are absent on prod, verified live 2026-08-16. That is a deliberate, documented trade, and it is why CTL-036 is blocking rather than advisory: the type system cannot be its own control here. Closing the gap is F7/SEC-107.
+
+⚠️ **Corrected 2026-08-16 — this paragraph also named the KAN-143 `draft` visibility label, and that half is no longer true.** Production's `visibility_level` enum now reads `public, members_only, private, tribe_only, draft` (live catalogue query). The baseline entry called that gap *"NOT harmless"*, because `src/modules/profile/visibility.ts` uses `draft` as its default and fail-closed value against a label prod did not accept — and beta shares prod's database. **That risk is closed.** CTL-036's two-way ratchet is what surfaced it: the entry failed as STALE, which is the half of a ratchet people forget to build. A baseline that may only grow would have carried this dead entry indefinitely and nobody would have learned prod had caught up.
+
+⚠️ **And note what CTL-036 could NOT see.** All three committed snapshots were simultaneously wrong about their own databases in three further ways — `profile_conversation_starters.prompt_id` typed `string` where every environment has it nullable, a missing `favourite_custom` enum member, and no `Insert`/`Update` blocks for the auto-updatable `public_profiles` view. CTL-036 diffs snapshot-against-snapshot, so **uniform** staleness reads as zero drift; CTL-048 asks the databases but compares column *sets*, so nullability, enum membership and view-updatability are outside what it measures. Neither control was broken. There is simply no control on those dimensions — tracked in SEC-151.
+
+## The modularisation programme — KAN-415 (IN FLIGHT)
+
+**Read this before moving any file under `src/`.** The programme is extracting
+`src/lib/**` into bounded modules under `src/modules/**`. It is partly done, so
+the tree is deliberately mixed — `src/lib/` and `src/modules/` both exist and
+both contain live code. That is expected, not drift.
+
+### Where it stands
+
+| step | scope | state |
+|---|---|---|
+| **D1** | `platform`, `guards`, `observability` | ✅ on `main` |
+| **D2** | `oauth-as` | ✅ done |
+| **D3** | — | ✅ resolved by decision (#735) |
+| **D4** | `access` — the middleware gate pipeline | ✅ on `main` |
+| **D5** | `features` | ✅ done — but NOT via [#747](https://github.com/luisa-sys/lyra/pull/747), which is **closed unmerged**; the work reached `develop` by another route |
+| **D6** | `age` + `auth` | ✅ done (PR #754) |
+| **D7** | `trust-safety` | ✅ done (PR #756) |
+| **D8** | `profile` domain core | ✅ done (PR #756) |
+| **D9** | `public-profile` | ✅ done (PR #768, KAN-473) — SEC-104 gate lifted |
+| **convene** | — | 🚫 **PERMANENTLY OUT** |
+
+**Convene is out of the programme** and stays out unless Convene itself is turned
+back on — that is the *only* unblock condition, not spare capacity or sequence
+order. It is dark (`CONVENE_ENABLED` false everywhere, routes 404), so extracting
+~7k LOC buys nothing and has no E2E or soak cover. The marker in `modules.json`
+is enforced by CTL-041; deleting it reddens the suite. See
+`docs/modularisation/CONVENE-DEFERRED.md`.
+
+**THE PROGRAMME IS COMPLETE.** D1–D9 are on `develop`, and so is the TAIL —
+the modules `modules.json` declared whose paths still sat in `src/lib/`
+(`profile`, `access`, `dashboard`, `contracts`, `audit`, `admin`,
+`marketing-legal`, `account`, `affiliate`, `recommendations`).
+
+`src/lib/` holds **27 tracked files and all 27 are Convene**, which is
+permanently out of scope. There is no remaining in-scope extraction work.
+
+⚠️ `src/lib/` is therefore NOT dead — do not delete it, and do not "finish the
+job" by moving Convene. Convene stays until Convene itself is turned back on;
+that is the only unblock condition (see above).
+
+⚠️ **Verify the state against the TREE, not this table.** D5's row said "PR
+#747" for weeks while that PR sat closed-unmerged and the work was already on
+`develop` — the row was wrong in the direction that makes you redo finished
+work. `git ls-files src/modules/<name>` answers it in one command.
+
+`modules.json` is the authoritative module manifest — check it, not this table,
+for which paths belong to which module.
+
+### The import graph is not the data graph (CTL-055)
+
+**A module can pass every boundary check in the estate and still reach into
+another module's tables.** CTL-051 constrains which modules may depend on each
+other; CTL-053 constrains which files a permitted dependency may reach. Both
+read the **import** graph. Neither can see a `.from('someone_elses_table')`.
+
+Convene is the proof, and it is the uncomfortable kind. It is the
+best-contained module here — exactly 2 declared entry points, every outward
+import edge legal and downward, both enforced two-way — and it reaches **3
+tables it does not own** (`api_keys`, `consent_log`,
+`refresh_relationship_signals`). Nothing was wrong with the import
+enforcement; it was answering a different question.
+
+`scripts/check-module-table-ownership.py` (in `pr-checks.yml`) now reads the
+`owns.tables` / `owns.rpcs` lists that `modules.json` has carried since it was
+written and that **nothing had ever read**. Two-way ratchet on
+`supabase/table-ownership-baseline.json` — 56 pairs grandfathered at landing, a
+NEW pair fails, a FIXED-but-still-listed pair fails as STALE.
+
+**Three things about it that are easy to get wrong:**
+
+- **It keys on `modules.json` paths, not directory names.** So it landed
+  without moving a file — and moving Convene into `src/modules/` would buy
+  **zero** additional enforcement. Tidying the tree is not what makes the
+  boundary hold.
+- **`profiles` is excluded BY POLICY and that is a stated gap, not an
+  oversight.** It is co-owned at column granularity (8 modules, 37 of 42
+  columns, zero bogus claims) with no module owning the table. Column-level
+  enforcement was considered and rejected: **6 of 18 `profiles` writes pass a
+  variable rather than a literal**, so a gate covering the other 12 would report
+  clean over exactly the shape BUGS-74 was. The contract is pinned at runtime by
+  `tests/unit/partial-write-safety.test.ts` instead.
+- **Read `_concentration` before proposing a cleanup.** 29 of the 56 pairs come
+  from one file — the account erasure/export path, which touches every table a
+  user has data in *by definition*. The figure is computed at
+  `--write-baseline`, never typed, so it cannot go stale.
+
+**`mode` and `basis` are what make the baseline a work list rather than a
+ritual.** `owns` means "may WRITE", so a cross-module READ is legitimate and a
+cross-module WRITE is the real break: **44 read, 12 write**. Criterion 2 asks
+literally for a ticket and an expiry on every allowlist entry — applied to all
+56 that is a renewal ritual over 44 fine entries, which is how a ratchet decays
+into the suppression list it was built to replace. Only the writes are work.
+
+`basis` says how far to trust each `write`: **`mutation-call`** is hard evidence
+(a literal `.insert/.update/.upsert/.delete`), while **`rpc-undecidable`** and
+**`opaque-builder`** are conservative — the statement could not be decided
+statically. 7 of the 12 are hard; `account -> search_by_contact_hash` is
+provably `return query select` and is a deliberate over-flag. Verify a
+conservative one against `supabase/migrations/` before treating it as a find.
+
+⚠️ **An undecidable statement is classified `write`, never `read`, and that
+direction is the whole design.** A write misfiled as a read sits in the accepted
+bucket where it can never be caught escalating — because it was already a write.
+An over-flagged read costs one annotation.
+
+**The third failure mode, ESCALATED, is the one worth internalising.** A pair is
+keyed `module -> table`, so a baselined READ that quietly starts WRITING keeps
+its key: the pair count does not move and the first cut of this control stayed
+green. A module beginning to mutate state it does not own, with nothing going
+red — the BUGS-74 shape. Proven by mutation: adding one `.update()` to
+`src/app/[slug]/page.tsx` now reddens the build while the count stays at 56.
+
+### The last two criteria: `enforced` means something, and "thin" is defined (2026-08-14)
+
+**`enforced` is now DERIVED, and fails both ways.** All 21 modules read
+`"enforced": false` while nothing consumed the field — worse than unused,
+because plan §4.5 proposed that depcruise *skip* unenforced modules, **that skip
+was never built**, and CTL-051/053/054/055 apply to every module
+unconditionally. The manifest asserted boundaries were advisory here when the
+opposite was true.
+
+Redefined as **"zero baselined exceptions today"** — no entry in
+`modules-layering-baseline.json` and none in
+`supabase/table-ownership-baseline.json`. **10 of 21 qualify**: `affiliate`,
+`audit`, `auth`, `contracts`, `features`, `guards`, `oauth-as`,
+`observability`, `platform`, `ui-kit`. Checked by CTL-041 in both directions —
+claiming `true` while carrying an exception fails, **and so does leaving `false`
+on a clean module**, which is the half that stops it decaying back into a field
+nobody updates. `$schemaNotes.enforced` in the manifest states the semantic
+next to the data, and a test asserts that note still says it.
+
+⚠️ Three of the six original graduation conditions are **obsolete**, superseded
+by decisions taken during the programme: `index.ts` barrels (KAN-432 rejected
+them; `declaredApi` + CTL-053 replaced it), a `tests/modules/<name>` directory
+(never created), and the `data/` relocation (ruled unnecessary once CTL-055
+could assert ownership without moving files). A CODEOWNERS line per module buys
+nothing today — **every** CODEOWNERS entry in this repo is `@luisa-sys`,
+including the `*` catch-all.
+
+**`app-routes-are-thin` exists now (CTL-056)** — the ninth rule, and the only
+one never built, because "thin" had no checkable meaning. Measured: **48 of 99**
+route files (`page`/`layout`/`route`/`*actions` under `src/app`) make **217**
+direct database calls.
+
+Defined as a **shrink-only ratchet, keyed per file**, not as "zero calls". Zero
+is the right end state and the wrong gate: it is a 48-file relocation — exactly
+the work criterion 3 concluded was unnecessary — and a rule that reddens 48
+files on day one is a rule someone turns off. Per file rather than a total,
+because an aggregate lets one file improve while another regresses and nets out
+green (the blindness CTL-055 had before ESCALATED).
+
+⚠️ **Its call pattern is deliberately NOT CTL-055's, and copying that one
+undercounts silently.** CTL-055 requires a quoted identifier because it needs the
+table *name*. Here that misses `supabase.storage.from('profile-files')` — **7
+real call sites**, hyphenated bucket names — and `.from(someVariable)` entirely.
+CTL-056 matches any `.from`/`.rpc` and excludes the JS builtins *by receiver*:
+`Array.from` and `Buffer.from` appear **8 times** in these files and are not
+database calls. Excluding by receiver rather than by argument shape is what lets
+the pattern stay loose enough to catch a dynamic table name.
+
+### Founder-owned UI may now live in a module (KAN-473)
+
+D8 kept `Field` and `SaveButton` in the app tree partly because they are
+"founder-owned under KAN-411" (see `docs/ARCHITECTURE.md`). **That half of the
+argument no longer holds**, because D9 extended `is_protected` to cover
+`src/modules/*.tsx` — stated on the file type, not a module name, so D7 and D8
+are covered by default rather than by someone remembering.
+
+It had to be extended, and this is the part to internalise: measured before the
+D9 move, the three components read FOUNDER-OWNED at `src/app/[slug]/…` and **not
+protected** at `src/modules/public-profile/…`. Extracting them would have
+removed them from founder ownership permanently with no red build — and the
+`UI-Change-Approved:` trailer authorising the move would have carried it through
+the gate it was disabling, turning a one-time approval into a standing one.
+
+So the remaining reasons to keep UI in the app tree are the real ones — a shared
+design primitive belongs where every consumer can reach it, and a route file
+cannot move without changing its URL. Ownership is no longer one of them.
+
+### ⚠️ Every move must carry its own estate rework, in the SAME commit
+
+This is the **KAN-428 Extraction Definition-of-Done**, enforced by
+`scripts/check-extraction-dod.sh`. The programme's own measurement (KAN-419)
+found the docs layer at **18% dead path literals before anyone moved a file on
+purpose**, so this is not hypothetical tidiness.
+
+Artefacts that classify files **by path** and therefore break silently on a move:
+
+- **`.github/signup-surface.paths`** — the KAN-413 signup gate (CTL-013). Its
+  failure mode is the worst of the set: it reports `RESULT: CLEAN`, exit 0, no
+  warning, while account creation goes unproven into staging. See the gotcha
+  below.
+- **`env-access-baseline.json`** (CTL-037), **`supabase/schema-drift-baseline.json`**
+  (CTL-036), **`tests/support/comment-assertion-baseline.json`** (CTL-039),
+  `tests/support/test-reimplementation-baseline.json` (CTL-038) — all keyed by
+  path, all **two-way** ratchets. A move makes the identical finding read as
+  *NEW* at the new path **and** *STALE* at the old one, so it fails twice. That
+  is correct behaviour, not a bug.
+- **`modules.json`** (CTL-041), **`.dependency-cruiser.cjs`**, **CODEOWNERS**,
+  `scripts/` guard path-lists (CTL-035).
+- **`tests/support/source-paths.ts`** — see the next gotcha; this one deletes
+  itself quietly.
+
+⚠️ **Check every path-anchored rule after every move, including ones that still
+match something.** A `depcruise` rule anchored `^src/lib/` silently stopped
+covering 28 moved files during D1, and CTL-035 could not see it because the
+pattern was **narrow, not dead** — it still matched 87 other files. "Matches
+nothing" is detectable; "matches less than it used to" is not.
+
+## Writing a test that can actually fail (read before adding tests)
+
+The **Test Integrity Policy** below governs not *weakening* an existing test.
+This section is the other half, and it is the one that has actually cost this
+repo: **not writing a useless one in the first place.**
+
+**The framing that matters.** Every failure catalogued here reported GREEN,
+raised the test count, and raised the coverage percentage. A number cannot
+distinguish a test that guards something from a test that guards nothing —
+so "we have N tests" and "coverage is X%" are not evidence, and asking for
+more of either produces more of both kinds. The only evidence a test works is
+**having seen it fail for the right reason.**
+
+### The one rule
+
+> **A control that has never been seen to fail is indistinguishable from no
+> control.** Before you claim a test protects something, break the thing on
+> purpose, watch the test go red, put it back.
+
+That is not ceremony. It has caught a wrong test **every single time** it was
+done properly in this repo, including tests written minutes earlier by whoever
+was applying the rule.
+
+⚠️ **And verify the mutation actually applied.** A `sed`/string-replace that
+silently matches nothing produces a green run that looks exactly like a green
+run. During KAN-415 D7 a mutation reported "1 red" instead of the expected 2
+— because the file was never modified. **Assert the file changed before you
+trust what the suite says about it.**
+
+### The catalogue — every one of these happened here
+
+| # | Failure mode | What it looked like |
+|---|---|---|
+| 1 | **The test reimplements its subject** | `maintenance-page.test.js` copied `isValidEmail`/`escapeHtml` into the test file and tested the copies. **19 green tests.** Mutating the real worker to `return true` changed nothing — email validation, rate limiting and HTML escaping were unguarded on a public form (BUGS-85). Guard: **CTL-038** |
+| 2 | **The comment satisfies the assertion** | `expect(sitemap).toContain('is_published')` stayed green through SEC-100 because `is_published` also appears in the *comment explaining why the query needs it*. Deleting the filter entirely leaves the test green. **The better a fix is documented, the weaker a source-text scan of it becomes.** Guard: **CTL-039** |
+| 3 | **A negative assertion against `undefined`** | `expect(x).not.toContain(SRC.libEnv)` where that key never existed. `undefined` is not in anything, so it **passes forever**. Any `not.*` whose expected value can be undefined asserts nothing. Guard: `source-path-manifest-integrity.test.ts` |
+| 4 | **A parameterised test over an empty list** | `test.each([])` registers **zero** tests and an empty suite is green. Always assert the corpus is non-empty *before* iterating it |
+| 5 | **Inputs that can't reach the code under test** | Two middleware ordering tests compared gates whose path sets are **disjoint** — no request could ever reach both, so "A runs before B" was unfalsifiable |
+| 6 | **Passes locally for the wrong reason** | A ratchet used `fs.existsSync` to check a moved directory. `git mv` leaves the source dir behind **empty**, so it stayed green on the exact defect it guarded and would only have reddened in CI. Use `git ls-files` — tracked state, not disk state |
+| 7 | **A red you have learned to expect** | 18 macOS failures were annotated "expected" for ten days. They were two real defects, one of them a security guard scanning nothing (gotcha #30). **An expected red is a switched-off control** |
+| 8 | **A hand-maintained number** | The test floor read 29 files/320 blocks against an actual 260/2,963 — **89% of the estate could have been deleted without tripping CI**. Generate baselines; never hand-type them |
+| 9 | **Assertions that run but are never evaluated** | 8 self-test cases were added to `check-npm-audit-gate.py` **after** its `if failures:` check, so every `check()` appended to a list nothing read. Three mutations — removing the retry entirely, making exhausted retries report clean, making deterministic failures retryable — **all reported `Self-test passed (27 cases)`**. The count went UP. Distinct from #4: the corpus is non-empty and the assertions genuinely execute; the verdict is simply never read. In a hand-rolled harness, check WHERE the failure list is consumed, not just that you appended to it (SEC-140) |
+
+### What to do instead
+
+- **Import the real subject.** If you cannot, use a subprocess harness
+  (`tests/support/*.mjs` driven from `tests/scripts/`) — never a copy, and
+  never a `jest.config` change (that needs sign-off and alters how ~100 files
+  execute).
+- **Assert behaviour, not source text.** If a source-text scan is genuinely the
+  only instrument, **strip comments before matching** (failure mode 2).
+- **Assert the corpus first.** `expect(items.length).toBeGreaterThan(N)` before
+  `test.each(items)`.
+- **Prefer a two-way ratchet** to a list you may only add to. A list that only
+  grows is a suppression list. Make it fail when it goes **stale** as well as
+  when it is exceeded.
+- **State the gap.** If something is genuinely uncovered, write that down — in
+  the PR, in the ticket, in the header. Recording a gap is a finding; hiding it
+  is a regression.
+
+**Enforced by:** CTL-038 (reimplementation), CTL-039 (comment-shadowed
+assertions), `test-regression-guard.test.js` (the two-way floor). These catch
+three of nine. The other six need you to break the thing on purpose — and #9
+was found that way, in a change whose own ticket demanded mutation proof, by
+someone who had just written the ticket.
 
 ## Test Integrity Policy
 
@@ -628,7 +931,29 @@ These have caused real bugs. Read before making related changes:
 
 22. **Next.js `loading.tsx` can permanently hide streamed content on a hard load**: A route segment's `loading.tsx` creates a Suspense boundary whose streamed content can fail to reveal on a hard page load (direct URL visit or refresh) on some deployed builds (confirmed on Next 16.2.6) — the real page content stays inside React's hidden streaming holder (`<div hidden>`) while the loading skeleton shows, so the page renders blank except the site-wide footer. Client-side navigation into the same route is unaffected (no fresh Suspense boundary), which makes the bug easy to miss in normal manual testing. Discovered 2026-07-03: this blanked the ENTIRE `/dashboard` segment (not just widget-specific code) on hard load/refresh — confirmed in-browser; service worker, CSP, and PPR were ruled out as causes. Tracked under BUGS-63, fixed in PR #424 by removing the segment's `loading.tsx` (trade-off: no instant skeleton during the async render, acceptable vs. a blank dashboard). **If a route with a `loading.tsx` renders blank on a hard load but works fine via client-side navigation, suspect this first.** Deeper root cause (leading hypothesis: a Next 16 streaming / `@sentry/nextjs` client-instrumentation interaction — the inline `$RC` reveal script never completes so the real `<main>` stays in `<div hidden>`) is an open upstream follow-up under **BUGS-66**; not definitively pinned across deployed builds (current: Next 16.2.11, `@sentry/nextjs ^10.66.0`, React 19.2.7). **Decision: keep every `/dashboard` segment `loading.tsx` removed** until a Next/Sentry upgrade + a real-deploy re-verification (`docs/DEV_E2E_REGRESSION.md` §1 #2/#3, §4a). **Regression guards (BUGS-66):** `tests/unit/bugs66-dashboard-loading-guard.test.js` fails any PR that reintroduces a `src/app/**/loading.*` without the `// loading-tsx-ok: <reason>` marker (always-on); the deployed-build hard-load `main`-count assertion lives in `tests/e2e/authed/journey.authed.spec.ts` (`assertDashboardHardLoad`, founder-gated authed E2E).
 
-23. **`npm audit --audit-level=high` can go red on a transitive dep whose only patched version breaks an older consumer — fix with a *scoped* override, never force it blanket**: The PR-checks gate and every `deploy-*.yml` run `npm audit --audit-level=high` — **HIGH/CRITICAL only**, so a *moderate* advisory never trips them (don't chase moderates as blockers; e.g. the dev-only `uuid` chain under `@lhci/cli`, SEC-97). 2026-07-25 (SEC-94): 36 HIGH traced to `postcss` (simple override → 8.5.23) and `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg). brace-expansion's *only* patched release — **5.0.8 — is a breaking named export** (`require('brace-expansion')` now returns `{expand,…}`, not a callable), so a blanket `"brace-expansion":"5.0.8"` override clears the audit but **crashes `npm run lint`** (`TypeError: expand is not a function`) because eslint's old `minimatch@3` calls it as a function. The tree has two generations — old-gen minimatch@3 + callable brace-expansion (eslint core+plugins, glob@7 under rimraf/test-exclude) and new-gen minimatch@9/10 + named brace-expansion (jest/sentry/typescript-eslint) — and **no bridge version exists** (minimatch@4–8 are callable but use the old import; minimatch@9+ are non-callable → break glob@7). **Fix without an eslint 9→10 major bump:** pin `"brace-expansion":"5.0.8"` tree-wide AND give *only eslint's own packages* a modern minimatch via nested overrides — `"@eslint/config-array":{"minimatch":"^10.2.5"}`, `"@eslint/eslintrc":{"minimatch":"^10.2.5"}`, `"eslint":{"minimatch":"^10.2.5"}` (eslint uses `new Minimatch()`, which is named-export-compatible); glob@7 + the eslint plugins keep minimatch@3 harmlessly (they don't brace-expand during lint/build/coverage). **Always verify a security override empirically before shipping** — on a clean `npm ci` run `npm run lint && npm run type-check && npm run build && npx jest --coverage`, and diff the lint output against the base branch (a safe override leaves it byte-identical: same files, same warnings). The npm `fixAvailable` field lies here (it proposes destructive major *downgrades*); ignore it and reason from the advisory's vulnerable range. Full write-up: SEC-94.
+23. **The npm-audit gate is PROD-TREE scoped and lives in ONE place — and the technique for a transitive dep whose only patched version breaks an older consumer is a *scoped* override, never a blanket one**:
+
+    ✅ **Rescoped 2026-08-13 (SEC-105, CTL-052).** This entry used to describe how to *survive* a gate that ran `npm audit --audit-level=high` **full-tree at five blocking sites** — `pr-checks.yml` plus all four `deploy-*.yml`. That gate is gone. What replaced it:
+
+    | Where | What runs | Blocking? |
+    |---|---|---|
+    | `pr-checks.yml` | `scripts/check-npm-audit-gate.py --scope prod` | **yes** — production tree, waiver-aware |
+    | all four `deploy-*.yml` | *nothing* | — removed |
+    | `security-audit.yml` (weekly) | `--scope full`, incl. dev | no — opens/updates a labelled GitHub issue |
+
+    **Why it had to change.** The production tree had **0 vulnerabilities at every severity** while 973 of 1249 resolved packages were dev-only, so the gate could stop a production deploy over a package production does not install. It was also **the only control in the estate keyed on a third-party feed** — every other one can only be tripped by a change in the PR; this one went red overnight on an unchanged repo. In `deploy-production.yml` it sat in `lint-and-unit-tests`, a transitive `needs:` ancestor of the deploy job, so an advisory rescore killed the release before anything else ran. **The cost was paid in unshipped security fixes**: SEC-88 froze the pipeline ~11 days with 40+ CI-green PRs queued and twelve tested security fixes left live-vulnerable in every environment; six outages in five weeks (SEC-89/90/91/92/94/97). Removing it from the deploys loses nothing — all four are `push`-triggered on chain branches, and SEC-98 + `main-chain-guard.yml` mean every lockfile reaching them already passed the PR gate.
+
+    ⚠️ **`--omit=dev` is NOT "what ships" — do not describe it that way.** npm's prod/dev split is a **declaration** (`dependencies` vs `devDependencies`), not a runtime boundary. Measured: `minimatch`, `brace-expansion` and `fast-uri` are all in the *production* tree via `@sentry/nextjs > @sentry/bundler-plugin-core > glob` and `> @sentry/webpack-plugin > webpack`, and `postcss` arrives via `next` itself — build-time tools that never execute in the Vercel serverless runtime. It is a far better risk proxy than the full tree; it is not a clean ships/does-not-ship line. When you find webpack in a "production" audit, this is why.
+
+    **An unfixable advisory is a decision, not a bug.** `security/npm-audit-waivers.json` takes advisory + package + severity + ticket + owner + reason and a dated `expires` that **fails the build on lapse** (CTL-025 enforces the hygiene; note it fails **closed**, unlike Snyk, whose own docs concede a malformed expiry "will be respected and persist indefinitely"). A waiver names **one package** and does not transfer to another package sharing the advisory. It is a **two-way** record: a waiver matching nothing is STALE and fails the weekly full-tree run. **Empty is the correct steady state.**
+
+    **HIGH/CRITICAL only**, unchanged — a *moderate* advisory never blocks (don't chase moderates; e.g. the dev-only `uuid` chain under `@lhci/cli`, SEC-97, still present today).
+
+    ---
+
+    **The override technique below is still correct, and is now needed far less often — but the lesson in it is the durable half: a gate under time pressure produces brittle pins.** 2026-07-25 (SEC-94): 36 HIGH traced to `postcss` (simple override → 8.5.23) and `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg). brace-expansion's *only* patched release — **5.0.8 — is a breaking named export** (`require('brace-expansion')` now returns `{expand,…}`, not a callable), so a blanket `"brace-expansion":"5.0.8"` override clears the audit but **crashes `npm run lint`** (`TypeError: expand is not a function`) because eslint's old `minimatch@3` calls it as a function. The tree has two generations — old-gen minimatch@3 + callable brace-expansion (eslint core+plugins, glob@7 under rimraf/test-exclude) and new-gen minimatch@9/10 + named brace-expansion (jest/sentry/typescript-eslint) — and **no bridge version exists** (minimatch@4–8 are callable but use the old import; minimatch@9+ are non-callable → break glob@7). **Fix without an eslint 9→10 major bump:** pin `"brace-expansion":"5.0.8"` tree-wide AND give *only eslint's own packages* a modern minimatch via nested overrides — `"@eslint/config-array":{"minimatch":"^10.2.5"}`, `"@eslint/eslintrc":{"minimatch":"^10.2.5"}`, `"eslint":{"minimatch":"^10.2.5"}` (eslint uses `new Minimatch()`, which is named-export-compatible); glob@7 + the eslint plugins keep minimatch@3 harmlessly (they don't brace-expand during lint/build/coverage). **Always verify a security override empirically before shipping** — on a clean `npm ci` run `npm run lint && npm run type-check && npm run build && npx jest --coverage`, and diff the lint output against the base branch (a safe override leaves it byte-identical: same files, same warnings). The npm `fixAvailable` field lies here (it proposes destructive major *downgrades*); ignore it and reason from the advisory's vulnerable range. Full write-up: SEC-94.
+
+    ⚠️ **`package.json` now carries 12 overrides, essentially all audit-forced.** Each is a pin that can silently hold a package back, and two of them (`brace-expansion`, the three scoped `minimatch` entries) exist only to work around a fix that broke lint. Before adding a thirteenth under deadline pressure, check whether the finding is dev-only — if it is, it no longer blocks anything, and the right move is a ticket rather than a pin.
 
 24. **zsh reserves `status`, `path`, `PWD`, `UID` as read-only — never use them as shell-script variable names**: The interactive dev shell is zsh. A poll loop that did `status=$(...)` failed with `zsh: read-only variable: status` and silently aborted mid-run. Use non-reserved names (`st`, `cc`, `rid`, `run`). If a one-liner exits non-zero with no useful output, suspect a readonly-var collision before anything else. (Also why `Bash` compound `cd` can prompt — prefer `git -C <dir>` or a standalone `cd`.)
 
@@ -756,6 +1081,63 @@ These have caused real bugs. Read before making related changes:
 
     Fixed on both guards in #713; the exit-code check is retained behind it as a second line of defence. **Prevention: none needed — `tests/scripts/guard-fail-closed.test.js` already asserted this exact contract and was correct.** It passed on Linux and failed on macOS, and the failure was written off as an "expected" platform quirk for ten days. The test was right and the platform hid it, which is why the fix was written to satisfy the existing assertions rather than editing the test to match the code. **A red you have learned to expect is a control you have switched off.**
 
+31. **A file move silently DELETES its `SRC` manifest key — and `SRC.gone` is `undefined`, which makes negative assertions vacuously true**: `tests/support/source-paths.ts` exists so tests reference `SRC.profileActions` instead of hard-coding a path, and `scripts/gen-test-paths.mjs` builds it by harvesting path literals from `tests/**`, keeping only the ones that still resolve on disk.
+
+    Because `source-paths.ts` is *itself* a tracked `.ts` file under `tests/` containing its own values as literals, the generator re-discovers every key it already holds. **The manifest is SELF-SUSTAINING in steady state** — which is exactly why the failure is surprising, and why hand-editing a value works and persists.
+
+    **A move breaks the loop:**
+
+    1. `git mv src/lib/features/x.ts src/modules/features/x.ts`
+    2. the manifest still says `src/lib/features/x.ts`
+    3. that path no longer exists → the literal is **discarded**
+    4. no test carries the new literal yet → nothing replaces it
+    5. the key is **GONE**
+
+    Two symptoms, and the quiet one is the dangerous one:
+
+    ```js
+    readFileSync(resolve(ROOT, SRC.gone))   // TypeError: paths[1] must be of type string — loud
+    expect(src).not.toContain(SRC.gone)     // PASSES. Always. Forever.
+    ```
+
+    A negative assertion against `undefined` cannot fail, so a test stops checking anything with **no diff to the test and no red build**. That is the `SRC.libEnv` defect — a key that never existed, feeding a `not.toContain` that could never fail.
+
+    **The rule:** when you move a file any test reaches via `SRC`, either update the value in the manifest in the same commit (the loop then re-sustains it), or add it to **`tests/support/source-path-seeds.ts`**. Seeding is durable — it survives a regeneration performed from a stale checkout, which is how the key was lost the first time. `tests/support/**` is excluded from the F4 raw-literal ratchet precisely because "the manifest is where the literals are supposed to live", so seeding is *aligned* with that ratchet, not a way around it.
+
+    **Guards:** `tests/unit/source-path-manifest-integrity.test.ts` asserts across the whole estate that every `SRC.<key>` used in code resolves to a git-tracked file, that no entry dangles, and that every seeded path is present (comments are stripped first — several files discuss `SRC.foo`/`SRC.libEnv` by name *while explaining this hazard*, and a guard that punishes writing the explanation down is pointed the wrong way). For `.ts` tests `tsc --noEmit` catches it earlier still, as a compile error against the typed manifest; `.js` tests get no such warning, which is why the runtime guard exists too. Hit twice in one day during KAN-415 D5 and D6.
+
+32. **The signup-surface gate's failure mode is a confident green, and it is the ONLY thing proving account creation works before staging**: `.github/signup-surface.paths` (CTL-013, `scripts/check-signup-surface-gate.sh`) decides whether a `develop → staging` promote touches account creation, and forces the un-skippable signup E2E if it does. Its own header states the reason it matters: **the daily Staging Soak deliberately never exercises signup** — it reuses a persistent reset-user — so when this gate says CLEAN, nothing else is looking.
+
+    The manifest is **literal path globs**. KAN-419 demonstrated the consequence rather than asserting it:
+
+    | change | before a move | after |
+    |---|---|---|
+    | edit the signup form + the 18+ declaration | `exit 10` TOUCHED | **`exit 0` CLEAN** |
+
+    Not a failure. Not a warning. Not a log line. `RESULT: CLEAN`. A manifest of literal paths cannot distinguish *"this surface was not touched"* from *"this surface was renamed out from under me"*.
+
+    **So: any move of a path listed in that manifest MUST rewrite the manifest in the same commit.** D6 (`age` + `auth`) was sequenced as a single step precisely because their combined footprint *is* this gate's footprint — splitting them would leave the manifest half-rewritten across two promotes.
+
+    KAN-419 §4 recommends landing a **union** manifest (old *and* new globs) before a move and shrinking after, using CTL-035's `# guard-path-ok:` marker for the not-yet-existing paths. That is right when a move spans multiple commits. When the move is **atomic**, prefer doing both in one commit: there is no interval to cover, and a union would leave the old glob matching no tracked file, which CTL-035 correctly fails.
+
+    **Guard:** `tests/scripts/check-signup-surface-gate.test.js` — a two-way ratchet asserting every `src/` glob in the manifest still resolves to tracked files, plus the behavioural contract. Written 2026-08-10; before that this gate had **no tests at all**.
+
+33. **A Claude Code session isolated via `EnterWorktree` nests its checkout under `.claude/worktrees/…` — and this repo's own `jest.config.js` ignores exactly that path, so `npm run test:unit` / `test:scripts` / `test:integration` silently report "0 matches" instead of running thousands of real tests**: `jest.config.js`'s `testPathIgnorePatterns` includes `/\.claude/` — a KAN-180 fix so a local `npm test` doesn't double-count tests when this repo's *own* multi-worktree convention (`git worktree add ../lyra-<branch> origin/develop`, a **sibling** directory) is in play. `EnterWorktree` uses a different, incompatible convention: it nests the new worktree at `<repo>/.claude/worktrees/<name>`, *inside* the tree jest is told to ignore. Every test file's absolute path then contains `/.claude/`, so the ignore pattern matches the entire checkout and Jest reports zero matched tests — not an error, not a warning, just `0 matches` and exit 0.
+
+    Discovered 2026-08-15 during the Weekly Health + Regression routine: `RUN_E2E=1 bash scripts/weekly-health-regression.sh`, run from inside an `EnterWorktree` session, reported `unit`/`scripts`/`integration` as `UNVERIFIED — no tests matched this phase's path`. That message is also BUGS-51's generic wording for a **real**, already-documented gap (no `tests/integration/` directory exists yet) — so the same output silently conflates *"this test category doesn't exist"* with *"3,926 real tests were never run."* The fix used that run: `git worktree add /home/user/lyra-jest-check origin/develop` (a **sibling** path, outside `.claude/`), run `npm ci` + the suite there instead. That run correctly matched all 295 suites / 3,926 tests, exactly the documented floor.
+
+    **The rule:** before trusting a `0 matches` / `UNVERIFIED` result from any jest-backed phase, check `pwd` for `/.claude/` in the path. If present, don't debug the test suite — redo the run from a sibling worktree (`git worktree add ../lyra-<name> origin/develop`, per this file's own "Parallel Claude sessions" section) or the main checkout. This is the reverse of gotcha #6's lesson (`fs.existsSync` on a moved-but-not-emptied directory passing for the wrong reason): here a **real, correct** ignore rule produces a **false-UNVERIFIED** when a tool's directory convention collides with it — the rule was never wrong, the location was.
+
+34. **A gate whose ONLY escape hatch is a commit trailer is unsatisfiable for dependabot — so a documentation control can hold a supply-chain control shut, indefinitely and silently**: CTL-047 (`scripts/check-docs-updated.py`) declared its workflow trigger as *"a GitHub Actions workflow was added or removed"*. The predicate was `p.startswith(".github/workflows/")` over a `--diff-filter=ADRM` diff — **M for Modified is in the filter** — so it fired on every *edit* and then printed "added or removed" while listing modified files. The registry summary repeated the wrong wording, so a reviewer consulting the authoritative artefact was misled too.
+
+    The cost was not theoretical. PR [#661](https://github.com/luisa-sys/lyra/pull/661), dependabot's `github-actions` group bump — 33 workflow files, +85/−85, **every line a `uses:` version pin**, nothing added, nothing removed — sat **red for 15 days** carrying seven action updates, three of them CodeQL. Its two offered remedies are both unavailable to a robot: dependabot cannot write a `Docs-N/A:` commit trailer, and **no doc in this repo records an action version**, so there is nothing to touch either. Every future github-actions bump would have queued behind it.
+
+    **Note what this is not.** It is not a gate being noisy; it is a gate being *unsatisfiable* for one author. When you design an escape hatch, ask who the actual population of triggering authors is — if any of them structurally cannot use it, the hatch does not exist for them and the gate is a permanent block, not a prompt to think.
+
+    **The fix is content-aware and deliberately strict (SEC-155).** A *modified* workflow whose **every** changed line is a `uses: <action>@<ref>` pin is doc-neutral and not counted. One `cron:`, one `run:`, one `if:` moving alongside the pins and the file fires as before — so a schedule change cannot be smuggled through by co-locating it with a bump. Added, removed and renamed workflows are **never** exempt whatever they contain: their existence is the documented fact, not their contents. Both halves are mutation-proven — removing the exemption reddens the pin-only cases, and loosening `USES_PIN_RE` to match any line lets the cron-change case wrongly pass, which is the evidence that the strictness (not the exemption) is the load-bearing part.
+
+    ⚠️ **The `--files` mode still fires on every workflow path**, because it has no diff to classify. That is the conservative answer, not an oversight — an undecidable file is never treated as exempt.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
@@ -828,6 +1210,8 @@ See `docs/RUNBOOK.md` for the full schedule. Key times (UTC):
 - Sunday 05:00 — Backup restore test
 - Monday 07:00 — Weekly report (emails via Resend)
 - Wednesday 07:00 — Security audit (npm audit + email alerts via Resend)
+- **Event-driven** — Release tag on deploy (`release-tag-on-deploy.yml`, BUGS-104 / CTL-067): fires on `workflow_run` when **Deploy to Production** completes and tags `main` if the deploy earned one. ⚠️ **The promote does NOT tag when the deploy pauses at the reviewer gate** — `wait-for-deploy` exits 0 with `awaiting-approval` (correct; failing it fired a spurious auto-rollback), so `smoke-tests` and `release-tag` are both SKIPPED and nothing returns after approval. Since the gate landed 2026-07-30 that is the normal path, so effectively every release was going untagged; CTL-057 detects that end state, this prevents it. Refuses (exit 1) if the deploy's `head_sha` is not `main` HEAD, and is a no-op on an already-tagged HEAD — which is what makes the deliberate overlap with the promote's own tag job safe.
+- Daily 06:20 — Required-checks drift (`required-checks.yml`, SEC-106 / CTL-066): diffs live branch protection against `.github/expected-protection.json`. **Reports UNVERIFIED — a red run — until `BRANCH_PROTECTION_READ_TOKEN` exists**, because reading protection needs `administration:read`, which `GITHUB_TOKEN` cannot be granted. That red is the ask, not a fault; see `docs/RUNBOOK.md` → "Required-checks drift".
 
 ### Ops routines & the Control-Room heartbeat (KAN-350 / KAN-362)
 

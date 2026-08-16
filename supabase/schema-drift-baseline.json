@@ -1,6 +1,6 @@
 {
-  "$comment": "KAN-414 F6 — the KNOWN, TICKETED schema drift between the three Supabase projects, as measured 2026-07-29. Enforced by scripts/check-schema-type-parity.py in pr-checks.yml (CTL-036). This list is SHRINK-ONLY: new drift fails the build, and so does an entry that has stopped drifting, because a baseline that may only grow is a suppression list rather than a ratchet. Closing these is F7's job.",
-  "measured_at": "2026-07-29",
+  "$comment": "KAN-414 F6 — the KNOWN, TICKETED schema drift between the three Supabase projects, as measured 2026-08-16 (originally 2026-07-29). Enforced by scripts/check-schema-type-parity.py in pr-checks.yml (CTL-036). This list is SHRINK-ONLY: new drift fails the build, and so does an entry that has stopped drifting, because a baseline that may only grow is a suppression list rather than a ratchet. Closing these is F7's job.",
+  "measured_at": "2026-08-16",
   "measured_against": {
     "dev": "ilprytcrnqyrsbsrfujj",
     "staging": "uobmlkzrjkptwhttzmmi",
@@ -38,11 +38,6 @@
           "line": "column:profiles.postcode_search_hash",
           "ticket": "SEC-107",
           "note": "KAN-153, as above."
-        },
-        {
-          "line": "enum-label:visibility_level.draft",
-          "ticket": "SEC-107",
-          "note": "KAN-143 never shipped to prod. This one is NOT harmless: src/app/dashboard/profile/visibility.ts uses 'draft' as its default and fail-closed value, and that label is not valid on the prod database — which beta.checklyra.com also shares."
         },
         {
           "line": "function:search_by_contact_hash",

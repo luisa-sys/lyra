@@ -95,6 +95,26 @@ TEST_DIR="tests"
 # Paths named verbatim inside claude.ai routine prompts (KAN-419 §5.2). These
 # are prefixes: any moved path at or under one of them needs a routine-prompt
 # review, because the prompt's copy of it cannot be updated by any PR.
+# ⚠️ THESE ARE THE PROMPTS' SPELLINGS, NOT THE TREE'S. DO NOT REWRITE ON A MOVE.
+#
+# This list mirrors text that lives in claude.ai routine prompts, outside every
+# repository CI can read. Its entries are correct when they match what the
+# PROMPT says — which, after a move and before Luisa edits the prompt, is the
+# OLD path. That is the whole reason the attestation exists.
+#
+# The check below compares MOVED-FROM paths against this list. So rewriting an
+# entry to its new path in the same commit that moves the file makes the moved
+# path stop matching, the gate report "not applicable", and the attestation —
+# the one saying a human must go and update the prompt — silently disappear.
+# A commit that carries itself through the gate it is disabling.
+#
+# That happened here: KAN-415's tail moved invite-text.ts and beta-access/
+# email.ts, a blanket path rewrite caught this list too, and the gate went
+# quiet. Caught by reading the diff, not by any control — nothing registers
+# these patterns with CTL-035, so a dead entry here is invisible.
+#
+# An entry may only be updated once the corresponding routine prompt has
+# actually been edited, in a commit that says so.
 ROUTINE_COUPLED=(
   "scripts/staging-soak.sh"
   "scripts/check-ui-copy-ownership.sh"
@@ -287,11 +307,38 @@ sweep() {
 ARCHIVE_FILES=(
   "docs/modularisation/data/kan422-dead-exports.json"     # KAN-422 dead-export scan output
   "docs/modularisation/data/kan432-revalidation.json"     # KAN-432 plan-revalidation snapshot
+  "docs/modularisation/data/kan421-profiles-inventory.json" # KAN-421 profiles survey: a per-file
+                                                           # census taken on a date, like its two
+                                                           # siblings above
+  "docs/modularisation/KAN-416-boundaries-allowlist.seed.json" # KAN-416 boundary SEED: the
+                                                           # measured edge list that seeded the
+                                                           # allowlist. Rewriting an edge would
+                                                           # falsify what was measured.
   "docs/modularisation/kan419-scan.py"                    # superseded by scripts/check-guard-path-drift.py
   "docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md"  # dated plan: names the pre-move layout by design
   "docs/modularisation/KAN-414-F4-HANDOVER-2026-08-01.md" # dated handover: a snapshot of that day's findings
   "docs/modularisation/KAN-414-F6-threading-fallout.md"   # a MEASUREMENT of 2026-07-29, whose own text says the doc is the deliverable
   "docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md"              # dated run-ledger rows quote the paths of the day
+  # ── The WRITE-UPS whose DATA files are already archived above (KAN-415 tail) ──
+  # This list archived the .json outputs and missed their .md counterparts, so
+  # every extraction rewrote the prose while protecting the data. The two halves
+  # of the same measurement then disagree.
+  #
+  # Not hypothetical, and the damage is already done: KAN-419-path-coupling.md
+  # says "Produced: 2026-07-27 · Tracked files at scan time: 791" and today
+  # contains 19 references to `src/modules/` — a directory that did not exist
+  # when that scan ran. D1..D9 rewrote them. Restoring the original text needs
+  # git archaeology and is tracked separately; adding them here stops the
+  # bleeding.
+  #
+  # Each one states its own status in its header — "Spike · research artefact ·
+  # read-only", with a Produced/Run date and the exact commit it was measured
+  # at. That is the test for membership of this list: a file pinned to a SHA is
+  # describing a moment, not the tree.
+  "docs/modularisation/KAN-419-path-coupling.md"          # scan of 2026-07-27; its LIVE/DEAD table IS the measurement
+  "docs/modularisation/KAN-421-profiles-god-table.md"     # run of 2026-07-28 @ 1cadd57; file:line census, sibling of the archived .json
+  "docs/modularisation/KAN-416-module-manifest.md"        # derivation of 2026-07-28 @ 1d6cb5f
+  "docs/modularisation/PLAN-REVALIDATION-2026-07-28.md"   # KAN-432 re-derivation @ 674f0a7; sibling of the archived kan432-revalidation.json
 )
 
 # Whole directories that are records rather than descriptions. Kept separate
@@ -307,6 +354,46 @@ is_archival() {
   for a in "${ARCHIVE_FILES[@]}"; do [ "$f" = "$a" ] && return 0; done
   for d in "${ARCHIVE_DIRS[@]}"; do case "$f" in "$d"*) return 0 ;; esac; done
   return 1
+}
+
+# ── The prompt mirror is not drift either (KAN-415 tail) ────────────────────
+# ROUTINE_COUPLED above holds paths as the claude.ai routine PROMPTS spell them.
+# After a move and before the founder edits the prompt, the correct value there
+# is the OLD path — that mismatch is the whole signal `routine-prompts` exists
+# to raise.
+#
+# But `stale-refs` sweeps scripts/ for exactly that literal, so the two checks
+# in THIS FILE contradicted each other: keeping the old spelling failed
+# stale-refs, and rewriting it satisfied stale-refs while silently making the
+# moved path stop matching ROUTINE_COUPLED — so `routine-prompts` reported
+# "not applicable" and the attestation vanished. A PR could therefore move a
+# path named in a routine prompt, go green, and never tell anyone the prompt
+# needed updating.
+#
+# Discovered when this gate failed a PR for the deliberate act of NOT rewriting
+# the mirror. So: hits inside the ROUTINE_COUPLED block are printed, never
+# failed — the same treatment as dated evidence, for the same reason. They are
+# a record of something outside the repo, not a description of the tree.
+#
+# The range is computed from the file rather than hard-coded, so the carve-out
+# cannot drift away from the array it is meant to cover. Anything else in this
+# script still fails normally: this exempts a block, not a file.
+ROUTINE_BLOCK_START="$(grep -n '^ROUTINE_COUPLED=(' "$0" | head -1 | cut -d: -f1)"
+if [ -n "${ROUTINE_BLOCK_START:-}" ]; then
+  ROUTINE_BLOCK_END="$(awk -v s="$ROUTINE_BLOCK_START" 'NR>s && /^\)/ {print NR; exit}' "$0")"
+else
+  ROUTINE_BLOCK_END=""
+fi
+
+# A `file:line:text` hit that sits inside this script's ROUTINE_COUPLED array.
+is_prompt_mirror() {
+  local hit="$1" f ln
+  f="${hit%%:*}"
+  [ "$f" = "scripts/check-extraction-dod.sh" ] || return 1
+  [ -n "${ROUTINE_BLOCK_START:-}" ] && [ -n "${ROUTINE_BLOCK_END:-}" ] || return 1
+  ln="${hit#*:}"; ln="${ln%%:*}"
+  case "$ln" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$ln" -gt "$ROUTINE_BLOCK_START" ] && [ "$ln" -lt "$ROUTINE_BLOCK_END" ]
 }
 
 # `stale-refs` owns .github/ + scripts/ + docs/, minus the mirror manifest,
@@ -332,14 +419,28 @@ else
     # being archival is one list edit away from failing again.
     live=""
     arch=""
+    mirror=""
     while IFS= read -r hit; do
       [ -z "$hit" ] && continue
       if is_archival "${hit%%:*}"; then
         arch="${arch}${hit}"$'\n'
+      elif is_prompt_mirror "$hit"; then
+        mirror="${mirror}${hit}"$'\n'
       else
         live="${live}${hit}"$'\n'
       fi
     done <<<"$out"
+
+    if [ -n "${mirror//[[:space:]]/}" ]; then
+      echo "check-extraction-dod: [stale-refs] '${old}' is held at its OLD spelling in ROUTINE_COUPLED (recorded, not failed):"
+      while IFS= read -r hit; do
+        [ -z "$hit" ] && continue
+        echo "check-extraction-dod:     ${hit}"
+      done <<<"$mirror"
+      echo "check-extraction-dod:     That list mirrors claude.ai routine prompts, which no PR can edit. It is"
+      echo "check-extraction-dod:     CORRECT until the founder re-points the prompt — and rewriting it here would"
+      echo "check-extraction-dod:     silently switch the routine-prompts check off for this very move."
+    fi
 
     if [ -n "${live//[[:space:]]/}" ]; then
       hits=1
@@ -371,6 +472,32 @@ sweep module-manifest "$MODULE_MANIFEST"
 sweep test-estate "$TEST_DIR"
 
 # ------------------------------------------------------- PR-body attestations
+#
+# ⚠️ TWO THINGS ABOUT EDITING THESE ANSWERS THAT WILL WASTE YOUR TIME (KAN-473).
+#
+# 1. EDITING THE PR BODY DOES NOT RE-RUN THIS GATE, and re-running the failed
+#    job does not pick the edit up either. pr-checks.yml triggers on
+#    `pull_request` with the default activity types — opened, synchronize,
+#    reopened — so `edited` fires nothing; and `PR_BODY` is interpolated from
+#    `github.event.pull_request.body`, which is frozen in the run's event
+#    payload, so a re-run replays the ORIGINAL body. Fixing an attestation
+#    therefore requires a PUSH. Verified 2026-08-12: a corrected body plus
+#    `rerun_failed_jobs` reproduced the identical failure, and the re-run's own
+#    log echoed the stale text.
+#
+# 2. THE MARKER MUST START THE LINE (modulo a bullet and a checkbox) — see the
+#    regex in attest(). Markdown emphasis around it does not survive:
+#
+#        - [x] **EXTRACTION-DOD-COVERAGE:** playwright project 'public-pages'
+#                ^^ the `**` sits between the checkbox and the marker, so the
+#                   line does not match and the answer reads as ABSENT
+#        - [x] EXTRACTION-DOD-COVERAGE: playwright project 'public-pages'   <- ok
+#
+#    The failure mode is worth naming because it is indistinguishable from the
+#    one it is not: a gate that read none of your three answers reports exactly
+#    what a gate that read them and disagreed would report. Three answers were
+#    written, all three were bolded, and all three came back "the PR body has
+#    no '<marker>' line".
 PR_BODY_TEXT=""
 if [ -n "${PR_BODY_FILE:-}" ]; then
   [ -f "$PR_BODY_FILE" ] || die_unverifiable "PR_BODY_FILE '$PR_BODY_FILE' does not exist."
@@ -446,7 +573,11 @@ attest out-of-repo "EXTRACTION-DOD-ROUTINE-PROMPTS" \
 # Uses the same zero-secret route as CTL-043: public repo, built-in GITHUB_TOKEN.
 if is_suppressed mcp-repo; then
   echo "check-extraction-dod: [mcp-repo] SKIPPED by an active exception."
-elif ! command -v gh >/dev/null 2>&1; then
+elif [ -z "${MCP_TARBALL:-}" ] && ! command -v gh >/dev/null 2>&1; then
+  # gh is only actually invoked below when MCP_TARBALL is unset (the `gh api`
+  # tarball download). When MCP_TARBALL IS set — the test suite's injection
+  # point, or an operator's own pre-fetched tarball — gh is never called, so
+  # its mere absence must not fail this check closed.
   die_unverifiable "gh is not available, so the lyra-mcp-server back-references could not be checked. This coupling has already broken once undetected."
 else
   # ONE request. The first cut fetched every candidate file once per moved path

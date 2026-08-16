@@ -20,14 +20,14 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { dbErrorFor } from '@/lib/db-error-copy';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
   isManualOfMeField,
-} from './manual-of-me-fields';
+} from '@/modules/profile/manual-of-me-fields';
 
 /** Update (upsert) the user's Manual of Me row. Accepts a partial — any
  * subset of allowlisted fields. Non-allowlisted keys cause wholesale

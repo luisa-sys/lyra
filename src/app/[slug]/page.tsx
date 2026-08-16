@@ -10,22 +10,22 @@ import { createClient as createSupabaseServerClient } from '@/modules/platform/s
 import {
   coerceSectionVisibility,
   isItemVisibleUnderHybridModel,
-} from '@/app/dashboard/profile/section-visibility';
+} from '@/modules/profile/section-visibility';
 import {
   isManualOfMeEmpty,
   type ManualOfMe,
-} from '@/app/dashboard/profile/manual-of-me-fields';
-import { groupFavourites } from '@/app/dashboard/profile/favourites';
-import { getRecommendations } from '@/lib/recommend';
-import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/lib/recommend/dismissals';
-import RecommendationsSection from './recommendations-section';
-import V2RecommendationsSection from './v2-recommendations-section';
-import ReportButton from './report-button';
-import { decodeSlug } from './slug-utils';
+} from '@/modules/profile/manual-of-me-fields';
+import { groupFavourites } from '@/modules/profile/favourites';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { withoutDismissedRecommendations, withoutDismissedV2 } from '@/modules/recommendations/recommend/dismissals';
+import RecommendationsSection from '@/modules/public-profile/recommendations-section';
+import V2RecommendationsSection from '@/modules/public-profile/v2-recommendations-section';
+import ReportButton from '@/modules/public-profile/report-button';
+import { decodeSlug } from '@/modules/public-profile/slug-utils';
 import { headers } from 'next/headers';
-import { isIsoAlpha2, normaliseDeliveryCountry } from '@/lib/affiliate/country-codes';
-import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
-import type { ConceptInput } from '@/lib/recommender/v2/types';
+import { isIsoAlpha2, normaliseDeliveryCountry } from '@/modules/profile/country-codes';
+import { buildV2Recommendations } from '@/modules/recommendations/recommender/v2/pipeline';
+import type { ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 import * as Sentry from '@sentry/nextjs';
 
 // BUGS-14: profile pages render dynamically per-request (cookie read for the
@@ -96,11 +96,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
-    .from('profiles')
+    // SEC-104: the view carries published + not-suspended, so this service-role
+    // read is constrained by the query itself rather than by remembering (SEC-44).
+    .from('public_profiles')
     .select('display_name, headline, bio_short')
     .eq('slug', slug)
-    .eq('is_published', true)
-    .eq('is_suspended', false) // SEC-44: service-role render must exclude suspended profiles
     .single();
 
   if (!profile) {
@@ -226,11 +226,21 @@ export default async function PublicProfilePage({ params }: Props) {
   const slug = decodeSlug(rawSlug);
 
   const { data: profile } = await getSupabase()
-    .from('profiles')
+    // SEC-104. Two things changed here, and the second is the bigger one.
+    //
+    // 1. The published + not-suspended predicate now lives in the view body, so
+    //    a suspended profile 404s by construction (SEC-44) even though this is a
+    //    service-role read that RLS does not touch.
+    // 2. `select('*')` used to pull all 42 columns of `profiles` — including
+    //    is_admin, user_id, suspension_reason, the six age-verification columns
+    //    and the search hashes — of which this page uses 13. Against the view it
+    //    returns 17, and the 25 it does not need are no longer fetched at all.
+    //    An audit found none of them reached the browser, so this is a hardening
+    //    rather than a leak fix; but a column that is never selected cannot be
+    //    leaked by the next person to add a prop.
+    .from('public_profiles')
     .select('*')
     .eq('slug', slug)
-    .eq('is_published', true)
-    .eq('is_suspended', false) // SEC-44: suspended profiles must 404 on the public page, not render
     .single();
 
   if (!profile) {
@@ -434,7 +444,7 @@ export default async function PublicProfilePage({ params }: Props) {
   ];
 
   // KAN-444: favourites grid — one card per non-empty group, built by the
-  // SAME function the editor groups by (see dashboard/profile/favourites).
+  // SAME function the editor groups by (see the profile module's favourites).
   // Sharing it is the point: the groups a member arranges while editing are
   // by construction the groups their visitors see, so the two cannot drift.
   const favCards = groupFavourites(typedItems);

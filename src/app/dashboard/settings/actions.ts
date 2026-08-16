@@ -1,11 +1,11 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
-import { getAdminServiceClient } from '@/lib/admin';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { getAdminServiceClient } from '@/modules/admin/admin';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
-import { isFeatureGloballyEnabled } from '@/lib/features/global-switches-service';
+import { isFeatureGloballyEnabled } from '@/modules/features/global-switches-service';
 import * as Sentry from '@sentry/nextjs';
 
 // SEC-75 leg (b): external systems that may still hold a copy of a deleted
@@ -162,7 +162,7 @@ export async function exportUserData(): Promise<string> {
   // and — because nothing errored — indistinguishable from a complete one.
   // Membership of this list is now checked against the schema by
   // tests/unit/sar-export-completeness.test.js; see
-  // src/lib/gdpr/person-keyed-tables.ts.
+  // src/modules/contracts/person-keyed-tables.ts.
 
   // Per-user feature grants (KAN-309). Personal data: it records what this
   // member is permitted to do.
@@ -321,7 +321,15 @@ export async function deleteAccount() {
   try {
     const { error: obligationError } = await admin.rpc('record_erasure_obligation', {
       p_subject_user_id: userId,
-      p_subject_email: user.email ?? null,
+      // SEC-132: the generated Args type says `p_subject_email: string`, because
+      // typegen marks any parameter without a SQL DEFAULT as required and
+      // non-null. Verified against the database: `record_erasure_obligation` is
+      // NOT STRICT and `erasure_obligations.subject_email` is nullable, so NULL
+      // is accepted and stored. Passing `''` instead would type-check and be
+      // WRONG — it would record an erasure obligation carrying an email address
+      // that is not merely unknown but affirmatively empty, which is what an ops
+      // follow-up would then try to chase through Resend and Didit.
+      p_subject_email: (user.email ?? null) as string,
       p_processors: ERASURE_PROCESSORS,
       p_notes: 'Account hard-deleted; external processor / KV copies pending erasure (SEC-75 leg b).',
     });

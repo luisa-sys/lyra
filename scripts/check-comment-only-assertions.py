@@ -364,7 +364,7 @@ def analyse(root: Path, rel: str, manifest: dict) -> list[dict]:
     # Carry the most recently-read subject forward. A `describe` that is not the
     # FIRST in the file does its `readFileSync` in its own body, which lands at
     # the tail of the PREVIOUS test block's chunk — so a file-level preamble
-    # alone misses it. That blind spot hid src/lib/auth/post-login-redirect.ts,
+    # alone misses it. That blind spot hid src/modules/auth/post-login-redirect.ts,
     # where `/confirm-age` sits in both a comment and the code, and it is the
     # commonest shape in this repo. Pinned as a self-test fixture.
     current = subjects_in(preamble)

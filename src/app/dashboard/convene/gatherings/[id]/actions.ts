@@ -20,7 +20,11 @@ import { adapterFor } from '@/lib/convene/calendar';
 import { getConnectionForUser } from '@/lib/convene/oauth-connections';
 import { generateRsvpToken, persistQueuedInvite, setInviteeRsvpToken } from '@/lib/convene/invites/repository';
 import { dispatchQueuedInvites } from '@/lib/convene/invites/dispatch';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
+// SEC-132: type-only import. `'use server'` files may export only async
+// functions (gotcha #18) — a type import is erased at build, so it adds no
+// runtime export and cannot trip that rule.
+import type { Json } from '@/types/database';
 
 type Result = { ok: true } | { ok: false; error: string };
 type SendSummary = { queued: number; sent: number; blocked_by_allowlist: number; failed: number };
@@ -40,7 +44,7 @@ async function appendEvent(
   gatheringId: string,
   actorUserId: string,
   eventType: string,
-  metadata: Record<string, unknown> = {}
+  metadata: Json = {}
 ) {
   const sb = admin();
   // ownership-ok: caller has already verified host_user_id matches (KAN-236)

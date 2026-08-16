@@ -44,7 +44,7 @@ jest.mock('next/cache', () => ({
 // The factory RETURNS the spy's result rather than a fixed `{ ok: true }`. A
 // factory that swallowed it would make the "blocked hint" case below unable to
 // fail — the vacuous-guard shape this repo keeps finding.
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (_supabase: unknown, args: { text: string; field: string }) =>
     mockModerate(args),
 }));
@@ -75,7 +75,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 import { updateProfileFields } from '@/app/dashboard/profile/actions';
-import { giftVoucherHintPayload } from '@/app/dashboard/profile/profile-fields';
+import { giftVoucherHintPayload } from '@/modules/profile/profile-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';

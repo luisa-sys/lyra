@@ -5,11 +5,24 @@
  *
  * THE INVARIANTS, IN WORDS
  * ------------------------
- *  1. The profile query filters on **both** `is_published = true` AND
- *     `is_suspended = false`. This is SEC-100. The sitemap is built with the
+ *  1. The profile query reads the **`public_profiles` view**, never the raw
+ *     `profiles` table. This is SEC-100/SEC-104. The sitemap is built with the
  *     SERVICE-ROLE client, which bypasses RLS, so the database policy that
- *     protects every other read does **not** apply here — the filter has to be
- *     written out by hand, and nothing else will catch it if it is dropped.
+ *     protects every other read does **not** apply here. Until SEC-104 the
+ *     `is_published = true AND is_suspended = false` pair had to be written out
+ *     by hand at every call site; it now lives in the view body, where it binds
+ *     service_role by construction.
+ *
+ *     ⚠️ AND THAT MAKES THIS TEST NARROWER, WHICH IS WORTH SAYING OUT LOUD. A
+ *     unit test cannot see whether the view on a given database actually
+ *     carries the predicate — it can only prove the code reads the view. The
+ *     other half moved to a control that CAN read a database:
+ *     `scripts/check-db-invariants.py`, run per-environment by
+ *     db-invariants.yml. An invariant relocated into the database needs its
+ *     control relocated with it, or the guarantee is only a comment.
+ *
+ *     The fake below therefore MODELS the view rather than ignoring the table
+ *     name, so invariant 2 still means something.
  *  2. A suspended member's slug never reaches the output. Invariant 1 is about
  *     the query; this is about the result, and they are not the same claim.
  *  3. Static pages are always present, and a Supabase failure degrades to
@@ -17,6 +30,23 @@
  *     outage, and the failure mode is silent.
  *  4. Every URL is absolute and built from the configured site URL, so a
  *     preview deployment cannot publish preview-host URLs to search engines.
+ *  5. The route is configured to render PER REQUEST, not at build time
+ *     (SEC-130). Invariants 1 and 2 are about what the query asks for; this is
+ *     about when it runs, and a correct query executed once at build time is
+ *     still a stale answer. Until this was fixed the route read no dynamic API,
+ *     so Next prerendered it and a suspended member's slug stayed in
+ *     `/sitemap.xml` until the next deploy — while their profile page 404'd and
+ *     `/search` dropped them immediately.
+ *
+ *     ⚠️ AND THIS ONE IS NARROWER STILL, WHICH IS WORTH SAYING OUT LOUD. Jest
+ *     imports a module; it does not run a Next build, so it CANNOT observe
+ *     whether the deployed route was prerendered. What it can do is pin the
+ *     route segment config — which is the actual mechanism Next reads to make
+ *     that decision, not a proxy for it. The deployed half (that
+ *     `/sitemap.xml` really comes back uncached) is asserted against a running
+ *     environment by the `C1-sitemap-fresh` probe in `scripts/staging-soak.sh`.
+ *     Same reasoning as invariant 1: a guarantee that lives outside the unit
+ *     needs a control that lives outside the unit.
  *
  * WHY THIS IS STRONGER — AND THE HISTORY THAT PROVES IT
  * -----------------------------------------------------
@@ -45,10 +75,17 @@ import type { MetadataRoute } from 'next';
 
 const BASE = 'https://checklyra.com';
 
-type Row = { slug: string; updated_at: string; is_suspended?: boolean };
+// SEC-132: `slug` and `updated_at` are nullable here on purpose. `public_profiles`
+// is a VIEW, and a view does not carry the base table's NOT NULL guarantees, so
+// the real query can hand back either as null. Widening the fixture type is what
+// lets invariant 6 below construct that row at all — with the old
+// `{ slug: string; updated_at: string }` the case could not be expressed, which
+// is why it went untested through SEC-100, SEC-104 and SEC-130.
+type Row = { slug: string | null; updated_at: string | null; is_suspended?: boolean };
 type EqCall = [string, unknown];
 
 const eqCalls: EqCall[] = [];
+const sources: string[] = [];
 let rows: Row[] = [];
 let clientThrows = false;
 
@@ -60,6 +97,7 @@ jest.mock('@/modules/platform/supabase-service', () => ({
     // A chainable that records each filter and resolves to whatever survives
     // them, so invariant 1 (the query) and invariant 2 (the result) can be
     // asserted independently rather than one standing in for the other.
+    let source = '';
     const chain = {
       select: () => chain,
       eq: (col: string, val: unknown) => {
@@ -68,18 +106,42 @@ jest.mock('@/modules/platform/supabase-service', () => ({
       },
       then: (resolve: (v: unknown) => unknown) => {
         let out = rows;
+        // SEC-104: the fake MODELS THE VIEW. `public_profiles` is defined as
+        // `SELECT … WHERE is_published = true AND is_suspended = false`, so
+        // reading it must yield only those rows here too — otherwise this
+        // double would prove the route safe against a source that does not
+        // behave like the one production uses.
+        if (source === 'public_profiles') {
+          out = out.filter(
+            (r) =>
+              (r as Record<string, unknown>).is_published === true &&
+              (r as Record<string, unknown>).is_suspended === false,
+          );
+        }
         for (const [col, val] of eqCalls) {
           out = out.filter((r) => (r as Record<string, unknown>)[col] === val);
         }
         return resolve({ data: out, error: null });
       },
     };
-    return { from: () => chain };
+    return {
+      from: (table: string) => {
+        source = table;
+        sources.push(table);
+        return chain;
+      },
+    };
   },
 }));
 
 // `jest.mock` is hoisted above imports, so the route sees the stubs below.
 import sitemap from '@/app/sitemap';
+// Imported as a namespace as well, so the route segment config can be asserted
+// as the EVALUATED export rather than as source text. A `toContain` scan over
+// the file would also match the comment explaining why the config is there —
+// which is the CTL-039 failure mode, and this file's own header is a long
+// argument against it.
+import * as sitemapRoute from '@/app/sitemap';
 
 const LIVE: Row = {
   slug: 'ada',
@@ -94,6 +156,7 @@ const SUSPENDED: Row = {
 
 beforeEach(() => {
   eqCalls.length = 0;
+  sources.length = 0;
   clientThrows = false;
   rows = [
     { ...LIVE, is_published: true } as Row,
@@ -104,13 +167,26 @@ beforeEach(() => {
 const urls = (m: MetadataRoute.Sitemap) => m.map((e) => e.url);
 
 describe('sitemap (behavioural, KAN-414 F4 / SEC-100)', () => {
-  it('filters on BOTH is_published and is_suspended', async () => {
+  it('reads the constrained source, not the raw profiles table (SEC-104)', async () => {
+    // ⚠️ THIS ASSERTION CHANGED SHAPE, AND THE REASON MATTERS.
+    //
+    // It used to require `.eq('is_published', true)` AND `.eq('is_suspended',
+    // false)` on the query, because the service-role client bypasses RLS and
+    // that hand-written pair was the only thing between a moderated member and
+    // Google's crawler. SEC-104 moved the pair into the `public_profiles` view
+    // body, where it binds service_role by construction.
+    //
+    // So the thing to assert is no longer "did the caller remember the filters"
+    // but "did the caller read the source that cannot forget them". That is a
+    // narrower claim, and honestly so: a unit test CANNOT see whether the view
+    // on a given database actually carries the predicate. That half is asserted
+    // live, per environment, by scripts/check-db-invariants.py — because an
+    // invariant that moved into the database needs a control that can read the
+    // database.
     await sitemap();
 
-    // The service-role client bypasses RLS, so this pair is the only thing
-    // standing between a moderated member and Google's crawler.
-    expect(eqCalls).toContainEqual(['is_published', true]);
-    expect(eqCalls).toContainEqual(['is_suspended', false]);
+    expect(sources).toContain('public_profiles');
+    expect(sources).not.toContain('profiles');
   });
 
   it('never emits a suspended member’s slug (SEC-100)', async () => {
@@ -159,5 +235,65 @@ describe('sitemap (behavioural, KAN-414 F4 / SEC-100)', () => {
       expect(e.changeFrequency).toBeDefined();
       expect(typeof e.priority).toBe('number');
     }
+  });
+});
+
+describe('sitemap nullability of the public_profiles VIEW (SEC-132)', () => {
+  // These three cases became REACHABLE only once the service-role client gained
+  // its <Database> generic. Before that `profile.slug` was `any`, so neither the
+  // compiler nor this suite had any reason to ask what happens when the view
+  // returns null — and both failure modes below are silent and get published to
+  // search engines.
+  const published = (r: Partial<Row>) =>
+    ({ is_published: true, is_suspended: false, ...r }) as unknown as Row;
+
+  it('drops a null-slug row instead of emitting the literal URL /null', async () => {
+    rows = [published({ slug: 'ada', updated_at: '2026-01-01T00:00:00.000Z' }), published({ slug: null, updated_at: '2026-01-01T00:00:00.000Z' })];
+
+    const out = urls(await sitemap());
+
+    expect(out).toContain(`${BASE}/ada`);
+    expect(out.some((u) => u.endsWith('/null'))).toBe(false);
+  });
+
+  it('still emits a row whose updated_at is null, but with no lastModified', async () => {
+    rows = [published({ slug: 'no-date', updated_at: null })];
+
+    const entry = (await sitemap()).find((e) => e.url === `${BASE}/no-date`);
+
+    // The page belongs in the sitemap; only the freshness hint is unknown.
+    expect(entry).toBeDefined();
+    expect(entry?.lastModified).toBeUndefined();
+  });
+
+  it('never dates an entry 1970 — the new Date(null) trap', async () => {
+    rows = [published({ slug: 'no-date', updated_at: null })];
+
+    for (const e of await sitemap()) {
+      if (e.lastModified) {
+        // `new Date(null)` is not an error, it is 1970-01-01 — so the old code
+        // would have told crawlers this profile was last modified 56 years ago.
+        expect(new Date(e.lastModified).getUTCFullYear()).toBeGreaterThan(2000);
+      }
+    }
+  });
+});
+
+describe('sitemap freshness (SEC-130)', () => {
+  // Both assertions are POSITIVE on purpose. `expect(x).not.toBe(undefined)`
+  // style checks are how this repo has previously shipped tests that could
+  // never fail (catalogue entry 3 in CLAUDE.md): deleting the export makes the
+  // binding `undefined`, and a negative assertion against `undefined` passes
+  // forever. Asserting the exact expected value reddens on deletion AND on a
+  // silent change of value.
+  it('declares force-dynamic, so Next renders it per request', () => {
+    expect(sitemapRoute.dynamic).toBe('force-dynamic');
+  });
+
+  it('declares revalidate = 0, so no ISR window can re-stale it', () => {
+    // `force-dynamic` already implies this; stating it explicitly is what
+    // src/app/status/page.tsx and src/app/api/health/route.ts do, and it means
+    // relaxing the guarantee takes two deliberate edits rather than one.
+    expect(sitemapRoute.revalidate).toBe(0);
   });
 });

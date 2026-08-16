@@ -13,14 +13,14 @@
  * in /admin/users/[slug].
  */
 
-import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
 import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/modules/platform/deploy-env';
 import {
   GLOBAL_FEATURE_KEYS,
   GLOBAL_FEATURE_CONFIG,
   resolveGlobalSwitches,
   type GlobalFeatureKey,
-} from '@/lib/features/global-features';
+} from '@/modules/features/global-features';
 import { setGlobalFeature } from './actions';
 import ConfirmSubmit from './confirm-submit';
 

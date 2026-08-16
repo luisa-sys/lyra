@@ -24,13 +24,17 @@ src/app/(auth)/social-login-buttons.tsx
 # Account activation: magic-link / OAuth confirm + callback → first session
 src/app/auth/confirm/**
 src/app/auth/callback/**
-src/lib/auth/**
+# KAN-415 D6: resolvePostLoginRedirect moved out of src/lib/auth/ to here.
+src/modules/auth/**
 
 # 18+ self-declaration gate (KAN-407) — part of the signup contract
-src/lib/age/**
+# KAN-415 D6: moved from src/lib/age/. age and auth were deliberately sequenced
+# to move TOGETHER, because their combined footprint IS this gate's footprint —
+# splitting them would leave the manifest half-rewritten across two promotes.
+src/modules/age/**
 
 # Beta-access / invite-code grant applied at signup + confirm
-src/lib/beta-access/**
+src/modules/access/beta-access/**
 
 # Supabase clients used by the signup + confirm paths
 src/modules/platform/supabase-server.ts

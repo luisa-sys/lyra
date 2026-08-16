@@ -83,6 +83,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "affiliate_clicks_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       affiliate_merchant_eligibility: {
@@ -282,6 +289,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contacts_linked_profile_id_fkey"
+            columns: ["linked_profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       content_moderation_flags: {
@@ -321,6 +335,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_moderation_flags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -424,6 +445,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "external_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       feature_entitlements: {
@@ -466,10 +494,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "feature_entitlements_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "feature_entitlements_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feature_entitlements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -750,6 +792,39 @@ export type Database = {
           },
         ]
       }
+      gift_suggestion_dismissals: {
+        Row: {
+          dismissed_at: string
+          profile_id: string
+          suggestion_key: string
+        }
+        Insert: {
+          dismissed_at?: string
+          profile_id: string
+          suggestion_key: string
+        }
+        Update: {
+          dismissed_at?: string
+          profile_id?: string
+          suggestion_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_suggestion_dismissals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_suggestion_dismissals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_feature_switches: {
         Row: {
           created_at: string
@@ -784,6 +859,13 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "global_feature_switches_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -873,6 +955,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "moderation_logs_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       oauth_access_tokens: {
@@ -922,6 +1011,7 @@ export type Database = {
           created_at: string
           expires_at: string
           redirect_uri: string
+          resource: string | null
           scope: string
           used_at: string | null
           user_id: string
@@ -934,6 +1024,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           redirect_uri: string
+          resource?: string | null
           scope: string
           used_at?: string | null
           user_id: string
@@ -946,6 +1037,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           redirect_uri?: string
+          resource?: string | null
           scope?: string
           used_at?: string | null
           user_id?: string
@@ -1127,6 +1219,7 @@ export type Database = {
           expires_at: string
           family_id: string
           issued_at: string
+          resource: string | null
           scope: string
           token_hash: string
           used_at: string | null
@@ -1137,6 +1230,7 @@ export type Database = {
           expires_at: string
           family_id: string
           issued_at?: string
+          resource?: string | null
           scope: string
           token_hash: string
           used_at?: string | null
@@ -1147,6 +1241,7 @@ export type Database = {
           expires_at?: string
           family_id?: string
           issued_at?: string
+          resource?: string | null
           scope?: string
           token_hash?: string
           used_at?: string | null
@@ -1198,27 +1293,30 @@ export type Database = {
         Row: {
           answer: string
           created_at: string | null
+          custom_prompt: string | null
           id: string
           profile_id: string
-          prompt_id: string
+          prompt_id: string | null
           sort_order: number | null
           updated_at: string | null
         }
         Insert: {
           answer: string
           created_at?: string | null
+          custom_prompt?: string | null
           id?: string
           profile_id: string
-          prompt_id: string
+          prompt_id?: string | null
           sort_order?: number | null
           updated_at?: string | null
         }
         Update: {
           answer?: string
           created_at?: string | null
+          custom_prompt?: string | null
           id?: string
           profile_id?: string
-          prompt_id?: string
+          prompt_id?: string | null
           sort_order?: number | null
           updated_at?: string | null
         }
@@ -1228,6 +1326,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_conversation_starters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1281,6 +1386,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profile_files_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profile_items: {
@@ -1288,6 +1400,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           created_at: string | null
           description: string | null
+          group_label: string | null
           id: string
           profile_id: string
           sort_order: number | null
@@ -1299,6 +1412,7 @@ export type Database = {
           category: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
+          group_label?: string | null
           id?: string
           profile_id: string
           sort_order?: number | null
@@ -1310,6 +1424,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
+          group_label?: string | null
           id?: string
           profile_id?: string
           sort_order?: number | null
@@ -1323,6 +1438,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1369,6 +1491,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profile_manual_of_me_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -1393,6 +1522,7 @@ export type Database = {
           discoverable_by_phone: boolean
           discoverable_by_postcode: boolean
           display_name: string
+          gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
           id: string
@@ -1436,6 +1566,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
@@ -1479,6 +1610,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name?: string
+          gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
           id?: string
@@ -1564,6 +1696,13 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_events_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1674,6 +1813,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reports_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reports_profile_item_id_fkey"
             columns: ["profile_item_id"]
             isOneToOne: false
@@ -1728,6 +1874,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_affiliations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1967,6 +2120,66 @@ export type Database = {
         }
         Relationships: []
       }
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio_short: string | null
+          city: string | null
+          country: string | null
+          delivery_country_code: string | null
+          display_name: string | null
+          gift_voucher_hint: string | null
+          headline: string | null
+          homepage_example_order: number | null
+          id: string | null
+          is_homepage_example: boolean | null
+          is_published: boolean | null
+          is_suspended: boolean | null
+          section_visibility: Json | null
+          slug: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio_short?: string | null
+          city?: string | null
+          country?: string | null
+          delivery_country_code?: string | null
+          display_name?: string | null
+          gift_voucher_hint?: string | null
+          headline?: string | null
+          homepage_example_order?: number | null
+          id?: string | null
+          is_homepage_example?: boolean | null
+          is_published?: boolean | null
+          is_suspended?: boolean | null
+          section_visibility?: Json | null
+          slug?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio_short?: string | null
+          city?: string | null
+          country?: string | null
+          delivery_country_code?: string | null
+          display_name?: string | null
+          gift_voucher_hint?: string | null
+          headline?: string | null
+          homepage_example_order?: number | null
+          id?: string | null
+          is_homepage_example?: boolean | null
+          is_published?: boolean | null
+          is_suspended?: boolean | null
+          section_visibility?: Json | null
+          slug?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       relationship_signals: {
         Row: {
           contact_id: string | null
@@ -2134,6 +2347,7 @@ export type Database = {
         | "favourite_places"
         | "favourite_music"
         | "plays"
+        | "favourite_custom"
       link_type: "retailer" | "wishlist" | "article" | "general"
       report_reason:
         | "spam"
@@ -2307,6 +2521,7 @@ export const Constants = {
         "favourite_places",
         "favourite_music",
         "plays",
+        "favourite_custom",
       ],
       link_type: ["retailer", "wishlist", "article", "general"],
       report_reason: [

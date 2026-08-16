@@ -185,9 +185,13 @@ DESTRUCTIVE_DENYLIST: Dict[str, str] = {
     # `tests/scripts/qa-sweep-preflight.test.js` derives that set from source
     # and fails if any member is missing. Adding a name here is the fix; the
     # derived test is the control.
-    "src/app/(auth)/actions.ts::signOut": (
+    "src/app/session-actions.ts::signOut": (
         "Terminates the session. Not destructive to data, but every subsequent "
-        "step in the run silently becomes a test of the login redirect."
+        "step in the run silently becomes a test of the login redirect. "
+        "KAN-415 moved this out of src/app/(auth)/actions.ts to clear the last "
+        "no-cross-segment-app edge; the key is PATH-ANCHORED, so it moved with "
+        "the function in the same commit. It stayed in the app tree precisely "
+        "so this key still names an inventoried action."
     ),
     "src/app/(auth)/actions.ts::updateRecoveryPassword": (
         "Sets a NEW account password and then calls auth.signOut() to force "
@@ -200,10 +204,16 @@ DESTRUCTIVE_DENYLIST: Dict[str, str] = {
         "seeded user is then unusable for the rest of the run."
     ),
     "src/app/oauth/authorize/actions.ts::switchAccountAndContinue": (
-        "Calls auth.signOut() and redirects to /login. Reached by clicking a "
-        "plain 'Switch account' button on the OAuth consent screen — nothing in "
-        "the DOM distinguishes it from any other button, and a click-everything "
-        "runner turns the rest of the run into a tour of the login page."
+        "Calls auth.signOut() (via @/modules/oauth-as/consent-flow) and "
+        "redirects to /login. Reached by clicking a plain 'Switch account' "
+        "button on the OAuth consent screen — nothing in the DOM distinguishes "
+        "it from any other button, and a click-everything runner turns the rest "
+        "of the run into a tour of the login page. "
+        "KAN-415 D7 moved the BODY into the module; this key stays here because "
+        "this is the entry point the sweep can actually exercise. A denylist key "
+        "must name an INVENTORIED action, and only 'use server' functions are "
+        "inventoried — so a key on the module file would match nothing and be "
+        "dead weight, which qa-sweep-inventory.test.js rejects by design."
     ),
     "src/app/oauth/authorize/page.tsx::inlineAction1": (
         "The inline `action={async () => { 'use server' }}` closure behind the "

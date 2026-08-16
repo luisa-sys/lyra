@@ -63,7 +63,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 import { updateProfileFields } from '@/app/dashboard/profile/actions';
-import { ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/profile-fields';
+import { ALLOWED_PROFILE_FIELDS } from '@/modules/profile/profile-fields';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
@@ -97,10 +97,41 @@ describe('updateProfileFields — allowlist enforcement', () => {
   });
 
   test('passes booleans through without sanitisation', async () => {
-    await updateProfileFields({ is_published: true, onboarding_complete: false });
-    expect(mockUpdateCapture).toHaveBeenCalledWith({
-      is_published: true,
-      onboarding_complete: false,
+    // KAN-415 D-6: this used to pair `onboarding_complete` with `is_published`
+    // as its two example booleans. `is_published` is no longer allow-listed, so
+    // it would now be filtered out and prove nothing — but the assertion was
+    // never about publishing, only about booleans skipping sanitiseText, and
+    // `onboarding_complete` demonstrates that on its own. The publish behaviour
+    // it incidentally covered is asserted directly below instead.
+    await updateProfileFields({ onboarding_complete: false });
+    expect(mockUpdateCapture).toHaveBeenCalledWith({ onboarding_complete: false });
+  });
+
+  describe('KAN-415 D-6 — updateProfileFields is not a publish path', () => {
+    test('is_published is REJECTED by name, and nothing is written', async () => {
+      // The whole point of D-6. If someone re-adds `is_published` to
+      // ALLOWED_PROFILE_FIELDS, this goes red and names the reason.
+      //
+      // Note the action REJECTS the whole request rather than quietly dropping
+      // the key. That is the stronger of the two behaviours and worth pinning:
+      // silently discarding it would tell a caller their publish succeeded.
+      const result = await updateProfileFields({ is_published: true });
+      expect(result).toEqual({ success: false, error: 'Field(s) not permitted: is_published' });
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
+    });
+
+    test('it cannot smuggle is_published alongside a legitimate field', async () => {
+      // The shape that matters: a check that only rejected a LONE disallowed
+      // key would pass the test above and still let this through.
+      const result = await updateProfileFields({ display_name: 'Bob', is_published: true });
+      expect(result.success).toBe(false);
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
+    });
+
+    test('nor unpublish — the allowlist is about the column, not the value', async () => {
+      const result = await updateProfileFields({ display_name: 'Bob', is_published: false });
+      expect(result.success).toBe(false);
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
     });
   });
 

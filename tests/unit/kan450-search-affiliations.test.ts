@@ -121,7 +121,11 @@ async function search(q: string | undefined) {
 }
 
 const affiliationChain = () => mockChains.find((c) => c.table === 'school_affiliations');
-const profileChains = () => mockChains.filter((c) => c.table === 'profiles');
+// SEC-104: the profile reads target the `public_profiles` VIEW now, not the
+// table. This selector is how every assertion below finds them, so it has to
+// move first — pointing it at 'profiles' would silently yield ZERO chains and
+// turn every expectation in this file into a vacuous pass.
+const profileChains = () => mockChains.filter((c) => c.table === 'public_profiles');
 
 beforeEach(() => {
   mockChains.length = 0;
@@ -165,8 +169,13 @@ describe('KAN-450: the profiles reads keep every public-visibility guard', () =>
     const chains = profileChains();
     expect(chains).toHaveLength(2);
     for (const chain of chains) {
-      expect(chain.eq.is_published).toBe(true);
-      expect(chain.eq.is_suspended).toBe(false);
+      // SEC-104: `is_published`/`is_suspended` are no longer written at the
+      // call site — they are in the view body, which binds service_role.
+      // What must still be asserted per-branch is the source itself plus the
+      // KAN-334 demo-profile exclusion, which is NOT part of the view.
+      expect(chain.table).toBe('public_profiles');
+      expect(chain.eq.is_published).toBeUndefined();
+      expect(chain.eq.is_suspended).toBeUndefined();
       expect(chain.eq.is_homepage_example).toBe(false);
     }
   });
@@ -279,7 +288,7 @@ describe('KAN-450: a failed read is never rendered as an empty result', () => {
   test('a failed profiles read throws instead of serving a partial union', async () => {
     const boom = { message: 'statement timeout' };
     mockAffiliationRows = [{ profile_id: 'p-1' }];
-    mockReadError = (chain) => (chain.table === 'profiles' && chain.or ? boom : null);
+    mockReadError = (chain) => (chain.table === 'public_profiles' && chain.or ? boom : null);
 
     await expect(search('oakfield')).rejects.toThrow(/profiles:by-field/);
     expect(mockCaptureException).toHaveBeenCalledWith(boom, expect.anything());
@@ -288,7 +297,7 @@ describe('KAN-450: a failed read is never rendered as an empty result', () => {
   test('a failed affiliation-branch profiles read throws too', async () => {
     const boom = { message: 'permission denied for table profiles' };
     mockAffiliationRows = [{ profile_id: 'p-1' }];
-    mockReadError = (chain) => (chain.table === 'profiles' && chain.in.id ? boom : null);
+    mockReadError = (chain) => (chain.table === 'public_profiles' && chain.in.id ? boom : null);
 
     await expect(search('oakfield')).rejects.toThrow(/profiles:by-affiliation/);
     expect(mockCaptureException).toHaveBeenCalledWith(boom, expect.anything());

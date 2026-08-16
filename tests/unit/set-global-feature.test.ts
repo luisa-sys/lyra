@@ -9,7 +9,7 @@ const mockGetCurrentAdmin = jest.fn();
 const mockUpsert = jest.fn();
 const mockLog = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }),

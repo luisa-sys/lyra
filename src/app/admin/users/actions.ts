@@ -20,9 +20,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/modules/platform/supabase-server';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction, logModerationActionsBatch } from '@/lib/admin';
-import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
-import { computeAccessTransition } from '@/lib/access-model';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction, logModerationActionsBatch } from '@/modules/admin/admin';
+import { sendBetaApprovedEmail } from '@/modules/access/beta-access/email';
+import { computeAccessTransition } from '@/modules/access/access-model';
 import {
   BULK_MAX,
   EMAIL_CAP,
@@ -30,7 +30,7 @@ import {
   type BulkAction,
   type UserFilter,
 } from './users-actions-shared';
-import { isFeatureKey } from '@/lib/features/registry';
+import { isFeatureKey } from '@/modules/features/registry';
 
 function parseFilter(formData: FormData): UserFilter {
   const str = (k: string): string | null => {

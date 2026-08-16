@@ -13,6 +13,150 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
+#### Code layout — `src/lib/` and `src/modules/` (KAN-415, IN FLIGHT)
+
+**Both directories exist and both hold live code. That is expected, not drift.**
+The KAN-415 modularisation programme is extracting `src/lib/**` into bounded
+modules under `src/modules/**`, one domain at a time, so the tree is mixed until
+it completes.
+
+| module | what it owns |
+|---|---|
+| `access` | the whole middleware request path — see below |
+| `oauth-as` | the OAuth 2.1 authorization server (SEC-33 RS256/JWKS) |
+| `guards` | rate limiting, Turnstile, sanitisation, client-IP |
+| `platform` | the three Supabase clients + `env.ts`, the only sanctioned env reader |
+| `features` | feature registry, entitlements, global switches |
+| `age` | 18+ self-declaration + the dormant Didit provider code |
+| `auth` | `resolvePostLoginRedirect()` — the shared post-login chokepoint |
+| `observability` | metrics, Sentry scrubbing |
+| `trust-safety` | report + user moderation writes, all audit-first |
+| `profile` | the profile **domain core** — see below |
+
+**`modules.json` at the repo root is the authoritative manifest** — which paths
+belong to which module, their layer, and the boundary policy. Read it rather
+than inferring ownership from the directory tree, and update it in the same
+commit as any move (CTL-041).
+
+### `oauth-as` — what a token is bound to (SEC-46 Phase C)
+
+An access token's `aud` claim is the **resource server URI**, not the
+`client_id`. It used to be the `client_id`, and both resource servers
+(`mcp.checklyra.com`, `admin-mcp.checklyra.com`) verify against the same JWKS
+with issuer only — so **one token was accepted by both**, and Dynamic Client
+Registration is open, meaning anyone could register a client and receive a
+legitimately-signed token every resource server honoured. That is the
+confused-deputy path SEC-48 describes from the admin side.
+
+| env var | where | what it does |
+|---|---|---|
+| `OAUTH_ALLOWED_RESOURCES` | lyra (AS), per environment | Comma-separated allow-list of canonical resource URIs. **The FIRST entry is the default** when a client sends no `resource`. Prod/beta: `https://mcp.checklyra.com/mcp,https://admin-mcp.checklyra.com/mcp`. Dev: `https://mcp-dev.checklyra.com/mcp`. |
+| `OAUTH_AUDIENCE_CHECK` | resource servers | Enforces `aud`. Ships **off** — see below. |
+
+Three properties are load-bearing, and each has a test that has been seen to
+fail:
+
+1. **Membership is an exact allow-list, never a prefix or substring test.**
+   `resource` is attacker-controlled and ends up in a signed claim;
+   `https://mcp.checklyra.com/mcp.evil.test` starts with the real URI.
+2. **An unknown `resource` is REJECTED (`invalid_target`), not ignored.**
+   Silently dropping it is what makes RFC 8707 decorative — the client believes
+   it holds a narrowly-scoped token and does not.
+3. **An ABSENT `resource` resolves to the default, never `undefined`.** This is
+   the one that makes the rollout deployable: without it, enforcing `aud` on the
+   resource servers would 401 every existing connector, so enforcement could
+   never be turned on.
+
+Persisted on `oauth_authorization_codes.resource` and
+`oauth_refresh_tokens.resource` (both nullable) so the choice survives the code
+exchange and a refresh cannot silently widen the audience. **NULL means
+"issued before Phase C"** and is read as the environment default, so codes and
+refresh tokens in flight across the deploy keep working.
+
+⚠️ **Enforcement is a separate, later step.** `OAUTH_AUDIENCE_CHECK` ships inert
+on the resource servers, logging `[oauth][SEC-46] audience mismatch` instead of
+refusing, because the authorization server must be minting resource-bound tokens
+everywhere before the flip. Turn it on only after those logs have been quiet for
+at least one access-token TTL — which is now **15 minutes**, not 60.
+
+⚠️ **`src/middleware.ts` has no function body, and that is deliberate.** It reads
+seven env vars and wires them to `createAccessMiddleware()`. The request path is
+an ordered list of named gates in `src/modules/access/`:
+
+- `pipeline.ts` — the gate order (`PRE_AUTH_ORDER`, `AUTHED_ORDER`) plus
+  `ORDER_CONSTRAINTS`, which records *which reorderings are catastrophic and
+  why*, as data, each with its ticket.
+- `gates/*.ts` — one gate per file, each carrying its own `id`, `ticket` and
+  reason.
+- `exemptions.ts` — path exemptions as one declarative table. Exemption is
+  order-free data; gate **order** is not, and stays control flow.
+- `oauth-server-paths.ts` — the SEC-36 surface, kept as an **inclusion** set in
+  its own module rather than folded into the exemption table, because that table
+  is headed "exempt from" and one polarity flip would disable the 404.
+
+`Gate.run` is declared as a **property, not a method shorthand**. Under
+`strictFunctionTypes` that makes parameters contravariant, so placing an
+authenticated gate into the pre-authentication pipeline is a **compile error**.
+Written as a shorthand it is checked bivariantly and the guarantee silently
+evaporates while the code reads identically. Do not "tidy" it.
+
+⚠️ **`src/modules/profile/` is the domain core, and the split from the editor's
+UI is a privacy boundary — not tidiness.** Until D8, the seven `Wizard*` /
+`Conversation*` interfaces that *are* the profile data model (fan-in 14) lived in
+`app/dashboard/profile/steps/types.tsx`, a leaf of the **editor's** wizard. So
+the *public* profile's shape — which fields exist, what `section_visibility`
+inherits — was owned by the editor, and `app/[slug]/page.tsx` had to reach into
+`app/dashboard/profile/` to find out what a profile is. That was the D-4 finding
+and three of the five wrong-direction app→app edges; **all three are now gone**
+(5 → 2 remaining, both pre-existing and unrelated).
+
+The split is deliberately asymmetric. The **domain** — `types.ts`,
+`profile-fields.ts`, `section-visibility.ts`, `manual-of-me-fields.ts`,
+`favourites.ts`, `visibility.ts`, `country-codes.ts` — moved into the module,
+where both the editor and `public-profile` (D9) can depend on it legitimately.
+The **UI** — `Field`, `SaveButton` — stayed in the app tree: they carry design
+tokens and are founder-owned under KAN-411 (`uiApprovalGated: always`), and a
+domain module that everything is meant to depend on freely is the wrong home for
+a button. `steps/types.tsx` re-exports the types so the 14 existing editor
+imports still work; **new code should import from `@/modules/profile/types`.**
+
+⚠️ **A `'use server'` file holds no logic — it delegates to a module.** This is
+the D7 shape and it applies to every server action in `src/app/**`:
+
+- A `'use server'` file may export **only async functions**, and that is enforced
+  at action-**invocation** time, not at build time. Violating it ships green and
+  500s the first real form submission (gotcha #18). So it cannot export a type,
+  a constant, or a pure helper — which is why `authorize/types.ts` used to exist
+  purely to hold one interface, and why it is now gone.
+- Logic parked there is also **untestable in practice**: an unexported closure
+  cannot be imported at all, and even an exported action drags the action runtime
+  into every test. `src/modules/trust-safety/{report-actions,user-actions}.ts`
+  and `src/modules/oauth-as/consent-flow.ts` were all extracted for this reason —
+  between them they suspend members, close reports, delete profile items and mint
+  OAuth authorization codes, and none of it had unit coverage before.
+- Anything under `src/app/**` is also **invisible to the module dependency
+  rules**. Once the logic is a module, `no-module-to-app` (severity `error`)
+  applies to it.
+
+The page keeps thin `'use server'` closures whose only job is to read `FormData`
+and delegate. **Parsing a form is not the part that needed testing.**
+
+**Audit-first is a frozen contract in both modules**: the audit write is called
+BEFORE the mutation it describes and throws on failure, so an action we could not
+record is one we do not commit. Ordering like that is invisible in review —
+swapping two awaits looks like tidying — so it is asserted by call-order tests
+rather than trusted.
+
+⚠️ **Moving a function moves its qa-sweep denylist key.** The destructive
+denylist in `qa-sweep/config.py` is keyed `file::function`, and two controls
+constrain it from opposite directions: `qa-sweep-preflight` derives the required
+set from every `auth.signOut()` **call site** in `src/`, while
+`qa-sweep-inventory` rejects any key that matches no **inventoried action** —
+and only `'use server'` functions are inventoried. So when a session-ending body
+moves into a plain module, the key stays on the app-tree action that the sweep
+can actually click, and the preflight instead requires that the module is
+reachable only through a denylisted action.
+
 ### MCP Server (lyra-mcp-server)
 - **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
 - **Hosting**: Railway (auto-deploy from main)
@@ -76,7 +220,7 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
-`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/lib/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
+`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
@@ -127,7 +271,7 @@ skip it.
 to carry it, so it uses the cookie alone — the same mechanism KAN-337 uses for
 the beta-invite code.
 
-**Recording it.** `resolvePostLoginRedirect()` (`src/lib/auth/post-login-redirect.ts`)
+**Recording it.** `resolvePostLoginRedirect()` (`src/modules/auth/post-login-redirect.ts`)
 is the shared chokepoint for both auth routes, so it stamps
 `profiles.age_declared_18_at` once, via the service role. It **degrades open**:
 the check is wrapped in try/catch because an attestation must never be able to
@@ -153,7 +297,7 @@ evidence that the 18+ rule was put to the user and affirmed, nothing more. It is
 deliberately absent from `ALLOWED_PROFILE_FIELDS`, so the profile update action
 cannot write it.
 
-**Dormant Didit code.** The provider integration (`src/lib/age/didit.ts`,
+**Dormant Didit code.** The provider integration (`src/modules/age/didit.ts`,
 `age-service.ts`, `/api/age/didit/webhook`, `/verify-age/callback`) is **left in
 the repo, unreferenced**, so the decision is reversible. `/verify-age` is now a
 redirect to `/dashboard/profile` rather than a 404, for old links. The legacy
@@ -280,6 +424,28 @@ All operations run via GitHub Actions — no local machine needed:
 | Claude Design | Design source of truth for UI changes — tokens + per-ticket before/after cards (KAN-441) | Projects `e4682889-…` (Lyra Design System) and `c179aa52-…` (Lyra Web Design) |
 
 
+## Health & status surfaces (SEC-96)
+
+Three distinct surfaces, deliberately answering different questions. Conflating
+them is what SEC-96 was about — a surface that cannot express failure reports
+green forever.
+
+| Surface | Question it answers | Can it report failure? |
+|---|---|---|
+| `GET /api/health` | *liveness + config* — is a Next.js server responding, and how is this environment wired? Echoes `siteUrl`, `isBetaDeploy`, `vercelEnv`. | **No, by design.** Returns a hardcoded `ok: true` and touches no dependency. Its response shape is pinned by an exact `toEqual` and consumed by CI smoke checks — do not widen it. |
+| `GET /api/health/ready` | *readiness* — can the site serve a request that needs the database? One `head`-only round trip to PostgREST on the anon key. | **Yes.** `200 {ok:true}` / `503 {ok:false}`. `detail` is a fixed token, never exception text (a public probe leaks nothing — SEC-96 §4). Logic lives in `src/modules/observability/readiness.ts`; the route stays thin per CTL-056. |
+| `/status` (public page) | *human-visible service status* — the surface `docs/UPTIMEROBOT_SETUP.md` positions as the signal for members. | **Partially.** The Agent-API row is a live probe of `mcp.checklyra.com/health`. |
+
+⚠️ **Known gap, stated rather than implied.** The `/status` page's **Website row
+is still the literal `{ ok: true, detail: 'Serving' }`**, so the public banner
+still cannot say the website is degraded — the site is "up" by virtue of having
+served the page that says so. `/api/health/ready` exists to close that, and
+wiring it in is a one-line change to the Website row.
+
+That wiring is **founder-owned under KAN-411** (`src/app/*.tsx`) and is
+deliberately not done by automation: it alters what a user-facing page displays.
+Until it lands, treat a green `/status` as evidence about the MCP API only.
+
 ## Security Posture (updated 29 March 2026)
 
 ### Application Security — implemented
@@ -296,7 +462,7 @@ All operations run via GitHub Actions — no local machine needed:
 ### Pipeline Security — implemented
 - **CodeQL**: security-extended analysis on every push/PR + weekly Sunday 03:00 UTC
 - **GitHub Actions SHA-pinned**: All 9 workflows use full SHA hashes (no tag-based supply chain risk)
-- **npm audit**: Blocking at high/critical level on all 3 deployment pipelines
+- **npm audit**: rescoped 2026-08-13 (SEC-105/CTL-052) — blocking, production-dependency-tree-only (`--omit=dev`) in the PR gate (`pr-checks.yml`); removed entirely from all four deploy workflows (redundant given the SEC-98 chain guard — every commit reaching them already passed the PR gate); weekly full-tree scan (`security-audit.yml`, includes dev deps) opens/updates a GitHub issue instead of blocking. Known-unfixable advisories are recorded in `security/npm-audit-waivers.json` (advisory+package+severity+ticket+owner+dated `expires`, two-way, fails closed on expiry).
 - **Dependabot**: Weekly scans for npm and GitHub Actions dependencies
 - **Secret scanning**: GitHub secret scanning with push protection enabled
 - **PR quality gate**: Scans for eslint-disable/ts-ignore without Jira reference

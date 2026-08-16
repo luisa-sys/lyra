@@ -13,7 +13,7 @@
  */
 
 import Link from 'next/link';
-import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
 
 export const dynamic = 'force-dynamic';
 

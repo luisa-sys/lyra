@@ -35,7 +35,7 @@ jest.mock('next/cache', () => ({
 // rather than a fixed `{ ok: true }` — a factory that swallows it would make
 // the "blocked name" case below unable to fail, which is precisely the
 // vacuous-guard shape this repo keeps finding.
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (_supabase: unknown, args: { text: string; field: string }) => mockModerate(args),
 }));
 
@@ -66,7 +66,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 }));
 
 import { addProfileItem } from '@/app/dashboard/profile/actions';
-import { CUSTOM_FAVOURITE_CATEGORY } from '@/app/dashboard/profile/favourites';
+import { CUSTOM_FAVOURITE_CATEGORY } from '@/modules/profile/favourites';
 
 beforeEach(() => {
   mockInsertCapture.mockClear();
