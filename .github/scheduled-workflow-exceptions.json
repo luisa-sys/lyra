@@ -68,10 +68,6 @@
     "claim."
   ],
   "exceptions": {
-    ".github/workflows/required-checks.yml": {
-      "key": "SEC-106",
-      "reason": "NOT YET REGISTERED — the second kind of entry described above. Added 2026-08-15 in the same change that creates the workflow; GitHub does not index a workflow's schedule trigger until the file reaches the default branch, so the API reports no state for it and CTL-042 would otherwise fail the very PR that puts it there. DELETE THIS LINE once the workflow reaches `main` via the promote chain — it goes STALE the moment it registers, and suppressing that failure instead of removing the entry is the finding this file's header warns about."
-    },
     ".github/workflows/affiliate-link-smoke.yml": {
       "key": "BUGS-90",
       "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
