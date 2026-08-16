@@ -775,6 +775,12 @@ jobs:
       # the deploy run sits in `waiting` on the SEC-106 Production review and a
       # gated run never fails. It appends to Section 15's own file so the gap
       # reaches the emailed report rather than only a run annotation.
+      #
+      # KAN-361 OWNERSHIP: this REPORTS, it does not own. Release is owned by
+      # the Weekly Health + Regression routine (docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md);
+      # this section is a convenience figure that defers to that routine's
+      # run-log, exactly as Sections 4/6/7 do. Source of record: **Weekly Health
+      # + Regression routine**. Do not grow this into a second release authority.
       - name: Section 15b — Production deploy drift
         if: always()
         env:
