@@ -176,6 +176,59 @@ describe(SRC.checkUiCopyOwnership, () => {
     expect(status).not.toBe(0);
   });
 
+  // ── SEC-152: the third trailer ─────────────────────────────────
+  //
+  // The guard matches on PATH, so a change that alters no pixel and no word
+  // still trips it. Before this, BOTH available trailers were false statements
+  // for such a diff — `UI-Change-Approved` asserts an approval that does not
+  // exist, `UI-Bugfix-Only` a bug that does not exist. A rule that forces a
+  // routine misstatement teaches people the trailer is a formality, and a
+  // formality carries no founder-approval signal at all.
+
+  it('PASSES a protected .tsx change with a UI-No-Visual-Change trailer', () => {
+    const { status, output } = runOverCommits([
+      {
+        files: [SRC.appPage],
+        message: 'refactor: thread the resource param through\n\nUI-No-Visual-Change: SEC-152',
+      },
+    ]);
+    expect(status).toBe(0);
+    expect(output).toMatch(/UI-No-Visual-Change: SEC-152/);
+  });
+
+  it('still FAILS the same change with NO trailer — the surface is not widened', () => {
+    // The point of adding a trailer is to make an honest claim available, not
+    // to make the gate easier to pass. Silence must still fail.
+    const { status } = runOverCommits([
+      { files: [SRC.appPage], message: 'refactor: thread the resource param through' },
+    ]);
+    expect(status).not.toBe(0);
+  });
+
+  it('requires a JIRA key on UI-No-Visual-Change too (KAN-xxx does not match)', () => {
+    // Digits are required. A literal placeholder must fail the gate rather than
+    // sneak past it — the same contract the other two trailers already hold to.
+    const { status } = runOverCommits([
+      {
+        files: [SRC.appPage],
+        message: 'refactor: thread a prop\n\nUI-No-Visual-Change: KAN-xxx',
+      },
+    ]);
+    expect(status).not.toBe(0);
+  });
+
+  it('the guard still names all three trailers in its failure message', () => {
+    // If the help text and the regex drift apart, someone is told to write a
+    // trailer the gate will reject — the CTL-042 shape (documentation
+    // describing a behaviour is indistinguishable from the behaviour).
+    const { output } = runOverCommits([
+      { files: [SRC.appPage], message: 'change home' },
+    ]);
+    expect(output).toMatch(/UI-Change-Approved/);
+    expect(output).toMatch(/UI-Bugfix-Only/);
+    expect(output).toMatch(/UI-No-Visual-Change/);
+  });
+
   it('WARNS and passes (fail-open) when the base ref cannot be resolved', () => {
     const { status, output } = runOverCommits(
       [{ files: [SRC.appPage], message: 'change home' }],
