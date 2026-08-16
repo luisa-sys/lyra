@@ -18,6 +18,50 @@ function siteUrl(): string {
   return 'https://checklyra.com';
 }
 
+/**
+ * SEC-46 — the real MCP resource URI for each deployed site host.
+ *
+ * Keyed on the SITE host (the authorization server's own origin), because that
+ * is what an incoming request tells us. Note `beta` and `prod` map to the SAME
+ * resource: they share one MCP server and one Supabase project. That is why
+ * this cannot be a string transform.
+ *
+ * `stage` has no MCP server by design — staging is engineering-only and does
+ * not expose MCP integrations — so its entry is a placeholder that exists only
+ * so the environment mints a *bound* token instead of an unbound one. No client
+ * can present it, which is the correct outcome there.
+ */
+const MCP_RESOURCE_BY_SITE_HOST: Readonly<Record<string, string>> = {
+  'checklyra.com': 'https://mcp.checklyra.com/mcp',
+  'www.checklyra.com': 'https://mcp.checklyra.com/mcp',
+  'beta.checklyra.com': 'https://mcp.checklyra.com/mcp',
+  'dev.checklyra.com': 'https://mcp-dev.checklyra.com/mcp',
+  'stage.checklyra.com': 'https://mcp-stage.checklyra.com/mcp',
+};
+
+/**
+ * Resolve the default resource for a site URL. Unknown hosts — Vercel preview
+ * deployments, most importantly — resolve to the DEV MCP, because a preview
+ * build runs against the dev Supabase project and dev is the only MCP whose
+ * `api_keys` table could ever recognise it (gotcha #19).
+ *
+ * Exported for tests: this is the function that was wrong, so it is the
+ * function that gets asserted directly rather than through two layers of env.
+ */
+export function defaultResourceForSite(site: string): string {
+  const withoutSlash = site.replace(/\/$/, '');
+  let host: string;
+  try {
+    host = new URL(withoutSlash).host.toLowerCase();
+  } catch {
+    // Not a parseable URL. Fail towards dev rather than towards production:
+    // minting a dev-bound token in a confused environment is recoverable,
+    // handing out a production-bound one is not.
+    return MCP_RESOURCE_BY_SITE_HOST['dev.checklyra.com'];
+  }
+  return MCP_RESOURCE_BY_SITE_HOST[host] ?? MCP_RESOURCE_BY_SITE_HOST['dev.checklyra.com'];
+}
+
 export const oauthConfig = {
   issuer: () => siteUrl(),
   authorizationEndpoint: () => `${siteUrl()}/oauth/authorize`,
@@ -54,16 +98,42 @@ export const oauthConfig = {
    *   prod/beta  https://mcp.checklyra.com/mcp,https://admin-mcp.checklyra.com/mcp
    *   dev        https://mcp-dev.checklyra.com/mcp
    *
-   * Falls back to the issuer's own MCP host when unset so a misconfigured
+   * Falls back to the issuer's real MCP host when unset, so a misconfigured
    * environment still mints a bound token rather than crashing or, worse,
    * minting an unbound one.
+   *
+   * ⚠️ THE FALLBACK IS A LOOKUP, NOT A STRING TRANSFORM — and the transform it
+   * replaces was wrong on three of four environments.
+   *
+   * The first cut derived the host as `siteUrl().replace('://', '://mcp-')`.
+   * That is correct for dev (`dev.checklyra.com` -> `mcp-dev.checklyra.com`)
+   * and WRONG everywhere else: production yielded `mcp-checklyra.com`, a host
+   * that does not exist, and beta yielded `mcp-beta.checklyra.com` when beta
+   * shares production's MCP. Because it was right on the only environment it
+   * was exercised against, it looked fine.
+   *
+   * Two consequences, and the first is a live regression rather than a latent
+   * one. The MCP authorization spec requires clients to send `resource`, and an
+   * unknown `resource` is REJECTED here by design — so a client sending the
+   * genuine `https://mcp.checklyra.com/mcp` would have been refused
+   * `invalid_target` and the OAuth flow would have broken outright. (Before
+   * SEC-46 Phase C, `resource` was ignored entirely, so this would have been a
+   * regression introduced by the very change meant to harden the flow.) Second,
+   * every token minted without an explicit `resource` would carry a bogus `aud`
+   * and 401 the moment `OAUTH_AUDIENCE_CHECK` is turned on.
+   *
+   * The topology is not derivable from the site host by any rule — beta and
+   * production deliberately share ONE MCP (and one Supabase project), while
+   * staging has no MCP at all by design (CLAUDE.md gotcha #19). So it is
+   * written down.
    */
   allowedResources: (): string[] => {
     const raw = env.oauthAllowedResources()
       .split(',')
       .map((s) => s.trim().replace(/\/$/, ''))
       .filter(Boolean);
-    return raw.length > 0 ? raw : [`${siteUrl().replace('://', '://mcp-')}/mcp`];
+    if (raw.length > 0) return raw;
+    return [defaultResourceForSite(siteUrl())];
   },
   defaultResource: (): string => oauthConfig.allowedResources()[0],
 
