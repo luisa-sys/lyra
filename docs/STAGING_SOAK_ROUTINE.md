@@ -73,6 +73,25 @@ already exists.
   `siteUrl` = `https://stage.checklyra.com`, `isBetaDeploy` = `false`,
   `vercelEnv` = `preview`. A mismatch is a **release-conformance** finding.
 - `/robots.txt`, `/sitemap.xml`, `/.well-known/security.txt` → 200 or 403.
+- **`C1-sitemap-fresh`** — `/sitemap.xml` must be rendered **per request**, not
+  prerendered at build. A prerendered sitemap keeps a SUSPENDED member's slug
+  advertised to crawlers until the next deploy while their profile page 404s
+  (SEC-100). Classified by `scripts/classify-sitemap-freshness.sh` from
+  `x-vercel-cache` (`miss`/`bypass` → PASS, `hit`/`stale`/`prerender`/
+  `revalidated` → FAIL) with a non-zero `age` as the secondary FAIL signal;
+  anything else is **UNVERIFIED**, because a proxy that strips Vercel's cache
+  telemetry leaves the question genuinely unanswerable.
+
+  ⚠️ **This clause used to classify on `Cache-Control`, and that instrument was
+  informationless** (BUGS-103). `src/app/sitemap.ts` is a Next *metadata route*
+  and Next's loader hardcodes the header to a constant. Measured on two real
+  production builds of this repo: with `force-dynamic` the route table reads
+  `ƒ /sitemap.xml` and with it removed `○ /sitemap.xml` — the defect genuinely
+  reintroduced — and **both emit `public, max-age=0, must-revalidate`,
+  byte-identical**. So the old probe was permanently red *and* could never have
+  detected SEC-100. Do not reintroduce a `Cache-Control` assertion here; a
+  regression test in `tests/scripts/classify-sitemap-freshness.test.js` fails
+  the build if anyone does.
 
 ### C2 — Authenticated surface (via the grey-cloud alias)
 - Against `e2e-stage.checklyra.com` (`STAGE_SITE`/`BASE_URL`), the key routes

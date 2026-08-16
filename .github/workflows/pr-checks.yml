@@ -377,6 +377,27 @@ jobs:
           set -euo pipefail
           python3 scripts/check-scheduled-workflows-active.py --self-test
           python3 scripts/check-scheduled-workflows-active.py
+      - name: Required checks are still satisfiable (CTL-066, SEC-106)
+        # A required status check is a STRING. GitHub stores the context name a
+        # branch demands and never verifies that anything still produces it, so
+        # renaming main-chain-guard.yml's `guard` job un-gates SEC-98 production
+        # change control with no error anywhere: protection keeps waiting for a
+        # check nothing reports, and the PR is admin-merged and forgotten.
+        #
+        # ONLY THE --local ARM RUNS HERE, and blocking from day one is safe
+        # because it is decided entirely by the diff: it compares the contexts
+        # in .github/expected-protection.json against the jobs this repo
+        # defines, needs no credentials, and passes on develop today.
+        #
+        # The --live arm (does GitHub's actual configuration match the file?)
+        # runs on a SCHEDULE in required-checks.yml, not here. A pull request
+        # cannot change branch protection, so it would answer nothing in the PR
+        # gate while putting a third-party API on the merge path - the shape
+        # that froze the pipeline ~11 days under SEC-88 (gotcha #23).
+        run: |
+          set -euo pipefail
+          python3 scripts/check-required-checks.py --self-test
+          python3 scripts/check-required-checks.py --local
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in
         # lyra AND lyra-mcp-server, with nothing checking they still agree.
