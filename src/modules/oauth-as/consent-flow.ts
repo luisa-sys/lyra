@@ -63,6 +63,8 @@ export interface DecideInput {
   state: string;
   code_challenge: string;
   code_challenge_method: string;
+  /** SEC-46 — the resource resolved at authorize time, carried through consent. */
+  resource: string;
   decision: 'allow' | 'deny';
 }
 
@@ -74,6 +76,8 @@ export interface AuthorizeParams {
   state?: string;
   codeChallenge: string;
   codeChallengeMethod: string;
+  /** SEC-46 — must survive the /login round-trip or the binding is silently lost. */
+  resource?: string;
 }
 
 /**
@@ -100,6 +104,15 @@ export function buildAuthorizePath(params: AuthorizeParams): string {
   if (params.state) url.searchParams.set('state', params.state);
   url.searchParams.set('code_challenge', params.codeChallenge);
   url.searchParams.set('code_challenge_method', params.codeChallengeMethod);
+  // SEC-46. Appended LAST on purpose: this function's header records that the
+  // parameter ORDER is a frozen contract compared verbatim in tests, so a new
+  // parameter goes on the end rather than in a "logical" position.
+  //
+  // Dropping `resource` across the /login bounce would be silent — the user
+  // signs in, comes back, and is issued a token bound to the DEFAULT resource
+  // instead of the one the client asked for. No error, just a quietly different
+  // audience. That is why it is threaded here rather than re-derived.
+  if (params.resource) url.searchParams.set('resource', params.resource);
   return url.pathname + url.search;
 }
 
@@ -216,6 +229,7 @@ export async function submitConsent(input: DecideInput): Promise<void> {
     scope: input.scope,
     codeChallenge: input.code_challenge,
     codeChallengeMethod: 'S256',
+    resource: input.resource,
   });
 
   redirect(buildSuccessRedirect(input.redirect_uri, code, state));
