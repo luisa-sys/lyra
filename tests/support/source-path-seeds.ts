@@ -287,6 +287,18 @@ export const SEEDED_PATHS = [
   // the F4 raw-literal ratchet counts the same six prefixes and not `docs/`.
   'scripts/check-run-log-freshness.py',
   '.github/workflows/routine-evidence.yml',
+  // CTL-066 / SEC-106. All three reached ONLY via `SRC` in
+  // tests/scripts/check-required-checks.test.js. The expectation file matters
+  // most: the test asserts positive facts about its CONTENT (that `main`
+  // requires the `guard` context by name), and gotcha #31 would turn a lost key
+  // into `resolve(root, undefined)` — an error that reads like a broken
+  // harness rather than a missing entry. The workflow is seeded because the
+  // assertion IS the path: a rename would otherwise let the suite pass against
+  // a scheduled run that no longer exists.
+  'scripts/check-required-checks.py',
+  '.github/expected-protection.json',
+  '.github/workflows/required-checks.yml',
+  '.github/workflows/main-chain-guard.yml',
   // CTL-061 (BUGS-81). Reached only via `SRC` in
   // tests/scripts/check-heartbeat-page-id.test.js, so gotcha #31 would turn a
   // lost key into `resolve(root, undefined)`. The guard's anchor doc

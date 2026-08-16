@@ -600,6 +600,40 @@ DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
+### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-066
+
+`required-checks.yml` runs `scripts/check-required-checks.py --live`: it reads
+the live branch protection on `develop`, `staging`, `beta` and `main` and diffs
+it against the committed expectation in `.github/expected-protection.json`.
+Three-valued by design — 0 matches, 1 measured drift, **2 UNVERIFIED (could not
+measure)** — and exit 2 uses deliberately different wording from exit 1, because
+CTL-059 showed a control that describes an HTTP 403 in the language of a
+divergence sends the reader hunting a problem that was never observed.
+
+⚠️ **Expect UNVERIFIED, and a red daily run, until a token exists.** Reading
+branch protection needs `administration:read`, which `GITHUB_TOKEN` cannot be
+granted at any `permissions:` setting. Clearing it is one owner action: create a
+fine-grained PAT on `luisa-sys/lyra` with **Administration: Read-only** and
+nothing else, and add it as the repository secret
+`BRANCH_PROTECTION_READ_TOKEN`. Until then the workflow reports honestly that it
+measured nothing — which is the intended outcome, not a placeholder. Skipping the
+step when the secret is absent would be the `if: env.X != ''` silent-skip this
+runbook forbids, and is how `health-check.yml` and `weekly-report.yml` sat dark
+for a month while reporting green (SEC-79).
+
+**Reading a failure.** Exit 1 names the branch, the expected contexts and the
+live ones, and is a real finding either way round: a required check quietly
+*added* is as much an undocumented divergence as one removed. Resolve it by
+changing branch protection to match the file, or by committing a change to the
+file — which is the point of SEC-106 §6, that protection becomes reviewable.
+
+The other half of the control, `--local`, runs on every PR in `pr-checks.yml`
+and needs no credentials: it fails if any required context is no longer produced
+by a job in `.github/workflows/`. That is the case in this ticket's title —
+`main` requires the context `guard`, which is `main-chain-guard.yml`'s **job
+id** (the job carries no `name:`), so a one-character rename would leave SEC-98
+production change control gated by a check nothing reports.
+
 ### Staging testing program (KAN-176)
 
 Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E suite that runs inline in `deploy-staging.yml` (KAN-114).
