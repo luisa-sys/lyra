@@ -136,37 +136,33 @@ expect_code "C1-sectxt"  "$SITE/.well-known/security.txt" "security.txt" 200 403
 expect_code "C1-join"    "$SITE/join"                     "join (invite) reachable" 200 301 302 307 308
 
 # ── C1 SEC-130: /sitemap.xml must be rendered PER REQUEST, not prerendered ────
-# The route declares `dynamic = 'force-dynamic'`, so a genuinely dynamic
-# response comes back with a no-store/no-cache Cache-Control. If it ever
-# regresses to build-time prerendering the header flips to a cacheable one —
-# and that is not cosmetic: it is exactly the state in which a SUSPENDED
-# member's slug stayed in the sitemap until the next deploy, while their profile
-# page 404'd and /search dropped them immediately. The unit test
+# If this route ever regresses to build-time prerendering, a SUSPENDED member's
+# slug stays in the sitemap until the next deploy while their profile page 404s
+# and /search drops them immediately — that is SEC-100. The unit test
 # (tests/unit/sitemap-suspension-behaviour.test.ts) can only pin the route
 # segment config; Jest does not run a Next build, so this is the probe that
-# observes the deployed behaviour.
+# observes the DEPLOYED behaviour.
 #
-# Biased to UNVERIFIED, deliberately: a missing Cache-Control means an
-# intermediary rewrote it, which we cannot interpret, and a false FAIL here
-# would block a release over a proxy quirk. Never a silent skip either — an
-# unreadable answer is reported as unreadable.
+# ⚠️ BUGS-103: this used to classify on Cache-Control and could never pass.
+# `sitemap.ts` is a Next metadata route, and Next's loader hardcodes that header
+# to a constant — identical in the fixed state and the defect state — so the old
+# assertion was both permanently red AND incapable of detecting SEC-100. The
+# full evidence, including the compiled artefact, is in the classifier's header.
+# Do not reintroduce a Cache-Control assertion here.
+#
+# The classification lives in its own script so it can be driven by
+# tests/scripts/classify-sitemap-freshness.test.js with synthetic headers. An
+# inline heredoc of shell inside this file is not reachable by any test, which
+# is how the previous version went four days red without a unit ever objecting.
 sm_raw=$(curl -s -o /dev/null -D - -w '\nHTTPCODE:%{http_code}\n' \
   --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$SITE/sitemap.xml" 2>/dev/null)
 sm_code=$(printf '%s' "$sm_raw" | sed -n 's/^HTTPCODE:\(.*\)$/\1/p' | tail -1 | tr -d '\r')
 [ -z "$sm_code" ] && sm_code="000"
-# Lowercased first: header names are case-insensitive and Vercel/CF do not agree
-# on casing. `tr 'A-Z' 'a-z'` rather than ${v,,} — bash 3.2 (gotcha #28).
-sm_cc=$(printf '%s' "$sm_raw" | tr 'A-Z' 'a-z' | sed -n 's/^cache-control:[[:space:]]*//p' | head -1 | tr -d '\r')
 if [ "$sm_code" != "200" ]; then
   record UNVERIFIED "C1-sitemap-fresh" "sitemap.xml freshness — got $sm_code, cannot read headers (gated/unreachable)"
-elif [ -z "$sm_cc" ]; then
-  record UNVERIFIED "C1-sitemap-fresh" "sitemap.xml freshness — no Cache-Control returned; an intermediary may have stripped it"
-# -E, not a BRE \| alternation: BSD grep does not honour \| and would silently
-# never match, reporting a clean scan that never ran (gotcha #30).
-elif printf '%s' "$sm_cc" | grep -qE 'no-store|no-cache'; then
-  record PASS "C1-sitemap-fresh" "sitemap.xml rendered per request (cache-control: $sm_cc)"
 else
-  record FAIL "C1-sitemap-fresh" "sitemap.xml looks CACHED (cache-control: $sm_cc) — SEC-130 regression: a suspended member's slug can persist in the sitemap until the next deploy"
+  sm_verdict=$(printf '%s' "$sm_raw" | "$(dirname "$0")/classify-sitemap-freshness.sh")
+  record "${sm_verdict%% *}" "C1-sitemap-fresh" "${sm_verdict#* }"
 fi
 
 # ── C1 release-conformance: /api/health JSON must match THIS env ──────────────
