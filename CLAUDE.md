@@ -1128,6 +1128,16 @@ These have caused real bugs. Read before making related changes:
 
     **The rule:** before trusting a `0 matches` / `UNVERIFIED` result from any jest-backed phase, check `pwd` for `/.claude/` in the path. If present, don't debug the test suite — redo the run from a sibling worktree (`git worktree add ../lyra-<name> origin/develop`, per this file's own "Parallel Claude sessions" section) or the main checkout. This is the reverse of gotcha #6's lesson (`fs.existsSync` on a moved-but-not-emptied directory passing for the wrong reason): here a **real, correct** ignore rule produces a **false-UNVERIFIED** when a tool's directory convention collides with it — the rule was never wrong, the location was.
 
+34. **A gate whose ONLY escape hatch is a commit trailer is unsatisfiable for dependabot — so a documentation control can hold a supply-chain control shut, indefinitely and silently**: CTL-047 (`scripts/check-docs-updated.py`) declared its workflow trigger as *"a GitHub Actions workflow was added or removed"*. The predicate was `p.startswith(".github/workflows/")` over a `--diff-filter=ADRM` diff — **M for Modified is in the filter** — so it fired on every *edit* and then printed "added or removed" while listing modified files. The registry summary repeated the wrong wording, so a reviewer consulting the authoritative artefact was misled too.
+
+    The cost was not theoretical. PR [#661](https://github.com/luisa-sys/lyra/pull/661), dependabot's `github-actions` group bump — 33 workflow files, +85/−85, **every line a `uses:` version pin**, nothing added, nothing removed — sat **red for 15 days** carrying seven action updates, three of them CodeQL. Its two offered remedies are both unavailable to a robot: dependabot cannot write a `Docs-N/A:` commit trailer, and **no doc in this repo records an action version**, so there is nothing to touch either. Every future github-actions bump would have queued behind it.
+
+    **Note what this is not.** It is not a gate being noisy; it is a gate being *unsatisfiable* for one author. When you design an escape hatch, ask who the actual population of triggering authors is — if any of them structurally cannot use it, the hatch does not exist for them and the gate is a permanent block, not a prompt to think.
+
+    **The fix is content-aware and deliberately strict (SEC-155).** A *modified* workflow whose **every** changed line is a `uses: <action>@<ref>` pin is doc-neutral and not counted. One `cron:`, one `run:`, one `if:` moving alongside the pins and the file fires as before — so a schedule change cannot be smuggled through by co-locating it with a bump. Added, removed and renamed workflows are **never** exempt whatever they contain: their existence is the documented fact, not their contents. Both halves are mutation-proven — removing the exemption reddens the pin-only cases, and loosening `USES_PIN_RE` to match any line lets the cron-change case wrongly pass, which is the evidence that the strictness (not the exemption) is the load-bearing part.
+
+    ⚠️ **The `--files` mode still fires on every workflow path**, because it has no diff to classify. That is the conservative answer, not an oversight — an undecidable file is never treated as exempt.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
