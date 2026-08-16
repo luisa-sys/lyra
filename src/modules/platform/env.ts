@@ -44,5 +44,17 @@ export const env = {
   // SEC-120: enforcement is a SECOND switch so the secret can be rolled out in
   // monitor mode first. See the rollout order in src/modules/guards/client-ip.ts.
   cfProxyEnforce: () => optionalEnv('CF_PROXY_ENFORCE', '').trim() === '1',
+
+  /**
+   * SEC-46 / RFC 8707 — comma-separated canonical resource URIs this
+   * authorization server will mint `aud`-bound tokens for, user MCP first (the
+   * first entry is the default when a client sends no `resource`).
+   *
+   * Lives here rather than being read inline in the oauth-as config because
+   * CTL-037 holds the direct-`process.env` set to shrink-only, and reading env
+   * is this module's job. Returns the raw string; the oauth-as config owns the
+   * splitting and canonicalisation, since that is policy rather than plumbing.
+   */
+  oauthAllowedResources: () => optionalEnv('OAUTH_ALLOWED_RESOURCES', '').trim(),
 };
 // Force rebuild 20260329011858
