@@ -189,9 +189,25 @@ ADMIN_CONTRACT_ENV = "prod"
 def fetch_admin_contract() -> str:
     """Read the admin repo's committed schema contract. Fails CLOSED.
 
-    Uses `gh api` for the same reason CTL-043 does: it needs no new secret, the
-    built-in GITHUB_TOKEN covers it, and the alternative (a PAT) would add a
-    credential to buy nothing.
+    ⚠️ CORRECTED 2026-08-16. This docstring previously said the check "needs no
+    new secret, the built-in GITHUB_TOKEN covers it, and the alternative (a PAT)
+    would add a credential to buy nothing", citing CTL-043 as precedent.
+
+    **That was wrong, and it is why this check has never once succeeded.**
+    CTL-043 works because its target is PUBLIC — `shared-code-manifest.json`
+    records exactly that precondition next to the repo it names:
+
+        "public": true,
+        "note": "Public, so CI reads it with the built-in GITHUB_TOKEN."
+
+    `lyra-admin-mcp-server` is PRIVATE, and a workflow's built-in GITHUB_TOKEN is
+    scoped to the repository it runs in — it cannot read a different private
+    repo, ever. The mechanism was copied without the precondition that made it
+    valid, so the step went red the day it reached `main` and stayed red.
+
+    Set `ADMIN_CONTRACT_READ_TOKEN` (a token that can read the admin repo's
+    contents) to make this work. Until then it fails closed and says so, which
+    is correct but is NOT the same as the control running.
     """
     try:
         res = subprocess.run(
@@ -204,6 +220,19 @@ def fetch_admin_contract() -> str:
         raise AdminContractUnavailable(f"{type(exc).__name__}: {exc}") from exc
     if res.returncode != 0 or not res.stdout.strip():
         detail = res.stderr.strip()[:300] or f"exit {res.returncode}"
+        # Distinguish "not authorised to read a private repo" from every other
+        # read failure. GitHub returns 404 (not 403) for a private repo the
+        # credential cannot see, so "Not Found" here does NOT mean the file was
+        # deleted — and sending the operator to look for a missing file, or at
+        # the PROD_SUPABASE_* secrets, is the wrong direction entirely.
+        if "404" in detail or "Not Found" in detail or "403" in detail:
+            raise AdminContractUnavailable(
+                f"cannot read {ADMIN_REPO} ({detail.splitlines()[0][:120]}). That repo is "
+                "PRIVATE, and a workflow's built-in GITHUB_TOKEN is scoped to its own "
+                "repository — it can never read another private repo. Provide a token that "
+                "can (ADMIN_CONTRACT_READ_TOKEN). This is an authorisation gap, not a "
+                "missing file and not a database problem."
+            )
         raise AdminContractUnavailable(detail)
     try:
         return base64.b64decode(res.stdout.strip()).decode("utf-8")
@@ -618,7 +647,12 @@ def main() -> int:
                 "::error::  This is NOT a drift finding. Nothing has been compared, so do "
                 "not go looking for a stale column: the file could not be fetched at all."
             )
-            print("::error::  Check `gh auth status` and that GITHUB_TOKEN can read that repo.")
+            print(
+                "::error::  Fix: set ADMIN_CONTRACT_READ_TOKEN to a token that can read "
+                f"{ADMIN_REPO} contents. The built-in GITHUB_TOKEN cannot — it is scoped to "
+                "this repository, and that repo is private. CTL-043 gets away with the same "
+                "mechanism only because ITS target is public, which its manifest records."
+            )
             return 2
         violations += compare_admin_contract(contract_text, prod)
 

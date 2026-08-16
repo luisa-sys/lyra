@@ -390,8 +390,25 @@ reconstruct user accounts (`auth`) — restoring it alone leaves profiles whose
   GitHub Artifacts, 90-day retention.
 - **Weekly real restore drill**: `backup-restore-test.yml` (Sun 05:00 UTC) now
   restores the latest backup into a throwaway Postgres and asserts the data
-  round-trips (table count + RLS + per-table row counts) — it is no longer a
-  schema-only check, and no longer silently passes on a missing secret.
+  round-trips (table count + RLS + per-table row counts + **foreign keys**) — it
+  is no longer a schema-only check, and no longer silently passes on a missing
+  secret.
+
+  ⚠️ **The FK assertion was added 2026-08-16, and it closed a real blind spot.**
+  The dump is public-schema-only, so every FK pointing at `auth.users(id)` had
+  no target row, and `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` validates on
+  creation — `session_replication_role = replica` defers trigger firing on DML
+  but *not* constraint validation. So seven constraints (`profiles`, `api_keys`,
+  `moderation_logs`, and the four `oauth_*` tables) failed to be created on
+  **every run**, and the drill passed anyway from June to 2026-08-09 because
+  nothing checked. A restore that dropped every foreign key would have reported
+  success. The drill now seeds `auth.users` from the UUIDs the dump references —
+  standing in for restoring auth from Supabase's own backup, which is what a
+  real recovery does — and then asserts the constraint count matches the dump.
+
+  This does **not** close the SEC-23 gap: the dump still contains no auth data.
+  Seeding makes the drill measure what it claims to measure; it does not make
+  the backup complete.
 - Manually trigger any of these: GitHub → Actions → select workflow → Run.
 
 ### Supabase built-in backups
@@ -549,6 +566,26 @@ columns were live on all three databases and absent from all three snapshots.
 | **CTL-036** (`check-schema-type-parity.py`, every PR) | the three snapshots **to each other** | all three stale the same way — no *relative* drift to find |
 | **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
 | **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
+
+> ⚠️ **The SEC-143 admin schema-contract step in this same workflow is currently
+> INERT, and its daily red is not a schema finding.** It reads
+> `lyra-admin-mcp-server`'s committed contract with the workflow's built-in
+> `GITHUB_TOKEN` — which is scoped to *this* repository and can never read
+> another **private** repo. The step cites CTL-043 as precedent, but CTL-043
+> works precisely because *its* target is public, a precondition
+> `shared-code-manifest.json` records explicitly. So the check has never once
+> succeeded, and it has been red every day since it reached `main` on
+> 2026-08-15.
+>
+> **If you are triaging a red `db-invariants` run, read the step name before the
+> job name.** The job is called *"Committed schema snapshots match their
+> databases (CTL-048, daily)"*, so this failure looks like schema drift and is
+> not. CTL-048's own comparison passes; the admin-contract step is a separate
+> control sharing the job. Splitting them is tracked in
+> [SEC-150](https://checklyra.atlassian.net/browse/SEC-150), along with the fix:
+> provision `ADMIN_CONTRACT_READ_TOKEN` (fine-grained, contents-read, admin repo
+> only). The workflow already reads it when present, so no code change is
+> needed once it exists.
 
 The daily job runs only the snapshot half on purpose. During a staged migration
 rollout the three databases genuinely differ, so the cross-database half would
