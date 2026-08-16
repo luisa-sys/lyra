@@ -292,17 +292,37 @@ describe('check-required-checks.py (CTL-066)', () => {
     expect(wf).not.toMatch(/continue-on-error:\s*true/);
   });
 
-  test('the new scheduled workflow is declared to CTL-042 until it registers', () => {
-    // GitHub does not index a workflow's schedule trigger until the file
-    // reaches the DEFAULT branch, so CTL-042 would otherwise fail the very PR
-    // that adds it. The entry is short-lived by construction: it goes STALE the
-    // moment the workflow registers, which is what forces its deletion.
+  test('the CTL-042 exception that carried this workflow in has been removed', () => {
+    // ⚠️ THIS ASSERTION WAS INVERTED ON 2026-08-16, founder-signed-off.
+    //
+    // It used to require the exception to EXIST with reason /NOT YET
+    // REGISTERED/. That was correct for exactly as long as the workflow was
+    // unregistered: GitHub does not index a schedule trigger until the file
+    // reaches the DEFAULT branch, so CTL-042 would otherwise have failed the
+    // very PR that added it.
+    //
+    // required-checks.yml reached `main` with v0.1.101, the API now reports it
+    // ACTIVE, and CTL-042 fails the entry as STALE — which is what that entry's
+    // own text instructed should happen, and what forces its deletion.
+    //
+    // The two states were mutually exclusive and BOTH were red: keeping the
+    // exception failed CTL-042 on every open PR, removing it failed this test.
+    // `develop` had no green state at all until one of them moved.
+    //
+    // Inverted rather than deleted, deliberately. The original assertion was a
+    // scaffold with a documented expiry; deleting it on expiry would drop the
+    // coverage entirely. Absence is the PERMANENT invariant — CTL-042 now
+    // enforces the workflow's liveness directly, so re-adding an exception here
+    // could only be an attempt to suppress that. This goes red if anyone does.
     const raw = JSON.parse(fs.readFileSync(
       path.join(ROOT, SRC.scheduledWorkflowExceptions), 'utf8'));
-    const entry = raw.exceptions[SRC.requiredChecks];
-    expect(entry).toBeDefined();
-    expect(entry.key).toBe('SEC-106');
-    expect(entry.reason).toMatch(/NOT YET REGISTERED/);
+    // Assert the FILE still parses to a populated map first. Without this, a
+    // truncated or renamed `exceptions` key would make the lookup below
+    // undefined and this test would pass while asserting nothing — the
+    // negative-assertion-against-undefined trap (catalogue failure mode 3),
+    // which is exactly the shape an inverted assertion is prone to.
+    expect(Object.keys(raw.exceptions).length).toBeGreaterThan(0);
+    expect(raw.exceptions[SRC.requiredChecks]).toBeUndefined();
   });
 
   test('is registered in the control registry', () => {
