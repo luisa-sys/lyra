@@ -600,6 +600,42 @@ DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
+### Release tag on deploy (event-driven) — BUGS-104 / CTL-067
+
+`release-tag-on-deploy.yml` fires on `workflow_run` when **Deploy to Production**
+completes, and creates `main`'s release tag if the deploy earned one.
+
+**Why it is not part of the promote.** `promote-to-production.yml`'s
+`release-tag` job needs `smoke-tests`, which needs `wait-for-deploy` to have
+reported `deployed`. A deploy parked on the SEC-106 required-reviewer gate makes
+`wait-for-deploy` exit 0 with `awaiting-approval` — correct and deliberate, since
+failing it once fired a spurious auto-rollback — so **both downstream jobs are
+skipped**. The founder then approves, the deploy succeeds, and nothing returns to
+tag: the promote run finished long ago.
+
+Since the reviewer gate landed on 2026-07-30 that is the *normal* path, so
+effectively every release was going untagged. CTL-057 (`release-integrity.yml`)
+detects the end state; this prevents it.
+
+**Two refusals, and they are the load-bearing half:**
+
+| situation | outcome |
+|---|---|
+| deploy's `head_sha` ≠ `main` HEAD | **REFUSE** (exit 1) — tagging HEAD would attach a version to code that deploy never verified |
+| `main` HEAD already tagged | **no-op** (exit 0) — this is what makes the deliberate overlap with the promote's own `release-tag` job safe |
+| deploy concluded anything but `success` | no tag |
+| any undecidable input (empty SHA, unparseable last tag) | **UNVERIFIED** (exit 2), never a silent skip |
+
+`workflow_dispatch` is available for manual recovery; it asserts that `main` HEAD
+is what deployed, and the idempotency check still protects against a double tag.
+
+⚠️ **Verify a pushed tag against the REMOTE.** `git describe --tags
+--exact-match origin/main` reads the *local* tag store and does not care whether
+a push succeeded — on 2026-08-16 that reported `v0.1.101` while the push had
+403'd, and a retry loop had swallowed the failure because the pipeline's exit
+status came from `tail` rather than `git push`. The workflow's own push step
+re-checks with `git ls-remote` for exactly this reason.
+
 ### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-066
 
 `required-checks.yml` runs `scripts/check-required-checks.py --live`: it reads
