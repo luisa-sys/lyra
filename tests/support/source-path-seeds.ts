@@ -301,4 +301,11 @@ export const SEEDED_PATHS = [
   // next regeneration and `spawnSync(undefined)` would read as a broken
   // harness rather than a lost control (gotcha #31).
   'scripts/check-release-branch-push.py',
+
+  // CTL-065 / SEC-153 — production deploy drift ("main moving is not
+  // production changing"). Seeded for the same reason as the three above: the
+  // test reaches the checker only through `SRC`, so without a literal here the
+  // key would vanish on the next regeneration and `execFileSync(undefined)`
+  // would read as a broken harness rather than a lost control (gotcha #31).
+  'scripts/check-production-deploy-drift.py',
 ] as const;
