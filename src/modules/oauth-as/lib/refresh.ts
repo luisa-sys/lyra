@@ -32,6 +32,13 @@ export interface IssueRefreshInput {
   clientId: string;
   userId: string;
   scope: string;
+  /**
+   * SEC-46 — carried forward so a REFRESHED access token stays bound to the
+   * resource the user originally consented to. Without this the binding would
+   * silently widen on first refresh, which is worse than never binding: the
+   * token looks constrained and is not.
+   */
+  resource: string;
   /** If continuing an existing chain, pass the family_id; otherwise omit. */
   familyId?: string;
 }
@@ -48,6 +55,7 @@ export async function issueRefreshToken(input: IssueRefreshInput): Promise<{ tok
     client_id: input.clientId,
     user_id: input.userId,
     scope: input.scope,
+    resource: input.resource,
     expires_at: expiresAt.toISOString(),
     family_id: familyId,
   });
@@ -60,6 +68,8 @@ export interface RefreshTokenRecord {
   client_id: string;
   user_id: string;
   scope: string;
+  /** SEC-46. NULL on rows issued before Phase C — caller resolves to the default. */
+  resource: string | null;
   expires_at: string;
   used_at: string | null;
   family_id: string;
