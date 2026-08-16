@@ -1,5 +1,5 @@
 /**
- * CTL-065 (SEC-106) — a required status check must actually be satisfiable.
+ * CTL-066 (SEC-106) — a required status check must actually be satisfiable.
  *
  * The control has two arms and they fail independently, so the tests are split
  * the same way:
@@ -50,7 +50,7 @@ function run(args = [], env = {}) {
   }
 }
 
-describe('check-required-checks.py (CTL-065)', () => {
+describe('check-required-checks.py (CTL-066)', () => {
   const source = fs.readFileSync(SCRIPT, 'utf8');
 
   test('the script exists and is executable', () => {
@@ -308,7 +308,7 @@ describe('check-required-checks.py (CTL-065)', () => {
   test('is registered in the control registry', () => {
     const reg = JSON.parse(fs.readFileSync(path.join(ROOT, 'controls/registry.json'), 'utf8'));
     const controls = reg.controls || reg;
-    const entry = controls.find((c) => c.id === 'CTL-065');
+    const entry = controls.find((c) => c.id === 'CTL-066');
     expect(entry).toBeDefined();
     expect(entry.implementation).toContain('check-required-checks.py');
     expect(entry.prevents).toContain('SEC-106');
@@ -316,7 +316,7 @@ describe('check-required-checks.py (CTL-065)', () => {
   });
 });
 
-describe('CTL-065 — the finding it was built from is real', () => {
+describe('CTL-066 — the finding it was built from is real', () => {
   test('main-chain-guard.yml still carries no job `name:`, so its context IS the id', () => {
     // If this ever stops being true the expectation file's `guard` entry is
     // wrong, and the assertion above would be pinning a context nothing

@@ -287,7 +287,7 @@ export const SEEDED_PATHS = [
   // the F4 raw-literal ratchet counts the same six prefixes and not `docs/`.
   'scripts/check-run-log-freshness.py',
   '.github/workflows/routine-evidence.yml',
-  // CTL-064 / SEC-106. All three reached ONLY via `SRC` in
+  // CTL-066 / SEC-106. All three reached ONLY via `SRC` in
   // tests/scripts/check-required-checks.test.js. The expectation file matters
   // most: the test asserts positive facts about its CONTENT (that `main`
   // requires the `guard` context by name), and gotcha #31 would turn a lost key
@@ -313,4 +313,11 @@ export const SEEDED_PATHS = [
   // next regeneration and `spawnSync(undefined)` would read as a broken
   // harness rather than a lost control (gotcha #31).
   'scripts/check-release-branch-push.py',
+
+  // CTL-065 / SEC-153 — production deploy drift ("main moving is not
+  // production changing"). Seeded for the same reason as the three above: the
+  // test reaches the checker only through `SRC`, so without a literal here the
+  // key would vanish on the next regeneration and `execFileSync(undefined)`
+  // would read as a broken harness rather than a lost control (gotcha #31).
+  'scripts/check-production-deploy-drift.py',
 ] as const;

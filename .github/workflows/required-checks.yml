@@ -1,4 +1,4 @@
-# SEC-106 / CTL-065 — is the live branch protection what we think it is?
+# SEC-106 / CTL-066 — is the live branch protection what we think it is?
 #
 # Scheduled rather than PR-triggered, deliberately. A pull request cannot change
 # branch protection, so this would answer nothing in the PR gate — and it would

@@ -377,7 +377,7 @@ jobs:
           set -euo pipefail
           python3 scripts/check-scheduled-workflows-active.py --self-test
           python3 scripts/check-scheduled-workflows-active.py
-      - name: Required checks are still satisfiable (CTL-065, SEC-106)
+      - name: Required checks are still satisfiable (CTL-066, SEC-106)
         # A required status check is a STRING. GitHub stores the context name a
         # branch demands and never verifies that anything still produces it, so
         # renaming main-chain-guard.yml's `guard` job un-gates SEC-98 production

@@ -1,6 +1,6 @@
 {
   "$comment": [
-    "SEC-106 / CTL-065 — the branch protection this repository INTENDS to have.",
+    "SEC-106 / CTL-066 — the branch protection this repository INTENDS to have.",
     "",
     "Read by scripts/check-required-checks.py. Two arms read this file and they",
     "answer different questions:",

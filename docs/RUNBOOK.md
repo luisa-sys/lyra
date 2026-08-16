@@ -600,7 +600,7 @@ DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
-### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-065
+### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-066
 
 `required-checks.yml` runs `scripts/check-required-checks.py --live`: it reads
 the live branch protection on `develop`, `staging`, `beta` and `main` and diffs

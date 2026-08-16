@@ -233,6 +233,47 @@ but both are now on the **service-role** client: `publishProfile()` (user
 intent, age-gated in application code) and the admin unpublish. No user-context
 caller can write the column at all.
 
+### 7.2 Deployment state, 2026-08-16 — and why the ordering is INVERTED
+
+⚠️ **"Fixed" above means the code and the migration exist. It does not mean the
+trigger is running everywhere, and those are different claims** — which is the
+whole reason INV-9 is a live per-environment assertion rather than a repo test.
+
+| environment | service-role code live | trigger applied | proven |
+|---|---|---|---|
+| **dev** | ✅ | ✅ | ✅ |
+| **staging** | ✅ | ✅ | ✅ |
+| **production** | ⏸ deploy parked awaiting the SEC-106 `Production` review | ❌ **deliberately not applied** | — |
+
+Proven on dev and staging means measured on the live database, both directions,
+not inferred from the migration having run:
+
+- an end-user JWT updating its **own** row is refused **42501**;
+- the **service-role** path is **allowed** — as important as the first, because
+  refusing it is the BUGS-60 shape;
+- INV-9 goes **0 → 1 finding** when the trigger is `DISABLE`d (disabled rather
+  than dropped: `DISABLE TRIGGER` leaves the row in `pg_trigger`, so an
+  existence-only check would sail past it).
+
+Each probe flipped the value (`is_published = not is_published`) rather than
+rewriting the same one — a no-op update would masquerade as a block — and each
+ended in a deliberate `raise` so the whole transaction rolled back and nothing
+persisted.
+
+**Production is last on purpose, and this is the opposite of the usual rule.**
+This migration must land **after** its code in each environment, because before
+SEC-112 `publishProfile()` wrote `is_published` on a client carrying the end
+user's JWT — so the trigger would refuse the *real publish flow*, not just the
+bypass. Beta and production **share one Supabase project**; beta receives the
+service-role code at the `staging → beta` promote, but `checklyra.com` does not
+until `beta → main` deploys. Applying the trigger in that window would break
+publishing for real users — 27 of 28 production profiles are published.
+
+Note the contrast with SEC-46 Phase C, in flight the same day: that migration is
+additive and nullable, so it correctly went to all three databases **ahead** of
+its code. Two migrations in flight with opposite requirements is exactly where
+"apply the migrations" as a single instruction goes wrong.
+
 ---
 
 ## 8. Option (B) costed — the satellite-table split
