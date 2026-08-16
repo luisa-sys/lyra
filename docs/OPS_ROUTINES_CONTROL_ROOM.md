@@ -74,6 +74,22 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 - **Test / release of record** = the **Weekly Health + Regression routine** +
   `docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`. `weekly-report.yml`
   Sections 4/6/7 stay as convenience counts but defer to that routine's run-log.
+  **Section 15b (added SEC-153) is the same shape**: it renders CTL-065's
+  "what is production actually SERVING vs `main`" figure and names the Weekly
+  Health + Regression routine as source of record. It is a reporting surface,
+  not a second release authority — enforced by a `check-routine-ownership.sh`
+  marker so the deferral cannot be quietly dropped.
+
+  ⚠️ **Why that concern needed an owner recorded at all.** `main` moving is not
+  production changing: the promote workflow merges `beta` into `main` and
+  reports success, while the *deploy* is a separate run gated on the SEC-106
+  `Production` review — and a gated run sits in `waiting` indefinitely without
+  ever failing. On 2026-08-16 that left `checklyra.com` serving a build two
+  promotes old for ~2 days with nothing red anywhere. `check-release-drift.sh`
+  could not see it: it measures `develop → main`, which was correct throughout.
+  The gap is **expected to recur** — the review is deliberately human and
+  cannot be given from a phone — so the requirement is that someone is *told*,
+  not that it never happens.
 - **Doc-sync of record** = the Doc-Sync Health-Check routine, watching the
   KAN-249 producer.
 - **Staging-soak of record** = the **Staging Soak routine** +
