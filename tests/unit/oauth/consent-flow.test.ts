@@ -97,6 +97,7 @@ const VALID: DecideInput = {
   state: 'xyz',
   code_challenge: 'abc123',
   code_challenge_method: 'S256',
+  resource: 'https://mcp-dev.checklyra.com/mcp',
   decision: 'allow',
 };
 

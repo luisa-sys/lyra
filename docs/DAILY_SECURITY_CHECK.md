@@ -275,10 +275,17 @@ Run all SQL probes via Supabase MCP `execute_sql` (read-only SELECT) against **p
 - **PASS:** returns a number (CodeQL enabled). **FAIL:** 403/"not enabled" → 🟠 enable CodeQL on `lyra-mcp-server`.
 
 ### C4 — 🟡 OAuth JWT hardening (KAN-88)
-- **Threats:** (a) `aud`/resource not validated → a token minted for another resource server passes; (b) `scope` read but never enforced (single `lyra:full`); (c) revocation **off by default** unless `OAUTH_REVOCATION_CHECK=1` → a stolen unexpired JWT has no kill-switch.
-- **Check:** confirm on Railway that **prod** has `OAUTH_REVOCATION_CHECK=1` and `OAUTH_JWT_SIGNING_SECRET` (≥32 chars) set; review `oauth-jwt.ts` for `aud` validation. (Env presence is a console/Railway check; the behavioural test is to revoke a token and confirm it's rejected.)
-- **PASS:** revocation check on in prod; `aud` validated, or documented as accepted with compensating controls.
-- **FAIL:** revocation off in prod → 🟡 no server-side kill-switch for stolen tokens.
+- **Threats:** (a) `aud`/resource not validated → a token minted for another resource server passes; (b) `scope` read but never enforced (single `lyra:full`); (c) revocation not enforced → a stolen unexpired JWT has no kill-switch.
+
+> ⚠️ **Updated 2026-08-16 (SEC-46). Two of the three threats above have moved, and the OLD check text would now score a green tick for the wrong reason.**
+>
+> **(c) revocation is DEFAULT-ON, not default-off.** Phase A inverted the flag: `oauth-jwt.ts` reads `OAUTH_REVOCATION_CHECK !== '0'`, so the check runs unless it is explicitly disabled, and it **fails closed** — an unknown `jti` or a failed lookup refuses the call. So `OAUTH_REVOCATION_CHECK=1` being *absent* from Railway is now the CORRECT steady state, and the old check told you to treat that as a FAIL. Verify the value is not `0`; do not require it to be `1`.
+>
+> **(a) `aud` is now the RESOURCE, not the `client_id`** (Phase C, RFC 8707). The authorization server binds each token to one resource URI via `OAUTH_ALLOWED_RESOURCES`; enforcement on the resource server is behind `OAUTH_AUDIENCE_CHECK`, which ships **inert** (observe-mode, logging `[oauth][SEC-46] audience mismatch`) because the flip 401s any client still holding a pre-Phase-C token. **A quiet log is the pass condition for turning it on, not evidence it is already on.**
+
+- **Check:** confirm on Railway that **prod** has `OAUTH_REVOCATION_CHECK` unset-or-not-`0`, and `OAUTH_JWT_SIGNING_SECRET` (≥32 chars) set; confirm the AS has `OAUTH_ALLOWED_RESOURCES` set for its environment. (Env presence is a console/Railway check; the behavioural test is to revoke a token and confirm it's rejected.)
+- **PASS:** revocation enforced in prod; `aud` carries the resource URI; audience enforcement either on, or off with the mismatch log quiet and the reason recorded.
+- **FAIL:** `OAUTH_REVOCATION_CHECK=0` in prod → 🟡 no server-side kill-switch for stolen tokens. `aud` equal to the `client_id` → 🟠 the cross-resource replay of SEC-48 is open again.
 
 ### C5 — 🟡 Rate-limit IP attribution not trivially spoofable
 - **Threat:** no `app.set('trust proxy')` → behind Railway's proxy, `req.ip` may collapse all traffic to one bucket, **and** audit/abuse logging reads `x-forwarded-for` directly (client-forgeable), poisoning the KAN-233 ">100/hr per IP" alert.
