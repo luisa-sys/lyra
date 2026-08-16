@@ -28,6 +28,8 @@ export interface IssueCodeInput {
   scope: string;
   codeChallenge: string;
   codeChallengeMethod: 'S256';
+  /** SEC-46 — canonical resource URI this code is authorized for. */
+  resource: string;
 }
 
 export async function issueAuthCode(input: IssueCodeInput): Promise<{ code: string; expiresAt: Date }> {
@@ -44,6 +46,9 @@ export async function issueAuthCode(input: IssueCodeInput): Promise<{ code: stri
     scope: input.scope,
     code_challenge: input.codeChallenge,
     code_challenge_method: input.codeChallengeMethod,
+    // SEC-46: the resource must survive the code exchange, or `aud` cannot be
+    // bound at token-issue time and RFC 8707 becomes decorative.
+    resource: input.resource,
     expires_at: expiresAt.toISOString(),
   });
   if (error) throw new Error(`code issue failed: ${error.message}`);
@@ -58,6 +63,8 @@ export interface CodeRecord {
   scope: string;
   code_challenge: string;
   code_challenge_method: string;
+  /** SEC-46. NULL on codes issued before Phase C — caller resolves to the default. */
+  resource: string | null;
   expires_at: string;
   used_at: string | null;
 }

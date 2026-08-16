@@ -299,4 +299,18 @@ export const SEEDED_PATHS = [
   '.github/expected-protection.json',
   '.github/workflows/required-checks.yml',
   '.github/workflows/main-chain-guard.yml',
+  // CTL-061 (BUGS-81). Reached only via `SRC` in
+  // tests/scripts/check-heartbeat-page-id.test.js, so gotcha #31 would turn a
+  // lost key into `resolve(root, undefined)`. The guard's anchor doc
+  // (docs/OPS_ROUTINES_CONTROL_ROOM.md) is deliberately NOT seeded here —
+  // `docs/` is not one of the roots LITERAL_RE admits, so a seed for it could
+  // never be harvested and would dangle. That test names it directly.
+  'scripts/check-heartbeat-page-id.py',
+
+  // CTL-064 / SEC-99 — no committed script pushes to a release branch.
+  // Seeded for the same reason as the two above: the test reaches the checker
+  // only through `SRC`, so without a literal here the key would vanish on the
+  // next regeneration and `spawnSync(undefined)` would read as a broken
+  // harness rather than a lost control (gotcha #31).
+  'scripts/check-release-branch-push.py',
 ] as const;

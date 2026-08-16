@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scripts/check-required-checks.py — CTL-064 (SEC-106).
+"""scripts/check-required-checks.py — CTL-065 (SEC-106).
 
 A required status check is a STRING. GitHub stores the context name a branch
 demands; it does not store, or verify, that anything still produces that name.

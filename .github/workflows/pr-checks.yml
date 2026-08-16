@@ -80,6 +80,22 @@ jobs:
         # heading, has substance); content drift-vs-wiki stays a separate
         # founder/ops-gated leg of KAN-363.
         run: bash scripts/check-doc-mirror-content.sh
+      - name: Ops-heartbeat page-id guard (BUGS-81, CTL-061)
+        # Two Confluence Control Rooms are trivially confusable. 33554434 is
+        # the Backlog Autopilot Control Room, which has a "Run ledger" section
+        # of its own; the ops-routines Heartbeat / Run-ledger table that the
+        # routine-watchdog reads lives on the other one, 34275370.
+        # A doc pointing the heartbeat at the autopilot page makes the watchdog
+        # either
+        # report UNVERIFIED for every routine or misread the autopilot's rows as
+        # heartbeats (a false PASS from the one control that detects a silently
+        # dead routine). Fails both on a WRONG page id and on an ABSENT one.
+        run: python3 scripts/check-heartbeat-page-id.py
+      - name: Ops-heartbeat page-id guard self-test (CTL-061)
+        # A guard whose matcher has never been seen to fire is indistinguishable
+        # from no guard. Runs the pinned fixtures, including the one-line
+        # repoint that defeated this control's first cut.
+        run: python3 scripts/check-heartbeat-page-id.py --self-test
       - name: CODEOWNERS single-source-of-truth check (SEC-3)
         # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
         # docs/) and silently ignores the rest, so two CODEOWNERS files means
@@ -361,7 +377,7 @@ jobs:
           set -euo pipefail
           python3 scripts/check-scheduled-workflows-active.py --self-test
           python3 scripts/check-scheduled-workflows-active.py
-      - name: Required checks are still satisfiable (CTL-064, SEC-106)
+      - name: Required checks are still satisfiable (CTL-065, SEC-106)
         # A required status check is a STRING. GitHub stores the context name a
         # branch demands and never verifies that anything still produces it, so
         # renaming main-chain-guard.yml's `guard` job un-gates SEC-98 production
@@ -543,6 +559,19 @@ jobs:
           # another regressing.
           python3 scripts/check-route-thinness.py --self-test
           python3 scripts/check-route-thinness.py
+          # CTL-064 / SEC-99. SEC-98 forbids pushing directly to main/beta/
+          # staging, and until now that rule existed only in CLAUDE.md while the
+          # repo shipped two scripts that did exactly it — six direct pushes,
+          # three of them --force onto main. A documented convention with no
+          # gate erodes (the gotcha #28 lesson). Scans every TRACKED file under
+          # scripts/ with no extension filter: SEC-99's own §1 called those
+          # scripts unreferenced on the strength of a grep over
+          # *.md/*.yml/*.json/*.sh, and missed docs/lyra-project-reference.jsx.
+          # .github/workflows/ is out of scope by design — the promote workflows
+          # push to release branches because that IS the supervised path, and
+          # CTL-016 already governs them.
+          python3 scripts/check-release-branch-push.py --self-test
+          python3 scripts/check-release-branch-push.py
       - name: Run unit tests
         run: npm run test:unit
         env:

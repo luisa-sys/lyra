@@ -770,12 +770,13 @@
       "layer": 1,
       "paths": [
         "src/modules/observability/metrics.ts",
+        "src/modules/observability/readiness.ts",
         "src/modules/observability/sentry-scrub.ts",
         "src/app/api/health/",
         "src/app/status/"
       ],
       "owns": {
-        "files": 4,
+        "files": 6,
         "tables": [],
         "rpcs": [
           "get_metrics_for_window"
