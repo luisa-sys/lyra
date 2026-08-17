@@ -887,10 +887,13 @@
       ],
       "prevents": [
         "SEC-137",
-        "SEC-134"
+        "SEC-134",
+        "SEC-160"
       ],
       "escape_hatch": "none - commit the migration SQL that was applied out-of-band, or apply the migration that was committed; a divergence that is accepted goes in supabase/migration-ledger-baseline.json via --write-baseline, never by hand",
-      "added": "2026-08-12"
+      "added": "2026-08-12",
+      "amended": "2026-08-17",
+      "amendment": "SEC-160. The two-way ratchet described above held for in_repo_not_applied and NOT for applied_not_in_repo, whose STALE arm could never fire: a ledger row records that a migration RAN under the name it ran as, so committing the SQL today - the remediation this control's own failure text prescribes - does not change the row, the entry still computes, and it stays forever. Every entry in that list was permanent by construction, which is the suppression list the design explicitly forbids. Measured, not argued: SEC-160 committed the missing SQL for kan_232_mcp_tool_call_log, kan_244_content_moderation_flags and kan_245_mcp_tool_call_log_retention, and the control went RED - the three entries did not move, AND the three new repo files appeared as nine NEW in_repo_not_applied failures, three per environment. Doing the prescribed fix broke the gate. The `reconciliations` list in the baseline now pairs a ledger name with the repo file carrying its SQL. It is additive: applied_not_in_repo stays the raw measurement, because deleting the ledger names would erase the fact that the migration was applied out of band, which IS the finding. What the pairing does is stop the committed file being reported as unapplied, and let the summary state how many baselined entries are genuinely unrebuildable versus merely renamed (prod: 12 -> 9). A pairing is a CLAIM, not evidence - nothing verifies the named file holds that row's SQL - so what is enforced is that it stays live in both directions: the repo file must still exist (so the fix cannot be silently reverted) and the ledger name must still be a real divergence somewhere (so a pairing cannot match nothing and accumulate). Both arms mutation-proven."
     },
     {
       "id": "CTL-050",
