@@ -1035,6 +1035,24 @@
       "added": "2026-08-14"
     },
     {
+      "id": "CTL-067",
+      "name": "Release tag is created when the DEPLOY completes",
+      "defect_class": "release-shipped-without-an-identifier",
+      "summary": "Creates main's release tag from the production DEPLOY's completion rather than from the promote's, which is the CAUSE that CTL-057 detects. promote-to-production.yml's release-tag job needs smoke-tests, which needs wait-for-deploy to have reported 'deployed'; a deploy parked on the SEC-106 required-reviewer gate makes wait-for-deploy exit 0 with awaiting-approval (correct and deliberate - failing it once fired a spurious auto-rollback), so BOTH downstream jobs are SKIPPED. The founder then approves, the deploy succeeds, and nothing returns to tag because the promote run finished long ago. Since the reviewer gate landed 2026-07-30 that is the NORMAL path, so effectively every release went untagged. Observed end to end 2026-08-16: promote run 31965557264 green with both jobs skipped, deploy run 31965575474 green, main untagged. Triggered BY the deploy rather than hosted IN it, preserving BUGS-97's principle that a workflow cannot be the only witness to its own completion. Two REFUSALS carry the weight and are what a naive 'deploy went green, tag main' gets wrong: a deploy whose head_sha is not main's current HEAD is refused (exit 1) because tagging HEAD would attach a version to code that deploy never verified, and an already-tagged HEAD is a no-op rather than a second tag - which is what makes the deliberate overlap with promote-to-production's own release-tag job safe. Fails CLOSED (exit 2) on any input it cannot decide, including an unparseable last tag, rather than inventing a version. The decision lives in a script, not inline YAML, because an inline run: block is reachable by no test - the shape that let BUGS-103's soak probe stay red four days.",
+      "implementation": "scripts/decide-release-tag.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/release-tag-on-deploy.yml"
+      ],
+      "prevents": [
+        "BUGS-104",
+        "BUGS-97"
+      ],
+      "escape_hatch": "None. There is no legitimate case for a verified production deploy to leave main unidentifiable. The two non-tagging outcomes are decisions, not escapes: an already-tagged HEAD is a no-op, and a deploy for a superseded SHA is REFUSED with the mismatch named.",
+      "self_test": "11 cases via --self-test, driving the real decision function, with a corpus FLOOR rather than a passed-of-total tally (which stays reassuring when the total silently drops). Plus 19 jest cases in tests/scripts/decide-release-tag.test.js driving the script as a subprocess. Mutation-proven in three directions, each mutation confirmed applied by cmp before the run was trusted and each restore confirmed byte-exact: removing the head_sha equality check reddens 2; removing the idempotency check reddens 2; tagging on a non-success conclusion reddens 5.",
+      "added": "2026-08-16"
+    },
+    {
       "id": "CTL-059",
       "name": "A CI finding describes the failure it actually had",
       "defect_class": "annotation-misdescribes-the-failure",
