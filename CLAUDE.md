@@ -1165,6 +1165,33 @@ These have caused real bugs. Read before making related changes:
 
     ⚠️ **The `--files` mode still fires on every workflow path**, because it has no diff to classify. That is the conservative answer, not an oversight — an undecidable file is never treated as exempt.
 
+34. **`Failed to fetch \`Inter\` from Google Fonts` means Google, not you — every build needs `fonts.gstatic.com`, and we have DECIDED to accept that (BUGS-105)**: `src/app/layout.tsx` uses `next/font/google`, which downloads the font files **at build time** and then self-hosts them. The self-hosting is the point of the API and it works — but the *build* has a hard dependency on `fonts.gstatic.com`, with no local fallback and no waiver mechanism.
+
+    When it fires you get eight URLs, three retries each, then:
+
+    ```
+    Failed to fetch font file from `https://fonts.gstatic.com/s/inter/v20/….woff2`.
+    Retrying 1/3...  Retrying 2/3...  Retrying 3/3...
+
+    Failed to compile.
+    src/app/layout.tsx
+    `next/font` error:
+    Failed to fetch `Inter` from Google Fonts.
+    > Build failed because of webpack errors
+    ```
+
+    The job dies in ~90 seconds having run no tests and uploaded no report. **Next's own retry budget is already exhausted, so a longer timeout does not help — re-run the job.** Observed once, 2026-08-16, on PR [#827](https://github.com/luisa-sys/lyra/pull/827) run [31971422543](https://github.com/luisa-sys/lyra/actions/runs/31971422543); green on re-run.
+
+    **DECIDED 2026-08-17 (Luisa): accept and document, do NOT self-host.** That is option (b) of BUGS-105, chosen *after* measuring what option (a) actually costs — the ticket's own premise turned out to be wrong in three ways, and all three are the reason:
+
+    - **`subsets: ["latin"]` controls PRELOADING, not downloading.** A baseline production build emits **7 woff2 files (224 KB) and 28 `@font-face` blocks** — all seven subsets, one per subset per weight — of which exactly one carries `.p` (preloaded). So `ł`, `ő`, `ğ`, Cyrillic and Greek all render in Inter today. Anyone "faithfully" self-hosting the latin subset would silently drop six subsets and regress how members' names render, which on this product is the worst possible thing to get wrong quietly.
+    - **Next generates a metric-matched fallback that hand-rolled CSS does not**: `@font-face{font-family:Inter Fallback;src:local("Arial");ascent-override:90.44%;descent-override:22.52%;line-gap-override:0.00%;size-adjust:107.12%}`. That is what stops text reflowing while the webfont loads. Losing it is a visible layout shift on every page — a real visual change, on founder-owned output.
+    - **`next/font/local` has no `unicode-range` support** (checked in the installed package), so the 7-subset arrangement cannot be expressed through it at all.
+
+    Self-hosting faithfully therefore means hand-writing 28 `@font-face` blocks plus those four override percentages into `globals.css` — replacing framework-generated output with hand-maintained constants, which is catalogue failure mode 8 wearing a different hat. Against a defect observed **once** and cleared by a re-run, that trade is not worth making.
+
+    **If this starts recurring, reopen BUGS-105 — but reopen it as a design card, not a build fix.** The work is 7 committed files, 28 blocks and 4 override values copied verbatim, before/after `@font-face` sets diffed, and the rendered output actually compared. ⚠️ It must **not** ride a `UI-No-Visual-Change:` trailer: on the evidence above that trailer would be false, and the whole point of SEC-152 adding that trailer was to stop people asserting things they had not checked.
+
 ## Supabase Migration Rules
 
 - Always test migrations on dev first, then staging, then production
