@@ -1071,6 +1071,23 @@
       "added": "2026-08-17"
     },
     {
+      "id": "CTL-069",
+      "name": "Soak verdicts are extracted and testable",
+      "defect_class": "verdict-logic-reachable-by-no-test",
+      "summary": "Every place scripts/staging-soak.sh can emit FAIL must eventually be an EXTRACTED classifier with unit tests covering BOTH its PASS and FAIL paths; inline verdict logic is grandfathered and the list may only shrink. Built from BUGS-103, where the C1-sitemap-fresh probe asserted Cache-Control: no-store|no-cache on a Next METADATA route whose loader hardcodes that header to the constant 'public, max-age=0, must-revalidate'. The header is byte-identical whether the route is force-dynamic or prerendered, so the probe could never return PASS and could not have detected SEC-100 - the defect it existed for. It shipped red and stayed red four days while the soak's FAIL-alert email was itself dead (BUGS-99), so nobody was told. TWO properties made that possible and this control targets only the second: the instrument did not vary with the property (no static check can catch that - it needed real headers measured), AND the decision was inline bash reachable by no test, so nothing could observe that its PASS branch was unreachable. STATED GAP, deliberately: a green run here means these verdicts CAN be tested, not that they are RIGHT. Shrink-only two-way ratchet keyed PER SITE rather than on a total, because an aggregate lets one clause improve while another regresses and nets out green - the blindness CTL-055 had before it learned to key on pairs. Extraction is credited ONLY when the classifier has a test asserting both verdicts, otherwise 'extract it' becomes a way to leave the baseline without gaining anything. Comments are stripped before matching so prose discussing `record FAIL` by name is not counted as one (catalogue failure mode 2). NOTE the baseline entry '$id' covers TWO distinct shared helpers (expect_code and the latency probe) which both record through the same parameterised id - extracting either alone will not clear it.",
+      "implementation": "scripts/check-soak-classifier-coverage.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "BUGS-103"
+      ],
+      "escape_hatch": "None. To leave the baseline, extract the decision to scripts/classify-<name>.sh and give it a test asserting BOTH verdicts, then shrink the baseline with --write-baseline. There is no annotation, because the whole finding is that an un-annotated inline verdict is what nobody could see.",
+      "self_test": "13 cases via --self-test covering both ratchet directions, the comment-stripping case, delegated-vs-inline discrimination, the untested-classifier arm, and a case asserting the REAL soak script still has FAIL sites to measure (a soak that stopped emitting FAIL would otherwise look like perfect coverage - catalogue failure mode 4). Corpus FLOOR rather than a passed-of-total tally. Mutation-proven in all three arms against the real files, each mutation confirmed applied and each restore byte-exact: adding a new inline site reddens with 'NEW inline soak verdict'; converting C1-gate's FAIL to UNVERIFIED reddens as STALE; stripping the FAIL assertion from the classifier's test reddens with 'never asserts a FAIL verdict'.",
+      "added": "2026-08-17"
+    },
+    {
       "id": "CTL-059",
       "name": "A CI finding describes the failure it actually had",
       "defect_class": "annotation-misdescribes-the-failure",

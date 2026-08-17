@@ -327,4 +327,11 @@ export const SEEDED_PATHS = [
   // regeneration and `execFileSync(undefined)` would read as a broken harness
   // rather than a lost control (gotcha #31).
   'scripts/check-absent-secret-probe.py',
+
+  // CTL-069 / BUGS-103 — soak verdicts must be extracted and testable. Seeded
+  // for the same reason as the five above: the test reaches the checker only
+  // through `SRC`, so without a literal here the key would vanish on the next
+  // regeneration and `execFileSync(undefined)` would read as a broken harness
+  // rather than a lost control (gotcha #31).
+  'scripts/check-soak-classifier-coverage.py',
 ] as const;
