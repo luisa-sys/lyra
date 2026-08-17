@@ -622,7 +622,7 @@
       "id": "CTL-035",
       "name": "Guard-path-drift",
       "defect_class": "path-coupling-drift",
-      "summary": "Audits the WHOLE registry on every PR: every path pattern in all 18 registered artefacts must match at least one TRACKED file. Companion to CTL-033, which looks only at the current PR's diff. A pattern matching nothing does not fail - it silently protects nothing while the gate keeps reporting green (the SEC-79 shape). Resolution set is `git ls-files`, so a pattern matching only an untracked or gitignored file FAILS, because CI checks out tracked content and the pattern would be inert there. Implements all seven matching syntaxes separately (bash-case, bash-dbl-bracket, codeowners, literal, glob, regex, basename-regex) because collapsing them produces false verdicts both ways - notably bash's '*' crosses '/' while fnmatch's does not, which would report the largest protected pattern in the estate as dead.",
+      "summary": "Audits the WHOLE registry on every PR: every path pattern in all 20 registered artefacts must match at least one TRACKED file - except the one registered `external` (KAN-474), check-extraction-dod.sh's ROUTINE_COUPLED, whose entries mirror an out-of-repo claude.ai routine prompt and are therefore correct when ABSENT after a move; that block is enumerated on every run and never failed in either direction, and what registration buys there is that it cannot silently vanish (renaming or emptying the array exits 2). Companion to CTL-033, which looks only at the current PR's diff. A pattern matching nothing does not fail - it silently protects nothing while the gate keeps reporting green (the SEC-79 shape). Resolution set is `git ls-files`, so a pattern matching only an untracked or gitignored file FAILS, because CI checks out tracked content and the pattern would be inert there. Implements all seven matching syntaxes separately (bash-case, bash-dbl-bracket, codeowners, literal, glob, regex, basename-regex) because collapsing them produces false verdicts both ways - notably bash's '*' crosses '/' while fnmatch's does not, which would report the largest protected pattern in the estate as dead.",
       "implementation": "scripts/check-guard-path-drift.py",
       "kind": "ci-gate",
       "wired_in": [
@@ -630,7 +630,8 @@
       ],
       "prevents": [
         "KAN-414",
-        "KAN-419"
+        "KAN-419",
+        "KAN-474"
       ],
       "escape_hatch": "guard-path-ok: <JIRA-KEY> <reason>",
       "added": "2026-07-29"
