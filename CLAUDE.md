@@ -332,7 +332,7 @@ The gates, in summary — this table is **not** the full set:
 
 | Gate | Fails when | Escape hatch |
 |---|---|---|
-| **KAN-411 `check-ui-copy-ownership.sh`** (`pr-checks.yml`) | a PR changes a founder-owned UI/copy path with no `UI-Change-Approved:` / `UI-Bugfix-Only:` trailer in range | none in CI — add the trailer, or add the path to the carve-out list in the script if it genuinely is not UI/copy |
+| **KAN-411 `check-ui-copy-ownership.sh`** (`pr-checks.yml`) | a PR changes a founder-owned UI/copy path with no `UI-Change-Approved:` / `UI-Bugfix-Only:` / `UI-No-Visual-Change:` trailer in range | none in CI — add the trailer, or add the path to the carve-out list in the script if it genuinely is not UI/copy |
 | **G0 version control** (`check-design-sync.py`, `lyra-design-system` repo) | the design source is not in git. **Blocking** — unsynced design work is work that can be lost outright, not merely drift | none — commit the design source |
 | **G1 design-first** (same) | a ticket enters `DEV_IMPL` without passing `DESIGN_APPROVED` | none — get the card approved |
 | **G2 no-close** (same) | a ticket goes `DONE` while not `BASELINED` | none |
@@ -1137,6 +1137,10 @@ These have caused real bugs. Read before making related changes:
     **The fix is content-aware and deliberately strict (SEC-155).** A *modified* workflow whose **every** changed line is a `uses: <action>@<ref>` pin is doc-neutral and not counted. One `cron:`, one `run:`, one `if:` moving alongside the pins and the file fires as before — so a schedule change cannot be smuggled through by co-locating it with a bump. Added, removed and renamed workflows are **never** exempt whatever they contain: their existence is the documented fact, not their contents. Both halves are mutation-proven — removing the exemption reddens the pin-only cases, and loosening `USES_PIN_RE` to match any line lets the cron-change case wrongly pass, which is the evidence that the strictness (not the exemption) is the load-bearing part.
 
     ⚠️ **The `--files` mode still fires on every workflow path**, because it has no diff to classify. That is the conservative answer, not an oversight — an undecidable file is never treated as exempt.
+
+35. **A column-level `REVOKE` cannot subtract from a table-level `GRANT` — SEC-27's own "defence in depth" line has been inert since 2026-06-22**: `supabase/migrations/20260622170000_block_admin_suspended_self_set.sql` ships `revoke update (is_admin, is_suspended) on public.profiles from authenticated, anon;` alongside its trigger, as a second layer. It does nothing. Postgres warns `no privileges could be revoked for column ...` and carries on, because `authenticated`/`anon` hold their UPDATE privilege at the **table** level (`pg_class.relacl`), and a column-level REVOKE has no table-level grant to narrow. Measured on prod 2026-08-14 (SEC-112): `pg_attribute.attacl` is **NULL for every one of the 38 columns** on `profiles`, confirming the table grant was never actually restricted by that line. Reproduced on a scratch table on dev: `grant update on t to authenticated;` then `revoke update (b) on t from authenticated;` leaves `attacl` NULL and `has_column_privilege('authenticated', t, 'b', 'UPDATE')` still `true`.
+
+    **The trigger is what protects the column; the revoke is decorative.** SEC-112 (`20260814150000_sec112_block_is_published_self_set.sql`) deliberately ships **no** column revoke for `is_published`, specifically to avoid planting the same false belief in a second layer that isn't there — see that migration's comment for the full derivation. The real fix — narrowing the table-level grant to an explicit column list — is a 38-column, per-environment-diverging change tracked separately as **SEC-147**, not something to bolt onto a trigger migration.
 
 ## Supabase Migration Rules
 
