@@ -65,14 +65,34 @@
     "then failed it as STALE on the very next run, and the line was deleted rather",
     "than suppressed. That is the whole intended lifecycle, and it took one",
     "session and four branches rather than the ninety seconds this file used to",
-    "claim."
+    "claim.",
+    "",
+    "⚠️ CORRECTED AGAIN 2026-08-17 — AND THIS TIME THE CLAIM ABOVE IS THE ONE",
+    "THAT IS WRONG. absent-secrets-probe.yml was added on a FEATURE BRANCH and",
+    "never pushed to develop, staging, beta or main. CTL-042 reported it",
+    "'is ACTIVE but still listed' on the branch's very first CI run, so a",
+    "'NOT YET REGISTERED' entry for it was STALE the moment it was written.",
+    "",
+    "So a workflow does NOT have to reach the default branch to be reported",
+    "active by the workflows API. Whatever the 2026-08-14 routine-evidence.yml",
+    "measurement was showing, it does not generalise, and an entry of the second",
+    "kind should be assumed UNNECESSARY until a red build proves otherwise.",
+    "",
+    "⚠️ AND NOTE WHAT THIS MEANS FOR THE CONTROL ITSELF: being listed 'active'",
+    "and having a cron that will actually FIRE are different properties. GitHub",
+    "only runs `schedule:` triggers from the default branch, so a workflow can",
+    "read ACTIVE here for days while its cron cannot fire at all. CTL-042",
+    "measures REGISTRATION, not schedulability — it would report a clean green",
+    "over a scheduled job that is structurally incapable of running until it is",
+    "promoted. That gap is unfixed and unticketed as of this note.",
+    "",
+    "PRACTICAL CONSEQUENCE: do not pre-emptively add a 'NOT YET REGISTERED'",
+    "entry when adding a scheduled workflow. Push, let CI tell you, and add one",
+    "only if it genuinely fails. Two of these entries in two days were written",
+    "in anticipation and both had to be removed — the second one (this note)",
+    "before it had ever been correct."
   ],
   "exceptions": {
-    ".github/workflows/absent-secrets-probe.yml": {
-      "key": "SEC-158",
-      "reason": "NOT YET REGISTERED — the second kind of entry described above. Added 2026-08-17 in the same change that creates the workflow; GitHub does not index a schedule trigger until the file reaches the default branch, so CTL-042 would otherwise fail the very PR that puts it there. DELETE THIS LINE once it reaches `main` via the promote chain. ⚠️ Note deliberately NOT accompanied by a test asserting this entry exists — required-checks.yml had one, and on 2026-08-16 it deadlocked develop outright: keeping the exception failed CTL-042 on every PR while removing it failed that test, and there was no green state until a founder-signed-off assertion change. An entry that is short-lived by construction must not be pinned by anything.",
-      "expires_when": "absent-secrets-probe.yml is reported ACTIVE by the GitHub API"
-    },
     ".github/workflows/affiliate-link-smoke.yml": {
       "key": "BUGS-90",
       "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
