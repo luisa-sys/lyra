@@ -320,4 +320,12 @@ export const SEEDED_PATHS = [
   // key would vanish on the next regeneration and `execFileSync(undefined)`
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-production-deploy-drift.py',
+
+  // KAN-474 — the ROUTINE_COUPLED entry that tests/scripts/check-guard-path-drift.test.js
+  // moves to prove an expected-absent mirror entry does NOT redden the build.
+  // Seeded rather than hard-coded because `scripts/` IS one of the roots
+  // LITERAL_RE admits, so naming it in the test would raise the shrink-only F4
+  // ratchet — and raising a shrink-only baseline to fit one new line is how a
+  // ratchet decays into the suppression list it replaced.
+  'scripts/staging-soak.sh',
 ] as const;

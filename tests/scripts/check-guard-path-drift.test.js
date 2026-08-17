@@ -16,7 +16,7 @@
  * Flaky tests get muted, and a muted test is a deleted test.
  *
  * So the mutating cases run against a throwaway `git clone --local` of the repo,
- * which is a real tree with all 18 registered artefacts present (so exit 2 does
+ * which is a real tree with every registered artefact present (so exit 2 does
  * not mask the assertion) and is invisible to every other worker. Read-only
  * cases still run against the real repo, because there the live estate IS the
  * thing under test.
@@ -183,6 +183,128 @@ describe('check-guard-path-drift.py — drift detection (sandboxed)', () => {
     expect(r.exitCode).toBe(1);
     expect(r.stdout).toMatch(/src\/nope\/b\/\*\*.*\[KAN-414\]/);
     expect(r.stdout).toMatch(/pattern matches no tracked file — 'src\/nope\/c\/\*\*'/);
+  });
+});
+
+describe('check-guard-path-drift.py — check-extraction-dod.sh registration (KAN-474)', () => {
+  /**
+   * The two lists in that file have OPPOSITE correctness conditions, and getting
+   * either direction wrong re-creates a false green:
+   *
+   *   ARCHIVE_FILES   must match a tracked file — a dead entry means the dated
+   *                   record it exempts was deleted or renamed, and the KAN-428
+   *                   sweep silently stops exempting it.
+   *   ROUTINE_COUPLED mirrors an out-of-repo claude.ai routine prompt. After a
+   *                   move and before Luisa edits the prompt, the correct value
+   *                   is the OLD path — so an absent entry is the expected state,
+   *                   not drift. Failing it would redden the build for the
+   *                   deliberate act of NOT rewriting the mirror.
+   *
+   * Both directions are proven by mutation below, in their own clones, because
+   * the shared SANDBOX above accumulates mutations across its cases.
+   */
+  function inFreshClone(fn) {
+    const sb = fs.mkdtempSync(path.join(os.tmpdir(), 'gpd-dod-'));
+    try {
+      execFileSync('git', ['clone', '--local', '--quiet', ROOT, sb], { stdio: 'ignore' });
+      const script = path.join(sb, SCRIPT_REL);
+      fs.copyFileSync(SCRIPT, script);
+      return fn(sb, script);
+    } finally {
+      fs.rmSync(sb, { recursive: true, force: true });
+    }
+  }
+
+  test('both lists are registered, and the mirror is reported as external', () => {
+    const r = run();
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toMatch(/OK {2}scripts\/check-extraction-dod\.sh \(ARCHIVE_FILES\) — \d+\/\d+ live/);
+    expect(r.stdout).toMatch(
+      /NOTE scripts\/check-extraction-dod\.sh \(ROUTINE_COUPLED\) — \d+ mirrored patterns/,
+    );
+  });
+
+  test('the mirror corpus is non-empty and every entry is printed with its state', () => {
+    // Failure mode 4: a parameterised check over an empty list is green. Assert
+    // the corpus before believing anything the block says about it.
+    const r = run();
+    // Bound the slice at the next blank line: sections are blank-line separated,
+    // and taking "everything after the header" would swallow the exceptions block
+    // that follows and assert this section's format against its lines.
+    const block = (r.stdout.split('External (out-of-repo referent) patterns')[1] || '')
+      .split('\n\n')[0];
+    const lines = block.split('\n').filter((l) => l.trim().startsWith('- '));
+    expect(lines.length).toBeGreaterThanOrEqual(5);
+    for (const line of lines) {
+      expect(line).toMatch(/\[(matches tree|absent from tree \(expected\))\]/);
+    }
+  });
+
+  test('deleting an ARCHIVE_FILES target fails the build and names file and line', () => {
+    inFreshClone((sb, script) => {
+      const target = 'docs/modularisation/kan419-scan.py';
+      // Read from the live list rather than trusting this literal: if the entry
+      // is ever removed, this case must fail loudly, not silently test nothing.
+      const list = fs.readFileSync(path.join(sb, SRC.checkExtractionDod), 'utf-8');
+      expect(list).toContain(`"${target}"`);
+
+      execFileSync('git', ['rm', '-q', target], { cwd: sb });
+      const r = runAt(script, [], sb);
+
+      expect(r.exitCode).toBe(1);
+      expect(r.stdout).toContain(target);
+      expect(r.stdout).toMatch(
+        new RegExp(`::error file=${SRC.checkExtractionDod.replace(/[./]/g, '\\$&')},line=\\d+::`),
+      );
+      expect(r.stdout).toMatch(/This control is not operating/);
+    });
+  }, 120000);
+
+  test('moving a ROUTINE_COUPLED path does NOT fail — it is expected-absent', () => {
+    inFreshClone((sb, script) => {
+      // Baseline first, so a red below is caused by the move and not by the clone.
+      expect(runAt(script, [], sb).exitCode).toBe(0);
+
+      const from = SRC.stagingSoak;
+      const list = fs.readFileSync(path.join(sb, SRC.checkExtractionDod), 'utf-8');
+      expect(list).toContain(`"${from}"`);
+      // Destination derived from the source, not written out: a second raw
+      // `scripts/…` literal would raise the shrink-only F4 ratchet.
+      execFileSync('git', ['mv', from, `${from}.moved`], { cwd: sb });
+      // Prove the mutation actually applied — a no-op mutation produces a green
+      // run indistinguishable from a green run.
+      expect(fs.existsSync(path.join(sb, from))).toBe(false);
+
+      const r = runAt(script, [], sb);
+      expect(r.exitCode).toBe(0);
+      expect(r.stdout).toContain(`${from}  [absent from tree (expected)]`);
+      expect(r.stdout).toMatch(/That is not drift/);
+    });
+  }, 120000);
+
+  test('renaming the ROUTINE_COUPLED array fails CLOSED with exit 2', () => {
+    // The half of this registration that is genuine enforcement. The block
+    // vanishing is exactly how the #771 defect went unseen: nothing was
+    // watching this file, so a rewrite could disable the attestation silently.
+    inFreshClone((sb, script) => {
+      const p = path.join(sb, SRC.checkExtractionDod);
+      const before = fs.readFileSync(p, 'utf-8');
+      expect(before).toContain('ROUTINE_COUPLED=(');
+      fs.writeFileSync(p, before.replace('ROUTINE_COUPLED=(', 'ROUTINE_MIRROR=('));
+
+      const r = runAt(script, [], sb);
+      expect(r.exitCode).toBe(2);
+      expect(r.stdout).toMatch(/array ROUTINE_COUPLED not found/);
+      expect(r.stdout).toMatch(/Failing closed/);
+    });
+  }, 120000);
+
+  test('the self-test covers the extractor and the external severity', () => {
+    const r = run(['--self-test']);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toMatch(/ok +bash-array stops at its own terminator/);
+    expect(r.stdout).toMatch(/ok +bash-array empty array is unparseable/);
+    expect(r.stdout).toMatch(/ok +external severity never fails, absent or present/);
   });
 });
 
