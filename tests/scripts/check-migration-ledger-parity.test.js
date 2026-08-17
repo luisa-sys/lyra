@@ -66,8 +66,23 @@ function run(args, env = {}) {
  * The script's own fixture count. Pinned so the self-test cannot quietly
  * shrink — a self-test that stops testing things still prints "passed",
  * which is indistinguishable from one that tests everything.
+ *
+ * RAISED 29 -> 44 for SEC-160. Two separate things happened and only one of
+ * them is "we added cases":
+ *
+ *   * the script's reported count was a hand-maintained constant reading 29
+ *     while its `check()` calls actually evaluated 33 — understating by four,
+ *     because several cases live inside loops and nobody re-counted. It now
+ *     increments inside the assertion, so the number is what ran.
+ *   * SEC-160 added 11 more, for 44.
+ *
+ * That the pinned floor and the real count had silently diverged is the point:
+ * a number a human has to remember to raise is a number that goes stale, which
+ * is CLAUDE.md catalogue failure mode 8 turning up inside a control's own
+ * self-test. Raising this floor is allowed; lowering it to make a run green is
+ * not.
  */
-const SELF_TEST_FLOOR = 29;
+const SELF_TEST_FLOOR = 44;
 
 describe('CTL-049 — migration ledger parity', () => {
   test('the self-test passes and has not silently shrunk', () => {
@@ -162,6 +177,93 @@ describe('CTL-049 — the baseline is a ratchet, not a suppression list', () => 
 
   test('it cites the ticket that explains it', () => {
     expect(baseline.ticket).toMatch(/^[A-Z]+-\d+$/);
+  });
+});
+
+describe('CTL-049 / SEC-160 — the arm that could not fire', () => {
+  const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, BASELINE), 'utf-8'));
+  const reconciliations = baseline.reconciliations ?? [];
+  // Routed through the manifest, not spelled — the F4 raw-literal ratchet is
+  // shrink-only, and this one literal took it 35 -> 36. Raising a shrink-only
+  // baseline to fit a new file is how a ratchet becomes a suppression list.
+  const migrations = fs.readdirSync(path.join(ROOT, SRC.migrations));
+
+  test('the baseline carries reconciliations at all', () => {
+    // Catalogue failure mode 4: every assertion below iterates this list, and
+    // an empty list would make all of them vacuously green. Assert the corpus
+    // before drawing any conclusion from it.
+    expect(Array.isArray(reconciliations)).toBe(true);
+    expect(reconciliations.length).toBeGreaterThan(0);
+  });
+
+  test('the three SEC-160 rows are the ones reconciled', () => {
+    // Named, not counted. These are the ledger rows whose SQL was genuinely
+    // missing from the repo — two live tables and a pair of pg_cron retention
+    // jobs on a service holding minors' personal data. A future edit that
+    // drops them has stopped covering the reason this mechanism exists.
+    const byLedger = Object.fromEntries(reconciliations.map((r) => [r.ledger, r.repo]));
+    expect(Object.keys(byLedger).sort()).toEqual([
+      'kan_232_mcp_tool_call_log',
+      'kan_244_content_moderation_flags',
+      'kan_245_mcp_tool_call_log_retention',
+    ]);
+  });
+
+  test('every reconciliation names a migration file that actually exists', () => {
+    // The liveness arm, asserted here as well as in the script's own
+    // self-test — because the self-test proves the CHECK works on fixtures,
+    // and this proves the SHIPPED baseline currently satisfies it. Those are
+    // different claims, and only the second goes stale.
+    for (const entry of reconciliations) {
+      const found = migrations.some((f) => f.replace(/^\d+_/, '').replace(/\.sql$/, '') === entry.repo);
+      expect(`${entry.repo} exists: ${found}`).toBe(`${entry.repo} exists: true`);
+    }
+  });
+
+  test('every reconciliation names a ledger row the baseline still records as diverging', () => {
+    const applied = new Set(
+      Object.values(baseline.environments).flatMap((e) => e.applied_not_in_repo),
+    );
+    for (const entry of reconciliations) {
+      expect(`${entry.ledger} still diverges: ${applied.has(entry.ledger)}`).toBe(
+        `${entry.ledger} still diverges: true`,
+      );
+    }
+  });
+
+  test('every reconciliation is attributed and explained', () => {
+    // A pairing is a CLAIM, not evidence — nothing verifies the named file
+    // holds the SQL that ledger row ran. The ticket and the reason are what
+    // make it reviewable, which is the only check this mechanism gets.
+    for (const entry of reconciliations) {
+      expect(entry.ticket).toMatch(/^[A-Z][A-Z0-9]+-\d+$/);
+      expect(typeof entry.why === 'string' && entry.why.length > 40).toBe(true);
+    }
+  });
+
+  test('reconciling did NOT edit the raw applied-not-in-repo measurement', () => {
+    // The whole design rests on this. `applied_not_in_repo` stays the raw
+    // fact that a migration was applied out of band; the pairing only stops
+    // the committed file being reported as unapplied. Deleting the ledger
+    // names here would erase the finding while looking like a fix.
+    const prod = baseline.environments.prod.applied_not_in_repo;
+    for (const entry of reconciliations) {
+      if (entry.ledger.startsWith('kan_2')) {
+        expect(`prod still records ${entry.ledger}: ${prod.includes(entry.ledger)}`).toBe(
+          `prod still records ${entry.ledger}: true`,
+        );
+      }
+    }
+  });
+
+  test('the script explains why the ratchet needed this half', () => {
+    // Source-text, and comments deliberately NOT stripped: what is asserted
+    // here IS the prose. A future reader who finds `reconciliations` and no
+    // account of why it is not simply a suppression list has been handed a
+    // mechanism with no way to judge a new entry against it.
+    const src = fs.readFileSync(path.join(ROOT, SCRIPT), 'utf-8');
+    expect(src).toContain('BY CONSTRUCTION');
+    expect(src).toContain('A RECONCILIATION IS A CLAIM, NOT EVIDENCE');
   });
 });
 
