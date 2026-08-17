@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 242,
+  "count": 243,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -39,6 +39,7 @@
     "backupDatabaseApi": "scripts/backup-database-api.sh",
     "backupDatabaseComplete": "scripts/backup-database-complete.sh",
     "scriptsBackupDatabase": "scripts/backup-database.sh",
+    "checkAbsentSecretProbe": "scripts/check-absent-secret-probe.py",
     "checkActionPinning": "scripts/check-action-pinning.sh",
     "checkCommentOnlyAssertions": "scripts/check-comment-only-assertions.py",
     "checkCompleteBackup": "scripts/check-complete-backup.sh",

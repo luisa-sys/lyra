@@ -320,4 +320,11 @@ export const SEEDED_PATHS = [
   // key would vanish on the next regeneration and `execFileSync(undefined)`
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-production-deploy-drift.py',
+
+  // CTL-068 / SEC-158 — a recorded secret ABSENCE is still real. Seeded for
+  // the same reason as the four above: the test reaches the checker only
+  // through `SRC`, so without a literal here the key would vanish on the next
+  // regeneration and `execFileSync(undefined)` would read as a broken harness
+  // rather than a lost control (gotcha #31).
+  'scripts/check-absent-secret-probe.py',
 ] as const;
