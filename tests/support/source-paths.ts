@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 245 entries.
+// 246 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -84,6 +84,7 @@ export const SRC = {
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
   checkSoakClassifierCoverage: 'scripts/check-soak-classifier-coverage.py',
+  checkSourcePathIdentity: 'scripts/check-source-path-identity.py',
   checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',

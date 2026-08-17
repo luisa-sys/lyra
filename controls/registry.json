@@ -1237,6 +1237,23 @@
       ],
       "escape_hatch": "none for the --local arm - a required context nothing produces is never acceptable; either restore the job name, or change .github/expected-protection.json AND the live branch protection together, which is the point (protection becomes reviewable). The --live arm's only 'hatch' is exit 2 UNVERIFIED when no token with administration:read is present, which is a loud daily red rather than a pass, and is cleared by provisioning BRANCH_PROTECTION_READ_TOKEN.",
       "added": "2026-08-15"
+    },
+    {
+      "id": "CTL-070",
+      "name": "An SRC key still means what it meant",
+      "defect_class": "identity-drift-behind-a-still-valid-reference",
+      "summary": "Pins key -> path for tests/support/source-paths.json in a committed lock, so a key cannot silently change MEANING. gen-test-paths.mjs names keys by widening leftwards until unique, which makes a key's name depend on the OTHER paths present: moving one file can repoint a key belonging to a file that did not move. KAN-475 observed exactly that - moving src/lib/recommender/v2/pipeline.ts left SRC.pipeline pointing at src/modules/access/pipeline.ts, and tests/unit/kan342-gift-visibility.test.ts went on reading a file it was never written for. This is QUIETER than the vanished-key case (gotcha #31): after a repoint the key still resolves to a real, tracked, existing file, so source-path-manifest-integrity is satisfied and nothing about the reading test's shape is detectably wrong - no undefined, no throw, no dangling path. It failed only because that one assertion happened to look for a specific symbol; phrased as toContain('export') or any not.toContain(...) it would have reported green forever. Measured on the real tree rather than argued: re-running the move made SRC.pipeline flip while the case 'SRC.pipeline is defined and points at a tracked file' PASSED - the two suites that did redden did so for two OTHER reasons (a vanished key a test names, and a seeded path), neither of which is present in the general case. The stakes are not cosmetic: CTL-013's signup-surface fixtures, CTL-028's suspension coverage and the KAN-411 ownership test all reach their subject through SRC, so a repointed key there makes a SECURITY guard assert against the wrong file while reporting green - the SEC-79 shape. Two-way: a REPOINTED key fails, and an ADDED or REMOVED key fails as staleness, because a lock that may only be appended to is a suppression list. The two are deliberately not interchangeable - a plain --write clears staleness but REFUSES a repoint, which can only be cleared by naming the key in --accept-repoint, so the dangerous case cannot ride out on the routine one. npm run gen:test-paths must never write this lock: a lock the generator maintains is the manifest again, and the control would agree with itself forever.",
+      "implementation": "scripts/check-source-path-identity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-475"
+      ],
+      "escape_hatch": "No annotation. A genuine move is re-declared by naming the key: --write --accept-repoint=<key>. That is deliberately not a marker in a file - the point is that re-declaration is an explicit act by whoever made the move, not a line someone can copy from the diff above it.",
+      "self_test": "24 cases via --self-test covering the repoint finding, both staleness directions, key-order independence, the refusal of an unaccepted repoint, the refusal of an unrelated --accept-repoint key (else it degrades into --force), and a case asserting the REAL committed manifest and lock agree - the case that would catch the artefacts drifting while the fixtures stayed green (catalogue failure mode 4). The corpus is COUNTED, not typed, and the verdict list is read after every case is appended (catalogue failure mode 9). Annotations are suppressed over fixtures so a passing self-test puts no false ::error:: lines in the run summary. Plus 15 jest cases in tests/scripts/source-path-identity.test.js driving the script as a subprocess, including one asserting gen-test-paths does NOT touch the lock. MUTATION-PROVEN on the real tree, mutation confirmed applied and restore verified byte-exact: git mv src/modules/access/pipeline.ts + regenerate reddens this control naming both paths, while the pre-existing manifest guard for that key stays green.",
+      "added": "2026-08-17"
     }
   ]
 }
