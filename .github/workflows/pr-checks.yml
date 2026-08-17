@@ -263,6 +263,20 @@ jobs:
         # `kan_143_profile_items_visibility`, and one that collapsed too much
         # would MASK an unrebuildable migration while reporting green.
         run: python3 scripts/check-migration-ledger-parity.py --self-test
+      - name: Snapshot-regeneration checker self-test (CTL-071)
+        # SEC-151. Same split again: the LIVE run regenerates from three
+        # databases and lives in db-invariants.yml; the comparison is pure
+        # logic and must be proven to still fail here.
+        #
+        # What matters in these fixtures is the NORMALISATION. It collapses
+        # exactly one thing — trailing whitespace at end of file, because the
+        # CLI and the Supabase MCP generator disagree about the final newline
+        # and a control red on all three environments over a blank line is one
+        # somebody switches off. A normaliser that collapsed any more than
+        # that would hide real schema drift while reporting green, so the
+        # fixtures pin both directions: EOF whitespace is not drift, a blank
+        # line INSIDE the file is.
+        run: python3 scripts/check-snapshot-regeneration.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
