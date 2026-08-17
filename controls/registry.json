@@ -1053,6 +1053,24 @@
       "added": "2026-08-16"
     },
     {
+      "id": "CTL-068",
+      "name": "A recorded secret ABSENCE is still real",
+      "defect_class": "one-way-ledger-that-cannot-go-stale",
+      "summary": "Keeps .github/workflows/absent-secrets-probe.yml in lockstep with .github/absent-secrets.txt, giving that ledger the half it never had: something that notices when an absence STOPS being true. check-workflow-secret-refs.py (SEC-102) fails when a workflow names a secret in NEITHER ledger; it never asks the reverse question, so an entry saying 'this secret does not exist' passes forever once the secret is provisioned - a list you may only add to is a suppression list, not a ratchet. Proven live: SUPABASE_ACCESS_TOKEN sat in the absent ledger under ~20 lines asserting CTL-049 'fails LOUDLY every day' while db-invariants run 31932614624 shows its bare [ -z ] presence step PASSING and three projects' migration ledgers being read over the Management API. The cost was not the one wrong line - the prose was confident, detailed and false, so a reader triaging a red db-invariants run was pointed at the wrong job entirely (the real cause was ADMIN_CONTRACT_READ_TOKEN), a session repeated the stale nag to the founder as an outstanding action, and every spent entry diluted the ones still true. Two REJECTED mechanisms and why: `gh secret list` needs administration:read, the SAME scope BRANCH_PROTECTION_READ_TOKEN is blocked on and itself an entry in this ledger, so the control would depend on the gap it polices; and ${{ secrets[NAME] }} cannot be indexed dynamically in workflow YAML, so a loop over the ledger is inexpressible. Hence a GENERATED probe with one literal `secrets.X != ''` per entry, needing no new credential because a workflow can always read its own repository's secrets context. No secret VALUE is ever read, logged or compared - only the boolean. Split by what each half can know: this script runs per-PR and catches ledger/probe DRIFT (a diff fact), while the probe runs weekly and catches an absence that has ENDED (a state-of-the-world fact no pull request can change). Secret names are validated against [A-Z][A-Z0-9_]* before interpolation, so a name carrying }} cannot rewrite the workflow around it.",
+      "implementation": "scripts/check-absent-secret-probe.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/absent-secrets-probe.yml"
+      ],
+      "prevents": [
+        "SEC-158"
+      ],
+      "escape_hatch": "None, and none is needed - the fix for a red probe is to move the secret to known-secrets.txt and regenerate, which is a two-line change. Deleting a probe step is not an escape: the step is regenerated from the ledger and this script fails the PR if the two drift.",
+      "self_test": "14 cases via --self-test, including both ratchet directions (an uncovered ledger entry fails, AND a probe step whose entry was resolved fails as stale), an empty ledger rendering validly rather than crashing, four injection attempts rejected at the name boundary, duplicate coverage, and a case asserting the REAL ledger and probe agree - the case that would have caught SEC-158 itself. Corpus FLOOR rather than a passed-of-total tally, and the verdict list is read AFTER every case is appended (catalogue failure mode 9). Plus jest cases in tests/scripts/absent-secret-probe.test.js driving the script as a subprocess.",
+      "added": "2026-08-17"
+    },
+    {
       "id": "CTL-059",
       "name": "A CI finding describes the failure it actually had",
       "defect_class": "annotation-misdescribes-the-failure",

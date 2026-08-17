@@ -68,6 +68,11 @@
     "claim."
   ],
   "exceptions": {
+    ".github/workflows/absent-secrets-probe.yml": {
+      "key": "SEC-158",
+      "reason": "NOT YET REGISTERED — the second kind of entry described above. Added 2026-08-17 in the same change that creates the workflow; GitHub does not index a schedule trigger until the file reaches the default branch, so CTL-042 would otherwise fail the very PR that puts it there. DELETE THIS LINE once it reaches `main` via the promote chain. ⚠️ Note deliberately NOT accompanied by a test asserting this entry exists — required-checks.yml had one, and on 2026-08-16 it deadlocked develop outright: keeping the exception failed CTL-042 on every PR while removing it failed that test, and there was no green state until a founder-signed-off assertion change. An entry that is short-lived by construction must not be pinned by anything.",
+      "expires_when": "absent-secrets-probe.yml is reported ACTIVE by the GitHub API"
+    },
     ".github/workflows/affiliate-link-smoke.yml": {
       "key": "BUGS-90",
       "reason": "Its last three scheduled runs FAILED before it went dark on 2026-06-16, so re-enabling it would put a known-red hourly job back on the board without fixing what it is reporting. Decided 2026-08-09 (Luisa): stay off until the failure is diagnosed. Re-enabling it is the fix; this exception is the placeholder, not the answer."
