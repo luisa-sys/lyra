@@ -6,7 +6,7 @@ import {
   manageableEnvironments,
   isDeployEnv,
   DEPLOY_ENVS,
-} from '@/lib/deploy-env';
+} from '@/modules/platform/deploy-env';
 
 function envOf(overrides: Record<string, string | undefined>): NodeJS.ProcessEnv {
   return overrides as NodeJS.ProcessEnv;

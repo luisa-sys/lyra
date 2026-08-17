@@ -46,33 +46,33 @@ SRC = os.path.join(ROOT, "src")
 # ---------------------------------------------------------------------------
 MODULE_RULES = [
     # --- Layer 0: platform (leaf kernel) ---
-    ("src/lib/supabase-browser.ts", "platform"),
-    ("src/lib/supabase-server.ts", "platform"),
-    ("src/lib/supabase-service.ts", "platform"),
-    ("src/lib/env.ts", "platform"),
-    ("src/lib/deploy-env.ts", "platform"),
-    ("src/lib/cookie-domain.ts", "platform"),
+    ("src/modules/platform/supabase-browser.ts", "platform"),
+    ("src/modules/platform/supabase-server.ts", "platform"),
+    ("src/modules/platform/supabase-service.ts", "platform"),
+    ("src/modules/platform/env.ts", "platform"),
+    ("src/modules/platform/deploy-env.ts", "platform"),
+    ("src/modules/platform/cookie-domain.ts", "platform"),
     # --- Layer 0: contracts (pure rule-sets; zero deps, zero I/O; plan §3 P5) ---
     # DERIVED, flagged for founder confirmation: the `audit` module (layer 1)
     # cannot legally import a layer-3 module, so the pure moderation rules it
     # depends on must sit at layer 0. Both files are import-free / I/O-free and
     # plan §3 P5 lists "content moderation" among the six contracts rule-sets;
     # KAN-416 comment 2026-07-27 settled this as option (a).
-    ("src/lib/content-moderation.ts", "contracts"),
-    ("src/lib/moderation-policy.ts", "contracts"),
+    ("src/modules/contracts/content-moderation.ts", "contracts"),
+    ("src/modules/contracts/moderation-policy.ts", "contracts"),
     # --- Layer 0: guards (request/output guarding utilities) JUDGEMENT ---
-    ("src/lib/rate-limit.ts", "guards"),
-    ("src/lib/rate-limit-shared.ts", "guards"),
-    ("src/lib/profile-rate-limit.ts", "guards"),
-    ("src/lib/turnstile.ts", "guards"),
-    ("src/lib/sanitise.ts", "guards"),
-    ("src/lib/file-magic-bytes.ts", "guards"),
-    ("src/lib/security-headers.ts", "guards"),
-    ("src/lib/cf-access.ts", "guards"),
-    ("src/lib/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
+    ("src/modules/guards/rate-limit.ts", "guards"),
+    ("src/modules/guards/rate-limit-shared.ts", "guards"),
+    ("src/modules/guards/profile-rate-limit.ts", "guards"),
+    ("src/modules/guards/turnstile.ts", "guards"),
+    ("src/modules/guards/sanitise.ts", "guards"),
+    ("src/modules/guards/file-magic-bytes.ts", "guards"),
+    ("src/modules/guards/security-headers.ts", "guards"),
+    ("src/modules/guards/cf-access.ts", "guards"),
+    ("src/modules/guards/json-ld.ts", "guards"),  # JUDGEMENT: output-encoding defence (SEC-08)
     # --- Layer 0: observability ---
-    ("src/lib/metrics.ts", "observability"),
-    ("src/lib/sentry-scrub.ts", "observability"),
+    ("src/modules/observability/metrics.ts", "observability"),
+    ("src/modules/observability/sentry-scrub.ts", "observability"),
     ("src/app/api/health/", "observability"),
     ("src/app/status/", "observability"),  # JUDGEMENT: live-probe status page (SEC-4)
     # --- Layer 0: ui-kit (to be BUILT; today exactly one file) ---
@@ -81,11 +81,11 @@ MODULE_RULES = [
     # Resolves the moderation write-path deadlock: trust-safety cannot drop to
     # layer 1 (it also owns api/reports + retention routes) and the writer
     # cannot go in guards (guards must stay edge-safe).
-    ("src/lib/moderation-audit.ts", "audit"),
+    ("src/modules/audit/moderation-audit.ts", "audit"),
     # --- Layer 2: access core ---
-    ("src/lib/beta-access/", "access"),
-    ("src/lib/account-status.ts", "access"),
-    ("src/lib/access-model/", "access"),  # computeAccessTransition, moved out of the admin tree (plan §3 A1)
+    ("src/modules/access/beta-access/", "access"),
+    ("src/modules/access/account-status.ts", "access"),
+    ("src/modules/access/access-model/", "access"),  # computeAccessTransition, moved out of the admin tree (plan §3 A1)
     ("src/app/waitlist/", "access"),      # FOUNDER-RULED (manifest over plan D2)
     ("src/app/suspended/", "access"),     # FOUNDER-RULED (manifest over plan D11)
     ("src/app/join/", "access"),          # FOUNDER-RULED (manifest over plan D2)
@@ -96,34 +96,34 @@ MODULE_RULES = [
     ("src/app/confirm-age/", "age"),
     ("src/app/api/age/", "age"),
     # --- Layer 2: domains ---
-    ("src/lib/oauth/", "oauth-as"),
+    ("src/modules/oauth-as/lib/", "oauth-as"),
     ("src/app/oauth/", "oauth-as"),
     ("src/app/api/well-known/", "oauth-as"),
     ("src/app/(auth)/", "auth"),
     ("src/app/auth/", "auth"),
     ("src/lib/auth/", "auth"),
     ("src/app/dashboard/profile/", "profile"),
-    ("src/lib/geo/", "profile"),  # JUDGEMENT: postcode->city for profile location (KAN-341)
+    ("src/modules/profile/geo/", "profile"),  # JUDGEMENT: postcode->city for profile location (KAN-341)
     ("src/app/[slug]/", "public-profile"),
     ("src/app/search/", "public-profile"),  # JUDGEMENT: public profile search
     ("src/app/dashboard/page.tsx", "dashboard"),
     ("src/app/dashboard/share-beta.tsx", "dashboard"),
     ("src/app/dashboard/share-profile.tsx", "dashboard"),
     ("src/app/dashboard/widgets/", "dashboard"),
-    ("src/lib/dashboard/", "dashboard"),
-    ("src/lib/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
+    ("src/modules/dashboard/", "dashboard"),
+    ("src/modules/dashboard/invite-text.ts", "dashboard"),  # JUDGEMENT: consumed by dashboard page + share button
     ("src/app/dashboard/settings/", "account"),
-    ("src/lib/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
+    ("src/modules/account/retention/", "account"),      # FOUNDER-RULED (plan D6 over manifest); per-module retentionSweep() delegation
     ("src/app/api/retention/", "account"),  # FOUNDER-RULED (plan D6 over manifest)
     ("src/lib/recommend/convene/", "convene"),  # FOUNDER-RULED (plan D7 over manifest); KAN-353 turns on this
     ("src/lib/convene/", "convene"),
     ("src/app/dashboard/convene/", "convene"),
     ("src/app/api/convene/", "convene"),
     ("src/app/r/", "convene"),  # public RSVP page (KAN-209 P5)
-    ("src/lib/recommend/", "recommendations"),
-    ("src/lib/recommender/", "recommendations"),
+    ("src/modules/recommendations/recommend/", "recommendations"),
+    ("src/modules/recommendations/recommender/", "recommendations"),
     ("src/app/api/recommendations/", "recommendations"),  # FOUNDER-RULED (manifest over plan D4)
-    ("src/lib/affiliate/", "affiliate"),
+    ("src/modules/affiliate/", "affiliate"),
     ("src/app/api/reports/", "trust-safety"),
     ("src/app/(legal)/", "marketing-legal"),
     ("src/app/_marketing/", "marketing-legal"),
@@ -144,11 +144,11 @@ MODULE_RULES = [
     ("src/app/service-worker-register.tsx", "marketing-legal"),
     # --- Layer 3: leaf consumer ---
     ("src/app/admin/", "admin"),
-    ("src/lib/admin.ts", "admin"),
+    ("src/modules/admin/admin.ts", "admin"),
 ]
 
 # 21 modules: the plan's 20 + `audit` (founder-approved, KAN-416 R1b).
-# `contracts` seeds from src/lib/content-moderation.ts + moderation-policy.ts
+# `contracts` seeds from src/modules/contracts/content-moderation.ts + moderation-policy.ts
 # (both already import-free and I/O-free) before being published (KAN-415/418).
 ALL_MODULES = [
     "platform", "contracts",
@@ -460,11 +460,11 @@ CHANGE_PROCESS = {
 DECLARED_API = {
     "audit": [
         {"symbol": "recordModerationFlag", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
         {"symbol": "logModerationAction", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
         {"symbol": "auditedMutation", "status": "declared",
-         "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"},
+         "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"},
     ],
 }
 
@@ -870,7 +870,7 @@ def main():
         key=lambda r: (-r["sites"], r["column"], r["accessor"]))
 
     # service-role privilege register
-    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/lib/supabase-service.ts"})
+    service_files = sorted({e["src"] for e in edges if e["dst"] == "src/modules/platform/supabase-service.ts"})
     service_mods = defaultdict(list)
     for f in service_files:
         service_mods[file_mod[f]].append(f)

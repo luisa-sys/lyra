@@ -1,0 +1,56 @@
+{
+  "$comment": "KAN-414 F6 — the KNOWN, TICKETED schema drift between the three Supabase projects, as measured 2026-08-16 (originally 2026-07-29). Enforced by scripts/check-schema-type-parity.py in pr-checks.yml (CTL-036). This list is SHRINK-ONLY: new drift fails the build, and so does an entry that has stopped drifting, because a baseline that may only grow is a suppression list rather than a ratchet. Closing these is F7's job.",
+  "measured_at": "2026-08-16",
+  "measured_against": {
+    "dev": "ilprytcrnqyrsbsrfujj",
+    "staging": "uobmlkzrjkptwhttzmmi",
+    "prod": "llzkgprqewuwkiwclowi"
+  },
+  "drift": {
+    "dev_vs_staging": {
+      "only_in_first": [],
+      "only_in_second": [
+        {
+          "line": "column:gathering_invite_messages.claimed_at",
+          "ticket": "BUGS-62",
+          "note": "DEV is behind, not ahead. The migration is in git and applied on staging and prod but never on dev — promotion ran backwards past its own first environment. Harmless to users; alarming as a process signal, which is why F7's monotonicity check exists."
+        }
+      ]
+    },
+    "staging_vs_prod": {
+      "only_in_first": [
+        {
+          "line": "column:profiles.discoverable_by_phone",
+          "ticket": "SEC-107",
+          "note": "KAN-153 never shipped to prod. INTENTIONAL — see SEC-80: phone/postcode discovery is a guarded no-op on production. Do not blind-apply."
+        },
+        {
+          "line": "column:profiles.discoverable_by_postcode",
+          "ticket": "SEC-107",
+          "note": "KAN-153, as above."
+        },
+        {
+          "line": "column:profiles.phone_search_hash",
+          "ticket": "SEC-107",
+          "note": "KAN-153, as above."
+        },
+        {
+          "line": "column:profiles.postcode_search_hash",
+          "ticket": "SEC-107",
+          "note": "KAN-153, as above."
+        },
+        {
+          "line": "function:search_by_contact_hash",
+          "ticket": "SEC-110",
+          "note": "ABSENT FROM PROD ENTIRELY — verified 2026-07-29 by pg_proc catalogue query across all schemas, correcting KAN-420 §1.2 which recorded it as present-but-erroring. Consequence: the phone-number membership oracle is reachable on dev and staging, and NOT on prod. SEC-110 Option A would therefore create it on production for the first time, so its enumeration-risk review is a pre-deployment control."
+        },
+        {
+          "line": "function:e2e_fix_auth_tokens",
+          "ticket": "SEC-107",
+          "note": "Test-support function for the auth.users NULL-token GoTrue-500 fix. Correctly absent from production; it should never be applied there."
+        }
+      ],
+      "only_in_second": []
+    }
+  }
+}

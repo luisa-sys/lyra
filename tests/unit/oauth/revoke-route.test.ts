@@ -12,16 +12,17 @@ import path from 'path';
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 // Mock the DB-touching modules.
-jest.mock('@/lib/oauth/refresh', () => ({
+jest.mock('@/modules/oauth-as/lib/refresh', () => ({
   getRefreshToken: jest.fn(async () => null),
   revokeFamily: jest.fn(async () => undefined),
 }));
-jest.mock('@/lib/oauth/access-tokens', () => ({
+jest.mock('@/modules/oauth-as/lib/access-tokens', () => ({
   getAccessTokenJti: jest.fn(async () => null),
   revokeAccessTokenJti: jest.fn(async () => undefined),
 }));
 
 import { POST } from '@/app/oauth/revoke/route';
+import { SRC } from '../../support/source-paths';
 
 function form(body: Record<string, string>): Request {
   return new Request('https://dev.checklyra.com/oauth/revoke', {
@@ -86,7 +87,7 @@ describe('POST /oauth/revoke (KAN-88 P6, RFC 7009)', () => {
 });
 
 describe('revoke route source structure (KAN-88 P6)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/app/oauth/revoke/route.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.revokeRoute), 'utf8');
 
   test('calls revokeFamily for refresh tokens (not just markUsed)', () => {
     expect(src).toMatch(/revokeFamily\(/);

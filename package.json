@@ -1,6 +1,6 @@
 {
   "name": "lyra",
-  "version": "0.1.37",
+  "version": "0.1.94",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,16 +15,22 @@
     "test:scripts": "npx jest --testPathPatterns=tests/scripts",
     "depcruise": "bash scripts/check-dependency-rules.sh",
     "db:migrate": "echo 'No migrations configured yet'",
-    "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js"
+    "uptimerobot:bootstrap": "node scripts/uptimerobot/bootstrap.js",
+    "gen:test-paths": "node scripts/gen-test-paths.mjs",
+    "gen:test-floor": "node scripts/gen-test-floor.mjs",
+    "gen:db-types": "bash scripts/gen-db-types.sh",
+    "qa:preflight": "python3 qa-sweep/preflight.py",
+    "qa:inventory": "python3 qa-sweep/inventory.py",
+    "qa:coverage": "python3 qa-sweep/coverage.py"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.68.0",
-    "@supabase/ssr": "^0.12.3",
+    "@sentry/nextjs": "^10.69.0",
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.9",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
-    "next": "16.2.12",
+    "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -35,7 +41,7 @@
     "@swc/core": "^1.15.46",
     "@swc/jest": "^0.2.39",
     "@tailwindcss/postcss": "^4.3.3",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^26",
@@ -52,14 +58,22 @@
   },
   "overrides": {
     "postcss": "^8.5.18",
+    "nanoid": "^3.3.17",
     "tmp": "^0.2.7",
-    "brace-expansion": "5.0.8",
-    "@eslint/config-array": { "minimatch": "^10.2.5" },
-    "@eslint/eslintrc": { "minimatch": "^10.2.5" },
-    "eslint": { "minimatch": "^10.2.5" },
-    "js-yaml@^3.0.0": "3.15.0",
-    "js-yaml@^4.0.0": "4.3.0",
-    "fast-uri@^3.0.0": "3.1.4",
-    "sharp": "0.35.3"
+    "brace-expansion": "5.0.9",
+    "@eslint/config-array": {
+      "minimatch": "^10.2.5"
+    },
+    "@eslint/eslintrc": {
+      "minimatch": "^10.2.5"
+    },
+    "eslint": {
+      "minimatch": "^10.2.5"
+    },
+    "js-yaml": "5.2.3",
+    "fast-uri@^3.0.0": "3.1.5",
+    "sharp": "0.35.3",
+    "ip-address": "^10.4.0",
+    "@puppeteer/browsers": "^3.2.0"
   }
 }

@@ -15,7 +15,7 @@ import {
   normaliseDeliveryCountry,
   isIsoAlpha2,
   type SupportedDeliveryCountry,
-} from '@/lib/affiliate/country-codes';
+} from '@/modules/profile/country-codes';
 
 describe('KAN-186 delivery country — SUPPORTED_DELIVERY_COUNTRIES', () => {
   test('includes GB as the primary market', () => {

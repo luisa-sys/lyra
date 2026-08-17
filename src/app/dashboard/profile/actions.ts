@@ -1,22 +1,25 @@
 'use server';
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, sanitiseUrl, type ActionResult } from '@/lib/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { sanitiseText, sanitiseUrl, type ActionResult } from '@/modules/guards/sanitise';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import type { WizardItem } from './steps/types';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
-import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/lib/age/provider-gate';
-import { isAllowedProfileField } from './profile-fields';
-import { coerceVisibility } from './visibility';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
+import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/modules/age/provider-gate';
+import { isAllowedProfileField } from '@/modules/profile/profile-fields';
+import { coerceVisibility } from '@/modules/profile/visibility';
 import { coerceAffiliationType, requiresPostcode, isSchoolPostcodeValid } from './affiliation-fields';
 import {
   coerceSectionVisibility,
   isControllableSectionKey,
   type SectionVisibility,
-} from './section-visibility';
-import { preflightUpload } from '@/lib/file-magic-bytes';
+} from '@/modules/profile/section-visibility';
+import { preflightUpload } from '@/modules/guards/file-magic-bytes';
+import { MAX_SUGGESTION_KEY_LENGTH } from '@/modules/recommendations/recommend/dismissals';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -113,27 +116,18 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     return { success: true };
   }
 
-  // KAN-408: `is_published` is allow-listed, so this is a second publish path.
-  // Apply the same provider age gate as publishProfile() when the environment's
-  // `age_verification` switch is ON, so it can't be bypassed. (Un-publishing —
-  // is_published=false — is always allowed.)
-  if (sanitised.is_published === true && (await isProviderAgeCheckActive())) {
-    const { data: ageRow } = await supabase
-      .from('profiles')
-      .select('age_status')
-      .eq('user_id', user!.id)
-      .maybeSingle();
-    if (!passedProviderAgeCheck((ageRow as { age_status?: string } | null)?.age_status)) {
-      return { success: false, error: AGE_GATE_BLOCK_MESSAGE };
-    }
-  }
+  // KAN-415 D-6: the duplicated KAN-408 age gate that used to sit here is gone,
+  // along with the reason for it. `is_published` is no longer allow-listed, so
+  // this action cannot publish and is no longer a second publish path — see the
+  // note in the profile module's profile-fields.ts. `publishProfile()` below is
+  // the only publish entry point and carries the gate.
 
   const { error } = await supabase
     .from('profiles')
     .update(sanitised)
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-fields', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -144,6 +138,9 @@ export async function addProfileItem(data: {
   description?: string;
   url?: string;
   visibility?: string;
+  // KAN-444 — the member's own heading for a custom favourites group. Public
+  // text, so it is sanitised and moderated exactly like a title.
+  groupLabel?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -200,6 +197,30 @@ export async function addProfileItem(data: {
     if (!descMod.ok) return { success: false, error: descMod.error };
   }
 
+  // KAN-444 — a member-named favourites group. The heading is shown on the
+  // public profile, so it goes through the same sanitise + moderation path
+  // as the item's own text rather than straight into the row.
+  const sanitisedGroupLabel = data.groupLabel && data.groupLabel.trim() !== ''
+    ? sanitiseText(data.groupLabel, 60)
+    : null;
+  if (sanitisedGroupLabel) {
+    const groupMod = await moderateAndAudit(supabase, {
+      text: sanitisedGroupLabel,
+      fieldType: 'public',
+      field: 'profile_items.group_label',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!groupMod.ok) return { success: false, error: groupMod.error };
+  }
+
+  // Only send group_label when there is one. PostgREST builds the INSERT
+  // column list from the payload keys, so an unknown key fails the WHOLE
+  // request with PGRST204 even when the value is null — which would break
+  // every add path here (9 editor sections + 6 legacy wizard steps) on any
+  // environment where 20260803114500_favourites_custom_group.sql has not run
+  // yet. Omitting the key keeps existing adds byte-identical to before, so
+  // only the new add-your-own path depends on the new column.
   const { error } = await supabase
     .from('profile_items')
     .insert({
@@ -209,9 +230,10 @@ export async function addProfileItem(data: {
       description: sanitisedDesc,
       url: sanitisedUrl,
       visibility,
+      ...(sanitisedGroupLabel ? { group_label: sanitisedGroupLabel } : {}),
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-profile-item', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -241,7 +263,7 @@ export async function updateProfileItemVisibility(
     .eq('id', itemId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-item-visibility', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -351,7 +373,7 @@ export async function updateProfileItem(
     .select('id, category, title, description, url, visibility')
     .single();
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-profile-item', error) };
   if (!row) return { success: false, error: 'Item not found' };
   revalidatePath('/dashboard/profile');
   return { success: true, item: row as WizardItem };
@@ -371,7 +393,85 @@ export async function removeProfileItem(itemId: string): Promise<ActionResult> {
     .eq('id', itemId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-profile-item', error) };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-443 — "not for me": hide one auto-generated gift suggestion.
+ *
+ * Until now a member could add and remove their OWN gift ideas but could do
+ * nothing at all about the ones Lyra generates for them — a suggestion that
+ * misread them sat on their public profile permanently. This is the smallest
+ * honest answer: one row saying "not this one", and it stays gone.
+ *
+ * `suggestionKey` identifies a CONCEPT, not a product — see
+ * `src/modules/recommendations/recommend/dismissals.ts` for why. It is machine-generated by the
+ * caller, never typed by a member, so it is sanitised and length-capped here
+ * purely as defence in depth: a server action is a public endpoint and the
+ * argument is whatever the client sends.
+ *
+ * Same shape as the neighbouring writes: authenticate, rate-limit (KAN-231),
+ * then owner-scope by profile_id in code as well as by RLS (KAN-260).
+ */
+export async function dismissGiftSuggestion(suggestionKey: string): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting. A dismissal is a user-driven write,
+  // and it is the one write here that a script could issue in a tight loop, so
+  // this also caps how many rows one member can accumulate.
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const key = sanitiseText(suggestionKey, MAX_SUGGESTION_KEY_LENGTH);
+  if (key === '') return { success: false, error: 'Nothing to hide' };
+
+  // Dismissing something already dismissed is a no-op, not an error — the
+  // member may have two tabs open, or double-clicked. `ignoreDuplicates` makes
+  // the write idempotent rather than returning a primary-key violation.
+  const { error } = await supabase
+    .from('gift_suggestion_dismissals')
+    .upsert(
+      { profile_id: profile.id, suggestion_key: key },
+      { onConflict: 'profile_id,suggestion_key', ignoreDuplicates: true },
+    );
+
+  if (error) return { success: false, error: dbErrorFor('dismiss-gift-suggestion', error) };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-443 — undo a dismissal, so "not for me" is not a one-way door.
+ *
+ * Scoped by profile_id AND suggestion_key so the delete can only ever remove
+ * the caller's own row, even if a DB policy were misconfigured (KAN-260).
+ */
+export async function restoreGiftSuggestion(suggestionKey: string): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const key = sanitiseText(suggestionKey, MAX_SUGGESTION_KEY_LENGTH);
+  if (key === '') return { success: false, error: 'Nothing to bring back' };
+
+  const { error } = await supabase
+    .from('gift_suggestion_dismissals')
+    .delete()
+    .eq('profile_id', profile.id)
+    .eq('suggestion_key', key);
+
+  if (error) return { success: false, error: dbErrorFor('restore-gift-suggestion', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -379,6 +479,12 @@ export async function removeProfileItem(itemId: string): Promise<ActionResult> {
 export async function addSchoolAffiliation(data: {
   school_name: string;
   school_location?: string;
+  // KAN-451: a short note added at the same time as the affiliation
+  // ("Year 2 teacher"). Optional; the edit path (updateSchoolAffiliation)
+  // has carried it since KAN-448 and gets identical sanitise + moderation
+  // treatment here, so a member cannot use the add path to write something
+  // the edit path would refuse.
+  description?: string;
   relationship?: string;
   // KAN-220: one of school|organisation|community. Defaults to 'school'
   // for backward compat with pre-KAN-220 callers; coerced on write so
@@ -415,6 +521,10 @@ export async function addSchoolAffiliation(data: {
   const sanitisedLoc = data.school_location
     ? sanitiseText(data.school_location, 200)
     : null;
+  // KAN-451 — same 200-char cap and empty-means-NULL rule as the edit path.
+  const sanitisedDesc = data.description && data.description.trim() !== ''
+    ? sanitiseText(data.description, 200)
+    : null;
   const nameMod = await moderateAndAudit(supabase, {
     text: sanitisedName,
     fieldType: 'public',
@@ -433,6 +543,16 @@ export async function addSchoolAffiliation(data: {
     });
     if (!locMod.ok) return { success: false, error: locMod.error };
   }
+  if (sanitisedDesc) {
+    const descMod = await moderateAndAudit(supabase, {
+      text: sanitisedDesc,
+      fieldType: 'public',
+      field: 'school_affiliations.description',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!descMod.ok) return { success: false, error: descMod.error };
+  }
 
   const { error } = await supabase
     .from('school_affiliations')
@@ -440,11 +560,134 @@ export async function addSchoolAffiliation(data: {
       profile_id: profile.id,
       school_name: sanitisedName,
       school_location: sanitisedLoc,
+      description: sanitisedDesc,
       relationship: data.relationship || 'parent',
       affiliation_type: affiliationType,
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-school-affiliation', error) };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-448 — edit an existing affiliation's name / location / description.
+ * Mirrors `addSchoolAffiliation` for sanitise + moderation and the KAN-404
+ * postcode rule, and `updateProfileItem` for the partial-update shape: only
+ * the fields the caller passes are written, so an omitted field keeps its
+ * stored value (BUGS-74). `affiliation_type` is deliberately NOT editable
+ * here — the row's stored type is what decides whether a postcode is required.
+ *
+ * KAN-451's schools picker will reuse this action and supplies a school
+ * description and location alongside the name, so the signature already
+ * carries both and won't need changing.
+ */
+export async function updateSchoolAffiliation(
+  affiliationId: string,
+  data: { school_name?: string; school_location?: string; description?: string },
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (edits are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  // KAN-260 — belt-and-braces ownership: scope both the read and the write to
+  // the caller's own profile in code, not by RLS alone.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const { data: current } = await supabase
+    .from('school_affiliations')
+    .select('affiliation_type')
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id)
+    .maybeSingle();
+
+  if (!current) return { success: false, error: 'Affiliation not found' };
+
+  // KAN-404 — a school must still carry a postcode after an edit, so a member
+  // can't clear it by editing. Only checked when the caller is actually
+  // changing the location; the stored type decides, not a caller-supplied one.
+  const affiliationType = coerceAffiliationType(
+    (current as { affiliation_type?: string }).affiliation_type,
+  );
+  if (
+    data.school_location !== undefined
+    && requiresPostcode(affiliationType)
+    && !isSchoolPostcodeValid(data.school_location)
+  ) {
+    return {
+      success: false,
+      error: 'Schools need a postcode (full or partial) so people can tell schools with the same name apart.',
+    };
+  }
+
+  const updates: Record<string, string | null> = {};
+
+  if (data.school_name !== undefined) {
+    const sanitisedName = sanitiseText(data.school_name, 200);
+    if (sanitisedName.trim() === '') {
+      return { success: false, error: 'Name cannot be empty' };
+    }
+    const nameMod = await moderateAndAudit(supabase, {
+      text: sanitisedName,
+      fieldType: 'public',
+      field: 'school_affiliations.school_name',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!nameMod.ok) return { success: false, error: nameMod.error };
+    updates.school_name = sanitisedName;
+  }
+
+  if (data.school_location !== undefined) {
+    // Empty string clears the location to NULL (mirrors the add path, where an
+    // absent location is inserted as NULL).
+    const sanitisedLoc = data.school_location.trim() !== ''
+      ? sanitiseText(data.school_location, 200)
+      : null;
+    if (sanitisedLoc) {
+      const locMod = await moderateAndAudit(supabase, {
+        text: sanitisedLoc,
+        fieldType: 'public',
+        field: 'school_affiliations.school_location',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!locMod.ok) return { success: false, error: locMod.error };
+    }
+    updates.school_location = sanitisedLoc;
+  }
+
+  if (data.description !== undefined) {
+    const sanitisedDesc = data.description.trim() !== ''
+      ? sanitiseText(data.description, 200)
+      : null;
+    if (sanitisedDesc) {
+      const descMod = await moderateAndAudit(supabase, {
+        text: sanitisedDesc,
+        fieldType: 'public',
+        field: 'school_affiliations.description',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!descMod.ok) return { success: false, error: descMod.error };
+    }
+    updates.description = sanitisedDesc;
+  }
+
+  // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
+  if (Object.keys(updates).length === 0) return { success: true };
+
+  const { error } = await supabase
+    .from('school_affiliations')
+    .update(updates)
+    .eq('id', affiliationId)
+    .eq('profile_id', profile.id);
+
+  if (error) return { success: false, error: dbErrorFor('update-school-affiliation', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -463,7 +706,7 @@ export async function removeSchoolAffiliation(affiliationId: string): Promise<Ac
     .eq('id', affiliationId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-school-affiliation', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -487,7 +730,7 @@ export async function updateAffiliationVisibility(
     .eq('id', affiliationId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-affiliation-visibility', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -496,6 +739,9 @@ export async function addExternalLink(data: {
   title: string;
   url: string;
   link_type?: string;
+  // KAN-447 — `external_links.description` has existed since the first schema
+  // migration but nothing ever wrote it. Optional; absent or empty → NULL.
+  description?: string;
 }): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -523,6 +769,21 @@ export async function addExternalLink(data: {
   });
   if (!linkTitleMod.ok) return { success: false, error: linkTitleMod.error };
 
+  // KAN-447 — the optional one-line description shown next to the title.
+  const sanitisedDesc = data.description && data.description.trim() !== ''
+    ? sanitiseText(data.description, 200)
+    : null;
+  if (sanitisedDesc) {
+    const descMod = await moderateAndAudit(supabase, {
+      text: sanitisedDesc,
+      fieldType: 'public',
+      field: 'external_links.description',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!descMod.ok) return { success: false, error: descMod.error };
+  }
+
   const { error } = await supabase
     .from('external_links')
     .insert({
@@ -530,9 +791,90 @@ export async function addExternalLink(data: {
       title: sanitisedLinkTitle,
       url: sanitisedUrl,
       link_type: data.link_type || 'general',
+      description: sanitisedDesc,
     });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('add-external-link', error) };
+  revalidatePath('/dashboard/profile');
+  return { success: true };
+}
+
+/**
+ * KAN-447 — edit an existing link's title / description / url. Mirrors
+ * `addExternalLink` for sanitise + moderation and `updateProfileItem` for the
+ * partial-update shape: only the fields the caller passes are written, and an
+ * empty description clears it to NULL so a member can remove a description via
+ * edit, not only replace it. The URL is required on a link, so an empty one is
+ * an error rather than a clear. `link_type` is intentionally NOT editable here
+ * (text-only edit — changing the type is a separate concern).
+ */
+export async function updateExternalLink(
+  linkId: string,
+  data: { title?: string; url?: string; description?: string },
+): Promise<ActionResult> {
+  const { user, supabase, error: authError } = await getAuthenticatedUser();
+  if (authError) return { success: false, error: authError };
+
+  // KAN-231 — profile-save rate limiting (edits are user-driven writes too).
+  const rl = await checkProfileWriteRateLimit(user!.id);
+  if (!rl.allowed) return rl.result;
+
+  // KAN-260 — belt-and-braces ownership: scope the write to the caller's own
+  // profile in code, not by RLS alone.
+  const profile = await getUserProfile(supabase, user!.id);
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const updates: Record<string, string | null> = {};
+
+  if (data.title !== undefined) {
+    const sanitisedTitle = sanitiseText(data.title, 200);
+    if (sanitisedTitle.trim() === '') {
+      return { success: false, error: 'Title cannot be empty' };
+    }
+    const titleMod = await moderateAndAudit(supabase, {
+      text: sanitisedTitle,
+      fieldType: 'public',
+      field: 'external_links.title',
+      profileId: profile.id,
+      source: 'web_app',
+    });
+    if (!titleMod.ok) return { success: false, error: titleMod.error };
+    updates.title = sanitisedTitle;
+  }
+
+  if (data.description !== undefined) {
+    const sanitisedDesc = data.description.trim() !== ''
+      ? sanitiseText(data.description, 200)
+      : null;
+    if (sanitisedDesc) {
+      const descMod = await moderateAndAudit(supabase, {
+        text: sanitisedDesc,
+        fieldType: 'public',
+        field: 'external_links.description',
+        profileId: profile.id,
+        source: 'web_app',
+      });
+      if (!descMod.ok) return { success: false, error: descMod.error };
+    }
+    updates.description = sanitisedDesc;
+  }
+
+  if (data.url !== undefined) {
+    const cleaned = sanitiseUrl(data.url);
+    if (!cleaned) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+    updates.url = cleaned;
+  }
+
+  // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
+  if (Object.keys(updates).length === 0) return { success: true };
+
+  const { error } = await supabase
+    .from('external_links')
+    .update(updates)
+    .eq('id', linkId)
+    .eq('profile_id', profile.id);
+
+  if (error) return { success: false, error: dbErrorFor('update-external-link', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -551,7 +893,7 @@ export async function removeExternalLink(linkId: string): Promise<ActionResult> 
     .eq('id', linkId)
     .eq('profile_id', profile.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('remove-external-link', error) };
   revalidatePath('/dashboard/profile');
   return { success: true };
 }
@@ -609,7 +951,7 @@ export async function updateSectionVisibility(
     .update({ section_visibility: nextSV })
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-section-visibility', error) };
   revalidatePath('/dashboard/profile');
   // Also revalidate the public profile path so the change shows up
   // immediately on the next visit.
@@ -621,6 +963,45 @@ export async function updateSectionVisibility(
   return { success: true };
 }
 
+/**
+ * The ONE user-facing entry point that publishes a profile (KAN-415 D-6).
+ *
+ * ⚠️ SEC-112 — WHY THE WRITE USES THE SERVICE-ROLE CLIENT.
+ *
+ * This function is the KAN-408 provider age gate. Until SEC-112 the gate was
+ * trivially bypassable: `authenticated` holds a table-level UPDATE grant on
+ * `public.profiles`, the "Update own profile" RLS policy is
+ * `auth.uid() = user_id` with no WITH CHECK, and no trigger protected
+ * `is_published`. So a user could send
+ * `PATCH /rest/v1/profiles?user_id=eq.<own-uid>  {"is_published": true}`
+ * straight at PostgREST with their own session JWT and publish without ever
+ * reaching this code. The gate is inert today only because the
+ * `age_verification` switch has no row on any environment — it becomes
+ * silently ineffective the moment an admin turns it on, which on a service
+ * holding minors' data is the whole risk.
+ *
+ * The fix is a BEFORE UPDATE trigger that refuses any `is_published` change
+ * from a JWT-bearing caller (`profiles_block_is_published_self_set`). That
+ * trigger cannot distinguish the attack from the legitimate publish while both
+ * are the SAME credential — `createClient()` is the anon key carrying the end
+ * user's session JWT, so `auth.uid()` is the user in both cases. Hence this
+ * write moves to the service-role client, which has no `auth.uid()` and is a
+ * credential the browser never holds.
+ *
+ * The obvious alternative — evaluate the age gate inside the trigger, so the
+ * user credential could keep the write — does not work. The gate reads
+ * `global_feature_switches` filtered by `getDeployEnv()`, which is
+ * APPLICATION-side state: `beta` and `prod` are two environments sharing ONE
+ * Supabase project with two different switch rows, so a trigger has no way to
+ * know which one is asking. Passing the environment into an RPC just moves the
+ * lie to the caller. The gate can only be evaluated here, so the write has to
+ * be trusted here.
+ *
+ * Scoping is `.eq('user_id', user.id)` where `user.id` comes from
+ * `supabase.auth.getUser()` — a server-side validation of the JWT against the
+ * auth server, not a client-supplied value. That is the only thing standing in
+ * for RLS on this statement, so it must not be relaxed to a caller-supplied id.
+ */
 export async function publishProfile(): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
@@ -639,12 +1020,14 @@ export async function publishProfile(): Promise<ActionResult> {
     }
   }
 
-  const { error } = await supabase
+  // SEC-112: service-role, because the trigger blocks this write from any
+  // caller carrying a JWT. See the header above before changing this line.
+  const { error } = await createServiceRoleClient()
     .from('profiles')
     .update({ is_published: true, onboarding_complete: true })
     .eq('user_id', user!.id);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('publish-profile', error) };
   revalidatePath('/dashboard/profile');
   revalidatePath('/dashboard');
   return { success: true };

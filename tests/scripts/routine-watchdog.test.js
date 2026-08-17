@@ -1,6 +1,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/routine-watchdog.sh');
 
@@ -24,7 +25,7 @@ function run(args, now = SAT_NOON) {
   }
 }
 
-describe('scripts/routine-watchdog.sh', () => {
+describe(SRC.routineWatchdog, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 

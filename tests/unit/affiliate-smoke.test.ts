@@ -14,7 +14,7 @@ import {
   probeUrl,
   type ProbeOutcome,
   type FetchLike,
-} from '@/lib/affiliate/smoke';
+} from '@/modules/affiliate/smoke';
 
 // ── SMOKE_PROBES shape ─────────────────────────────────────────────────
 

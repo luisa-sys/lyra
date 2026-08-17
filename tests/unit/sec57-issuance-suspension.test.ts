@@ -30,7 +30,7 @@ jest.mock('next/navigation', () => ({
 const mockGetUser = jest.fn();
 const mockMaybeSingle = jest.fn();
 const mockInsert = jest.fn();
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: (...a: unknown[]) => mockGetUser(...a) },
     from: (table: string) => {
@@ -46,24 +46,24 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 // generateApiKey's module imports getAdminServiceClient (unused here).
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({}),
 }));
 
 // ── OAuth libs used by submitConsent. ──
 const mockGetOauthClient = jest.fn();
-jest.mock('@/lib/oauth/clients', () => ({
+jest.mock('@/modules/oauth-as/lib/clients', () => ({
   getOauthClient: (...a: unknown[]) => mockGetOauthClient(...a),
 }));
 const mockRecordConsent = jest.fn();
-jest.mock('@/lib/oauth/consents', () => ({
+jest.mock('@/modules/oauth-as/lib/consents', () => ({
   recordConsent: (...a: unknown[]) => mockRecordConsent(...a),
 }));
 const mockIssueAuthCode = jest.fn();
-jest.mock('@/lib/oauth/codes', () => ({
+jest.mock('@/modules/oauth-as/lib/codes', () => ({
   issueAuthCode: (...a: unknown[]) => mockIssueAuthCode(...a),
 }));
-jest.mock('@/lib/oauth/authorize', () => ({
+jest.mock('@/modules/oauth-as/lib/authorize', () => ({
   buildErrorRedirect: (uri: string, code: string) => `${uri}?error=${code}`,
   buildSuccessRedirect: (uri: string, code: string) => `${uri}?code=${code}`,
 }));
@@ -78,6 +78,7 @@ const VALID_CONSENT_INPUT = {
   state: 'xyz',
   code_challenge: 'abc123',
   code_challenge_method: 'S256' as const,
+  resource: 'https://mcp-dev.checklyra.com/mcp',
   decision: 'allow' as const,
 };
 
@@ -160,16 +161,11 @@ describe('SEC-57 submitConsent suspension gate', () => {
   });
 });
 
-// ── Defence-in-depth: consent-screen render guard (static pin) ──
-describe('SEC-57 authorize page render guard', () => {
-  const pageSrc = fs.readFileSync(
-    path.join(__dirname, '../../src/app/oauth/authorize/page.tsx'),
-    'utf8',
-  );
-
-  test('page render redirects a confirmed-suspended user to /suspended', () => {
-    expect(pageSrc).toContain('getAccountStanding');
-    expect(pageSrc).toMatch(/standing === 'suspended'/);
-    expect(pageSrc).toContain("redirect('/suspended')");
-  });
-});
+// The "SEC-57 authorize page render guard" block that sat here was a source-text
+// scan: it read page.tsx and asserted three substrings were present. All three
+// survive a widening of the condition to `standing !== 'ok'`, which would lock a
+// good-standing user out of OAuth on a transient lookup blip — so the scan could
+// not have caught the regression that matters most. Replaced by
+// tests/unit/oauth-authorize-suspension-guard.test.ts, which executes the page
+// and pins all three standing values ('suspended' redirects; 'ok' and 'unknown'
+// do not), each mutation-proven. (KAN-414 F4, KAN-417 §8 group 2.)

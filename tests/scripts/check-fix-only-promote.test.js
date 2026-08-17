@@ -2,9 +2,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.resolve(REPO_ROOT, 'scripts/check-fix-only-promote.sh');
+const SCRIPT = path.resolve(REPO_ROOT, SRC.checkFixOnlyPromote);
 
 // Build a throwaway git repo with a `main` branch and a `beta` branch whose
 // commits (ahead of main) are the supplied subjects, then run the guard over
@@ -58,7 +59,7 @@ function runOverHistory(mode, betaCommits) {
   }
 }
 
-describe('scripts/check-fix-only-promote.sh', () => {
+describe(SRC.checkFixOnlyPromote, () => {
   let source = '';
 
   beforeAll(() => {

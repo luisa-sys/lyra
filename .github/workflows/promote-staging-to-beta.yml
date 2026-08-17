@@ -17,9 +17,32 @@ on:
         description: 'Type "promote" to confirm'
         required: true
 
+# SEC-141: promotes must not run simultaneously.
+#
+# A single dispatch of promote-staging-to-beta produced TWO runs 63 seconds
+# apart on 2026-08-14 (cause unconfirmed; a client retry on a slow 204 is the
+# leading hypothesis). Each promote fetches, merges and pushes, so two in
+# flight can interleave in the lost-update window. That day it was harmless
+# only because someone noticed and cancelled one, which is not a control.
+#
+# ⚠️ cancel-in-progress MUST stay false. The reflexive `true` is actively
+# worse here: it would kill an in-flight promote MID-MERGE OR MID-PUSH, a
+# nastier failure than the race it prevents. With false the second run
+# queues, then finds the merge already done — a harmless no-op.
+#
+# Each workflow gets its OWN group. staging→beta and beta→main target
+# different branches and are independent; serialising them across workflows
+# would only make a release slower.
+concurrency:
+  group: promote-${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
-  actions: read
+  # `write` (was `read`) so this workflow can DISPATCH soak-journey against the
+  # staging ref when no soak exists for the SHA being promoted. See the
+  # "post-deploy soak" gate below for why that is necessary rather than nice.
+  actions: write
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -36,7 +59,7 @@ jobs:
     outputs:
       staging_sha: ${{ steps.check.outputs.staging_sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 1
           ref: staging
@@ -103,6 +126,109 @@ jobs:
           echo "::error::Could not verify staging CI for ${STAGING_SHA:0:8} after $MAX_ATTEMPTS attempts."
           exit 1
 
+      - name: Check the post-deploy soak passed for this SHA
+        # The staging CI check above proves the BUILD was good. It says nothing
+        # about whether the deployed app still works end to end — which is what
+        # staging is for. soak-journey.yml now fires automatically on every
+        # successful staging deploy, so by the time anyone promotes there is a
+        # soak result for this exact SHA to read.
+        #
+        # FAILS CLOSED, deliberately, in three directions:
+        #   * soak FAILED            -> refuse
+        #   * soak never ran for SHA -> refuse (not "assume fine")
+        #   * budget exhausted       -> refuse
+        # "No soak found" is the dangerous one. Treating absence as success is
+        # how a gate becomes decorative, and it is the exact SEC-79 shape this
+        # repo keeps re-learning. Someone who genuinely needs to promote without
+        # a soak can dispatch soak-journey manually and wait, or take the
+        # documented decision to bypass — but not silently.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STAGING_SHA="${{ steps.check.outputs.staging_sha }}"
+          echo "Looking for a soak result for ${STAGING_SHA:0:8}"
+
+          # ------------------------------------------------------------------
+          # 2026-08-09: this gate was UNSATISFIABLE exactly when it mattered.
+          #
+          # soak-journey fires on `schedule` and `workflow_run`, and GitHub runs
+          # BOTH of those from the DEFAULT branch — so every automatic soak run
+          # is attributed headSha = main's HEAD, never staging's. This gate
+          # matches on headSha == staging HEAD.
+          #
+          # The result is perverse rather than merely broken: those two SHAs are
+          # equal only when staging and main are already in sync, i.e. when
+          # there is nothing to promote. The moment staging advances — the only
+          # time anyone promotes — no matching soak can exist and the gate
+          # refuses forever. That is why staging sat 34 commits ahead of beta,
+          # with run 30741750933 failing on exactly this.
+          #
+          # Failing closed was RIGHT. What was wrong was leaving no way to
+          # satisfy it. So: if no soak exists for this SHA, dispatch one against
+          # the staging ref (which attributes headSha to staging HEAD) and then
+          # wait for it exactly as before. The gate keeps its teeth; it stops
+          # demanding something nothing could produce.
+          # ------------------------------------------------------------------
+          EXISTING=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow soak-journey.yml \
+            --limit 20 \
+            --json headSha \
+            --jq "[.[] | select(.headSha == \"$STAGING_SHA\")] | length")
+
+          if [ "$EXISTING" = "0" ]; then
+            echo "::notice::No soak-journey run exists for ${STAGING_SHA:0:8} — dispatching one against the staging ref."
+            gh workflow run soak-journey.yml \
+              --repo "${{ github.repository }}" \
+              --ref staging
+            # Let GitHub register the run before the poll loop starts, so the
+            # first attempt is not a guaranteed miss.
+            sleep 15
+          else
+            echo "Found $EXISTING existing soak-journey run(s) for ${STAGING_SHA:0:8}."
+          fi
+
+          # The soak takes ~5-10 min and starts only after deploy-staging
+          # finishes, so allow a generous budget. 40 x 20s = ~13 min.
+          MAX_ATTEMPTS=40
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            INFO=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --workflow soak-journey.yml \
+              --limit 20 \
+              --json status,conclusion,headSha,databaseId \
+              | python3 -c "
+          import json, sys
+          target = '$STAGING_SHA'
+          for r in json.load(sys.stdin):
+              if r['headSha'] == target:
+                  print(f\"{r['status']}|{r['conclusion'] or 'pending'}|{r['databaseId']}\")
+                  break
+          else:
+              print('NONE||')
+          ")
+            ST=$(echo "$INFO" | cut -d'|' -f1)
+            CC=$(echo "$INFO" | cut -d'|' -f2)
+            RID=$(echo "$INFO" | cut -d'|' -f3)
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: soak for ${STAGING_SHA:0:8} = $ST / $CC"
+
+            if [ "$ST" = "completed" ]; then
+              if [ "$CC" = "success" ]; then
+                echo "::notice::Post-deploy soak PASSED for ${STAGING_SHA:0:8} (run $RID). Safe to promote to beta."
+                exit 0
+              fi
+              echo "::error::Post-deploy soak did NOT pass for ${STAGING_SHA:0:8} — conclusion '$CC' (run $RID). Refusing to promote a build that failed its own staging soak. Fix the failure, or re-run the soak if it was infrastructure."
+              exit 1
+            fi
+            sleep 20
+          done
+
+          echo "::error::No completed soak found for staging HEAD ${STAGING_SHA:0:8} after $MAX_ATTEMPTS attempts. Refusing to promote: an unsoaked build is not a soaked one, and treating a missing result as a pass is how this gate would stop meaning anything. Dispatch soak-journey.yml against staging and re-run this promote."
+          exit 1
+
   merge-and-push:
     name: Merge staging → beta
     needs: verify-source
@@ -112,7 +238,7 @@ jobs:
     steps:
       # Use LYRA_RELEASE_PAT — GITHUB_TOKEN does not trigger downstream
       # workflows on push (deploy-beta.yml would never fire). See gotcha #16.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}

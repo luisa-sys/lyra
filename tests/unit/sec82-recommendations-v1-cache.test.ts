@@ -9,9 +9,10 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 
 const root = path.join(__dirname, '../..');
-const v1 = path.join(root, 'src/app/api/recommendations/[slug]/route.ts');
+const v1 = path.join(root, SRC.slugRoute);
 
 describe('SEC-82: V1 recommendations cache policy', () => {
   let content: string;

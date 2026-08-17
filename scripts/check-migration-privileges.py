@@ -126,6 +126,26 @@ def strip_sql_comments(sql: str) -> str:
     )
 
 
+def strip_string_literals(sql: str) -> str:
+    """Blank out single-quoted string literals, preserving length-ish structure.
+
+    DDL never legitimately appears inside a string literal, but the text of DDL
+    frequently does — an event-trigger definition lists its tags as
+    `command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')`, and a
+    naive `create\s+table\s+(\w+)` reads that as creating a table called "as".
+
+    That is how R4 reported two false positives on BUGS-77's lineage-repair
+    migrations. The tempting fix is a `-- db-privileges-ok:` allow-list entry,
+    which would make the false positive permanent and teach the next reader that
+    this gate cries wolf. Fixing the parser is the honest fix.
+
+    Dollar-quoted bodies ($$ ... $$) are deliberately NOT stripped: real DDL does
+    live inside them (a function body can create a table), and R4 should still
+    see it.
+    """
+    return re.sub(r"'(?:[^']|'')*'", "''", sql)
+
+
 def roles_revoked_from(body: str, name: str) -> set[str]:
     """Union of roles revoked from `name`, across every REVOKE in the migration.
 
@@ -233,7 +253,10 @@ def check_sql(sql: str, path: str) -> list[str]:
             violations.append(f"{path}::R3-granted-to-anon::{name}")
 
     # R4 — a new public table must enable RLS in the same migration.
-    for match in TABLE_RE.finditer(body):
+    # Scanned with string literals blanked: `'CREATE TABLE AS'` in an
+    # event-trigger tag list is not a table called "as" (see
+    # strip_string_literals).
+    for match in TABLE_RE.finditer(strip_string_literals(body)):
         table = match.group(1).lower()
         rls = re.search(
             rf"alter\s+table\s+(?:public\.)?{re.escape(table)}\s+enable\s+row\s+level\s+security",
@@ -288,11 +311,83 @@ def check_duplicate_versions(migrations_dir: Path) -> list[str]:
     return violations
 
 
+FUNC_CREATE_RE = re.compile(
+    r"create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z_0-9]*)\s*\(",
+    re.I,
+)
+# A bare REVOKE/GRANT ... ON FUNCTION at statement level. Deliberately NOT
+# matched inside a `do $$ ... $$` block: those wrap their revoke in
+# `exception when undefined_function then null`, so they no-op on a fresh
+# database and are not replay hazards. Only unguarded statements are.
+FUNC_REF_RE = re.compile(
+    r"^\s*(?:revoke|grant)\b[^;]*?\bon\s+function\s+(?:public\.)?([a-z_][a-z_0-9]*)\s*\(",
+    re.I | re.M,
+)
+
+
+def _strip_do_blocks(sql: str) -> str:
+    """Remove `do $$ ... $$;` bodies.
+
+    A revoke inside one is existence-guarded in practice (that is the idiom this
+    repo uses), so counting it as a hard reference would report false positives
+    on migrations that are already safe — and a rule that cries wolf gets
+    allow-listed into uselessness.
+    """
+    return re.sub(r"do\s*\$\$.*?\$\$\s*;", " ", sql, flags=re.I | re.S)
+
+
+def check_function_lineage(migrations_dir: Path) -> list[str]:
+    """R6 — every function named by an unguarded REVOKE/GRANT must be CREATEd
+    earlier in the lineage.
+
+    This is BUGS-77. `20260621120000_revoke_secdef_exec_bugs44.sql` revokes
+    EXECUTE on `public.rls_auto_enable()`, which no migration ever creates: it
+    existed on dev, staging and prod only because it was made out-of-band. A
+    fresh replay therefore died with
+
+        ERROR: function public.rls_auto_enable() does not exist (SQLSTATE 42883)
+
+    and the DR restore path stayed unprovable — the same consequence BUGS-75
+    existed to remove, from a different cause.
+
+    ORDER MATTERS, NOT JUST PRESENCE. A function created in a LATER migration
+    than the one referencing it is still a replay failure, so this compares
+    version timestamps rather than asking "does a CREATE exist anywhere".
+    """
+    created: dict[str, str] = {}   # function name -> earliest version creating it
+    refs: list[tuple[str, str, str]] = []   # (version, filename, function name)
+
+    for path in sorted(migrations_dir.glob("*.sql")):
+        match = VERSION_RE.match(path.name)
+        if not match:
+            continue
+        version = match.group(1)
+        sql = strip_sql_comments(path.read_text(encoding="utf-8"))
+
+        for name in FUNC_CREATE_RE.findall(sql):
+            key = name.lower()
+            if key not in created or version < created[key]:
+                created[key] = version
+
+        for name in FUNC_REF_RE.findall(_strip_do_blocks(sql)):
+            refs.append((version, path.name, name.lower()))
+
+    violations: list[str] = []
+    for version, filename, name in refs:
+        origin = created.get(name)
+        if origin is None:
+            violations.append(f"{filename}::R6-function-never-created::{name}")
+        elif origin > version:
+            violations.append(f"{filename}::R6-function-created-later::{name}@{origin}")
+    return violations
+
+
 def collect_all(migrations_dir: Path) -> list[str]:
     found: list[str] = []
     for path in sorted(migrations_dir.glob("*.sql")):
         found.extend(check_sql(path.read_text(encoding="utf-8"), path.name))
     found.extend(check_duplicate_versions(migrations_dir))
+    found.extend(check_function_lineage(migrations_dir))
     return found
 
 
@@ -439,13 +534,86 @@ def _self_test_duplicates() -> list[tuple[str, bool]]:
     return out
 
 
+def _self_test_function_lineage() -> list[tuple[str, bool]]:
+    """R6 fixtures (BUGS-77). Lineage-wide, so it needs a directory like R5."""
+    import tempfile
+
+    CREATE = ("create or replace function public.{n}() returns void language sql "
+              "security definer set search_path = public, pg_temp as $$ select 1 $$;")
+    REVOKE = "revoke execute on function public.{n}() from public, anon, authenticated;"
+
+    out: list[tuple[str, bool]] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+
+        # Created then revoked, in order -> clean.
+        (root / "20260101000000_a.sql").write_text(CREATE.format(n="fn") + "\n"
+                                                   + REVOKE.format(n="fn"))
+        out.append(("create-then-revoke is clean", check_function_lineage(root) == []))
+
+        # Revoked but never created -> the BUGS-77 defect.
+        (root / "20260102000000_b.sql").write_text(REVOKE.format(n="orphan"))
+        found = check_function_lineage(root)
+        out.append(("revoke with no create anywhere is reported",
+                    any("R6-function-never-created::orphan" in f for f in found)))
+
+        # Created LATER than its revoke -> still a replay failure. Presence is
+        # not enough; ordering is the whole point.
+        (root / "20260103000000_c.sql").write_text(REVOKE.format(n="late"))
+        (root / "20260104000000_d.sql").write_text(CREATE.format(n="late"))
+        found = check_function_lineage(root)
+        out.append(("create in a LATER migration is still reported",
+                    any("R6-function-created-later::late@20260104000000" in f for f in found)))
+
+        # An existence-guarded revoke inside a do-block is NOT a replay hazard:
+        # it no-ops on a fresh database. Counting it would be a false positive,
+        # and false positives get gates allow-listed into uselessness.
+        (root / "20260105000000_e.sql").write_text(
+            "do $$ begin\n"
+            "  execute 'revoke execute on function public.guarded() from public';\n"
+            "exception when undefined_function then null;\n"
+            "end $$;\n"
+        )
+        found = check_function_lineage(root)
+        out.append(("a do-block guarded revoke is not reported",
+                    not any("guarded" in f for f in found)))
+    return out
+
+
+def _self_test_string_literals() -> list[tuple[str, bool]]:
+    """R4 must not read DDL out of a string literal (BUGS-77 side-finding)."""
+    event_trigger_body = (
+        "create or replace function public.f() returns event_trigger language plpgsql "
+        "security definer set search_path = 'pg_catalog' as $function$ begin "
+        "  if tg_tag in ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO') then null; end if; "
+        "end $function$;\n"
+        "revoke all on function public.f() from public, anon, authenticated;\n"
+        "grant execute on function public.f() to service_role;\n"
+    )
+    found = check_sql(event_trigger_body, "fixture.sql")
+    real = "create table public.thing (id uuid primary key);"
+    found_real = check_sql(real, "fixture2.sql")
+    return [
+        ("'CREATE TABLE AS' in a string literal is not a table",
+         not any("R4" in f for f in found)),
+        ("a genuine CREATE TABLE without RLS is still caught",
+         any("R4-table-without-rls::thing" in f for f in found_real)),
+    ]
+
+
 def self_test() -> int:
     failures = 0
-    for label, ok in _self_test_duplicates():
+    total = 0
+    # Lineage-wide harnesses (R5 duplicates, R6 function lineage) plus the
+    # string-literal fixtures. These need a directory or a whole-file parse, so
+    # they cannot be expressed as _CASES entries.
+    for label, ok in _self_test_duplicates() + _self_test_function_lineage() + _self_test_string_literals():
+        total += 1
         print(f"  {'PASS' if ok else 'FAIL'}  {label}")
         if not ok:
             failures += 1
     for label, sql, expected_rules in _CASES:
+        total += 1
         found = check_sql(sql, "fixture.sql")
         found_rules = sorted({v.split("::")[1].split("-")[0] for v in found})
         ok = found_rules == sorted(expected_rules)
@@ -457,7 +625,10 @@ def self_test() -> int:
     if failures:
         print(f"::error::check-migration-privileges self-test: {failures} case(s) failed.")
         return 1
-    print(f"Self-test: all {len(_CASES)} fixture case(s) behave as specified. ✓")
+    # Count every case, not just _CASES: the old line under-reported by the
+    # whole lineage-wide harness, which is precisely the set most worth knowing
+    # ran.
+    print(f"Self-test: all {total} fixture case(s) behave as specified. ✓")
     return 0
 
 

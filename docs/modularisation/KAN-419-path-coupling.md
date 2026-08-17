@@ -3,6 +3,25 @@
 **Spike · research artefact · read-only · epic KAN-414**
 **Produced:** 2026-07-27 · **Base:** `develop` · **Tracked files at scan time:** 791
 
+> ⚠️ **Restored 2026-08-12 (KAN-474).** This document is a record of what was
+> true on 2026-07-27. Between then and 2026-08-12 the KAN-415 D1 extraction
+> commits (`424b454`, `b735028`) rewrote **12 path references inside it**,
+> because the KAN-428 DoD sweep requires moved paths to be updated and this
+> file was not on its `ARCHIVE_FILES` exemption list — that list held the
+> `.json` data outputs and missed the write-ups.
+>
+> The effect was to make the register assert measurements it never made:
+> `src/lib/env.ts` was recorded as a LIVE pattern here; `src/modules/platform/env.ts`
+> did not exist on the scan date. Row 10 of the migration table was worse — its
+> columns are *current path* and *proposed destination*, and the rewrite set the
+> first equal to the second, erasing the distinction the row existed to record.
+>
+> All 12 have been restored from the birth revision `a42ad84`, and the
+> file's path-reference multiset now matches that revision exactly. Legitimate
+> later edits (e.g. `dfca57c`, which documented the design-change loop) are
+> preserved. The file is now in `ARCHIVE_FILES`, so no future extraction can
+> rewrite it.
+
 > **What this is.** A complete register of every path literal and glob in Lyra's
 > verification and documentation estate, each one classified LIVE (matches ≥1
 > tracked file today) or DEAD (matches nothing — a control that is not
@@ -327,6 +346,34 @@ pattern via its escape hatch — this is the primary use case for the marker.
 
 ## 5. The two out-of-repo couplings — no repo-side grep can see these
 
+> ⚠️ **Corrected 2026-08-04 (KAN-441) — §5.1 only; §5.2 stands unchanged.**
+> Three statements below are now false. The correction belongs here rather than
+> only in the files that cite it, because `docs/MODULARISATION_EXTRACTION_DOD.md`,
+> `docs/RUNBOOK.md` and the PR template all name **"KAN-419 §5.1"** as their
+> authority.
+>
+> 1. **"Neither lives in any repository this CI can read" (§5 below), and
+>    "founder's machine, not in git" (§5.1 heading).** The design system **is**
+>    in git, at `github.com/luisa-sys/lyra-design-system`. It is a **different**
+>    repo, which this repo's CI still cannot read — so §5's conclusion (a human
+>    checklist item, never a CI gate *here*) is unchanged and only its *reason* is
+>    narrower.
+> 2. **"No drift detection between them" (§5.1, "Second problem").** Partly
+>    false, and the boundary matters. `check-token-drift.py` in that repo diffs
+>    the **Claude Design tokens against `src/app/globals.css`**, and
+>    `foundations/tokens.css` mirrors `globals.css` 1:1 — so **that pair is now
+>    detected**. It covers **that pair only**. Whether `build.py`'s own copy of
+>    the tokens is diffed against anything is **unspecified**, so that leg of the
+>    three-way remains undetected. The "three copies" observation stands.
+> 3. **"KAN-427 cannot be completed by a cloud session" (the note under §5.1, and
+>    the §8 handover row).** The stated reason has gone. Whether KAN-427 is
+>    therefore unblocked is **Luisa's call, not a conclusion this document should
+>    draw for her** — the diff still spans two repositories, so a cloud session
+>    would need both checked out.
+>
+> Process of record: `docs/DESIGN_CHANGE_WORKFLOW.md`. The canonical-home
+> question (fold the two repos together, or not) is **KAN-427 / KAN-457**.
+
 Recorded here so they land in the extraction Definition-of-Done (**KAN-428**) as
 human checklist items. **Neither can ever be a CI gate**, because neither lives
 in any repository this CI can read.
@@ -355,6 +402,11 @@ in any repository this CI can read.
 > cloud session — `build.py` is on the founder's local machine and in no git
 > repo. It requires a local Claude Code session. Flagged separately on that
 > ticket.
+>
+> ⚠️ **Corrected 2026-08-04 (KAN-441): the premise above is false** — see item 3
+> of the §5 correction banner. The design system is in git; whether that unblocks
+> KAN-427 for a cloud session is Luisa's call, since the diff still spans two
+> repositories.
 
 ### 5.2 The claude.ai routine prompts (routine config, not in git)
 
@@ -609,7 +661,7 @@ time budget.**
 |---|---|
 | **F1** (implements the guard) | §7 in full. Port matching semantics from `kan419-scan.py`; do not re-derive. §7.9 cases 12–13 are mandatory. |
 | **KAN-428** (extraction DoD) | §5.1 and §5.2 checklist items verbatim — the two out-of-repo couplings CI can never see. Plus §4's three sequencing constraints. |
-| **KAN-427** (design-system contract) | §5.1. Also: this spike cannot be run from a cloud session — `build.py` is founder-local and in no git repo. |
+| **KAN-427** (design-system contract) | §5.1. Also: this spike cannot be run from a cloud session — `build.py` is founder-local and in no git repo. ⚠️ **Corrected 2026-08-04 (KAN-441)** — that second sentence is false; read the §5 correction banner before acting on this row. |
 | **KAN-429** (verification estate) | §6 — the deployed-behaviour layer (soak, E2E, smoke) is resilient by construction. Do not re-litigate. |
 | **KAN-417** (test-decoupling) | §3 finding 4 (`tests/integration` matches nothing) and §6 E5 (174/216 test files reference `src/`). |
 | **KAN-415 / D6** | §4 — land the *union* manifest (current paths **and** module paths) before the moves, shrink after. |

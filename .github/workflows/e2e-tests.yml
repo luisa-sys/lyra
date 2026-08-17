@@ -15,7 +15,7 @@ name: E2E Tests (PR gate)
 # row — see tests/e2e/profile-redesign.spec.ts) and run in the staging job
 # instead. The authenticated editor test is a deferred test.fixme.
 #
-# Dummy Supabase env: src/lib/env.ts reads these lazily per-request via
+# Dummy Supabase env: src/modules/platform/env.ts reads these lazily per-request via
 # requireEnv(). The surfaces exercised here never actually call Supabase, so
 # a syntactically-valid dummy value satisfies the env guard at build/serve
 # time without needing a real project. If a test ever hits a route that DOES
@@ -43,7 +43,7 @@ jobs:
       # `next start` and target localhost (KAN-271).
       E2E_LOCAL_SERVER: '1'
       # Dummy, syntactically-valid env so `next build`/`next start` and the
-      # lazy requireEnv() guards in src/lib/env.ts are satisfied. These point
+      # lazy requireEnv() guards in src/modules/platform/env.ts are satisfied. These point
       # at no real project — the DB-independent surfaces under test never call
       # Supabase. NOT secrets; safe to inline.
       NEXT_PUBLIC_SUPABASE_URL: 'https://e2e-dummy.supabase.co'
@@ -51,10 +51,10 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: 'e2e-dummy-service-role-key'
       NEXT_PUBLIC_SITE_URL: 'http://localhost:3000'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -62,12 +62,49 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve the Playwright version for the cache key
+        # Keyed on the exact installed version, not a floating one: browser
+        # binaries are version-locked, and a stale cache would produce
+        # "Executable doesn't exist" — the same failure the webkit note below
+        # describes, but harder to diagnose because the install step is green.
+        id: pw
+        run: |
+          set -euo pipefail
+          V=$(node -p "require('@playwright/test/package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Playwright $V"
+
+      - name: Cache Playwright browsers
+        # This step download hung for 19+ minutes on 2026-07-31 and again on
+        # 2026-07-30, both times tripping the job's 20-minute timeout and
+        # cancelling a run that was otherwise fine. Normal duration is ~54s, so
+        # this is upstream CDN variance, not our code — but two cancelled runs
+        # cost ~40 minutes of CI and, worse, read as a red check on a healthy PR.
+        # A cache hit removes the download from the critical path entirely.
+        id: pw-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
       - name: Install Playwright browsers
         # chromium + webkit: playwright.config.ts defines a mobile-safari
         # (iPhone 14 / webkit) project alongside chromium. Without webkit
         # every mobile-safari test errors with "Executable doesn't exist"
         # and the job goes red even when chromium passes (KAN-180).
-        run: npx playwright install --with-deps chromium webkit
+        #
+        # On a cache hit only the OS-level deps are installed (fast, and not
+        # cacheable); the browser binaries come from the cache. `--with-deps` is
+        # kept in both paths because those system packages live outside
+        # ~/.cache/ms-playwright and are NOT restored by the cache.
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Browser binaries restored from cache; installing OS deps only."
+            npx playwright install-deps chromium webkit
+          else
+            npx playwright install --with-deps chromium webkit
+          fi
 
       - name: Build the app
         # Run the production build as its own step so its duration doesn't

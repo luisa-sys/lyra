@@ -1,11 +1,11 @@
 /**
- * KAN-112: Real unit tests for src/lib/sanitise.ts
+ * KAN-112: Real unit tests for src/modules/guards/sanitise.ts
  *
  * KAN-171 / CodeQL alerts #1 + #3 (2026-04-28):
  *   - File converted from .js → .ts so it imports the real source rather
  *     than running an inline copy. The previous structure had a mirror
  *     `function stripHtml(input)` defined here in the test that drifted
- *     from the real source — meaning a fix in src/lib/sanitise.ts would
+ *     from the real source — meaning a fix in src/modules/guards/sanitise.ts would
  *     never be exercised by these tests. Now we import the real exports.
  *   - Added attack-pattern tests for nested-tag bypass: <scr<script>ipt>
  *     and similar patterns that the previous single-pass regex would have
@@ -15,7 +15,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { stripHtml, sanitiseText, sanitiseUrl, sanitiseSearchTerm } from '@/lib/sanitise';
+import { stripHtml, sanitiseText, sanitiseUrl, sanitiseSearchTerm } from '@/modules/guards/sanitise';
 
 // ── Source verification ────────────────────────────────
 // Light-touch sanity check that the imports resolve to functions and the
@@ -24,7 +24,7 @@ import { stripHtml, sanitiseText, sanitiseUrl, sanitiseSearchTerm } from '@/lib/
 // existence checks here mirror the original test's intent.)
 describe('sanitise.ts source verification', () => {
   const source = fs.readFileSync(
-    path.join(__dirname, '../../src/lib/sanitise.ts'),
+    path.join(__dirname, '../../src/modules/guards/sanitise.ts'),
     'utf8'
   );
 

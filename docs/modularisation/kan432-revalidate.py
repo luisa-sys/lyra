@@ -101,7 +101,7 @@ def is_deep_import(dst: str, barrels: set[str]) -> bool:
     """Plan's 'deep import into another area's internals'.
 
     An edge into a file that lives INSIDE another group's directory, other
-    than via that group's barrel. A top-level leaf module (`src/lib/admin.ts`)
+    than via that group's barrel. A top-level leaf module (`src/modules/admin/admin.ts`)
     is its own group, so importing it is not a deep import; reaching into
     `src/lib/convene/invites/repository.ts` is.
 
@@ -284,11 +284,11 @@ def main():
         return len(seen)
 
     kernel = {
-        "src/lib/supabase-server.ts": 46,
-        "src/lib/supabase-service.ts": 39,
-        "src/lib/env.ts": 17,
-        "src/lib/admin.ts": 17,
-        "src/lib/deploy-env.ts": 5,
+        "src/modules/platform/supabase-server.ts": 46,
+        "src/modules/platform/supabase-service.ts": 39,
+        "src/modules/platform/env.ts": 17,
+        "src/modules/admin/admin.ts": 17,
+        "src/modules/platform/deploy-env.ts": 5,
     }
     out["kernel"] = {
         k: {"planFanIn": v, "actualFanIn": len(fanin.get(k, ())),
@@ -314,7 +314,7 @@ def main():
     )
     svc_total, svc_hits = count_matches(r"createServiceRoleClient", src_files)
     svc_importers = sorted(
-        a for a, b in edges if b == "src/lib/supabase-service.ts"
+        a for a, b in edges if b == "src/modules/platform/supabase-service.ts"
     )
     profiles_sites = sum(
         1 for p in src_files

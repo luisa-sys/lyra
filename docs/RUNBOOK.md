@@ -136,11 +136,11 @@ Three structural import rules run on every PR, from `.dependency-cruiser.cjs` vi
 
 | Rule | Invariant |
 | --- | --- |
-| `no-module-to-app` | Nothing under `src/lib/**` may import `src/app/**`. |
+| `no-module-to-app` | Nothing under `src/lib/**`, `src/modules/**`, `src/components/**` or `src/middleware.ts` may import `src/app/**`. ⚠️ The anchor read `^src/lib/` until 2026-08-09; KAN-415 D1 moved 28 files into `src/modules/` and every one silently left this rule's scope with nothing going red. Pinned by CTL-044. |
 | `no-cross-segment-app/<segment>` | One top-level `src/app` segment may not import another. |
 | `no-circular` | No import cycles. |
 
-**Why a gate and not a convention.** `src/lib/deploy-env.ts` was created to be the
+**Why a gate and not a convention.** `src/modules/platform/deploy-env.ts` was created to be the
 single environment resolver — pure, tested, documented — and all six of the
 derivations it was meant to replace are still inline, because nothing stopped new
 ones being written. Creating the canonical thing is the easy 10%; the gate is the
@@ -155,16 +155,19 @@ DEPCRUISE_SEVERITY=error npm run depcruise     # blocking mode — what CI will 
 npx jest tests/scripts/check-dependency-rules.test.js   # prove the gate still bites
 ```
 
-### Roll-out state — currently `warn`, not yet blocking
+### Roll-out state — `no-module-to-app` and `no-circular` are BLOCKING
 
-The gate ships **non-blocking**: violations are printed and annotated in the run
-summary, the build stays green. It flips to blocking by changing
+> **⚠️ Corrected 2026-08-10.** This section described the whole gate as non-blocking. That has been wrong since 2026-07-29 (KAN-414 F3): `.dependency-cruiser.cjs` sets `const BLOCKING = true` and both `no-module-to-app` and `no-circular` resolve to `severity: 'error'` through `severityFor(BLOCKING)`. The `DEPCRUISE_SEVERITY=warn` in `pr-checks.yml` only drives `FORCE_ERROR`, which can *raise* the remaining warn rules — it cannot lower a rule that is already `error`. **Reading a per-rule severity off that env var gives the wrong answer**; read the rule's own `severity:` in the config.
+
+`no-cross-segment-app` genuinely does still ship **non-blocking**: violations are printed and annotated in the run summary, the build stays green. It flips to blocking by changing
 `DEPCRUISE_SEVERITY: warn` to `error` in the "Dependency-rule gate (KAN-425)" step
 of `.github/workflows/pr-checks.yml` — a one-word edit, once `develop` is clean and
 has stayed clean for a week.
 
-`develop` is **not** clean yet. Five real violations exist (`no-module-to-app` is
-already at zero — that was KAN-424 Defect 1):
+`develop` is **not** clean for `no-cross-segment-app`. Four real violations remain — three
+owned by D8/KAN-422, one (`dashboard/page.tsx -> (auth)/actions.ts`) routed nowhere and
+needing an owner before it can flip. `no-module-to-app` and `no-circular` are at zero and
+are already blocking:
 
 | Rule | Violation | Owner |
 | --- | --- | --- |
@@ -228,11 +231,19 @@ no literal reference to a moved-from path may remain in `.github/`, `scripts/`,
 `docs/`, `docs/DOC_SOURCE_OF_TRUTH.md`, `modules.json` or `tests/`.
 
 Attested in the PR body, because CI can never check them (`out-of-repo`,
-`coverage`, `routine-prompts`): `~/lyra-design-system/build.py` and the claude.ai
+`coverage`, `routine-prompts`): the design-system generator and the claude.ai
 routine prompts live outside every repository this CI can read, and the covering
 Playwright project + soak clause must be named or `no coverage` recorded as a
 finding. The PR template supplies the three `EXTRACTION-DOD-*` lines, shipped
 with a `FILL-IN` placeholder that fails the gate until it is replaced.
+
+> ⚠️ **Corrected 2026-08-04 (KAN-441).** The design-system half of that
+> attestation used to read *"lives outside every repository"*. The design system
+> **is** now in git — `github.com/luisa-sys/lyra-design-system` — but it is a
+> **different repo, which this repo's CI still cannot read**, so the attestation
+> is unchanged and only its reason is narrower. Process:
+> `docs/DESIGN_CHANGE_WORKFLOW.md`. Whether the two repos should merge, which
+> would let CI check this mechanically, is open (KAN-427 / KAN-457).
 
 **Why the estate needs a gate at all:** KAN-419 measured `docs/**/*.md` at 110
 path literals, **20 of them (18%) matching nothing**, before a single file was
@@ -379,8 +390,25 @@ reconstruct user accounts (`auth`) — restoring it alone leaves profiles whose
   GitHub Artifacts, 90-day retention.
 - **Weekly real restore drill**: `backup-restore-test.yml` (Sun 05:00 UTC) now
   restores the latest backup into a throwaway Postgres and asserts the data
-  round-trips (table count + RLS + per-table row counts) — it is no longer a
-  schema-only check, and no longer silently passes on a missing secret.
+  round-trips (table count + RLS + per-table row counts + **foreign keys**) — it
+  is no longer a schema-only check, and no longer silently passes on a missing
+  secret.
+
+  ⚠️ **The FK assertion was added 2026-08-16, and it closed a real blind spot.**
+  The dump is public-schema-only, so every FK pointing at `auth.users(id)` had
+  no target row, and `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` validates on
+  creation — `session_replication_role = replica` defers trigger firing on DML
+  but *not* constraint validation. So seven constraints (`profiles`, `api_keys`,
+  `moderation_logs`, and the four `oauth_*` tables) failed to be created on
+  **every run**, and the drill passed anyway from June to 2026-08-09 because
+  nothing checked. A restore that dropped every foreign key would have reported
+  success. The drill now seeds `auth.users` from the UUIDs the dump references —
+  standing in for restoring auth from Supabase's own backup, which is what a
+  real recovery does — and then asserts the constraint count matches the dump.
+
+  This does **not** close the SEC-23 gap: the dump still contains no auth data.
+  Seeding makes the drill measure what it claims to measure; it does not make
+  the backup complete.
 - Manually trigger any of these: GitHub → Actions → select workflow → Run.
 
 ### Supabase built-in backups
@@ -464,8 +492,35 @@ WARNING: This drops all existing tables before restoring.
 
 1. Run `./scripts/backup-database.sh` to create a backup
 2. Review the SQL in `supabase/migrations/`
-3. Test on dev environment first
-4. Apply with `supabase db push`
+3. Test on **dev** first, then **staging**, then **production**
+4. Apply with the Supabase MCP `apply_migration` tool — **not `supabase db push`**
+
+> ### ⛔ DO NOT run `supabase db push` on this project (verified 2026-08-09)
+>
+> It would attempt to **re-run every migration in the repo**, including old DDL.
+>
+> Migrations here are applied with the MCP `apply_migration` tool, which stamps
+> the row in `supabase_migrations.schema_migrations` with a **fresh timestamp**
+> rather than the version in the filename. So the repo's versions and the
+> database's recorded versions have never matched, and the CLI sees every local
+> migration as unapplied. Check for yourself with `supabase migration list
+> --linked`: the local and remote columns barely overlap. Example — repo
+> `20260727120000_security_invariants_report_v2.sql`, database
+> `20260727123637 security_invariants_report_v2`: same migration, same name,
+> different version.
+>
+> Consequences beyond the footgun: migration parity cannot be checked by
+> version, and DR restore-from-lineage cannot be proven (BUGS-75, SEC-23).
+> Reconciling this needs a decision — **do not hand-edit
+> `supabase_migrations.schema_migrations`.**
+
+> ### ⚠️ `beta` runs on the PRODUCTION database
+>
+> There are three Supabase projects for four environments. A migration must
+> reach **production before the `staging → beta` promote**, not before
+> `beta → main` — schedule it against `beta → main` and you are one promote too
+> late, and beta serves new code against a production database missing the
+> column. See CLAUDE.md "Deployment Pipeline" and gotcha #19.
 
 ### Rolling back a migration
 
@@ -474,11 +529,186 @@ supabase migration repair <VERSION> --status reverted
 ./scripts/restore-database.sh ./backups/latest_backup.sql
 ```
 
+### Regenerating a database type snapshot (SEC-133)
+
+**Do this in the SAME change that applies a migration to an environment.** The
+committed snapshots in `src/types/database/{dev,staging,prod}.ts` are what the
+app's `Database` type is built from, so one that has gone stale means the
+compiler is reasoning about a schema that does not exist.
+
+```bash
+npm run gen:db-types -- --env dev        # or staging, or prod
+```
+
+Then commit the regenerated file, and verify:
+
+```bash
+python3 scripts/check-live-schema-parity.py --snapshot-only --env dev
+```
+
+Requires `SUPABASE_ACCESS_TOKEN`. Without it the script **fails loud and writes
+nothing** — a truncated or error-body snapshot is worse than a stale one,
+because the drift gates would then compare against garbage. If you have no CLI
+token, the Supabase MCP tool `generate_typescript_types` returns identical
+output for a project ref; write it to the same path.
+
+**Why this procedure exists at all.** Until 2026-08-12 the checker's own error
+message told you to *"regenerate a stale snapshot with the documented step in
+`docs/RUNBOOK.md`"* — and that step did not exist anywhere in `docs/` or
+`scripts/`. The remediation instruction was a dangling reference, which is why
+[SEC-131](https://checklyra.atlassian.net/browse/SEC-131) sat undetected: two
+columns were live on all three databases and absent from all three snapshots.
+
+**Which gate catches what — they are not interchangeable:**
+
+| gate | compares | blind to |
+|---|---|---|
+| **CTL-036** (`check-schema-type-parity.py`, every PR) | the three snapshots **to each other** | all three stale the same way — no *relative* drift to find |
+| **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
+| **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
+| **CTL-071** (`check-snapshot-regeneration.py`, `db-invariants.yml`, daily) | each snapshot to a **fresh generation** of its own database, whole file | trailing whitespace at end of file, and nothing else |
+
+**Which dimensions each one can see — this is the part that was re-derived the
+hard way ([SEC-151](https://checklyra.atlassian.net/browse/SEC-151)):**
+
+| dimension | CTL-036 | CTL-048 | CTL-071 |
+|---|---|---|---|
+| a column exists / does not | ✅ relative only | ✅ | ✅ |
+| a column's **nullability** | ❌ | ❌ | ✅ |
+| **enum membership** | ✅ relative only | ❌ | ✅ |
+| **view updatability** (`Insert`/`Update` blocks) | ❌ | ❌ | ✅ |
+| anything else the generator expresses | ❌ | ❌ | ✅ |
+
+The `relative only` entries are the trap. CTL-036 compares the three snapshots
+**to each other**, so it sees a dimension perfectly well *when they disagree*
+and not at all when they are wrong in the same way — and they are usually wrong
+in the same way, because they are usually regenerated together or not at all.
+CTL-048 asks the databases, but through PostgREST's OpenAPI document, which
+advertises column **names**: a column with the wrong nullability is still in the
+set, an enum member is not a column, and view updatability is not a column.
+
+On 2026-08-16 all three snapshots were simultaneously wrong on the three middle
+rows and **both controls were green, correctly**. Neither was defective; there
+was simply no control on those dimensions.
+
+⚠️ **CTL-071 is a whole-file diff on purpose, and resist the urge to replace it
+with three targeted assertions.** Those three dimensions are not a category —
+they are the three that happened to be found. A control that enumerates
+dimensions catches only the ones somebody thought of, and the finding was
+precisely that nobody thought of these.
+
+⚠️ **A CTL-071 red has two causes needing opposite responses**, and the
+annotation says which it thinks it is. Either the schema changed and the
+snapshot was not regenerated (the finding — run
+`npm run gen:db-types -- --env <env>` and commit), or the **generator** changed:
+`gen-db-types.sh` runs `npx --yes supabase`, which is unpinned and absent from
+`package.json`, so a CLI release can alter formatting with no schema change at
+all. The tell for the second is a diff that is purely cosmetic, or one that hits
+all three environments at once. Same command either way, but say so in the
+commit message. Pinning the CLI is SEC-151's follow-up.
+
+> ⚠️ **The SEC-143 admin schema-contract step in this same workflow is currently
+> INERT, and its daily red is not a schema finding.** It reads
+> `lyra-admin-mcp-server`'s committed contract with the workflow's built-in
+> `GITHUB_TOKEN` — which is scoped to *this* repository and can never read
+> another **private** repo. The step cites CTL-043 as precedent, but CTL-043
+> works precisely because *its* target is public, a precondition
+> `shared-code-manifest.json` records explicitly. So the check has never once
+> succeeded, and it has been red every day since it reached `main` on
+> 2026-08-15.
+>
+> **If you are triaging a red `db-invariants` run, read the step name before the
+> job name.** The job is called *"Committed schema snapshots match their
+> databases (CTL-048, daily)"*, so this failure looks like schema drift and is
+> not. CTL-048's own comparison passes; the admin-contract step is a separate
+> control sharing the job. Splitting them is tracked in
+> [SEC-150](https://checklyra.atlassian.net/browse/SEC-150), along with the fix:
+> provision `ADMIN_CONTRACT_READ_TOKEN` (fine-grained, contents-read, admin repo
+> only). The workflow already reads it when present, so no code change is
+> needed once it exists.
+
+The daily job runs only the snapshot half on purpose. During a staged migration
+rollout the three databases genuinely differ, so the cross-database half would
+be red for the whole multi-day window — and a red you learn to expect is a
+control you have switched off. The snapshot half is unaffected by a rollout,
+*provided you follow the procedure above*. It is also the only half that could
+see SEC-131, because there all three databases agreed perfectly.
+
 ## Scheduled Workflows (GitHub Actions)
 
 DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns found
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
+
+### Release tag on deploy (event-driven) — BUGS-104 / CTL-067
+
+`release-tag-on-deploy.yml` fires on `workflow_run` when **Deploy to Production**
+completes, and creates `main`'s release tag if the deploy earned one.
+
+**Why it is not part of the promote.** `promote-to-production.yml`'s
+`release-tag` job needs `smoke-tests`, which needs `wait-for-deploy` to have
+reported `deployed`. A deploy parked on the SEC-106 required-reviewer gate makes
+`wait-for-deploy` exit 0 with `awaiting-approval` — correct and deliberate, since
+failing it once fired a spurious auto-rollback — so **both downstream jobs are
+skipped**. The founder then approves, the deploy succeeds, and nothing returns to
+tag: the promote run finished long ago.
+
+Since the reviewer gate landed on 2026-07-30 that is the *normal* path, so
+effectively every release was going untagged. CTL-057 (`release-integrity.yml`)
+detects the end state; this prevents it.
+
+**Two refusals, and they are the load-bearing half:**
+
+| situation | outcome |
+|---|---|
+| deploy's `head_sha` ≠ `main` HEAD | **REFUSE** (exit 1) — tagging HEAD would attach a version to code that deploy never verified |
+| `main` HEAD already tagged | **no-op** (exit 0) — this is what makes the deliberate overlap with the promote's own `release-tag` job safe |
+| deploy concluded anything but `success` | no tag |
+| any undecidable input (empty SHA, unparseable last tag) | **UNVERIFIED** (exit 2), never a silent skip |
+
+`workflow_dispatch` is available for manual recovery; it asserts that `main` HEAD
+is what deployed, and the idempotency check still protects against a double tag.
+
+⚠️ **Verify a pushed tag against the REMOTE.** `git describe --tags
+--exact-match origin/main` reads the *local* tag store and does not care whether
+a push succeeded — on 2026-08-16 that reported `v0.1.101` while the push had
+403'd, and a retry loop had swallowed the failure because the pipeline's exit
+status came from `tail` rather than `git push`. The workflow's own push step
+re-checks with `git ls-remote` for exactly this reason.
+
+### Required-checks drift (daily 06:20 UTC) — SEC-106 / CTL-066
+
+`required-checks.yml` runs `scripts/check-required-checks.py --live`: it reads
+the live branch protection on `develop`, `staging`, `beta` and `main` and diffs
+it against the committed expectation in `.github/expected-protection.json`.
+Three-valued by design — 0 matches, 1 measured drift, **2 UNVERIFIED (could not
+measure)** — and exit 2 uses deliberately different wording from exit 1, because
+CTL-059 showed a control that describes an HTTP 403 in the language of a
+divergence sends the reader hunting a problem that was never observed.
+
+⚠️ **Expect UNVERIFIED, and a red daily run, until a token exists.** Reading
+branch protection needs `administration:read`, which `GITHUB_TOKEN` cannot be
+granted at any `permissions:` setting. Clearing it is one owner action: create a
+fine-grained PAT on `luisa-sys/lyra` with **Administration: Read-only** and
+nothing else, and add it as the repository secret
+`BRANCH_PROTECTION_READ_TOKEN`. Until then the workflow reports honestly that it
+measured nothing — which is the intended outcome, not a placeholder. Skipping the
+step when the secret is absent would be the `if: env.X != ''` silent-skip this
+runbook forbids, and is how `health-check.yml` and `weekly-report.yml` sat dark
+for a month while reporting green (SEC-79).
+
+**Reading a failure.** Exit 1 names the branch, the expected contexts and the
+live ones, and is a real finding either way round: a required check quietly
+*added* is as much an undocumented divergence as one removed. Resolve it by
+changing branch protection to match the file, or by committing a change to the
+file — which is the point of SEC-106 §6, that protection becomes reviewable.
+
+The other half of the control, `--local`, runs on every PR in `pr-checks.yml`
+and needs no credentials: it fails if any required context is no longer produced
+by a job in `.github/workflows/`. That is the case in this ticket's title —
+`main` requires the context `guard`, which is `main-chain-guard.yml`'s **job
+id** (the job carries no `name:`), so a one-character rename would leave SEC-98
+production change control gated by a check nothing reports.
 
 ### Staging testing program (KAN-176)
 

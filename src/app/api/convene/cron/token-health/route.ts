@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { getFreshAccessToken } from '@/lib/convene/oauth-connections';
 import { timingSafeStrEqual } from '@/lib/convene/cron-auth';

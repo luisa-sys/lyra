@@ -2,9 +2,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.resolve(REPO_ROOT, 'scripts/check-action-pinning.sh');
+const SCRIPT = path.resolve(REPO_ROOT, SRC.checkActionPinning);
 
 // Run the guard with a given working directory. Returns { status, output }.
 // status 0 == all actions pinned; non-zero == at least one un-pinned action.
@@ -50,7 +51,7 @@ function wf(steps) {
   );
 }
 
-describe('scripts/check-action-pinning.sh', () => {
+describe(SRC.checkActionPinning, () => {
   let source = '';
 
   beforeAll(() => {

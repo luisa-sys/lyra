@@ -2,10 +2,11 @@ const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/weekly-health-regression.sh');
 
-describe('scripts/weekly-health-regression.sh', () => {
+describe(SRC.weeklyHealthRegression, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 
@@ -113,6 +114,54 @@ describe('scripts/weekly-health-regression.sh', () => {
       expect(line('ok').startsWith('PASS')).toBe(true);
       // realfail + installword are genuine FAILs → overall exit 2.
       expect(res.status).toBe(2);
+    });
+  });
+
+  // Regression guard for a rough edge hit for real on the 2026-08-08 and
+  // 2026-08-09 routine runs: a bare `tail -n 3` on a FAILed jest phase can
+  // land entirely inside the Snapshots/Time/"Ran all test suites"
+  // boilerplate and never show WHICH suite failed, forcing a manual re-run
+  // to find out. The FAIL detail should surface the `FAIL <path>` line and
+  // the `Tests:`/`Test Suites:` summary when the log looks like jest output.
+  describe('FAIL detail names the failing suite, not just boilerplate tail (jest-output case)', () => {
+    let dir = '';
+    let res3;
+    const stub = (d, name, body) => {
+      const p = path.join(d, name);
+      fs.writeFileSync(p, `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+      return p;
+    };
+
+    beforeAll(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whr-jestfail-'));
+      fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"stub"}');
+      fs.mkdirSync(path.join(dir, 'node_modules'));
+      const env = {
+        ...process.env,
+        PHASES: 'jestfail',
+        RUN_E2E: '0',
+        CMD_jestfail: stub(dir, 'jestfail.sh', [
+          'echo "FAIL tests/unit/version-drift.test.js"',
+          'echo "  ● some test name"',
+          'echo "Test Suites: 1 failed, 255 passed, 256 total"',
+          'echo "Tests:       1 failed, 3102 passed, 3103 total"',
+          'echo "Snapshots:   0 total"',
+          'echo "Time:        26.438 s"',
+          'echo "Ran all test suites matching tests/(unit|scripts)."',
+          'exit 1',
+        ].join('\n')),
+      };
+      res3 = spawnSync('bash', [SCRIPT], { cwd: dir, env, encoding: 'utf8' });
+    });
+
+    afterAll(() => { if (dir) fs.rmSync(dir, { recursive: true, force: true }); });
+
+    it('includes the FAIL <path> line and the Tests: summary, not just the tail boilerplate', () => {
+      const line = res3.stdout.split('\n').find((l) => l.split('\t')[1] === 'jestfail') || '';
+      expect(line.startsWith('FAIL')).toBe(true);
+      expect(line).toContain('FAIL tests/unit/version-drift.test.js');
+      expect(line).toContain('Tests:');
+      expect(line).not.toContain('Ran all test suites matching');
     });
   });
 

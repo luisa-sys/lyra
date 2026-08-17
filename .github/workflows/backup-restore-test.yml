@@ -58,7 +58,7 @@ jobs:
       PGURL: postgresql://postgres:drill@localhost:5432/restore_target
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Install PostgreSQL 17 client
         run: |
@@ -132,6 +132,59 @@ jobs:
           SQL
           echo "✓ shim ready"
 
+      - name: Seed auth.users so the dump's FK constraints can validate
+        run: |
+          set -euo pipefail
+          # WHY THIS EXISTS (added 2026-08-16, first red drill since June).
+          #
+          # The dump is public-schema-only, so every FK pointing at
+          # auth.users(id) has no target row. `session_replication_role =
+          # replica` in the restore step defers TRIGGER firing on DML — it does
+          # NOT defer constraint validation, and `ALTER TABLE ... ADD CONSTRAINT
+          # ... FOREIGN KEY` runs a full validation scan regardless. So the
+          # seven FK constraints below simply FAILED TO BE CREATED:
+          #
+          #   profiles, api_keys, moderation_logs, oauth_access_tokens,
+          #   oauth_authorization_codes, oauth_consents, oauth_refresh_tokens
+          #
+          # The drill passed every week from June to 2026-08-09 anyway, because
+          # nothing ever asserted that constraints survive a restore — it went
+          # red on 08-16 only once enough referencing rows accumulated to also
+          # disturb one of the counts. A restore that silently dropped EVERY
+          # foreign key would have reported success. That blind spot is the real
+          # finding; the assertion added below closes it.
+          #
+          # Seeding stands in for what a real recovery does: auth.users is
+          # restored from Supabase's own auth backup, not from this dump. The
+          # shim's own comment already calls itself "what a clean-room restore
+          # must provide beyond the public dump" — this is that, made true.
+          #
+          # ⚠️ It does NOT close the SEC-23 gap. This dump still contains no
+          # auth data, and that remains tracked there. Seeding makes the drill
+          # measure what it claims to measure; it does not make the backup
+          # complete.
+          #
+          # Every UUID in the dump is seeded rather than only the FK columns:
+          # over-seeding a throwaway auth.users cannot mask a public-schema
+          # defect (nothing asserts auth.users' contents), whereas parsing
+          # per-column would be fragile against dump layout changes.
+          grep -oEi '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$SQL_FILE" \
+            | sort -u > /tmp/uuids.txt
+          SEEDED=$(wc -l < /tmp/uuids.txt | tr -d ' ')
+          if [ "$SEEDED" -eq 0 ]; then
+            echo "::error::No UUIDs found in the dump — it is empty or malformed, so the"
+            echo "::error::  drill cannot prove anything. Failing rather than seeding nothing."
+            exit 1
+          fi
+          {
+            echo "BEGIN;"
+            echo "CREATE TEMP TABLE _seed(id uuid);"
+            echo "\\copy _seed(id) FROM '/tmp/uuids.txt'"
+            echo "INSERT INTO auth.users(id) SELECT id FROM _seed ON CONFLICT DO NOTHING;"
+            echo "COMMIT;"
+          } | psql "$PGURL" -v ON_ERROR_STOP=1 >/dev/null
+          echo "✓ seeded $SEEDED candidate auth.users ids so FK constraints can validate"
+
       - name: Restore the backup
         run: |
           set -euo pipefail
@@ -192,6 +245,33 @@ jobs:
             echo "- ✅ tables: $GOT_TABLES restored (dump declares $EXPECT_TABLES)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "- ❌ tables: restored $GOT_TABLES but dump declares $EXPECT_TABLES" >> "$GITHUB_STEP_SUMMARY"
+            FAIL=1
+          fi
+
+          # Foreign keys must survive a restore (added 2026-08-16).
+          #
+          # Nothing checked this until now, and that is exactly how the drill
+          # reported success for months while SEVEN FK constraints were failing
+          # to be created on every single run. Referential integrity is not a
+          # detail of a backup — a restored database that has lost its foreign
+          # keys will happily accept orphaned rows, and the damage is silent and
+          # cumulative. A drill that does not check the constraints is not
+          # proving the backup is restorable, only that the bytes load.
+          # Match the statement pg_dump actually emits, not the bare words:
+          #   ALTER TABLE ONLY public.x
+          #       ADD CONSTRAINT x_fkey FOREIGN KEY (col) REFERENCES ...;
+          # `ADD CONSTRAINT … FOREIGN KEY` is one line and is unambiguous. A
+          # looser 'FOREIGN KEY' would also match prose in comments and any
+          # inline table definition, and an over-count here would invent a red
+          # drill — the precise failure this change exists to remove.
+          EXPECT_FK=$(grep -cE 'ADD CONSTRAINT .* FOREIGN KEY' "$SQL_FILE" || true)
+          GOT_FK=$(psql "$PGURL" -X -t -A -c \
+            "SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE c.contype='f' AND n.nspname='public'")
+          if [ "${EXPECT_FK:-0}" -gt 0 ] && [ "$GOT_FK" -eq "$EXPECT_FK" ]; then
+            echo "- ✅ foreign keys: $GOT_FK restored (dump declares $EXPECT_FK)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- ❌ foreign keys: restored $GOT_FK but dump declares ${EXPECT_FK:-0} — the restored" >> "$GITHUB_STEP_SUMMARY"
+            echo "  database has lost referential integrity and would accept orphaned rows." >> "$GITHUB_STEP_SUMMARY"
             FAIL=1
           fi
 

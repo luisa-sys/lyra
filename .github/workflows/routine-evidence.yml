@@ -1,0 +1,88 @@
+name: Routine Evidence
+
+# CTL-062 / SEC-146 — did the routines' OUTPUT survive?
+#
+# The three scheduled routines each end a run by opening a PR that appends one
+# row to their run-log in docs/. Between 2026-08-05 and 2026-08-14 almost none of
+# those PRs merged — every one was opened as a DRAFT, and a draft cannot
+# auto-merge or be merged at all until a human marks it ready. The routines did
+# exactly what they were told; what they were told terminated in a state nothing
+# could advance. Ten days of evidence across three logs never reached the repo.
+#
+# WHY THIS IS A SEPARATE WORKFLOW AND NOT A pr-checks.yml STEP.
+# This control goes red with the passage of TIME, not with the contents of a
+# diff. In pr-checks it would fail every unrelated PR the moment a routine
+# missed a day — which is how the npm-audit gate froze the pipeline for ~11 days
+# with 40+ green PRs queued (SEC-88, gotcha #23), and is the shape of a gate
+# someone eventually switches off. The finding belongs to the routines, so it is
+# raised on the routines' own clock.
+#
+# WHY NOT A JOB IN release-integrity.yml. One concern, one owner (KAN-361). That
+# workflow owns whether a production release is identifiable. This owns whether
+# routine evidence is reaching the repository; folding them together would make
+# a missing tag and a missing run-log row share an alert.
+#
+# WHY NOT INSIDE THE ROUTINES THEMSELVES. A check a routine performs on its own
+# output dies with that routine, which is the SEC-79 shape one level up. Every
+# existing routine control — the Confluence heartbeat, routine-watchdog.sh,
+# CTL-042's workflow-liveness check — asks "did it run?". Throughout the ten-day
+# gap all of them were correct and green: the routines WERE running. Nothing
+# asked whether the output survived.
+
+on:
+  schedule:
+    # 09:40 UTC daily. After the three routines (01:00, 04:12, Mon 06:30) and
+    # after 09:10 release-integrity, leaving several hours for each routine's
+    # run-log PR to open, pass CI and merge before its absence is called a gap.
+    - cron: '40 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-log-freshness:
+    name: Routine run-logs carry fresh evidence (CTL-062)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        # A shallow clone is correct here and is stated so nobody "fixes" it to
+        # match release-integrity.yml next door, which genuinely needs depth 0.
+        # This check reads four files in the working tree and no git history.
+
+      - name: Self-test the checker
+        # Prove the parser, the budget lookup and both fail paths still work
+        # before trusting anything this job says about the real docs. The three
+        # run-logs disagree on ordering and one has a blank line inside its
+        # table, so the parsing is where this control can quietly stop working.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-run-log-freshness.py --self-test
+
+      - name: Assert every routine run-log is within its cadence budget
+        run: |
+          set -euo pipefail
+          python3 scripts/check-run-log-freshness.py
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          echo "::error::A routine's run-log has stopped receiving rows, or could"
+          echo "::error::not be read at all. The two are different claims and the"
+          echo "::error::annotations above say which one this is."
+          echo "::error::"
+          echo "::error::If it is STALE: the routine is probably still running and"
+          echo "::error::still heartbeating. What has stopped is its evidence"
+          echo "::error::reaching the repository. Check for open run-log PRs on"
+          echo "::error::luisa-sys/lyra — SEC-146 is the case where ~24 of them sat"
+          echo "::error::open as DRAFTS, which cannot auto-merge, for ten days."
+          echo "::error::"
+          echo "::error::Backfill oldest-first and preserve each row's original"
+          echo "::error::date and content verbatim. These are dated measurements,"
+          echo "::error::not notes — do not rewrite them to read as taken today,"
+          echo "::error::and do not re-sort a log to tidy it."

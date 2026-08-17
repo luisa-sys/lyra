@@ -10,18 +10,18 @@ const rpcSpy = jest.fn();
 const serviceClientSpy = jest.fn(() => ({ rpc: rpcSpy }));
 const anonCreateClientSpy = jest.fn();
 
-jest.mock('@/lib/supabase-service', () => ({
+jest.mock('@/modules/platform/supabase-service', () => ({
   createServiceRoleClient: () => serviceClientSpy(),
 }));
 
 // metrics.ts imports createClient from supabase-server at module load; mock it
 // both to prove getAnomalyWindowAdmin never touches it AND to avoid pulling in
 // next/headers (cookies) in the node test env.
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: (...args: unknown[]) => anonCreateClientSpy(...args),
 }));
 
-import { getAnomalyWindowAdmin } from '@/lib/metrics';
+import { getAnomalyWindowAdmin } from '@/modules/observability/metrics';
 
 const SNAPSHOT = {
   profile_signups: 3,

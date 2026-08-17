@@ -14,9 +14,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
-const SCRIPT = path.join(REPO_ROOT, 'scripts/check-dependency-rules.sh');
+const SCRIPT = path.join(REPO_ROOT, SRC.checkDependencyRules);
 const CONFIG = path.join(REPO_ROOT, '.dependency-cruiser.cjs');
 
 /**
@@ -152,11 +153,11 @@ describe('scripts/check-dependency-rules.sh (KAN-425)', () => {
     const { code, out } = run(
       makeTree({
         'src/lib/util.ts': 'export const util = 1;\n',
-        'src/app/[slug]/slug-utils.ts': 'export const slugUtil = 1;\n',
-        'src/app/[slug]/page.tsx':
+        [SRC.slugUtils]: 'export const slugUtil = 1;\n',
+        [SRC.slugPage]:
           "import { slugUtil } from './slug-utils';\nexport default () => slugUtil;\n",
-        'src/app/(auth)/auth-errors.ts': 'export const authError = 1;\n',
-        'src/app/(auth)/login/page.tsx':
+        [SRC.authErrors]: 'export const authError = 1;\n',
+        [SRC.loginPage]:
           "import { authError } from '../auth-errors';\nexport default () => authError;\n",
       })
     );
@@ -186,5 +187,61 @@ describe('scripts/check-dependency-rules.sh (KAN-425)', () => {
     const { code, out } = run(makeTree(CLEAN), 'off');
     expect(code).not.toBe(0);
     expect(out).toMatch(/DEPCRUISE_SEVERITY must be/);
+  });
+});
+
+// ── KAN-414 F3: per-rule severity ─────────────────────────────────────────────
+// A single global dial made the whole gate hostage to its worst rule. These pin
+// which rules are BLOCKING so nobody can quietly demote one back to `warn` to
+// get a red build green — the demotion, not the violation, is the regression.
+describe('per-rule severity (KAN-414 F3)', () => {
+  const cfg = require('node:fs').readFileSync(
+    require('node:path').resolve(__dirname, '../../.dependency-cruiser.cjs'),
+    'utf-8',
+  );
+
+  test('no-module-to-app is blocking', () => {
+    expect(cfg).toMatch(/name: 'no-module-to-app',\s*\n\s*severity: severityFor\(BLOCKING\)/);
+  });
+
+  test('no-circular is blocking', () => {
+    expect(cfg).toMatch(/name: 'no-circular',\s*\n\s*severity: severityFor\(BLOCKING\)/);
+  });
+
+  test('no-cross-segment-app is NOW blocking too — KAN-415 cleared its last edge', () => {
+    // Was deliberately NOT blocking while 3 of its 4 violations belonged to D8
+    // and KAN-422 and the 4th was unrouted. All four are cleared, so the
+    // demotion this test guards against is now a demotion from error.
+    expect(cfg).toMatch(
+      /no-cross-segment-app\/\$\{segment\}`,\s*\n\s*severity: severityFor\(BLOCKING\)/,
+    );
+  });
+
+  test('the reason each rule sits where it does is written down', () => {
+    // A severity with no recorded justification is the thing that rots. Assert
+    // the owners are NAMED, without pinning comment line-wrapping.
+    // Strip leading comment asterisks before collapsing whitespace, or a
+    // wrapped sentence reads as "D8's * acceptance criteria".
+    const prose = cfg.replace(/^\s*\*\s?/gm, '').replace(/\s+/g, ' ');
+    expect(prose).toMatch(/no-module-to-app 0 violations/);
+    // How each cross-segment edge was cleared, still named rather than merely
+    // declared gone — a rule that reaches zero with no record of HOW is one
+    // nobody can safely re-open.
+    expect(prose).toMatch(/cleared by D8/);
+    expect(prose).toMatch(/PRIVATE folder/);
+    expect(prose).toMatch(/session-actions\.ts/);
+  });
+
+  test('DEPCRUISE_SEVERITY=error still forces every rule to error', () => {
+    // The dial moved into scripts/depcruise-severity.cjs when the last rule
+    // flipped — see that file's header. Assert it where it now lives, or this
+    // passes against a config that no longer contains the mechanism at all.
+    const { SRC } = require('../support/source-paths.json');
+    const dial = require('node:fs').readFileSync(
+      require('node:path').resolve(__dirname, '../..', SRC.depcruiseSeverity),
+      'utf-8',
+    );
+    expect(dial).toMatch(/forceError \|\| ruleAtZero/);
+    expect(cfg).toMatch(/require\('\.\/scripts\/depcruise-severity\.cjs'\)/);
   });
 });

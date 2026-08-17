@@ -11,7 +11,11 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
+import { getAdminServiceClient } from '@/modules/admin/admin';
+import {
+  resolveReport,
+  suspendProfileFromReport,
+} from '@/modules/trust-safety/report-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,99 +50,45 @@ async function loadReport(id: string): Promise<FullReport | null> {
 }
 
 // ── Server actions ────────────────────────────────────────────────
+//
+// KAN-415 D7: these were the whole implementation. The moderation logic now
+// lives in src/modules/trust-safety/report-actions.ts, where it can be
+// imported and tested — an unexported closure cannot be, which is why the
+// most audit-sensitive writes in the product had zero unit coverage.
+//
+// What is left here is FormData parsing and nothing else. These stay in the
+// page because a `'use server'` file may export only async functions
+// (gotcha #18), and that is rejected at action-invocation time rather than at
+// build time — so a constant exported from the wrong file ships green and
+// 500s the first real submission.
 
 async function actionDismissReport(formData: FormData) {
   'use server';
-  const reportId = String(formData.get('reportId') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-  await dismissOrResolveReport(reportId, 'dismissed', 'dismiss_report', reason);
+  await resolveReport(
+    String(formData.get('reportId') ?? ''),
+    'dismissed',
+    'dismiss_report',
+    String(formData.get('reason') ?? ''),
+  );
 }
 
 async function actionResolveReport(formData: FormData) {
   'use server';
-  const reportId = String(formData.get('reportId') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-  await dismissOrResolveReport(reportId, 'actioned', 'resolve_report', reason);
+  await resolveReport(
+    String(formData.get('reportId') ?? ''),
+    'actioned',
+    'resolve_report',
+    String(formData.get('reason') ?? ''),
+  );
 }
 
 async function actionSuspendProfile(formData: FormData) {
   'use server';
-  const reportId = String(formData.get('reportId') ?? '');
-  const profileId = String(formData.get('profileId') ?? '');
-  const reason = String(formData.get('reason') ?? '');
-
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const supabase = getAdminServiceClient();
-
-  // 1. Audit-first: write the moderation log entry. If this fails we
-  // do NOT proceed with the mutation — see comment in logModerationAction.
-  await logModerationAction({
-    admin,
-    action: 'suspend',
-    targetProfileId: profileId,
-    reason: reason || 'Action taken following report',
-    metadata: { reportId },
-  });
-
-  // 2. Suspend the profile.
-  await supabase
-    .from('profiles')
-    .update({
-      is_suspended: true,
-      suspended_at: new Date().toISOString(),
-      suspension_reason: reason || 'Action taken following report',
-    })
-    .eq('id', profileId);
-
-  // 3. Mark the report as actioned.
-  await supabase
-    .from('reports')
-    .update({
-      status: 'actioned',
-      resolved_by: admin.userId,
-      resolved_at: new Date().toISOString(),
-    })
-    .eq('id', reportId);
-
-  redirect('/admin/reports');
-}
-
-async function dismissOrResolveReport(
-  reportId: string,
-  newStatus: 'actioned' | 'dismissed',
-  action: 'resolve_report' | 'dismiss_report',
-  reason: string,
-) {
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect('/');
-
-  const supabase = getAdminServiceClient();
-  const { data: report } = await supabase
-    .from('reports')
-    .select('profile_id, profile_item_id')
-    .eq('id', reportId)
-    .maybeSingle();
-
-  await logModerationAction({
-    admin,
-    action,
-    targetProfileId: (report?.profile_id as string | undefined) ?? null,
-    targetItemId: (report?.profile_item_id as string | undefined) ?? null,
-    reason: reason || null,
-    metadata: { reportId },
-  });
-
-  await supabase
-    .from('reports')
-    .update({
-      status: newStatus,
-      resolved_by: admin.userId,
-      resolved_at: new Date().toISOString(),
-    })
-    .eq('id', reportId);
-
+  await suspendProfileFromReport(
+    String(formData.get('reportId') ?? ''),
+    String(formData.get('profileId') ?? ''),
+    String(formData.get('reason') ?? ''),
+  );
   redirect('/admin/reports');
 }
 

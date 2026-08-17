@@ -7,10 +7,10 @@
  * route (immediate UX). No biometric is handled here.
  */
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
-import { createAgeSession } from '@/lib/age/didit';
-import { profileIdForUser, setProfileAgeStatus } from '@/lib/age/age-service';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
+import { createAgeSession } from '@/modules/age/didit';
+import { profileIdForUser, setProfileAgeStatus } from '@/modules/age/age-service';
 
 export async function startAgeVerification(): Promise<void> {
   const supabase = await createClient();

@@ -13,11 +13,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const homepagePath = path.join(root, 'src/app/page.tsx');
-const marketingPath = path.join(root, 'src/app/_marketing/sections.tsx');
-const aboutPath = path.join(root, 'src/app/(legal)/about/page.tsx');
+const homepagePath = path.join(root, SRC.appPage);
+const marketingPath = path.join(root, SRC.sections);
+const aboutPath = path.join(root, SRC.aboutPage);
 
 describe('KAN-272: Minimal homepage (June-2026 redesign)', () => {
   let content;
@@ -68,7 +69,10 @@ describe('KAN-272: Minimal homepage (June-2026 redesign)', () => {
 
   test('queries up to 6 published profiles for the "A few people to meet" band', () => {
     expect(content).toContain('A few people to meet');
-    expect(content).toContain('is_published');
+    // SEC-104: reads moved from the `profiles` table to the `public_profiles`
+    // view, which carries `is_published = true AND is_suspended = false` in its
+    // body and therefore binds the service-role client (RLS does not).
+    expect(content).toContain('.from("public_profiles")');
     expect(content).toContain('.limit(6)');
   });
 
@@ -182,7 +186,7 @@ describe('KAN-272: About page hosts the moved trio', () => {
 describe('KAN-273/287: Production waitlist front door', () => {
   let home;
   let signup;
-  const signupPath = path.join(root, 'src/app/(auth)/signup/page.tsx');
+  const signupPath = path.join(root, SRC.signupPage);
 
   beforeAll(() => {
     home = fs.readFileSync(homepagePath, 'utf8');

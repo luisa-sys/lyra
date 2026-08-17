@@ -20,6 +20,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { SRC } from '../support/source-paths';
 
 // Mock next/cache
 const mockRevalidatePath = jest.fn();
@@ -32,7 +33,7 @@ jest.mock('next/cache', () => ({
 const mockUpdateCapture = jest.fn();
 const mockEqResolve = jest.fn().mockResolvedValue({ error: null });
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -62,7 +63,7 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 import { updateProfileFields } from '@/app/dashboard/profile/actions';
-import { ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/profile-fields';
+import { ALLOWED_PROFILE_FIELDS } from '@/modules/profile/profile-fields';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
@@ -96,10 +97,41 @@ describe('updateProfileFields — allowlist enforcement', () => {
   });
 
   test('passes booleans through without sanitisation', async () => {
-    await updateProfileFields({ is_published: true, onboarding_complete: false });
-    expect(mockUpdateCapture).toHaveBeenCalledWith({
-      is_published: true,
-      onboarding_complete: false,
+    // KAN-415 D-6: this used to pair `onboarding_complete` with `is_published`
+    // as its two example booleans. `is_published` is no longer allow-listed, so
+    // it would now be filtered out and prove nothing — but the assertion was
+    // never about publishing, only about booleans skipping sanitiseText, and
+    // `onboarding_complete` demonstrates that on its own. The publish behaviour
+    // it incidentally covered is asserted directly below instead.
+    await updateProfileFields({ onboarding_complete: false });
+    expect(mockUpdateCapture).toHaveBeenCalledWith({ onboarding_complete: false });
+  });
+
+  describe('KAN-415 D-6 — updateProfileFields is not a publish path', () => {
+    test('is_published is REJECTED by name, and nothing is written', async () => {
+      // The whole point of D-6. If someone re-adds `is_published` to
+      // ALLOWED_PROFILE_FIELDS, this goes red and names the reason.
+      //
+      // Note the action REJECTS the whole request rather than quietly dropping
+      // the key. That is the stronger of the two behaviours and worth pinning:
+      // silently discarding it would tell a caller their publish succeeded.
+      const result = await updateProfileFields({ is_published: true });
+      expect(result).toEqual({ success: false, error: 'Field(s) not permitted: is_published' });
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
+    });
+
+    test('it cannot smuggle is_published alongside a legitimate field', async () => {
+      // The shape that matters: a check that only rejected a LONE disallowed
+      // key would pass the test above and still let this through.
+      const result = await updateProfileFields({ display_name: 'Bob', is_published: true });
+      expect(result.success).toBe(false);
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
+    });
+
+    test('nor unpublish — the allowlist is about the column, not the value', async () => {
+      const result = await updateProfileFields({ display_name: 'Bob', is_published: false });
+      expect(result.success).toBe(false);
+      expect(mockUpdateCapture).not.toHaveBeenCalled();
     });
   });
 
@@ -202,7 +234,7 @@ describe('ALLOWED_PROFILE_FIELDS — allowlist contents', () => {
 });
 
 describe('Regression guard — actions.ts must never reintroduce the property injection pattern', () => {
-  const actionsPath = path.join(__dirname, '../..', 'src/app/dashboard/profile/actions.ts');
+  const actionsPath = path.join(__dirname, '../..', SRC.profileActions);
   const source = fs.readFileSync(actionsPath, 'utf8');
 
   test('the deleted updateProfile function MUST NOT be re-added without an allowlist', () => {

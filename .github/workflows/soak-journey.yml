@@ -31,6 +31,14 @@ on:
         description: 'DNS-only grey-cloud staging alias to run against (bypasses CF bot-mgmt)'
         required: false
         default: 'https://e2e-stage.checklyra.com'
+  # Fire automatically after every staging deploy, so a promote is always soaked
+  # against the build that actually landed rather than against whatever staging
+  # happened to be running when someone last remembered to press the button.
+  # promote-staging-to-beta.yml then REFUSES to promote until the soak for that
+  # exact SHA has passed — see its "post-deploy soak" gate.
+  workflow_run:
+    workflows: ["Deploy to Staging"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -43,6 +51,9 @@ jobs:
   soak-journey:
     name: Playwright soak journey (staging via e2e-stage)
     runs-on: ubuntu-latest
+    # Don't soak a staging deploy that itself failed — there is nothing
+    # meaningful to test and a red soak would mask the real cause.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 20
     # Fixed soak-user email → concurrent runs would race on reset/create. Serialise.
     concurrency:
@@ -59,7 +70,7 @@ jobs:
       E2E_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
       E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Require STAGING secrets + prod guard (fail loud, never silent-skip)
         run: |
@@ -79,7 +90,7 @@ jobs:
           echo "guards passed → $BASE_URL"
 
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '22'
           cache: 'npm'

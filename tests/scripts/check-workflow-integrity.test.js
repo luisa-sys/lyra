@@ -2,9 +2,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.resolve(REPO_ROOT, 'scripts/check-workflow-integrity.sh');
+const SCRIPT = path.resolve(REPO_ROOT, SRC.checkWorkflowIntegrity);
 
 // Run the integrity script with a given working directory. Returns
 // { status, output }. status 0 == clean; non-zero == integrity problem(s).
@@ -35,7 +36,7 @@ function runWithWorkflow(name, contents) {
   }
 }
 
-describe('scripts/check-workflow-integrity.sh', () => {
+describe(SRC.checkWorkflowIntegrity, () => {
   let source = '';
 
   beforeAll(() => {

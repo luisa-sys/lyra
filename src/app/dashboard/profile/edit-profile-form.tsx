@@ -27,6 +27,7 @@ import {
   updateProfileItemVisibility,
   addExternalLink,
   removeExternalLink,
+  updateExternalLink,
   publishProfile,
 } from './actions';
 import {
@@ -50,10 +51,18 @@ import {
   BioSection,
   ManualOfMeSection,
   AffiliationsSection,
+  GiftExtrasSection,
   AutoSaveStatusLabel,
   type AutoSaveStatus,
+  type GiftSuggestionView,
 } from './sections';
-import type { ManualOfMe } from './manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
+import {
+  FAVOURITE_CATEGORIES,
+  FAVOURITE_CATEGORY_OPTIONS,
+  CUSTOM_FAVOURITE_CATEGORY,
+  favouriteLabelForItem,
+} from '@/modules/profile/favourites';
 
 type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links';
 
@@ -64,6 +73,20 @@ interface SectionDef {
   kind: SectionKind;
   categories?: string[];
   description?: string;
+  // KAN-444: a section whose categories are grouped under fewer headings
+  // supplies its own picker options, so the member chooses a group rather
+  // than a raw category. See ./favourites.
+  categoryOptions?: ReadonlyArray<{ value: string; label: string }>;
+  groupLabelCategory?: string;
+  labelForItem?: (item: WizardItem) => string | null;
+  // KAN-443: 'inline' drops the per-row category prefix and puts the item's
+  // description on the same line as its name, with any link underneath —
+  // matching how the public profile renders a list. Omitted everywhere else, so
+  // the other eleven sections keep the labelled layout exactly as it was.
+  rowLayout?: 'label' | 'inline';
+  // KAN-443: extra controls rendered after the list. Only the gifts section has
+  // any (the voucher hint + dismissable suggestions).
+  extras?: 'gifts';
 }
 
 // KAN-266: section order + headings mirror the public profile (the redesign's
@@ -81,6 +104,10 @@ const SECTIONS: SectionDef[] = [
     kind: 'items',
     categories: ['gift_ideas'],
     description: "The things you'd genuinely love — to receive, to do, or to be surprised by.",
+    // KAN-443: one category, so the per-row "🎁 Gift idea —" prefix said the
+    // same thing on every line and pushed the name off the start of it.
+    rowLayout: 'inline',
+    extras: 'gifts',
   },
   {
     id: 'notforme',
@@ -107,12 +134,19 @@ const SECTIONS: SectionDef[] = [
     description: 'Moments and achievements that mean something to you.',
   },
   {
+    // KAN-444: five fixed groups plus one you name yourself. Categories,
+    // group headings and the picker all come from ./favourites, which the
+    // public profile reads too — so the groups a member edits are exactly
+    // the groups they get. 'causes' is not here: it has its own section.
     id: 'favourites',
     label: 'A few of my favourite things',
     icon: '⭐',
     kind: 'items',
-    categories: ['favourite_books', 'favourite_media', 'favourite_tv', 'plays', 'quotes', 'favourite_places', 'favourite_music'],
-    description: 'Books, films, TV, plays, music, places, and the quotes you come back to.',
+    categories: FAVOURITE_CATEGORIES,
+    categoryOptions: FAVOURITE_CATEGORY_OPTIONS,
+    groupLabelCategory: CUSTOM_FAVOURITE_CATEGORY,
+    labelForItem: favouriteLabelForItem,
+    description: 'Books, films, plays and TV, music, places, and the quotes you come back to — or add a group of your own.',
   },
   {
     id: 'tips',
@@ -132,10 +166,10 @@ const SECTIONS: SectionDef[] = [
   },
   {
     id: 'starters',
-    label: 'A few more things about me',
+    label: 'A bit more about me',
     icon: '💬',
     kind: 'starters',
-    description: 'Pick a question and answer it in your own words.',
+    description: 'Random things about you — answer any that take your fancy, or write your own.',
   },
   {
     id: 'extras',
@@ -157,6 +191,7 @@ export function EditProfileForm({
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
+  giftSuggestions = [],
 }: {
   profile: WizardProfile;
   items: WizardItem[];
@@ -166,6 +201,9 @@ export function EditProfileForm({
   conversationPrompts: ConversationPrompt[];
   conversationAnswers: ConversationAnswer[];
   conveneEnabled?: boolean;
+  // KAN-443: computed by the page (getRecommendations is pure), each already
+  // flagged with whether the member has said "not for me" to it.
+  giftSuggestions?: GiftSuggestionView[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -226,6 +264,10 @@ export function EditProfileForm({
       title=""
       description={s.description ?? ''}
       categories={s.categories ?? []}
+      categoryOptions={s.categoryOptions}
+      groupLabelCategory={s.groupLabelCategory}
+      labelForItem={s.labelForItem}
+      rowLayout={s.rowLayout}
       items={items.filter((i) => (s.categories ?? []).includes(i.category))}
       // KAN-266: redesign drops per-item visibility.
       hideVisibility
@@ -253,6 +295,14 @@ export function EditProfileForm({
       onNext={() => toggleSection(s.id)}
       isPending={isPending}
     />
+    {/* KAN-443: the gifts section carries two extras the other list sections
+        have no equivalent of — the optional "I'd rather choose" line, and the
+        auto-generated suggestions the member can dismiss one at a time. */}
+    {s.extras === 'gifts' && (
+      <div className="pt-2 border-t border-[#ece7df]">
+        <GiftExtrasSection profile={profile} suggestions={giftSuggestions} />
+      </div>
+    )}
     </div>
   );
 
@@ -371,6 +421,15 @@ export function EditProfileForm({
                           onRemove={(id) => {
                             runSectionSave(s.id, () => removeExternalLink(id));
                           }}
+                          // KAN-447: inline edit — same shape as the items
+                          // section. Awaited directly so a moderation block
+                          // surfaces on the row rather than in the section
+                          // status; router.refresh() re-pulls the saved row.
+                          onEdit={async (id, data) => {
+                            const res = await updateExternalLink(id, data);
+                            if (res.success) router.refresh();
+                            return { success: res.success, error: res.success ? undefined : res.error };
+                          }}
                           showContinue={false}
                           onNext={() => toggleSection(s.id)}
                           isPending={isPending}
@@ -388,8 +447,14 @@ export function EditProfileForm({
                           onAdd={(input) => {
                             runSectionSave(s.id, () => addConversationStarter(input));
                           }}
-                          onUpdate={(id, answer) => {
-                            runSectionSave(s.id, () => updateConversationStarter(id, answer));
+                          // KAN-448: awaited directly, like the items and links
+                          // edits, so a moderation block surfaces on the answer
+                          // being edited instead of only flipping the section
+                          // status to error.
+                          onUpdate={async (id, answer, customPrompt) => {
+                            const res = await updateConversationStarter(id, answer, customPrompt);
+                            if (res.success) router.refresh();
+                            return { success: res.success, error: res.success ? undefined : res.error };
                           }}
                           onRemove={(id) => {
                             runSectionSave(s.id, () => removeConversationStarter(id));

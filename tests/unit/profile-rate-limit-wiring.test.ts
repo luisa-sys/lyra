@@ -11,6 +11,7 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { SRC } from '../support/source-paths';
 
 function read(p: string): string {
   return readFileSync(join(__dirname, '..', '..', p), 'utf8');
@@ -30,12 +31,12 @@ function extractFn(src: string, name: string): string | null {
 }
 
 describe('KAN-231 rate-limit wiring regression guards', () => {
-  describe('src/app/dashboard/profile/actions.ts', () => {
-    const src = read('src/app/dashboard/profile/actions.ts');
+  describe(SRC.profileActions, () => {
+    const src = read(SRC.profileActions);
 
     test('imports checkProfileWriteRateLimit', () => {
       expect(src).toMatch(
-        /import\s*\{\s*checkProfileWriteRateLimit\s*\}\s*from\s*['"]@\/lib\/profile-rate-limit['"]/,
+        /import\s*\{\s*checkProfileWriteRateLimit\s*\}\s*from\s*['"]@\/modules\/guards\/profile-rate-limit['"]/,
       );
     });
 
@@ -53,8 +54,8 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
     });
   });
 
-  describe('src/app/dashboard/profile/conversation-starters-actions.ts', () => {
-    const src = read('src/app/dashboard/profile/conversation-starters-actions.ts');
+  describe(SRC.conversationStartersActions, () => {
+    const src = read(SRC.conversationStartersActions);
 
     test('imports checkProfileWriteRateLimit', () => {
       expect(src).toMatch(/checkProfileWriteRateLimit/);
@@ -70,8 +71,8 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
     );
   });
 
-  describe('src/app/dashboard/profile/manual-of-me-actions.ts', () => {
-    const src = read('src/app/dashboard/profile/manual-of-me-actions.ts');
+  describe(SRC.manualOfMeActions, () => {
+    const src = read(SRC.manualOfMeActions);
 
     test('updateManualOfMe wires the rate limit', () => {
       const fn = extractFn(src, 'updateManualOfMe');
@@ -80,8 +81,8 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
     });
   });
 
-  describe('src/app/dashboard/profile/files-actions.ts', () => {
-    const src = read('src/app/dashboard/profile/files-actions.ts');
+  describe(SRC.filesActions, () => {
+    const src = read(SRC.filesActions);
 
     test('uploadProfileFile wires the rate limit', () => {
       const fn = extractFn(src, 'uploadProfileFile');
@@ -90,8 +91,8 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
     });
   });
 
-  describe('src/app/dashboard/profile/delivery-country-actions.ts', () => {
-    const src = read('src/app/dashboard/profile/delivery-country-actions.ts');
+  describe(SRC.deliveryCountryActions, () => {
+    const src = read(SRC.deliveryCountryActions);
 
     test('updateDeliveryCountry wires the rate limit', () => {
       const fn = extractFn(src, 'updateDeliveryCountry');
@@ -102,7 +103,7 @@ describe('KAN-231 rate-limit wiring regression guards', () => {
 
   describe('placement: rate-limit runs BEFORE any DB write', () => {
     test('actions.ts: rl.allowed check precedes every .from(...) write', () => {
-      const src = read('src/app/dashboard/profile/actions.ts');
+      const src = read(SRC.profileActions);
       // For each function we wired, find the rate-limit check index and the
       // first .insert/.update/.delete after it. The rate-limit must come
       // first within the function body.

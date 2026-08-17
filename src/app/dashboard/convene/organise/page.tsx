@@ -1,21 +1,16 @@
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
 import OrganiseWizard from './organise-wizard';
+import type { WizardContact } from './organise-fields';
 
 export const metadata = {
   title: 'Organise — Lyra',
   description: 'Organise a gathering with the people in your life.',
 };
 
-export interface WizardContact {
-  id: string;
-  display_name: string;
-  city: string | null;
-  has_linked_profile: boolean;
-}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (

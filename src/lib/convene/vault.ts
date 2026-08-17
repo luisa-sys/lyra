@@ -9,7 +9,7 @@
  * SPIKE quality (KAN-204). Hardened in P1 (KAN-205).
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 
 function adminClient() {
   return createServiceRoleClient();

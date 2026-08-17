@@ -1,0 +1,159 @@
+# BUGS-104 — tag the release when the DEPLOY finishes, not when the promote does.
+#
+# promote-to-production.yml's `release-tag` job needs `smoke-tests`, which needs
+# `wait-for-deploy` to have reported `deployed`. When the production deploy is
+# parked on the SEC-106 required-reviewer gate, `wait-for-deploy` correctly
+# exits 0 with `awaiting-approval` (failing it once fired a spurious
+# auto-rollback — a deliberate 2026-08-09 decision, do not change it), so both
+# downstream jobs are SKIPPED. The founder then approves, the deploy succeeds,
+# and nothing returns to tag: the promote run finished long ago.
+#
+# Since the reviewer gate landed on 2026-07-30 that path is the NORMAL path, so
+# effectively every release has gone untagged. BUGS-97's release-integrity.yml
+# detects it the NEXT MORNING at 09:10 — its post-promote firing passes because
+# the commit is minutes old and still inside the age threshold — which is why it
+# reads as a flaky scheduled job rather than a deterministic consequence of
+# every promote.
+#
+# `git describe --tags` is the authoritative version here (package.json drifts
+# by design, gotcha #12), so an untagged main means production is not
+# identifiable.
+#
+# This workflow is triggered BY the deploy rather than hosted IN it, which keeps
+# BUGS-97's principle intact: a workflow cannot be the only witness to its own
+# completion.
+#
+# The decision lives in scripts/decide-release-tag.py so it can be tested. An
+# inline `run:` block is reachable by no test — which is exactly how BUGS-103's
+# soak probe stayed red for four days without a unit ever objecting.
+
+name: Release Tag on Deploy
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types: [completed]
+  # Manual recovery for a deploy that completed before this workflow existed,
+  # or any case where the automatic firing was missed.
+  workflow_dispatch:
+
+# One tagger at a time. Two concurrent runs could both read "HEAD is untagged"
+# and both try to create the same tag (SEC-141's shape).
+concurrency:
+  group: release-tag-on-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  tag:
+    name: Create the release tag if the deploy earned one
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main with full history and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          # fetch-depth: 0 because `git describe --tags` needs the tag objects;
+          # a shallow clone silently reports "unknown" (gotcha #11).
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.LYRA_RELEASE_PAT }}
+
+      - name: Require the release PAT
+        env:
+          RELEASE_PAT: ${{ secrets.LYRA_RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+          # Fail LOUD, never `if: env.X != ''`. A tagger that silently skips
+          # when its credential is missing recreates the exact defect this
+          # workflow exists to fix (KAN-167).
+          if [ -z "$RELEASE_PAT" ]; then
+            echo "::error::LYRA_RELEASE_PAT is not set. This workflow cannot push a tag."
+            echo "::error::  Failing loudly rather than skipping — a silent skip here is"
+            echo "::error::  indistinguishable from the BUGS-104 defect itself."
+            exit 1
+          fi
+          echo "LYRA_RELEASE_PAT present."
+
+      - name: Decide whether to tag
+        id: decide
+        env:
+          # On workflow_dispatch there is no triggering run, so treat the
+          # dispatch as an assertion that the current main HEAD deployed — the
+          # head_sha check below then degenerates to main == main, and the
+          # idempotency check still protects against a double tag.
+          CONCLUSION: ${{ github.event_name == 'workflow_dispatch' && 'success' || github.event.workflow_run.conclusion }}
+          DEPLOY_SHA: ${{ github.event_name == 'workflow_dispatch' && '' || github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          MAIN_SHA=$(git rev-parse HEAD)
+          # --exact-match: only a tag ON this commit counts. `git describe`
+          # without it returns the nearest ancestor tag plus a distance suffix,
+          # which would make an untagged HEAD look tagged.
+          HEAD_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          DEPLOY_SHA_EFFECTIVE="${DEPLOY_SHA:-$MAIN_SHA}"
+
+          echo "conclusion=$CONCLUSION  deploy=$DEPLOY_SHA_EFFECTIVE  main=$MAIN_SHA"
+          echo "head_tag=${HEAD_TAG:-<none>}  last_tag=${LAST_TAG:-<none>}"
+
+          set +e
+          OUT=$(python3 scripts/decide-release-tag.py \
+            --conclusion "$CONCLUSION" \
+            --deploy-sha "$DEPLOY_SHA_EFFECTIVE" \
+            --main-sha "$MAIN_SHA" \
+            --head-tag "$HEAD_TAG" \
+            --last-tag "$LAST_TAG")
+          RC=$?
+          set -e
+          echo "$OUT"
+
+          # exit 1 = refused (inconsistent inputs), exit 2 = undecidable.
+          # Both are real failures; neither may pass as "nothing to do".
+          if [ "$RC" -ne 0 ]; then
+            exit "$RC"
+          fi
+
+          echo "$OUT" | grep -E '^(action|tag)=' >> "$GITHUB_OUTPUT"
+
+      - name: Create and push the tag
+        if: steps.decide.outputs.action == 'TAG'
+        env:
+          NEW_TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG — tagged on production deploy completion (BUGS-104)"
+          git push origin "$NEW_TAG"
+
+          # Verify against the REMOTE, not the local tag store. `git describe`
+          # reads local refs and does not care whether a push succeeded — that
+          # exact false-green nearly shipped as "tagged" on 2026-08-16 when the
+          # push had 403'd and a retry loop swallowed the failure.
+          git fetch origin --tags --force
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$NEW_TAG" >/dev/null; then
+            echo "::error::$NEW_TAG is not on the remote after push — the push did not take."
+            exit 1
+          fi
+          echo "Tagged and verified on the remote: $NEW_TAG"
+
+      - name: Summary
+        if: always()
+        env:
+          ACTION: ${{ steps.decide.outputs.action }}
+          TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Release tag on deploy"
+            echo ""
+            echo "- decision: \`${ACTION:-<none>}\`"
+            echo "- tag: \`${TAG:-<none>}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

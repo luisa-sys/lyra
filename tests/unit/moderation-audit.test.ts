@@ -10,7 +10,7 @@
  *   - snippet is truncated to 200 chars
  */
 
-import { moderateAndAudit } from '@/lib/moderation-audit';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 
 type InsertedRow = {
   profile_id: string | null;

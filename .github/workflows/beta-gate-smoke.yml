@@ -67,6 +67,60 @@ jobs:
           : > "${RUNNER_TEMP}/verified"
           : > "${RUNNER_TEMP}/inconclusive"
 
+      # KAN-279 / Gotcha #7. This smoke had failed 12 consecutive runs (every
+      # run in visible history back to 2026-07-25) with EVERY probe returning
+      # 403: Cloudflare bot-challenges the GitHub runner IP at the
+      # checklyra.com edge. The job then correctly refused to report a false
+      # pass, so it went red daily — and a check that is always red is a check
+      # nobody reads. Beta itself was healthy throughout (verified by hand
+      # 2026-07-30: root 200, /waitlist 200, /dashboard 307).
+      #
+      # The Vercel origin is NOT behind Cloudflare, so the app-gate contracts
+      # can still be verified there. If the edge 403s, repoint BETA_HOST at the
+      # origin for the rest of the job and mark the EDGE as unverified.
+      #
+      # This is a genuine reduction in coverage and is labelled as one: an
+      # origin-only run proves the app-gate contract but NOT the edge. That is
+      # strictly better than verifying nothing, and the Gate step says which
+      # was achieved rather than blurring them.
+      - name: 0/5 Resolve probe host (Cloudflare may 403 the runner)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          set -euo pipefail
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${BETA_HOST}/" || echo "000")
+          if [ "${STATUS}" != "403" ]; then
+            echo "::notice::Edge reachable (HTTP ${STATUS}) — probing the public host, edge included."
+            exit 0
+          fi
+
+          echo "::warning::Edge returned 403 (Cloudflare bot challenge on the runner — Gotcha #7). Falling back to the Vercel origin so the app-gate contracts can still be verified."
+
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ]; then
+            echo "::error::Cannot fall back: VERCEL_TOKEN / VERCEL_PROJECT_ID / VERCEL_ORG_ID are not all set. Refusing to continue with nothing verifiable (KAN-167)."
+            exit 1
+          fi
+
+          # Newest READY beta deployment. `aliasAssigned` is not reliable here
+          # (it is sometimes a timestamp, sometimes a bool — see deploy-beta),
+          # so filter on target+state and take the newest.
+          RESP=$(curl -sS --max-time 20 \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&target=beta&state=READY&limit=1")
+
+          ORIGIN=$(echo "${RESP}" | jq -r '.deployments[0].url // empty')
+          if [ -z "${ORIGIN}" ]; then
+            echo "::error::Could not resolve a READY beta deployment URL from the Vercel API. Refusing to report a pass on an unprobed environment."
+            echo "${RESP}" | head -c 400
+            exit 1
+          fi
+
+          echo "Origin resolved: https://${ORIGIN}"
+          echo "BETA_HOST=https://${ORIGIN}" >> "$GITHUB_ENV"
+          echo "EDGE_UNVERIFIED=1" >> "$GITHUB_ENV"
+
       - name: 1/5 Reachability (beta is up, no network gate)
         run: |
           set -euo pipefail
@@ -193,7 +247,15 @@ jobs:
             echo "::error::Every beta probe was inconclusive (likely all Cloudflare bot-challenged). The smoke verified NOTHING — treating as a failure rather than a false green (KAN-167). Fix the CI probe path per KAN-279."
             exit 1
           fi
-          echo "::notice::${V} check(s) verified, ${I} inconclusive."
+          if [ "${EDGE_UNVERIFIED:-0}" = "1" ]; then
+            # Say plainly what was and was not proven. A run that verified the
+            # app-gate contract at the origin has NOT verified the Cloudflare
+            # edge in front of it, and reporting both as a plain green is how a
+            # gap becomes invisible.
+            echo "::warning::${V} check(s) verified AT THE VERCEL ORIGIN ONLY — the Cloudflare edge could not be probed from CI (Gotcha #7). The app-gate contract holds; edge behaviour is unverified. Permanent fix is a CF WAF skip for the runner or a CF Access service token — KAN-279."
+          else
+            echo "::notice::${V} check(s) verified at the public edge, ${I} inconclusive."
+          fi
 
       - name: Summary
         if: always()
@@ -208,6 +270,10 @@ jobs:
             echo "Trigger: ${{ github.event_name }}"
             echo ""
             echo "Verified: ${V} · Inconclusive (CF challenge): ${I}"
+            if [ "${EDGE_UNVERIFIED:-0}" = "1" ]; then
+              echo ""
+              echo "> ⚠️ Probed the **Vercel origin**, not the public edge — Cloudflare bot-challenged the runner (Gotcha #7). App-gate contract verified; edge unverified. See KAN-279."
+            fi
             echo ""
             if [ "${{ job.status }}" = "success" ]; then
               echo ":white_check_mark: App-gate contract holds (verified ${V} check(s))."
