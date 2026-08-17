@@ -17,16 +17,17 @@
  *     cannot supply a profile_id.
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/lib/sanitise';
-import { moderateAndAudit } from '@/lib/moderation-audit';
-import { checkProfileWriteRateLimit } from '@/lib/profile-rate-limit';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
+import { moderateAndAudit } from '@/modules/audit/moderation-audit';
+import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
+import { dbErrorFor } from '@/modules/profile/db-error-copy';
 import {
   MANUAL_OF_ME_FIELDS,
   MANUAL_OF_ME_MAX_LENGTHS,
   isManualOfMeField,
-} from './manual-of-me-fields';
+} from '@/modules/profile/manual-of-me-fields';
 
 /** Update (upsert) the user's Manual of Me row. Accepts a partial — any
  * subset of allowlisted fields. Non-allowlisted keys cause wholesale
@@ -134,7 +135,7 @@ export async function updateManualOfMe(
       { onConflict: 'profile_id' }
     );
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: dbErrorFor('update-manual-of-me', error) };
 
   revalidatePath('/dashboard/profile');
   return { success: true };

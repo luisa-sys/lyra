@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { _internal } from '@/lib/convene/invites/dispatch';
+import { SRC } from '../../support/source-paths';
 
 const { claimQueuedRows, releaseClaim } = _internal as unknown as {
   claimQueuedRows: (
@@ -164,7 +165,7 @@ describe('claimQueuedRows — atomic claim (BUGS-62)', () => {
 // ─── static guards: the wiring that must move with the 'sending' state ──────
 
 describe('dispatch.ts claim wiring (BUGS-62)', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'src/lib/convene/invites/dispatch.ts'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, SRC.dispatch), 'utf8');
 
   test('claim UPDATE is guarded by delivery_status=queued', () => {
     expect(src).toMatch(/delivery_status:\s*'sending'/);
@@ -196,7 +197,7 @@ describe('dispatch.ts claim wiring (BUGS-62)', () => {
 describe('schema + re-queue guards move with the state (BUGS-62)', () => {
   test('migration widens the delivery_status CHECK to include sending + adds claimed_at', () => {
     const mig = fs.readFileSync(
-      path.join(ROOT, 'supabase/migrations/20260706153000_bugs62_convene_invite_atomic_claim.sql'),
+      path.join(ROOT, SRC.migrations20260706153000Bugs62ConveneInviteAtomicClaim),
       'utf8'
     );
     expect(mig).toMatch(/'queued',\s*'sending',\s*'sent'/);
@@ -205,7 +206,7 @@ describe('schema + re-queue guards move with the state (BUGS-62)', () => {
 
   test('web re-queue treats sending as an already-live message', () => {
     const actions = fs.readFileSync(
-      path.join(ROOT, 'src/app/dashboard/convene/gatherings/[id]/actions.ts'),
+      path.join(ROOT, SRC.idActions),
       'utf8'
     );
     expect(actions).toMatch(/\['queued',\s*'sending',\s*'sent'/);

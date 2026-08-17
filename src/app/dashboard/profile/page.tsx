@@ -1,9 +1,12 @@
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import { EditProfileForm } from './edit-profile-form';
-import type { ManualOfMe } from './manual-of-me-fields';
-import { MANUAL_OF_ME_FIELDS } from './manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { keyForRecommendation } from '@/modules/recommendations/recommend/dismissals';
+import type { GiftSuggestionView } from './sections';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -74,7 +77,12 @@ export default async function ProfilePage() {
     .order('sort_order', { ascending: true });
   const { data: starterRows } = await supabase
     .from('profile_conversation_starters')
-    .select('id, prompt_id, answer, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
+    // KAN-445: `*` rather than a column list, deliberately. `custom_prompt`
+    // arrives with migration 20260803160000, and code reaches an environment
+    // before its migration runs — PostgREST rejects the WHOLE query with 42703
+    // if a named column is absent, which would blank the profile editor. `*`
+    // returns the column once it exists and simply omits it before then.
+    .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
     .eq('profile_id', profile.id)
     .order('created_at', { ascending: true });
   const conversationAnswers = (starterRows ?? []).map((r) => {
@@ -84,17 +92,57 @@ export default async function ProfilePage() {
     const joinedPrompt = Array.isArray(promptCandidate)
       ? ((promptCandidate[0] as { prompt: string } | undefined)?.prompt ?? '')
       : ((promptCandidate as { prompt: string } | null)?.prompt ?? '');
+    const customPrompt = (r.custom_prompt as string | null | undefined) ?? null;
     return {
       id: r.id as string,
-      prompt_id: r.prompt_id as string,
+      prompt_id: (r.prompt_id as string | null) ?? null,
       answer: r.answer as string,
-      prompt: joinedPrompt,
+      // A member-written question IS the question shown above the answer.
+      prompt: customPrompt ?? joinedPrompt,
+      custom_prompt: customPrompt,
     };
+  });
+
+  // KAN-443 — the auto-generated gift suggestions, so the member can say "not
+  // for me" to any of them. `getRecommendations` is pure and runs over data
+  // this page has already loaded, so this costs no extra query. The limit
+  // matches the public profile's concept window, so what the member curates
+  // here is what visitors are offered.
+  //
+  // `gift_suggestion_dismissals` is created by
+  // 20260803170000_kan443_gift_redesign.sql, and code reaches an environment
+  // before its migration does. Only `data` is read (as every other read on this
+  // page does), so a not-yet-migrated environment degrades to "nothing
+  // dismissed" — the member sees every suggestion — rather than failing to
+  // render their editor.
+  const { data: dismissalRows } = await supabase
+    .from('gift_suggestion_dismissals')
+    .select('suggestion_key')
+    .eq('profile_id', profile.id);
+  const dismissedKeys = new Set(
+    ((dismissalRows ?? []) as { suggestion_key: string }[]).map((r) => r.suggestion_key),
+  );
+
+  const giftSuggestions: GiftSuggestionView[] = getRecommendations(
+    {
+      bio: profile.bio_short,
+      headline: profile.headline,
+      items: (items ?? []).map((i) => ({
+        category: i.category,
+        title: i.title,
+        description: i.description,
+      })),
+    },
+    { limit: 8 },
+  ).map((r) => {
+    const key = keyForRecommendation(r);
+    return { key, title: r.title, description: r.description, dismissed: dismissedKeys.has(key) };
   });
 
   return (
     <EditProfileForm
       profile={profile}
+      giftSuggestions={giftSuggestions}
       items={items || []}
       schools={schools || []}
       links={links || []}

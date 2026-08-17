@@ -1,7 +1,7 @@
 /**
  * Convene-specific environment variables.
  *
- * Kept separate from the platform-wide src/lib/env.ts so that missing Convene
+ * Kept separate from the platform-wide src/modules/platform/env.ts so that missing Convene
  * env vars never break the rest of the app — Convene is feature-flagged, so a
  * fresh checkout without Convene env vars must still boot.
  *

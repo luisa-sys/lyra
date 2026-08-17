@@ -5,7 +5,7 @@
  * window, invitee count, venue (if any). Links into the detail page.
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';

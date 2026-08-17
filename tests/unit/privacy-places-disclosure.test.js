@@ -11,9 +11,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const filePath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
+const filePath = path.join(root, SRC.privacyPage);
 
 describe('KAN-251/KAN-341: privacy policy — Google Places town/city disclosure', () => {
   let content;

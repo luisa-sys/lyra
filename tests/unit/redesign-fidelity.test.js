@@ -12,6 +12,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
@@ -37,7 +38,7 @@ const WHITE = '#FFFFFF';
 describe('KAN-272 A: design tokens (mock-up palette, WCAG AA preserved)', () => {
   let css;
   beforeAll(() => {
-    css = read('src/app/globals.css');
+    css = read(SRC.globals);
   });
 
   test('sage is the mock-up green #4a7359', () => {
@@ -87,7 +88,7 @@ describe('KAN-272 A: design tokens (mock-up palette, WCAG AA preserved)', () => 
 describe('KAN-272 B: typography — single Inter face', () => {
   let layout;
   beforeAll(() => {
-    layout = read('src/app/layout.tsx');
+    layout = read(SRC.layout);
   });
 
   test('loads Inter and drops the DM faces', () => {
@@ -110,7 +111,7 @@ describe('KAN-272 B: typography — single Inter face', () => {
 describe('KAN-272 D: site-wide footer', () => {
   let footer;
   beforeAll(() => {
-    footer = read('src/app/footer.tsx');
+    footer = read(SRC.footer);
   });
 
   test('renders all nine footer links', () => {
@@ -137,19 +138,19 @@ describe('KAN-272 D: site-wide footer', () => {
   });
 
   test('is rendered once in the root layout (no double footer)', () => {
-    const layout = read('src/app/layout.tsx');
+    const layout = read(SRC.layout);
     expect(layout).toContain('<Footer');
   });
 });
 
 describe('KAN-272 E: six support pages', () => {
   const pages = {
-    about: { file: 'src/app/(legal)/about/page.tsx', h1: 'About Lyra' },
-    guidelines: { file: 'src/app/(legal)/guidelines/page.tsx', h1: 'Guidelines' },
-    safe: { file: 'src/app/(legal)/safe/page.tsx', h1: 'Keeping people safe' },
-    accessibility: { file: 'src/app/(legal)/accessibility/page.tsx', h1: 'Accessibility' },
-    help: { file: 'src/app/(legal)/help/page.tsx', h1: 'Help' },
-    contact: { file: 'src/app/(legal)/contact/page.tsx', h1: 'Contact' },
+    about: { file: SRC.aboutPage, h1: 'About Lyra' },
+    guidelines: { file: SRC.guidelinesPage, h1: 'Guidelines' },
+    safe: { file: SRC.safePage, h1: 'Keeping people safe' },
+    accessibility: { file: SRC.accessibilityPage, h1: 'Accessibility' },
+    help: { file: SRC.helpPage, h1: 'Help' },
+    contact: { file: SRC.contactPage, h1: 'Contact' },
   };
 
   for (const [name, { file, h1 }] of Object.entries(pages)) {
@@ -162,14 +163,14 @@ describe('KAN-272 E: six support pages', () => {
   }
 
   test('about page includes the 📖 / 🤝 / 🕊️ trio', () => {
-    const c = read('src/app/_marketing/sections.tsx');
+    const c = read(SRC.sections);
     expect(c).toContain('📖');
     expect(c).toContain('🤝');
     expect(c).toContain('🕊️');
   });
 
   test('help page mirrors the mock-up FAQ copy', () => {
-    const c = read('src/app/(legal)/help/page.tsx');
+    const c = read(SRC.helpPage);
     expect(c).toContain('Who can see my profile?');
     expect(c).toContain('Can I write about my friend, or a celebrity?');
   });
@@ -177,13 +178,13 @@ describe('KAN-272 E: six support pages', () => {
 
 describe('KAN-272 E: Contact form + Turnstile', () => {
   test('contact page reads the public site key from the helper', () => {
-    const c = read('src/app/(legal)/contact/page.tsx');
+    const c = read(SRC.contactPage);
     expect(c).toContain('turnstileSiteKey');
     expect(c).toContain('ContactForm');
   });
 
   test('contact action is a use-server module exporting an async submit handler', () => {
-    const a = read('src/app/(legal)/contact/actions.ts');
+    const a = read(SRC.contactActions);
     expect(a).toContain("'use server'");
     expect(a).toContain('export async function submitContact');
     // gotcha #18: a use-server file must export only async functions; the
@@ -193,13 +194,13 @@ describe('KAN-272 E: Contact form + Turnstile', () => {
   });
 
   test('contact action verifies Turnstile and relays by email', () => {
-    const a = read('src/app/(legal)/contact/actions.ts');
+    const a = read(SRC.contactActions);
     expect(a).toContain('verifyTurnstile');
     expect(a).toContain('api.resend.com/emails');
   });
 
   test('Turnstile keys are read from env, never hardcoded', () => {
-    const t = read('src/lib/turnstile.ts');
+    const t = read(SRC.turnstile);
     expect(t).toContain('NEXT_PUBLIC_TURNSTILE_SITE_KEY');
     expect(t).toContain('TURNSTILE_SECRET_KEY');
     // No literal Cloudflare test/real keys committed.
@@ -218,19 +219,19 @@ describe('KAN-272 E: Turnstile helper degrades gracefully', () => {
     jest.resetModules();
     delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     delete process.env.TURNSTILE_SECRET_KEY;
-    let mod = require('../../src/lib/turnstile');
+    let mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(false);
 
     jest.resetModules();
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'site';
     delete process.env.TURNSTILE_SECRET_KEY;
-    mod = require('../../src/lib/turnstile');
+    mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(false);
 
     jest.resetModules();
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'site';
     process.env.TURNSTILE_SECRET_KEY = 'secret';
-    mod = require('../../src/lib/turnstile');
+    mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(true);
   });
 
@@ -238,7 +239,7 @@ describe('KAN-272 E: Turnstile helper degrades gracefully', () => {
     jest.resetModules();
     delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     delete process.env.TURNSTILE_SECRET_KEY;
-    const mod = require('../../src/lib/turnstile');
+    const mod = require('../../src/modules/guards/turnstile');
     const res = await mod.verifyTurnstile(null);
     expect(res.ok).toBe(true);
     expect(res.skipped).toBe(true);
@@ -247,7 +248,7 @@ describe('KAN-272 E: Turnstile helper degrades gracefully', () => {
 
 describe('KAN-272 F: Terms is 18+', () => {
   test('terms requires 18 or over (not 13)', () => {
-    const c = read('src/app/(legal)/terms/page.tsx');
+    const c = read(SRC.termsPage);
     expect(c).toContain('18 or over');
     expect(c).not.toContain('at least 13 years old');
   });

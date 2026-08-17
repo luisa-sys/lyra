@@ -2,9 +2,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { cookies } from 'next/headers';
 import { SignupForm } from './signup-form';
-import { env } from '@/lib/env';
-import { isProdFamily } from '@/lib/beta-access/flow';
-import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
+import { env } from '@/modules/platform/env';
+import { isProdFamily } from '@/modules/access/beta-access/flow';
+import { INVITE_COOKIE } from '@/modules/access/beta-access/invite-cookie';
 
 export const metadata = {
   title: 'Create your Lyra profile',

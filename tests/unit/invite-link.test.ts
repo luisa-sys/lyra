@@ -10,17 +10,17 @@ let mockInviteCode = '';
 let mockSiteUrl = 'https://dev.checklyra.com';
 let mockIsProdFamily = false;
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     inviteCode: () => mockInviteCode,
     siteUrl: () => mockSiteUrl,
   },
 }));
-jest.mock('@/lib/beta-access/flow', () => ({
+jest.mock('@/modules/access/beta-access/flow', () => ({
   isProdFamily: () => mockIsProdFamily,
 }));
 
-import { betaInviteLink, buildBetaInviteLink } from '@/lib/beta-access/invite-link';
+import { betaInviteLink, buildBetaInviteLink } from '@/modules/access/beta-access/invite-link';
 
 beforeEach(() => {
   mockInviteCode = '';

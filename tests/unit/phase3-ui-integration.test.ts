@@ -22,6 +22,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -35,7 +36,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -192,7 +193,7 @@ describe('KAN-234: updateProfileItemVisibility writes NULL for inherit', () => {
 describe('KAN-234: surface-area regression guards', () => {
   test('items-step.tsx has the "Use section default" option (empty value)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     // The option's value is the empty string — distinctive label too.
@@ -203,7 +204,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('items-step.tsx handles null/undefined item.visibility in the per-item selector', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/items-step.tsx'),
+      resolve(ROOT, SRC.itemsStep),
       'utf-8',
     );
     // The select value derives '' from a null/undefined item.visibility.
@@ -212,7 +213,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('WizardProfile and WizardItem types declare section_visibility / nullable visibility', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/types.tsx'),
+      resolve(ROOT, SRC.profileTypes),
       'utf-8',
     );
     expect(src).toMatch(/section_visibility:\s*Record<string,\s*string>\s*\|\s*null/);
@@ -222,7 +223,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('KAN-266: redesigned editor drops per-section visibility selects (profile is simply public)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/edit-profile-form.tsx'),
+      resolve(ROOT, SRC.editProfileForm),
       'utf-8',
     );
     // The June-2026 redesign removed the section-header visibility toggles.
@@ -240,7 +241,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('[slug]/page.tsx uses the hybrid filter (isItemVisibleUnderHybridModel)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     expect(src).toMatch(/isItemVisibleUnderHybridModel/);
@@ -253,7 +254,7 @@ describe('KAN-234: surface-area regression guards', () => {
 
   test('[slug]/page.tsx removes the .in("visibility", [...]) query filter (hybrid model needs NULL rows too)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     // The previous query had `.in('visibility', allowedVisibility)` — that

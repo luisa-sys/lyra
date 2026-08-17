@@ -1,9 +1,13 @@
 version: 2
 updates:
-  # npm deps target develop so they flow through the standard
-  # develop → staging → main pipeline. Workflow-file bumps below
-  # (github-actions ecosystem) still target main since workflow
-  # changes only take effect once on main (CLAUDE.md gotcha #1).
+  # Every ecosystem below targets develop so its PRs flow through the
+  # standard develop → staging → beta → main pipeline (SEC-98: main is
+  # reached ONLY via that chain, never a PR — main-chain-guard.yml blocks
+  # any PR based on main outright). CLAUDE.md gotcha #1 ("workflow changes
+  # only take effect once on main") is still true, but it argues for WHEN a
+  # workflow bump takes effect, not for WHERE its PR is based — a bump
+  # entering at develop still reaches main via the normal promote chain,
+  # just one promote cycle later. See BUGS-79.
   - package-ecosystem: "npm"
     directory: "/"
     target-branch: "develop"
@@ -42,6 +46,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"

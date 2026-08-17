@@ -42,6 +42,26 @@ on:
         required: false
         default: 'manual'
 
+# SEC-141: promotes must not run simultaneously.
+#
+# A single dispatch of promote-staging-to-beta produced TWO runs 63 seconds
+# apart on 2026-08-14 (cause unconfirmed; a client retry on a slow 204 is the
+# leading hypothesis). Each promote fetches, merges and pushes, so two in
+# flight can interleave in the lost-update window. That day it was harmless
+# only because someone noticed and cancelled one, which is not a control.
+#
+# ⚠️ cancel-in-progress MUST stay false. The reflexive `true` is actively
+# worse here: it would kill an in-flight promote MID-MERGE OR MID-PUSH, a
+# nastier failure than the race it prevents. With false the second run
+# queues, then finds the merge already done — a harmless no-op.
+#
+# Each workflow gets its OWN group. staging→beta and beta→main target
+# different branches and are independent; serialising them across workflows
+# would only make a release slower.
+concurrency:
+  group: promote-${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: read
@@ -63,7 +83,7 @@ jobs:
       beta_short: ${{ steps.check.outputs.beta_short }}
       main_sha_before_merge: ${{ steps.check.outputs.main_sha_before_merge }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 1
           ref: beta
@@ -188,7 +208,7 @@ jobs:
       # fires. GITHUB_TOKEN would silently suppress the trigger (gotcha #16).
       # The PAT was updated 2026-05-15 with Workflows:write so it can also
       # push workflow-file changes if a release contains them.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}
@@ -253,8 +273,19 @@ jobs:
     name: Wait for production deploy (SHA-matched)
     needs: merge-and-push
     runs-on: ubuntu-latest
+    outputs:
+      # SEC-106 follow-up (2026-08-09): 'deployed' or 'awaiting-approval'.
+      # Exiting 0 on `waiting` stopped THIS job failing, but smoke-tests only
+      # `needs:` it — so smoke-tests still ran, its Vercel SHA check could not
+      # possibly pass against a deployment that had not happened, and
+      # auto-rollback fired on `if: failure()`. The spurious rollback was not
+      # removed, it moved one job downstream. That is why the last three
+      # promotes each ended in a rollback attempt that then died on a 409.
+      # Downstream jobs must gate on this VALUE, not merely on this job.
+      deploy_state: ${{ steps.wait.outputs.deploy_state }}
     steps:
       - name: Wait for deploy-production.yml run for our SHA
+        id: wait
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ needs.merge-and-push.outputs.merge_sha }}
@@ -304,9 +335,38 @@ jobs:
             SEEN_RUN_ID="$RUN_ID"
             LAST_STATUS="$STATUS"
 
+            # SEC-106: the Production environment now requires a reviewer, so a
+            # deploy legitimately sits at 'waiting' until a human approves it.
+            # That is the control working, NOT a failure — but this loop was
+            # written when nothing could pause a production deploy, so it burned
+            # its budget, failed, and fired AUTO-ROLLBACK on a perfectly good
+            # promote (2026-07-31, run 30666194572: a spurious rollback alert
+            # emailed, and the rollback itself then failed on a Vercel 409).
+            #
+            # Exit 0 and stop waiting. main is already merged and correct; the
+            # deploy will run the moment it is approved, and deploy-production
+            # carries its own smoke tests. Blocking here adds nothing except a
+            # false failure and a misleading alert.
+            if [ "$STATUS" = "waiting" ]; then
+              echo "::notice::deploy-production run $RUN_ID is WAITING for environment approval (SEC-106 required reviewer). main is merged at ${EXPECTED_SHA:0:8}; the deploy runs on approval."
+              echo "::notice::Approve it at ${{ github.server_url }}/${{ github.repository }}/actions/runs/$RUN_ID — this promote is not failing and no rollback is warranted."
+              echo "deploy_state=awaiting-approval" >> "$GITHUB_OUTPUT"
+              {
+                echo "### ⏸ Production deploy awaiting approval"
+                echo ""
+                echo "\`main\` is merged at \`${EXPECTED_SHA:0:8}\` and is CORRECT."
+                echo "Smoke tests and the release tag are **skipped, not passed** —"
+                echo "they cannot verify a deployment that has not run yet."
+                echo ""
+                echo "Approve run \`$RUN_ID\`, then re-run this workflow to smoke-test and tag."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
             if [ "$STATUS" = "completed" ]; then
               if [ "$CONCLUSION" = "success" ]; then
                 echo "::notice::deploy-production run $RUN_ID succeeded for SHA ${EXPECTED_SHA:0:8}"
+                echo "deploy_state=deployed" >> "$GITHUB_OUTPUT"
                 exit 0
               else
                 echo "::error::deploy-production run $RUN_ID FAILED ($CONCLUSION) for SHA ${EXPECTED_SHA:0:8}"
@@ -332,6 +392,13 @@ jobs:
   smoke-tests:
     name: Production smoke tests + SHA verification
     needs: [merge-and-push, wait-for-deploy]
+    # SEC-106 follow-up (2026-08-09): only run when the deploy ACTUALLY ran.
+    # `needs: wait-for-deploy` alone is not enough — that job exits 0 while the
+    # deploy sits awaiting a reviewer, and these tests then fail against a
+    # production that was never updated, firing auto-rollback on a promote that
+    # is perfectly healthy. Skipping here is deliberate and LOUD (see the job
+    # summary written by wait-for-deploy); it is not a silent pass.
+    if: needs.wait-for-deploy.outputs.deploy_state == 'deployed'
     runs-on: ubuntu-latest
     steps:
       # BUGS-4: verify Vercel actually deployed our SHA to production.
@@ -445,7 +512,7 @@ jobs:
     steps:
       # BUGS-4: tag created AFTER smoke tests pass (was: tag before deploy).
       # This way a failed deploy doesn't leave a misleading version tag.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           ref: main
@@ -469,7 +536,7 @@ jobs:
 
   summary:
     name: Production promotion summary
-    needs: [merge-and-push, smoke-tests, release-tag]
+    needs: [merge-and-push, wait-for-deploy, smoke-tests, release-tag]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -479,6 +546,7 @@ jobs:
           RELEASE_TAG: ${{ needs.release-tag.outputs.release_tag }}
           SMOKE_RESULT: ${{ needs.smoke-tests.result }}
           TAG_RESULT: ${{ needs.release-tag.result }}
+          DEPLOY_STATE: ${{ needs.wait-for-deploy.outputs.deploy_state }}
         run: |
           set -euo pipefail
           if [ "$SMOKE_RESULT" = "success" ] && [ "$TAG_RESULT" = "success" ]; then
@@ -493,12 +561,31 @@ jobs:
               echo "- All 9 smoke tests passed"
               echo "- BUGS-11 / BUGS-16: direct-merge flow worked, no admin intervention"
             } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$DEPLOY_STATE" = "awaiting-approval" ]; then
+            # SEC-106 follow-up (2026-08-09): a promote paused on the required
+            # reviewer is HEALTHY, not failed. Reporting it as "❌ Failed" is the
+            # same misleading alert wait-for-deploy was fixed to stop emitting —
+            # it just reappeared here, one job later. main is merged and correct;
+            # nothing is broken and no rollback is warranted.
+            {
+              echo "## ⏸ Production Promotion Paused — awaiting approval"
+              echo ""
+              echo "\`main\` is merged at \`${MERGE_SHA:0:8}\` and is CORRECT."
+              echo ""
+              echo "The production deploy is waiting on the required reviewer (SEC-106)."
+              echo "Smoke tests and the release tag were **skipped, not failed** — they"
+              echo "cannot verify a deployment that has not happened yet."
+              echo ""
+              echo "**Next:** approve the deploy-production run, then re-run this"
+              echo "workflow to smoke-test and tag."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             {
               echo "## ❌ Production Promotion Failed"
               echo ""
               echo "- Smoke tests: $SMOKE_RESULT"
               echo "- Release tag: $TAG_RESULT"
+              echo "- Deploy state: ${DEPLOY_STATE:-unknown}"
               echo "- Merge SHA: \`${MERGE_SHA:0:8}\`"
               echo ""
               echo "Investigate via Actions tab. Auto-rollback may have triggered."
@@ -515,7 +602,7 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 1
       - name: Roll production back to pre-merge SHA (BUGS-9)

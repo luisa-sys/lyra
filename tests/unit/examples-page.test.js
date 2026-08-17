@@ -9,10 +9,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const examplesPath = path.join(root, 'src/app/examples/page.tsx');
-const homepagePath = path.join(root, 'src/app/page.tsx');
+const examplesPath = path.join(root, SRC.examplesPage);
+const homepagePath = path.join(root, SRC.appPage);
 
 describe('Example profiles gallery (/examples)', () => {
   let content;
@@ -34,8 +35,11 @@ describe('Example profiles gallery (/examples)', () => {
   });
 
   test('queries published curated example profiles, ordered', () => {
-    expect(content).toContain('.from("profiles")');
-    expect(content).toContain('.eq("is_published", true)');
+    // SEC-104: reads moved from the `profiles` table to the `public_profiles`
+    // view, which carries `is_published = true AND is_suspended = false` in its
+    // body and therefore binds the service-role client (RLS does not).
+    expect(content).toContain('.from("public_profiles")');
+    expect(content).not.toContain('.from("profiles")');
     expect(content).toContain('.eq("is_homepage_example", true)');
     expect(content).toContain('homepage_example_order');
   });

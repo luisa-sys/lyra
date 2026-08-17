@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
-import { sendBetaApprovedEmail } from '@/lib/beta-access/email';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
+import { sendBetaApprovedEmail } from '@/modules/access/beta-access/email';
 
 /**
  * KAN-277 (epic KAN-273): approve a queued user into the beta.

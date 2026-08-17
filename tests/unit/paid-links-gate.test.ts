@@ -15,14 +15,14 @@ jest.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'http://localhost',
     supabaseServiceRoleKey: () => 'service-key',
   },
 }));
 
-import { getAffiliateLink } from '@/lib/affiliate/link-service';
+import { getAffiliateLink } from '@/modules/affiliate/link-service';
 
 const BASE = {
   rawUrl: 'https://amazon.co.uk/dp/B07XYZ',

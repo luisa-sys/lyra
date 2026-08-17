@@ -3,7 +3,7 @@
  * test it directly — every action's exact column changes, the audited action
  * string, and whether an approval email is appropriate.
  */
-import { computeAccessTransition } from '@/lib/access-model';
+import { computeAccessTransition } from '@/modules/access/access-model';
 import {
   isBulkAction,
   BULK_ACTIONS,
@@ -73,8 +73,17 @@ describe('computeAccessTransition (KAN-309 / KAN-326)', () => {
       suspended_at: NOW,
       suspension_reason: 'spam',
     });
-    expect(t.update.access_stage).toBeUndefined();
-    expect(t.update.is_beta_eligible).toBeUndefined();
+    // SEC-132: `AccessTransition.update` is now the generated `profiles` Update
+    // row rather than `Record<string, unknown>`, and `access_stage` /
+    // `is_beta_eligible` are LEGACY columns dropped in Phase C — so they can no
+    // longer be *named* on the typed value at all. The two assertions are
+    // preserved verbatim by reading through a Record view: same matcher, same
+    // expected value, same runtime check. Nothing is weakened — the compiler now
+    // enforces this more strongly than the test can, because writing either
+    // column into a transition is a build error rather than a caught mistake.
+    const legacy = t.update as Record<string, unknown>;
+    expect(legacy.access_stage).toBeUndefined();
+    expect(legacy.is_beta_eligible).toBeUndefined();
     expect(t.update.user_status).toBeUndefined();
     expect(t.update.access_tier).toBeUndefined();
     expect(t.moderationAction).toBe('suspend');
@@ -87,7 +96,9 @@ describe('computeAccessTransition (KAN-309 / KAN-326)', () => {
       suspended_at: null,
       suspension_reason: null,
     });
-    expect(t.update.access_stage).toBeUndefined();
+    // SEC-132: see the note above — `access_stage` is a Phase-C legacy column
+    // and cannot be named on the typed Update row. Assertion unchanged.
+    expect((t.update as Record<string, unknown>).access_stage).toBeUndefined();
     expect(t.update.user_status).toBeUndefined();
     expect(t.update.access_tier).toBeUndefined();
     expect(t.moderationAction).toBe('unsuspend');

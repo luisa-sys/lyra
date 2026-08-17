@@ -2,9 +2,56 @@
  * Google OAuth helper unit tests (KAN-204).
  *
  * Exercises URL construction and HTTP error handling without hitting Google.
+ *
+ * BUGS-86 — THE SCOPE ORACLE MUST NOT BE THE CONSTANT UNDER TEST
+ * --------------------------------------------------------------
+ * This file used to assert the scopes like this:
+ *
+ *     for (const s of GOOGLE_SCOPES) expect(scope).toContain(s);
+ *
+ * The expected value was computed from the subject, so the two could never
+ * disagree. Three mutations to `src/lib/convene/google/oauth.ts` left the
+ * suite 6/6 green (measured 2026-08-14, BUGS-86 comment 15062, and
+ * re-measured 2026-08-16 before this change):
+ *
+ *   * delete `contacts.readonly` from `GOOGLE_SCOPES` — the loop iterates
+ *     whatever remains, and the URL is built from the same array;
+ *   * `GOOGLE_SCOPES = []` — green with ZERO assertions executed;
+ *   * ADD `https://mail.google.com/` (full Gmail read/write) — a
+ *     presence-only assertion is structurally incapable of seeing an
+ *     over-requested scope, on a service holding minors' personal data;
+ *   * `GOOGLE_SCOPES.join(',')` — `toContain` matches each scope URL as a
+ *     substring whatever the delimiter, but Google's OAuth 2.0 requires
+ *     space-delimited scopes, so this breaks authorization in production
+ *     while CI stays green.
+ *
+ * CTL-038 cannot see this: the reimplementation detector looks for a test
+ * that never reaches its subject, and this one does import and call it. The
+ * flaw is the oracle, not the reach.
+ *
+ * So `EXPECTED_SCOPES` below is written out BY HAND and compared as a SET.
+ * Set equality is what catches over-requesting; the delimiter is asserted
+ * separately. Same pattern as `microsoft-oauth-behaviour.test.ts`, which was
+ * written this way precisely because of this file.
+ *
+ * ⚠️ `offline_access` is a MICROSOFT scope and must NOT appear below.
+ * Google returns a refresh token from the `access_type=offline` query
+ * parameter, not from a scope — that is asserted by the
+ * `includes every required parameter` test, which already turns red when it
+ * is removed.
  */
 
 import { buildAuthorizeUrl, exchangeCodeForTokens, refreshAccessToken, GOOGLE_SCOPES } from '@/lib/convene/google/oauth';
+
+/**
+ * Hardcoded on purpose — deriving these from `GOOGLE_SCOPES` is BUGS-86.
+ * Changing this list is a deliberate change to what Lyra asks Google for.
+ */
+const EXPECTED_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/contacts.readonly',
+];
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -34,12 +81,41 @@ describe('convene/google/oauth', () => {
       expect(u.searchParams.get('state')).toBe('xyz-state');
     });
 
-    it('includes all three Convene scopes', () => {
-      const url = buildAuthorizeUrl('s');
-      const scope = new URL(url).searchParams.get('scope') ?? '';
-      for (const s of GOOGLE_SCOPES) {
-        expect(scope).toContain(s);
-      }
+    it('requests EXACTLY the three documented Convene scopes', () => {
+      const scope = new URL(buildAuthorizeUrl('s')).searchParams.get('scope') ?? '';
+
+      // Set equality, not toContain: this fails on a MISSING scope AND on an
+      // EXTRA one. `URLSearchParams` encodes the joined string with '+', and
+      // `searchParams.get` decodes it back to spaces.
+      expect(new Set(scope.split(' '))).toEqual(new Set(EXPECTED_SCOPES));
+    });
+
+    it('space-delimits the scopes, as Google OAuth 2.0 requires', () => {
+      const scope = new URL(buildAuthorizeUrl('s')).searchParams.get('scope') ?? '';
+
+      // A ',' join leaves every scope URL present as a substring, so a
+      // presence-only assertion is blind to it while Google rejects or
+      // silently narrows the request.
+      expect(scope).not.toContain(',');
+      expect(scope.split(' ')).toHaveLength(EXPECTED_SCOPES.length);
+    });
+
+    it('asks for no scope beyond calendar and contacts read', () => {
+      const scope = new URL(buildAuthorizeUrl('s')).searchParams.get('scope') ?? '';
+
+      // Called out separately from the set assertion because the failure mode
+      // is distinctive and silent: an added Gmail or Drive scope escalates what
+      // Lyra may read from a member's Google account with no visible symptom.
+      expect(scope).not.toContain('https://mail.google.com');
+      expect(scope).not.toContain('auth/gmail');
+      expect(scope).not.toContain('auth/drive');
+    });
+
+    it('keeps the source constant in step with the expected set', () => {
+      // The one assertion that MAY read GOOGLE_SCOPES: it pins the constant to
+      // the hand-written list rather than deriving the list from it, so a
+      // drifting constant is a red build and not a silently-adjusted oracle.
+      expect([...GOOGLE_SCOPES]).toEqual(EXPECTED_SCOPES);
     });
   });
 

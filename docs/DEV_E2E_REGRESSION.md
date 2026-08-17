@@ -25,7 +25,7 @@ Fast, ~2 min. A logged-in dev session is required for the dashboard checks (cook
 
 ## 2. Widget-journey state matrix (KAN-349)
 
-The dashboard widget set is a pure function of the profile signals (`src/lib/dashboard/resolve-widgets.ts`). Verify each row by setting the signals (UI or SQL) and reloading `/dashboard`; read `document.querySelector('[data-onboarding-state]')` + `[data-widget]`.
+The dashboard widget set is a pure function of the profile signals (`src/modules/dashboard/resolve-widgets.ts`). Verify each row by setting the signals (UI or SQL) and reloading `/dashboard`; read `document.querySelector('[data-onboarding-state]')` + `[data-widget]`.
 
 | State | Signals | Widgets (in order) |
 |---|---|---|
@@ -34,7 +34,7 @@ The dashboard widget set is a pure function of the profile signals (`src/lib/das
 | `published_activate` | published, missing gifts **or** affiliations | W3 `add_gifts` · W4 `add_affiliations` · W5 `share` |
 | `published_grow` | published, has gifts **and** affiliations | W5 `share` · W6 `convene` (only if convene-entitled) |
 
-- **Completion is derived at read-time** from live content (`src/lib/dashboard/profile-completion.ts`) — NOT the stored `profiles.completion_score` (which is vestigial / always 0 for real users). Name only = 20%; name + a short intro = 40% (→ drafted).
+- **Completion is derived at read-time** from live content (`src/modules/dashboard/profile-completion.ts`) — NOT the stored `profiles.completion_score` (which is vestigial / always 0 for real users). Name only = 20%; name + a short intro = 40% (→ drafted).
 - **Dismissal** (`✕` on secondary widgets; W1/W2 are not dismissible) persists to `profiles.dashboard_widget_state` as `{ widget_id: { state, dismissed_at } }` and **re-surfaces on a state change** (the record is keyed to the state it was dismissed in).
 - The **share widget has two versions**: while a beta invite link exists (`LYRA_INVITE_CODE` set) it's the "Share beta access" /join card; otherwise a "Share Lyra" /signup card. Dev has no invite code, so expect the /signup version.
 
@@ -47,7 +47,7 @@ Walks the whole journey. Use a deliverable test address (see §5).
 1. **Sign up** at `/signup` (dev = waitlist framing: full name + email + consent; no skip-code field unless `LYRA_INVITE_CODE` is set). Expect "Check your email…".
 2. **Confirm** via the magic link (`/auth/confirm?token_hash=…&type=signup`). Lands on `/dashboard` (dev's waitlist is framing-only; access_tier defaults to `beta`). → **empty** state, W1 *Complete your profile*.
 3. **Fill the profile** (`/dashboard/profile`, auto-saves): add a short intro → completion crosses 40 → **drafted**, W2 *Publish* (or *Verify your age to publish* if `age_status` ≠ passed).
-4. **Age + publish**: real age check is Didit (KAN-282); for a journey test set `age_status='passed'` and publish. → **published_activate**, W3/W4/W5.
+4. **Age + publish (HISTORICAL — flagged stale 2026-07-27, KAN-407):** this step still describes the retired Didit selfie flow and `age_status='passed'` gate. As of KAN-407 (merged 2026-07-20/21) publishing is no longer separately age-gated — the 18+ self-declaration (`profiles.age_declared_18_at`) is captured once at account creation instead. The exact new-flow journey step here has not been rewritten pending owner/QA verification. → **published_activate**, W3/W4/W5.
 5. **Add a gift + an affiliation** → **published_grow**, W5 (+ W6 if convene-entitled).
 6. **Dismiss** a secondary widget → it disappears + persists; reload confirms.
 7. **Public profile** (`/<slug>`) renders with gifts visible (KAN-342), city shown, no postcode (KAN-339).

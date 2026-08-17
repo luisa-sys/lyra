@@ -11,7 +11,7 @@ const mockGetUser = jest.fn();
 const mockSignIn = jest.fn();
 const mockUpdateUser = jest.fn();
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: async () => ({
     auth: {
       getUser: (...a: unknown[]) => mockGetUser(...a),

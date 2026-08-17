@@ -32,15 +32,15 @@
  * ./discoverability-helpers.ts. See BUGS-12 and
  * scripts/check-server-action-exports.sh.
  */
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import type { ActionResult } from '@/lib/sanitise';
-import { rateLimit } from '@/lib/rate-limit';
+import type { ActionResult } from '@/modules/guards/sanitise';
+import { rateLimit } from '@/modules/guards/rate-limit';
 import {
   hashPhoneInput,
   SEARCH_RATE_LIMIT,
 } from './discoverability-helpers';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 
 interface DiscoverabilityInput {
   phone?: boolean;

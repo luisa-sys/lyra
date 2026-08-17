@@ -1,0 +1,57 @@
+# SEC-106 / CTL-066 — is the live branch protection what we think it is?
+#
+# Scheduled rather than PR-triggered, deliberately. A pull request cannot change
+# branch protection, so this would answer nothing in the PR gate — and it would
+# put a third-party API on the merge path, which is the shape that froze the
+# pipeline for ~11 days under SEC-88 (gotcha #23). The half of this control that
+# IS decided by a diff — "does a job still produce each required context" — runs
+# in pr-checks.yml instead, needs no credentials, and is where a job rename is
+# actually caught.
+#
+# ⚠️ EXPECT exit 2 (UNVERIFIED) UNTIL A TOKEN EXISTS, AND DO NOT READ THAT AS
+# DRIFT. Reading branch protection needs `administration:read`, which
+# GITHUB_TOKEN does not have at any permissions: setting — it is a repository
+# -administration scope available only to a PAT or a GitHub App installation
+# token. So this workflow reports UNVERIFIED until Luisa provisions
+# BRANCH_PROTECTION_READ_TOKEN (a fine-grained PAT on luisa-sys/lyra with
+# Administration: Read-only, and nothing else).
+#
+# UNVERIFIED is a deliberate, loud, honest outcome, not a placeholder: it says
+# the measurement did not happen. The alternative — skipping the step when the
+# secret is absent — is the `if: env.X != ''` silent-skip this repo's Workflow
+# Integrity Policy forbids outright, and is exactly how health-check.yml and
+# weekly-report.yml sat dark for a month while reporting green (SEC-79).
+name: Required Checks Drift
+
+on:
+  schedule:
+    # 06:20 UTC daily. Off the hour, and clear of the 02:00-05:00 backup window.
+    - cron: '20 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  drift:
+    name: Branch protection matches the committed expectation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Compare live branch protection with .github/expected-protection.json
+        env:
+          # Falls back to GITHUB_TOKEN on purpose. That token cannot read
+          # protection, so the run reports UNVERIFIED (exit 2) rather than
+          # failing to start — the failure is then visible in the run log as a
+          # named missing permission, instead of a step that never executed.
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-required-checks.py --self-test
+          python3 scripts/check-required-checks.py --live

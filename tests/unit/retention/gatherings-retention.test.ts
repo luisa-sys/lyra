@@ -9,11 +9,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../../support/source-paths';
 import {
   DEFAULT_GATHERINGS_RETENTION_MONTHS,
   gatheringsRetentionMonths,
   gatheringsCutoff,
-} from '@/lib/retention/gatherings';
+} from '@/modules/account/retention/gatherings';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const ORIG = process.env.RETENTION_GATHERINGS_MONTHS;
@@ -67,7 +68,7 @@ describe('gatheringsCutoff — always strictly in the past', () => {
 
 describe('SQL purge function — safety rails (structural)', () => {
   const sql = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260717033000_sec74_gatherings_retention_purge.sql'),
+    path.join(ROOT, SRC.migrations20260717033000Sec74GatheringsRetentionPurge),
     'utf8',
   );
 
@@ -98,7 +99,7 @@ describe('SQL purge function — safety rails (structural)', () => {
 });
 
 describe('retention sweep — gatherings job wired in (structural)', () => {
-  const sweep = fs.readFileSync(path.join(ROOT, 'src/lib/retention/sweep.ts'), 'utf8');
+  const sweep = fs.readFileSync(path.join(ROOT, SRC.sweep), 'utf8');
 
   test('the sweep orchestrator runs the gatherings retention job', () => {
     expect(sweep).toMatch(/runGatheringsRetention/);

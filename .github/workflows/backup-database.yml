@@ -12,20 +12,36 @@ defaults:
     shell: bash
 
 env:
-  # KAN-167 Phase 2: row-count threshold for the integrity check.
-  # Lyra is currently pre-launch — Google OAuth verification is pending
-  # (KAN-125), no users have signed up. Setting this to 0 acknowledges
-  # that an empty database is the EXPECTED state right now and avoids
-  # weekly false-positive warnings until launch.
+  # SEC-23: WHICH DATABASE THIS BACKUP MUST COME FROM.
   #
-  # WHEN LYRA LAUNCHES (KAN-125 closes + first user signs up):
-  #   1. Change this value to 1 (or higher if multiple expected tables
-  #      should always have rows)
-  #   2. Commit the change so the integrity check starts catching the
-  #      "production database is suddenly empty" scenario
+  # This is the production Supabase project ref (prod-lyra). It is NOT a secret —
+  # it is an identity assertion. `SUPABASE_DB_URL` silently pointed at dev-lyra
+  # from 2026-03-27 until 2026-07-27: every weekly run went green, the artifact
+  # passed every integrity check, and production was never backed up once. The
+  # pipeline validated the ARTIFACT but never validated its SOURCE.
   #
-  # See KAN-125 (launch tracking) and KAN-167 (this policy work).
-  EXPECTED_MIN_ROWS: '0'
+  # The pg_dump step now refuses to run unless the connection URL targets this
+  # ref, so a repointed secret fails LOUDLY instead of producing a plausible
+  # backup of the wrong database.
+  EXPECTED_DB_PROJECT_REF: llzkgprqewuwkiwclowi
+
+  # KAN-167 Phase 2 / SEC-23: minimum data-row count for the integrity check.
+  #
+  # Was '0' as a documented pre-launch placeholder, to be raised "when the first
+  # user signs up". Two things changed:
+  #   1. Production now holds real accounts, so an empty dump is no longer the
+  #      expected state — it is an incident.
+  #   2. More importantly, raising the number alone would NOT have worked. The
+  #      check counted `^INSERT INTO` lines, but pg_dump emits COPY blocks by
+  #      default, so the count was ALWAYS 0 regardless of how much data was in
+  #      the dump. `0 -lt 0` is false, so the gate passed vacuously every week.
+  #      Measured against a real artifact: COPY-aware count 1532 rows vs the old
+  #      INSERT count of 0. The counter below is now COPY-aware.
+  #
+  # 1000 is a deliberately loose floor (a real prod dump is ~37k rows): high
+  # enough to catch "schema-only / empty database", low enough not to fire on
+  # legitimate data-retention purges.
+  EXPECTED_MIN_ROWS: '1000'
 
 permissions:
   contents: read
@@ -34,7 +50,7 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Install PostgreSQL 17 client
         run: |
@@ -66,6 +82,18 @@ jobs:
             echo "::error::SUPABASE_DB_URL is not set — pg_dump cannot run. REST API fallback will activate."
             exit 1
           fi
+
+          # SEC-23 env-identity gate: refuse to back up anything that is not
+          # production. Never echo the URL itself — it carries the DB password;
+          # `grep -q` matches without printing. A mismatch is a HARD failure, not
+          # a warning: a green backup of the wrong database is worse than no
+          # backup, because it looks like protection that does not exist.
+          if ! printf '%s' "$SUPABASE_DB_URL" | grep -q "$EXPECTED_DB_PROJECT_REF"; then
+            echo "::error::SUPABASE_DB_URL does not target the expected production project ($EXPECTED_DB_PROJECT_REF). Refusing to produce a backup that would be mistaken for production. Check the SUPABASE_DB_URL repo secret."
+            exit 1
+          fi
+          echo "Env-identity check: SUPABASE_DB_URL targets $EXPECTED_DB_PROJECT_REF (prod-lyra) ✅"
+
           chmod +x scripts/backup-database.sh
           ./scripts/backup-database.sh ./backups
           # Mark which path produced the artifact so the integrity check
@@ -153,15 +181,26 @@ jobs:
                 else
                   echo "| .sql file | ✅ $LINE_COUNT lines, $CREATE_COUNT CREATE TABLE statements |" >> $GITHUB_STEP_SUMMARY
 
-                  # Row-count threshold check — gated by EXPECTED_MIN_ROWS env var
-                  # Counts INSERT INTO statements as a proxy for row count
+                  # SEC-23: Row-count threshold check — gated by EXPECTED_MIN_ROWS.
+                  #
+                  # This MUST count COPY-block data lines, not INSERT statements.
+                  # pg_dump emits `COPY tbl (...) FROM stdin;` followed by raw
+                  # tab-separated rows terminated by a lone `\.` — it does NOT emit
+                  # INSERTs unless --inserts is passed. The previous version counted
+                  # only `^INSERT INTO`, so it always read 0 and the gate could never
+                  # fire no matter how empty the dump was (a vacuous pass).
+                  #
+                  # INSERT_COUNT is still added so an --inserts-format or REST-derived
+                  # SQL dump is also counted rather than silently reading as empty.
+                  COPY_ROWS=$(awk 'BEGIN{n=0} /^COPY /{inblock=1; next} inblock && $0=="\\."{inblock=0; next} inblock{n++} END{print n}' "$SQL_FILE")
                   INSERT_COUNT=$(grep -c "^INSERT INTO" "$SQL_FILE" || true)
-                  if [ "$INSERT_COUNT" -lt "$EXPECTED_MIN_ROWS" ]; then
-                    echo "::error::$SQL_FILE contains $INSERT_COUNT INSERT statements but EXPECTED_MIN_ROWS=$EXPECTED_MIN_ROWS"
-                    echo "| Row count | ❌ $INSERT_COUNT < threshold $EXPECTED_MIN_ROWS |" >> $GITHUB_STEP_SUMMARY
+                  DATA_ROWS=$((COPY_ROWS + INSERT_COUNT))
+                  if [ "$DATA_ROWS" -lt "$EXPECTED_MIN_ROWS" ]; then
+                    echo "::error::$SQL_FILE contains only $DATA_ROWS data rows (COPY=$COPY_ROWS, INSERT=$INSERT_COUNT) but EXPECTED_MIN_ROWS=$EXPECTED_MIN_ROWS — the dump may be schema-only or the database empty"
+                    echo "| Row count | ❌ $DATA_ROWS < threshold $EXPECTED_MIN_ROWS |" >> $GITHUB_STEP_SUMMARY
                     INTEGRITY_FAILED=1
                   else
-                    echo "| Row count | ✅ $INSERT_COUNT INSERT statements (threshold: $EXPECTED_MIN_ROWS) |" >> $GITHUB_STEP_SUMMARY
+                    echo "| Row count | ✅ $DATA_ROWS data rows (COPY=$COPY_ROWS, INSERT=$INSERT_COUNT; threshold: $EXPECTED_MIN_ROWS) |" >> $GITHUB_STEP_SUMMARY
                   fi
                 fi
               fi

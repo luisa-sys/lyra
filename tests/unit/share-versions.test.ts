@@ -7,14 +7,15 @@ let mockInviteCode = '';
 let mockSiteUrl = 'https://dev.checklyra.com';
 let mockIsProdFamily = false;
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: { inviteCode: () => mockInviteCode, siteUrl: () => mockSiteUrl },
 }));
-jest.mock('@/lib/beta-access/flow', () => ({ isProdFamily: () => mockIsProdFamily }));
+jest.mock('@/modules/access/beta-access/flow', () => ({ isProdFamily: () => mockIsProdFamily }));
 
-import { publicSignupUrl } from '@/lib/beta-access/invite-link';
+import { publicSignupUrl } from '@/modules/access/beta-access/invite-link';
 import fs from 'fs';
 import path from 'path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = path.join(__dirname, '..', '..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -37,7 +38,7 @@ describe('KAN-349 publicSignupUrl', () => {
 });
 
 describe('KAN-349 the existing beta share wording is preserved', () => {
-  const shareBeta = read('src/app/dashboard/share-beta.tsx');
+  const shareBeta = read(SRC.shareBeta);
   it('keeps the exact "Share beta access" default title + waitlist description', () => {
     expect(shareBeta).toContain("title = 'Share beta access'");
     expect(shareBeta).toMatch(/skips the waitlist and drops them straight into the beta/);
@@ -48,7 +49,7 @@ describe('KAN-349 the existing beta share wording is preserved', () => {
 });
 
 describe('KAN-349 W5 renders both versions', () => {
-  const widgets = read('src/app/dashboard/widgets/dashboard-widgets.tsx');
+  const widgets = read(SRC.dashboardWidgets);
   it('shows the beta widget when a betaLink exists, else the sign-up version', () => {
     expect(widgets).toMatch(/ctx\.betaLink \?[\s\S]{0,400}ShareBeta inviteLink=\{ctx\.betaLink\}/);
     expect(widgets).toMatch(/inviteLink=\{ctx\.signupUrl\}[\s\S]{0,200}title="Share Lyra"/);

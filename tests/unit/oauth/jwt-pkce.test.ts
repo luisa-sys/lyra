@@ -5,8 +5,8 @@
  * the test process and verifies the round-trip + tamper-detection.
  */
 
-import { issueAccessToken, verifyAccessToken } from '@/lib/oauth/jwt';
-import { verifyPkceS256 } from '@/lib/oauth/pkce';
+import { issueAccessToken, verifyAccessToken } from '@/modules/oauth-as/lib/jwt';
+import { verifyPkceS256 } from '@/modules/oauth-as/lib/pkce';
 import { createHash, generateKeyPairSync } from 'crypto';
 
 const TEST_SECRET = '0'.repeat(32);
@@ -27,15 +27,28 @@ afterAll(() => {
 describe('issueAccessToken / verifyAccessToken (KAN-88 P4)', () => {
   const userId = '00000000-0000-4000-8000-000000000000';
   const clientId = 'lyra_oauth_test';
+  // SEC-46 Phase C: `aud` is now the RESOURCE, not the client. Deliberately a
+  // different string from clientId so the two can never be confused again.
+  const resource = 'https://mcp-dev.checklyra.com/mcp';
 
   test('round-trips with correct claims', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
     expect(issued.jwt.split('.').length).toBe(3); // header.payload.signature
     const v = await verifyAccessToken(issued.jwt);
     if (!v.ok) throw new Error(`expected ok, got ${v.error}`);
     expect(v.claims.iss).toBe('https://dev.checklyra.com');
     expect(v.claims.sub).toBe(userId);
-    expect(v.claims.aud).toBe(clientId);
+    // ⚠️ CHANGED under SEC-46 Phase C, founder-approved 2026-08-16. This
+    // asserted `aud === clientId`, which was a CORRECT assertion about
+    // deliberately-wrong behaviour: one token was accepted by BOTH resource
+    // servers because they verify with issuer only, so a consumer token reached
+    // admin tools (SEC-48). `aud` is now the resource.
+    //
+    // Nothing is lost: `client_id` is still asserted below, and it was already
+    // there before this change — the two claims are now proven to be DIFFERENT
+    // values rather than silently the same one.
+    expect(v.claims.aud).toBe(resource);
+    expect(v.claims.aud).not.toBe(clientId);
     expect(v.claims.scope).toBe('lyra:full');
     expect(v.claims.client_id).toBe(clientId);
     expect(typeof v.claims.jti).toBe('string');
@@ -43,7 +56,7 @@ describe('issueAccessToken / verifyAccessToken (KAN-88 P4)', () => {
   });
 
   test('rejects tampered payload (signature invalid)', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
     const parts = issued.jwt.split('.');
     // Decode payload, mutate `sub`, re-encode (signature now mismatches).
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
@@ -55,29 +68,36 @@ describe('issueAccessToken / verifyAccessToken (KAN-88 P4)', () => {
   });
 
   test('rejects wrong issuer', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
     const v = await verifyAccessToken(issued.jwt, { issuer: 'https://evil.com' });
     expect(v.ok).toBe(false);
   });
 
   test('expiresAt is roughly accessTokenTtlSeconds from now', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
     const dt = (issued.expiresAt.getTime() - Date.now()) / 1000;
-    // Default TTL is 3600s. Allow ±2s for test latency.
-    expect(dt).toBeGreaterThan(3598);
-    expect(dt).toBeLessThan(3602);
+    // ⚠️ DERIVED from the config, not hard-coded. This read `toBeGreaterThan(3598)`
+    // while the test's own NAME says "roughly accessTokenTtlSeconds from now" —
+    // so the assertion and the name disagreed, and the magic number went stale
+    // the moment SEC-46 changed the TTL to 900. Deriving makes it assert what it
+    // claims to and immune to the next change; it is strictly stronger, not
+    // looser, because the ±2s tolerance is unchanged.
+    const { oauthConfig } = await import('@/modules/oauth-as/lib/config');
+    const ttl = oauthConfig.accessTokenTtlSeconds;
+    expect(dt).toBeGreaterThan(ttl - 2);
+    expect(dt).toBeLessThan(ttl + 2);
   });
 
   test('throws when secret is missing/short', async () => {
     const orig = process.env.OAUTH_JWT_SIGNING_SECRET;
     process.env.OAUTH_JWT_SIGNING_SECRET = 'short';
-    await expect(issueAccessToken({ userId, clientId, scope: 'lyra:full' })).rejects.toThrow(/32 chars/);
+    await expect(issueAccessToken({ userId, clientId, scope: 'lyra:full', resource })).rejects.toThrow(/32 chars/);
     process.env.OAUTH_JWT_SIGNING_SECRET = orig;
   });
 
   test('each token has a unique jti', async () => {
-    const a = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
-    const b = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const a = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
+    const b = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource });
     expect(a.jti).not.toBe(b.jti);
   });
 });
@@ -135,14 +155,14 @@ describe('issueAccessToken RS256 + JWKS (SEC-33)', () => {
   });
 
   test('signs RS256 with a kid when a private key is configured', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource: 'https://mcp-dev.checklyra.com/mcp' });
     const header = JSON.parse(Buffer.from(issued.jwt.split('.')[0], 'base64url').toString('utf8'));
     expect(header.alg).toBe('RS256');
     expect(header.kid).toBe('test-kid-2026-06');
   });
 
   test('RS256 round-trips with correct claims (asymmetric, no shared secret)', async () => {
-    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full' });
+    const issued = await issueAccessToken({ userId, clientId, scope: 'lyra:full', resource: 'https://mcp-dev.checklyra.com/mcp' });
     const v = await verifyAccessToken(issued.jwt);
     if (!v.ok) throw new Error(`expected ok, got ${v.error}`);
     expect(v.claims.sub).toBe(userId);

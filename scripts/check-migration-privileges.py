@@ -20,25 +20,48 @@ nine times across fourteen months::
     BUGS-65 two newer trigger fns, same residual
     BUGS-69 one more, same residual
 
-WHY IT KEEPS COMING BACK — the Postgres semantics
--------------------------------------------------
-``CREATE FUNCTION`` grants ``EXECUTE`` to ``PUBLIC`` by default. In Supabase,
-``PUBLIC`` includes ``anon`` and ``authenticated``. So *every* new function is
-born world-executable, and ``CREATE OR REPLACE`` on an existing function
-**resets** the ACL to that default. A one-off ``REVOKE`` migration therefore
-protects only the functions that existed when it ran; the next migration that
-adds — or merely re-creates — a function silently re-opens the hole.
+WHY IT KEEPS COMING BACK — the actual Supabase semantics
+--------------------------------------------------------
+CORRECTED 2026-07-27. The first version of this file claimed "CREATE FUNCTION
+grants EXECUTE to PUBLIC by default, and CREATE OR REPLACE resets the ACL".
+Both halves are wrong, and rule R2 inherited the error: it required only
+``REVOKE ... FROM PUBLIC`` and therefore PASSED a fixture shipping an
+anon-callable SECURITY DEFINER function.
 
-The fix is not another REVOKE. It is a rule that every migration must carry its
-own revoke, enforced before merge.
+What actually happens: Supabase ships
+``ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO anon, authenticated,
+service_role``. Those are DIRECT grants, not PUBLIC inheritance. Verified on
+production — ``pg_default_acl``, schema ``public``, objtype ``f``::
+
+    {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,
+     service_role=X/postgres}
+
+So ``REVOKE ALL ON FUNCTION f() FROM PUBLIC`` leaves anon and authenticated
+able to call it. ``supabase/migrations/20260622120000_two_axis_access_model.sql``
+does exactly that for ``admin_list_users`` and ``admin_filter_profile_ids`` —
+which is the whole of SEC-28 (that ticket names the migration), SEC-29, SEC-42
+and SEC-43.
+
+``CREATE OR REPLACE`` preserves permissions (Postgres docs: "the ownership and
+permissions of the function do not change"). The real second vector is a
+SIGNATURE CHANGE, which creates a new overload carrying the defaults while the
+old revoked one survives — detected live by INV-2, not statically here.
+
+The fix is a rule that every migration revokes from all three roles explicitly,
+enforced before merge — and, durably, inverting the default grant itself
+(SEC-103).
 
 WHAT THIS ENFORCES (per migration file)
 ---------------------------------------
   R1  a ``SECURITY DEFINER`` function must pin ``SET search_path``
       (an unpinned search_path lets a caller shadow a table it references —
       SEC-11, SEC-54)
-  R2  a ``SECURITY DEFINER`` function must be followed by an explicit
-      ``REVOKE ... ON FUNCTION ... FROM PUBLIC`` in the same file
+  R2  a ``SECURITY DEFINER`` function must be revoked from ALL THREE of
+      ``public``, ``anon`` and ``authenticated`` in the same file — separate
+      REVOKE statements or a blanket schema-wide revoke both count. Revoking
+      from PUBLIC alone is NOT sufficient (see above). Re-granting to
+      ``authenticated`` afterwards is allowed: admin RPCs need it and gate on
+      ``is_admin`` in the body, which INV-4 enforces live.
   R3  no migration may ``GRANT EXECUTE`` on a ``SECURITY DEFINER`` function
       ``TO anon``
   R4  ``CREATE TABLE public.x`` must be followed by
@@ -103,6 +126,55 @@ def strip_sql_comments(sql: str) -> str:
     )
 
 
+def strip_string_literals(sql: str) -> str:
+    """Blank out single-quoted string literals, preserving length-ish structure.
+
+    DDL never legitimately appears inside a string literal, but the text of DDL
+    frequently does — an event-trigger definition lists its tags as
+    `command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')`, and a
+    naive `create\s+table\s+(\w+)` reads that as creating a table called "as".
+
+    That is how R4 reported two false positives on BUGS-77's lineage-repair
+    migrations. The tempting fix is a `-- db-privileges-ok:` allow-list entry,
+    which would make the false positive permanent and teach the next reader that
+    this gate cries wolf. Fixing the parser is the honest fix.
+
+    Dollar-quoted bodies ($$ ... $$) are deliberately NOT stripped: real DDL does
+    live inside them (a function body can create a table), and R4 should still
+    see it.
+    """
+    return re.sub(r"'(?:[^']|'')*'", "''", sql)
+
+
+def roles_revoked_from(body: str, name: str) -> set[str]:
+    """Union of roles revoked from `name`, across every REVOKE in the migration.
+
+    Counts three shapes:
+      REVOKE ... ON FUNCTION public.f(...) FROM public, anon, authenticated;
+      REVOKE ... ON FUNCTION public.f(...) FROM anon;        (repeated)
+      REVOKE ... ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+    """
+    roles: set[str] = set()
+
+    patterns = [
+        # Targeted at this function.
+        rf"revoke\s+(?:all|execute)[^;]*?\bon\s+function\s+(?:public\.)?{re.escape(name)}\b([^;]*);",
+        # Blanket over the schema — covers this function too.
+        r"revoke\s+(?:all|execute)[^;]*?\bon\s+all\s+functions\s+in\s+schema\s+public\b([^;]*);",
+    ]
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, body, re.IGNORECASE | re.DOTALL):
+            tail = match.group(1)
+            from_clause = re.search(r"\bfrom\b(.*)$", tail, re.IGNORECASE | re.DOTALL)
+            if not from_clause:
+                continue
+            for role in re.findall(r"[A-Za-z_][\w]*", from_clause.group(1)):
+                roles.add(role.lower())
+
+    return roles
+
+
 def function_bodies(sql: str) -> list[tuple[str, str]]:
     """Return (name, body) for each CREATE FUNCTION, body ending at its terminator."""
     out: list[tuple[str, str]] = []
@@ -146,14 +218,30 @@ def check_sql(sql: str, path: str) -> list[str]:
         if not (pinned_inline or pinned_alter):
             violations.append(f"{path}::R1-unpinned-search-path::{name}")
 
-        # R2 — an explicit REVOKE ... FROM PUBLIC must appear in the same file.
-        revoked = re.search(
-            rf"revoke\s+(?:all|execute)[^;]*\bon\s+function\s+(?:public\.)?{re.escape(name)}\b[^;]*\bfrom\b[^;]*\bpublic\b",
-            body,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if not revoked:
-            violations.append(f"{path}::R2-missing-revoke-from-public::{name}")
+        # R2 — the revoke must actually remove the roles that can reach the
+        # function. On Supabase that is NOT the same as revoking from PUBLIC.
+        #
+        # Supabase ships `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO
+        # anon, authenticated, service_role`, so anon and authenticated hold
+        # DIRECT grants, not PUBLIC inheritance. Verified against Lyra's own
+        # production database on 2026-07-27:
+        #
+        #   pg_default_acl, schema public, objtype 'f':
+        #     {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,
+        #      service_role=X/postgres}
+        #
+        # `REVOKE ALL ON FUNCTION f() FROM PUBLIC` therefore leaves anon's and
+        # authenticated's EXECUTE completely intact. The first version of this
+        # rule required only that, and passed a fixture shipping an
+        # anon-callable SECURITY DEFINER function — a false negative on the very
+        # class it was written to stop. See the `revoke from PUBLIC only`
+        # fixture below, which pins that miss.
+        revoked_roles = roles_revoked_from(body, name)
+        missing = [r for r in ("public", "anon", "authenticated") if r not in revoked_roles]
+        if missing:
+            violations.append(
+                f"{path}::R2-revoke-does-not-cover-{'-'.join(missing)}::{name}"
+            )
 
         # R3 — never grant a SECURITY DEFINER function to anon.
         granted_anon = re.search(
@@ -165,7 +253,10 @@ def check_sql(sql: str, path: str) -> list[str]:
             violations.append(f"{path}::R3-granted-to-anon::{name}")
 
     # R4 — a new public table must enable RLS in the same migration.
-    for match in TABLE_RE.finditer(body):
+    # Scanned with string literals blanked: `'CREATE TABLE AS'` in an
+    # event-trigger tag list is not a table called "as" (see
+    # strip_string_literals).
+    for match in TABLE_RE.finditer(strip_string_literals(body)):
         table = match.group(1).lower()
         rls = re.search(
             rf"alter\s+table\s+(?:public\.)?{re.escape(table)}\s+enable\s+row\s+level\s+security",
@@ -220,11 +311,83 @@ def check_duplicate_versions(migrations_dir: Path) -> list[str]:
     return violations
 
 
+FUNC_CREATE_RE = re.compile(
+    r"create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z_0-9]*)\s*\(",
+    re.I,
+)
+# A bare REVOKE/GRANT ... ON FUNCTION at statement level. Deliberately NOT
+# matched inside a `do $$ ... $$` block: those wrap their revoke in
+# `exception when undefined_function then null`, so they no-op on a fresh
+# database and are not replay hazards. Only unguarded statements are.
+FUNC_REF_RE = re.compile(
+    r"^\s*(?:revoke|grant)\b[^;]*?\bon\s+function\s+(?:public\.)?([a-z_][a-z_0-9]*)\s*\(",
+    re.I | re.M,
+)
+
+
+def _strip_do_blocks(sql: str) -> str:
+    """Remove `do $$ ... $$;` bodies.
+
+    A revoke inside one is existence-guarded in practice (that is the idiom this
+    repo uses), so counting it as a hard reference would report false positives
+    on migrations that are already safe — and a rule that cries wolf gets
+    allow-listed into uselessness.
+    """
+    return re.sub(r"do\s*\$\$.*?\$\$\s*;", " ", sql, flags=re.I | re.S)
+
+
+def check_function_lineage(migrations_dir: Path) -> list[str]:
+    """R6 — every function named by an unguarded REVOKE/GRANT must be CREATEd
+    earlier in the lineage.
+
+    This is BUGS-77. `20260621120000_revoke_secdef_exec_bugs44.sql` revokes
+    EXECUTE on `public.rls_auto_enable()`, which no migration ever creates: it
+    existed on dev, staging and prod only because it was made out-of-band. A
+    fresh replay therefore died with
+
+        ERROR: function public.rls_auto_enable() does not exist (SQLSTATE 42883)
+
+    and the DR restore path stayed unprovable — the same consequence BUGS-75
+    existed to remove, from a different cause.
+
+    ORDER MATTERS, NOT JUST PRESENCE. A function created in a LATER migration
+    than the one referencing it is still a replay failure, so this compares
+    version timestamps rather than asking "does a CREATE exist anywhere".
+    """
+    created: dict[str, str] = {}   # function name -> earliest version creating it
+    refs: list[tuple[str, str, str]] = []   # (version, filename, function name)
+
+    for path in sorted(migrations_dir.glob("*.sql")):
+        match = VERSION_RE.match(path.name)
+        if not match:
+            continue
+        version = match.group(1)
+        sql = strip_sql_comments(path.read_text(encoding="utf-8"))
+
+        for name in FUNC_CREATE_RE.findall(sql):
+            key = name.lower()
+            if key not in created or version < created[key]:
+                created[key] = version
+
+        for name in FUNC_REF_RE.findall(_strip_do_blocks(sql)):
+            refs.append((version, path.name, name.lower()))
+
+    violations: list[str] = []
+    for version, filename, name in refs:
+        origin = created.get(name)
+        if origin is None:
+            violations.append(f"{filename}::R6-function-never-created::{name}")
+        elif origin > version:
+            violations.append(f"{filename}::R6-function-created-later::{name}@{origin}")
+    return violations
+
+
 def collect_all(migrations_dir: Path) -> list[str]:
     found: list[str] = []
     for path in sorted(migrations_dir.glob("*.sql")):
         found.extend(check_sql(path.read_text(encoding="utf-8"), path.name))
     found.extend(check_duplicate_versions(migrations_dir))
+    found.extend(check_function_lineage(migrations_dir))
     return found
 
 
@@ -245,13 +408,13 @@ language sql security definer set search_path = public as $$ select 1 $$;
 _BAD_UNPINNED = """
 create or replace function public.unpinned() returns void
 language sql security definer as $$ select 1 $$;
-revoke all on function public.unpinned() from public;
+revoke all on function public.unpinned() from public, anon, authenticated;
 """
 
 _BAD_GRANT_ANON = """
 create or replace function public.open_to_all() returns void
 language sql security definer set search_path = public as $$ select 1 $$;
-revoke all on function public.open_to_all() from public;
+revoke all on function public.open_to_all() from public, anon, authenticated;
 grant execute on function public.open_to_all() to anon;
 """
 
@@ -288,7 +451,55 @@ create or replace function public.trigger_fn() returns trigger
 language plpgsql security definer as $$ begin return new; end $$;
 """
 
+# THE MISS. The first version of R2 required only `... FROM PUBLIC` and passed
+# this. On Supabase, anon and authenticated hold DIRECT grants from
+# ALTER DEFAULT PRIVILEGES, so revoking PUBLIC leaves both intact and the
+# function stays callable unauthenticated at /rest/v1/rpc/leak_probe.
+_BAD_REVOKE_PUBLIC_ONLY = """
+create or replace function public.leak_probe(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.leak_probe(p text) from public;
+"""
+
+_BAD_REVOKE_ANON_ONLY = """
+create or replace function public.half_revoked(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.half_revoked(p text) from public, anon;
+"""
+
+_GOOD_SEPARATE_REVOKES = """
+create or replace function public.tidy(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.tidy(p text) from public;
+revoke all on function public.tidy(p text) from anon;
+revoke all on function public.tidy(p text) from authenticated;
+grant execute on function public.tidy(p text) to service_role;
+"""
+
+_GOOD_BLANKET_REVOKE = """
+create or replace function public.swept(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke execute on all functions in schema public from public, anon, authenticated;
+grant execute on function public.swept(p text) to service_role;
+"""
+
+# Revoking then deliberately re-granting to `authenticated` is legitimate for an
+# admin RPC that gates on is_admin in its body (admin_list_users). Over-revoking
+# broke the admin console in BUGS-60, so the revoke rule must not forbid it —
+# the in-body check is enforced separately by INV-4 in the live checker.
+_GOOD_REVOKE_THEN_REGRANT = """
+create or replace function public.admin_thing(p text) returns void
+language sql security definer set search_path = public, pg_temp as $$ select 1 $$;
+revoke all on function public.admin_thing(p text) from public, anon, authenticated;
+grant execute on function public.admin_thing(p text) to authenticated;
+"""
+
 _CASES = [
+    ("REVOKE FROM PUBLIC ONLY — anon/authenticated keep EXECUTE", _BAD_REVOKE_PUBLIC_ONLY, ["R2"]),
+    ("REVOKE covers public+anon but not authenticated", _BAD_REVOKE_ANON_ONLY, ["R2"]),
+    ("separate REVOKE statements covering all three", _GOOD_SEPARATE_REVOKES, []),
+    ("blanket REVOKE over the schema", _GOOD_BLANKET_REVOKE, []),
+    ("revoke-then-regrant to authenticated is allowed", _GOOD_REVOKE_THEN_REGRANT, []),
     ("secdef without REVOKE FROM PUBLIC", _BAD_NO_REVOKE, ["R2"]),
     ("secdef with unpinned search_path", _BAD_UNPINNED, ["R1"]),
     ("secdef granted to anon", _BAD_GRANT_ANON, ["R3"]),
@@ -323,13 +534,86 @@ def _self_test_duplicates() -> list[tuple[str, bool]]:
     return out
 
 
+def _self_test_function_lineage() -> list[tuple[str, bool]]:
+    """R6 fixtures (BUGS-77). Lineage-wide, so it needs a directory like R5."""
+    import tempfile
+
+    CREATE = ("create or replace function public.{n}() returns void language sql "
+              "security definer set search_path = public, pg_temp as $$ select 1 $$;")
+    REVOKE = "revoke execute on function public.{n}() from public, anon, authenticated;"
+
+    out: list[tuple[str, bool]] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+
+        # Created then revoked, in order -> clean.
+        (root / "20260101000000_a.sql").write_text(CREATE.format(n="fn") + "\n"
+                                                   + REVOKE.format(n="fn"))
+        out.append(("create-then-revoke is clean", check_function_lineage(root) == []))
+
+        # Revoked but never created -> the BUGS-77 defect.
+        (root / "20260102000000_b.sql").write_text(REVOKE.format(n="orphan"))
+        found = check_function_lineage(root)
+        out.append(("revoke with no create anywhere is reported",
+                    any("R6-function-never-created::orphan" in f for f in found)))
+
+        # Created LATER than its revoke -> still a replay failure. Presence is
+        # not enough; ordering is the whole point.
+        (root / "20260103000000_c.sql").write_text(REVOKE.format(n="late"))
+        (root / "20260104000000_d.sql").write_text(CREATE.format(n="late"))
+        found = check_function_lineage(root)
+        out.append(("create in a LATER migration is still reported",
+                    any("R6-function-created-later::late@20260104000000" in f for f in found)))
+
+        # An existence-guarded revoke inside a do-block is NOT a replay hazard:
+        # it no-ops on a fresh database. Counting it would be a false positive,
+        # and false positives get gates allow-listed into uselessness.
+        (root / "20260105000000_e.sql").write_text(
+            "do $$ begin\n"
+            "  execute 'revoke execute on function public.guarded() from public';\n"
+            "exception when undefined_function then null;\n"
+            "end $$;\n"
+        )
+        found = check_function_lineage(root)
+        out.append(("a do-block guarded revoke is not reported",
+                    not any("guarded" in f for f in found)))
+    return out
+
+
+def _self_test_string_literals() -> list[tuple[str, bool]]:
+    """R4 must not read DDL out of a string literal (BUGS-77 side-finding)."""
+    event_trigger_body = (
+        "create or replace function public.f() returns event_trigger language plpgsql "
+        "security definer set search_path = 'pg_catalog' as $function$ begin "
+        "  if tg_tag in ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO') then null; end if; "
+        "end $function$;\n"
+        "revoke all on function public.f() from public, anon, authenticated;\n"
+        "grant execute on function public.f() to service_role;\n"
+    )
+    found = check_sql(event_trigger_body, "fixture.sql")
+    real = "create table public.thing (id uuid primary key);"
+    found_real = check_sql(real, "fixture2.sql")
+    return [
+        ("'CREATE TABLE AS' in a string literal is not a table",
+         not any("R4" in f for f in found)),
+        ("a genuine CREATE TABLE without RLS is still caught",
+         any("R4-table-without-rls::thing" in f for f in found_real)),
+    ]
+
+
 def self_test() -> int:
     failures = 0
-    for label, ok in _self_test_duplicates():
+    total = 0
+    # Lineage-wide harnesses (R5 duplicates, R6 function lineage) plus the
+    # string-literal fixtures. These need a directory or a whole-file parse, so
+    # they cannot be expressed as _CASES entries.
+    for label, ok in _self_test_duplicates() + _self_test_function_lineage() + _self_test_string_literals():
+        total += 1
         print(f"  {'PASS' if ok else 'FAIL'}  {label}")
         if not ok:
             failures += 1
     for label, sql, expected_rules in _CASES:
+        total += 1
         found = check_sql(sql, "fixture.sql")
         found_rules = sorted({v.split("::")[1].split("-")[0] for v in found})
         ok = found_rules == sorted(expected_rules)
@@ -341,7 +625,10 @@ def self_test() -> int:
     if failures:
         print(f"::error::check-migration-privileges self-test: {failures} case(s) failed.")
         return 1
-    print(f"Self-test: all {len(_CASES)} fixture case(s) behave as specified. ✓")
+    # Count every case, not just _CASES: the old line under-reported by the
+    # whole lineage-wide harness, which is precisely the set most worth knowing
+    # ran.
+    print(f"Self-test: all {total} fixture case(s) behave as specified. ✓")
     return 0
 
 

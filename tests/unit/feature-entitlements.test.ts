@@ -1,16 +1,13 @@
 /**
  * KAN-309 follow-on: feature-entitlement registry precedence (pure).
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   FEATURE_KEYS,
   FEATURE_CONFIG,
   isFeatureKey,
   resolveEntitlements,
-} from '@/lib/features/registry';
+} from '@/modules/features/registry';
 
-const ROOT = resolve(__dirname, '../..');
 
 describe('feature registry (KAN-309)', () => {
   it('isFeatureKey accepts known keys and rejects others', () => {
@@ -56,25 +53,12 @@ describe('feature registry (KAN-309)', () => {
   });
 });
 
-describe('media_uploads gate covers BOTH upload entrypoints (KAN-309)', () => {
-  // media_uploads is scoped to "Profile photo & file/media uploads". Both the
-  // file uploader AND the avatar uploader must check it, or an admin's revoke
-  // is only partially effective.
-  it('uploadProfileFile gates on media_uploads', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/files-actions.ts'), 'utf-8');
-    expect(src).toMatch(/getMyFeatureEntitlements/);
-    expect(src).toMatch(/media_uploads/);
-  });
-  it('uploadAvatar gates on media_uploads', () => {
-    const src = readFileSync(resolve(ROOT, 'src/app/dashboard/profile/actions.ts'), 'utf-8');
-    // the gate must appear inside uploadAvatar, before the storage upload
-    const fn = src.slice(src.indexOf('export async function uploadAvatar'));
-    const gateIdx = fn.indexOf('features.media_uploads');
-    const uploadIdx = fn.indexOf("storage\n");
-    expect(gateIdx).toBeGreaterThan(-1);
-    expect(fn).toMatch(/getMyFeatureEntitlements/);
-    // gate precedes the profile-photos upload call
-    expect(gateIdx).toBeLessThan(fn.indexOf("from('profile-photos')"));
-    void uploadIdx;
-  });
-});
+// The "media_uploads gate covers BOTH upload entrypoints" block that used to sit
+// here was a source-text scan: it regexed files-actions.ts and actions.ts for
+// `getMyFeatureEntitlements` and compared string indices to guess the gate
+// preceded the upload. It has been replaced by tests/unit/media-uploads-gate.test.ts,
+// which executes both actions with the entitlement revoked and asserts the
+// refusal AND that storage was never reached — and, with it granted, that each
+// action proceeds past the gate to fail at the next check, proving the refusal
+// came from the gate. Both directions are mutation-proven. (KAN-414 F4,
+// KAN-417 §8 group 2, founder sign-off 2026-07-30.)

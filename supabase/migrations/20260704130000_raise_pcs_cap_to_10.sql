@@ -2,7 +2,7 @@
 --
 -- The original cap (5) was enforced by the BEFORE INSERT trigger
 -- `pcs_cap` calling `public.enforce_pcs_cap()`, defined in
--- 20260516200000_conversation_starters.sql and later HARDENED by
+-- 20260516200200_conversation_starters.sql and later HARDENED by
 -- 20260621090200_security_audit_fn_searchpath_and_view_invoker.sql
 -- (SET search_path = '' — red-team F-series finding). This migration
 -- idempotently redefines that function with the new limit of 10 and an

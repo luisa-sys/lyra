@@ -4,7 +4,7 @@ const config = {
   // Expand this list as more functional tests are added (see KAN-111)
   mutate: [
     'src/app/(auth)/actions.ts',
-    'src/lib/sanitise.ts',
+    'src/modules/guards/sanitise.ts',
   ],
   testRunner: 'jest',
   jest: {

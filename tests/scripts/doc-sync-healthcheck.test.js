@@ -1,6 +1,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const SCRIPT = path.resolve(__dirname, '../../scripts/doc-sync-healthcheck.sh');
 
@@ -14,7 +15,7 @@ function run(args) {
   }
 }
 
-describe('scripts/doc-sync-healthcheck.sh', () => {
+describe(SRC.docSyncHealthcheck, () => {
   let source = '';
   beforeAll(() => { source = fs.readFileSync(SCRIPT, 'utf8'); });
 

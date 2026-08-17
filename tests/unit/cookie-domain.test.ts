@@ -2,7 +2,7 @@ import {
   parentCookieDomain,
   withParentCookieDomain,
   PARENT_COOKIE_DOMAIN,
-} from '@/lib/cookie-domain';
+} from '@/modules/platform/cookie-domain';
 
 // SEC-40 (epic SEC-37): the session cookie is scoped to the parent domain
 // `.checklyra.com` on EVERY real checklyra.com env (dev/stage/beta/prod) so the

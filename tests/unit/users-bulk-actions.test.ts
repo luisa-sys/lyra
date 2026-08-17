@@ -23,7 +23,7 @@ const mockLogBatch = jest.fn();
 const mockEmail = jest.fn();
 const mockRpc = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({
@@ -35,11 +35,11 @@ jest.mock('@/lib/admin', () => ({
   logModerationActionsBatch: (...a: unknown[]) => mockLogBatch(...a),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({ rpc: (...a: unknown[]) => mockRpc(...a) }),
 }));
 
-jest.mock('@/lib/beta-access/email', () => ({
+jest.mock('@/modules/access/beta-access/email', () => ({
   sendBetaApprovedEmail: (...a: unknown[]) => mockEmail(...a),
 }));
 

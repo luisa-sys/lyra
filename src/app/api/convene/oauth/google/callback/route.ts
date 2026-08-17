@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { upsertConnection } from '@/lib/convene/oauth-connections';
 import { conveneEnv } from '@/lib/convene/env';

@@ -18,9 +18,9 @@ jobs:
     name: Lint & Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -37,19 +37,36 @@ jobs:
       - name: Verify build
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
-      - name: Run npm audit (high/critical vulnerabilities block deploy)
-        run: npm audit --audit-level=high
+          # SEC-101: `DEV_SUPABASE_URL` / `DEV_SUPABASE_ANON_KEY` do not exist —
+          # not at repo level, and the `development` environment holds no secrets
+          # either. GitHub expands an undefined secret to the EMPTY STRING with no
+          # warning, so this "Verify build" step has been building against a blank
+          # Supabase config and still passing. It verified that the build compiles,
+          # not that it compiles with the configuration dev actually runs on.
+          # NEXT_PUBLIC_SUPABASE_* are the dev-scoped pair (confirmed empirically:
+          # db-invariants.yml resolves dev through them and returns dev's own
+          # findings). Guarded by scripts/check-workflow-secret-refs.py.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # SEC-105: npm audit REMOVED from this deploy workflow, deliberately.
+      # It re-audited the exact lockfile the PR gate already passed — all four
+      # deploys are push-triggered on chain branches, and SEC-98 plus
+      # main-chain-guard.yml mean every tree reaching them arrived through a PR.
+      # So it added no information, and did add a failure mode: the audit sat in
+      # a `needs:` ancestor of the deploy job, keyed on a third-party advisory
+      # feed, so a rescore overnight killed the release before any other step
+      # ran. SEC-88 cost ~11 days and held twelve tested security fixes out of
+      # production that way. The blocking gate now lives once, in pr-checks.yml;
+      # the full tree is audited weekly by security-audit.yml.
   deploy-dev:
     name: Deploy to dev.checklyra.com
     needs: lint-and-test
     runs-on: ubuntu-latest
     environment: development
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '20'
           cache: 'npm'

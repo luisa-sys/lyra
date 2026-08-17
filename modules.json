@@ -1,0 +1,3524 @@
+{
+  "$comment": "KAN-416 v1 DRAFT (R1b re-derivation) \u2014 derived from measured imports on develop; enforced=false everywhere, read by nothing. 21 modules: the plan's 20 plus founder-approved `audit`. Path assignments are reconciled against docs/modularisation/LYRA_MODULARISATION_PLAN_2026-07-26.md \u00a73 and the 10 founder rulings recorded on KAN-416; changeProcess encodes plan \u00a75. Regenerate with: python3 docs/modularisation/kan416-derive.py",
+  "version": 1,
+  "layerPolicy": {
+    "rule": "edge src->dst allowed iff layer(dst) < layer(src) OR dst in declaredSameLayer[src]",
+    "upwardEdges": "FORBIDDEN ABSOLUTELY \u2014 no declaration can legalise one",
+    "declaredSameLayer": [
+      {
+        "from": "public-profile",
+        "to": "recommendations",
+        "reason": "Consequence of the founder ruling that splits `api/recommendations/` out of public-profile (plan \u00a73 D4 listed it inside public-profile). The read path that was one module is now two; the edge is the seam, not drift."
+      },
+      {
+        "from": "recommendations",
+        "to": "affiliate",
+        "reason": "plan \u00a73 D8 `may_depend_on: affiliate (through MonetisationPort only)` \u2014 a declared sub-layer, not an allowlist entry. Constraint: only through the MonetisationPort interface; affiliate/backoffice stays unreachable from the request path (plan \u00a75 affiliate row)."
+      }
+    ]
+  },
+  "modules": {
+    "platform": {
+      "layer": 0,
+      "paths": [
+        "src/modules/platform/supabase-browser.ts",
+        "src/modules/platform/supabase-server.ts",
+        "src/modules/platform/supabase-service.ts",
+        "src/modules/platform/env.ts",
+        "src/modules/platform/deploy-env.ts",
+        "src/modules/platform/cookie-domain.ts"
+      ],
+      "owns": {
+        "files": 6,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "createClient",
+          "file": "src/modules/platform/supabase-server.ts",
+          "importingFiles": 46,
+          "consumingModules": [
+            "access",
+            "account",
+            "admin",
+            "age",
+            "auth",
+            "convene",
+            "dashboard",
+            "features",
+            "oauth-as",
+            "observability",
+            "profile",
+            "public-profile",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "createServiceRoleClient",
+          "file": "src/modules/platform/supabase-service.ts",
+          "importingFiles": 39,
+          "consumingModules": [
+            "access",
+            "account",
+            "admin",
+            "affiliate",
+            "age",
+            "convene",
+            "features",
+            "guards",
+            "marketing-legal",
+            "oauth-as",
+            "observability",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "env",
+          "file": "src/modules/platform/env.ts",
+          "importingFiles": 14,
+          "consumingModules": [
+            "access",
+            "account",
+            "age",
+            "auth",
+            "marketing-legal",
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getDeployEnv",
+          "file": "src/modules/platform/deploy-env.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "admin",
+            "features",
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "manageableEnvironments",
+          "file": "src/modules/platform/deploy-env.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:DeployEnv",
+          "file": "src/modules/platform/deploy-env.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin",
+            "features"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isDeployEnv",
+          "file": "src/modules/platform/deploy-env.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "createClient",
+          "file": "src/modules/platform/supabase-browser.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "withParentCookieDomain",
+          "file": "src/modules/platform/cookie-domain.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/platform/cookie-domain.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/platform/deploy-env.ts",
+          "consumedBy": [
+            "admin",
+            "features",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/platform/env.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "age",
+            "auth",
+            "guards",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-browser.ts",
+          "consumedBy": [
+            "convene"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-server.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "age",
+            "auth",
+            "convene",
+            "dashboard",
+            "features",
+            "oauth-as",
+            "observability",
+            "profile",
+            "public-profile",
+            "trust-safety"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-service.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "affiliate",
+            "age",
+            "convene",
+            "features",
+            "guards",
+            "marketing-legal",
+            "oauth-as",
+            "observability",
+            "public-profile",
+            "recommendations"
+          ]
+        }
+      ],
+      "mayDependOn": [],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "contracts",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [],
+        "extraGates": [
+          "CTL-004"
+        ],
+        "notes": "Every change needs a full-suite run; no path filters ever.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 140
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 1
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": true
+    },
+    "contracts": {
+      "layer": 0,
+      "paths": [
+        "src/modules/contracts/"
+      ],
+      "owns": {
+        "files": 3,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "checkModeration",
+          "file": "src/modules/contracts/moderation-policy.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "audit",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "moderateContent",
+          "file": "src/modules/contracts/content-moderation.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:FieldType",
+          "file": "src/modules/contracts/content-moderation.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:CheckResult",
+          "file": "src/modules/contracts/moderation-policy.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "audit"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/contracts/content-moderation.ts",
+          "consumedBy": [
+            "audit"
+          ]
+        },
+        {
+          "file": "src/modules/contracts/moderation-policy.ts",
+          "consumedBy": [
+            "audit",
+            "convene"
+          ]
+        }
+      ],
+      "mayDependOn": [],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "platform",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "contract",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "semver",
+          "zero dependencies",
+          "zero I/O",
+          "runs unchanged on Vercel Edge, Vercel Node, Railway Node"
+        ],
+        "extraGates": [],
+        "notes": "MCP lockstep by construction \u2014 3 deployables. CI drift test in all 3 repos; npm audit HIGH gate runs against it in 5 workflows.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": true
+    },
+    "guards": {
+      "layer": 1,
+      "paths": [
+        "src/modules/guards/rate-limit.ts",
+        "src/modules/guards/rate-limit-shared.ts",
+        "src/modules/guards/profile-rate-limit.ts",
+        "src/modules/guards/turnstile.ts",
+        "src/modules/guards/sanitise.ts",
+        "src/modules/guards/file-magic-bytes.ts",
+        "src/modules/guards/security-headers.ts",
+        "src/modules/guards/cf-access.ts",
+        "src/modules/guards/json-ld.ts",
+        "src/modules/guards/client-ip.ts"
+      ],
+      "owns": {
+        "files": 10,
+        "tables": [],
+        "rpcs": [
+          "rate_limit_hit"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "sanitiseText",
+          "file": "src/modules/guards/sanitise.ts",
+          "importingFiles": 6,
+          "consumingModules": [
+            "convene",
+            "marketing-legal",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:ActionResult",
+          "file": "src/modules/guards/sanitise.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "checkProfileWriteRateLimit",
+          "file": "src/modules/guards/profile-rate-limit.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "RATE_LIMITS",
+          "file": "src/modules/guards/rate-limit.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "access",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "rateLimit",
+          "file": "src/modules/guards/rate-limit.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "access",
+            "account",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "clientIpFromHeaders",
+          "file": "src/modules/guards/rate-limit-shared.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sharedRateLimit",
+          "file": "src/modules/guards/rate-limit-shared.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "jsonLdSafe",
+          "file": "src/modules/guards/json-ld.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "marketing-legal",
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "preflightUpload",
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "verifyTurnstile",
+          "file": "src/modules/guards/turnstile.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "turnstileSiteKey",
+          "file": "src/modules/guards/turnstile.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sanitiseUrl",
+          "file": "src/modules/guards/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "ALLOWED_MIMES",
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "extensionForMime",
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:AllowedMime",
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "ActionResult",
+          "file": "src/modules/guards/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "account"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "sanitiseSearchTerm",
+          "file": "src/modules/guards/sanitise.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "cfAccessEnabled",
+          "file": "src/modules/guards/cf-access.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "verifyCfAccessToken",
+          "file": "src/modules/guards/cf-access.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "buildCspReportOnly",
+          "file": "src/modules/guards/security-headers.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/guards/client-ip.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/guards/cf-access.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/client-ip.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/json-ld.ts",
+          "consumedBy": [
+            "marketing-legal",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/profile-rate-limit.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit-shared.ts",
+          "consumedBy": [
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/sanitise.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/security-headers.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/turnstile.ts",
+          "consumedBy": [
+            "marketing-legal"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "nothing reachable from src/middleware.ts may import node:crypto, next/headers or @supabase/supabase-js"
+        ],
+        "extraGates": [
+          "CTL-030"
+        ],
+        "notes": "edge-safe rule must pass; middleware smoke on preview. The edge bundle breaks at DEPLOY time, not type-check.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 35
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 3
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 3,
+        "testBlocks": 59
+      },
+      "enforced": true
+    },
+    "observability": {
+      "layer": 1,
+      "paths": [
+        "src/modules/observability/metrics.ts",
+        "src/modules/observability/readiness.ts",
+        "src/modules/observability/sentry-scrub.ts",
+        "src/app/api/health/",
+        "src/app/status/"
+      ],
+      "owns": {
+        "files": 6,
+        "tables": [],
+        "rpcs": [
+          "get_metrics_for_window"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getAnomalyWindowAdmin",
+          "file": "src/modules/observability/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:AnomalyWindowKey",
+          "file": "src/modules/observability/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:MetricsSnapshot",
+          "file": "src/modules/observability/metrics.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/observability/metrics.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "low",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 1
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 3
+      },
+      "enforced": true
+    },
+    "ui-kit": {
+      "layer": 1,
+      "paths": [
+        "src/components/"
+      ],
+      "owns": {
+        "files": 1,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "default (as AffiliateBadge)",
+          "file": "src/components/AffiliateBadge.tsx",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/components/AffiliateBadge.tsx",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
+      "mayDependOn": [],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "audit",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/components/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "high (visual)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "every diff must render-identical"
+        ],
+        "extraGates": [
+          "CTL-009"
+        ],
+        "notes": "Founder Jira key + UI-Change-Approved trailer; batch per phase, not per file.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 2
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 9
+      },
+      "enforced": true
+    },
+    "audit": {
+      "layer": 1,
+      "paths": [
+        "src/modules/audit/"
+      ],
+      "owns": {
+        "files": 1,
+        "tables": [
+          "content_moderation_flags",
+          "moderation_logs"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "moderateAndAudit",
+          "file": "src/modules/audit/moderation-audit.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "convene",
+            "profile"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/audit/moderation-audit.ts",
+          "consumedBy": [
+            "convene",
+            "profile"
+          ]
+        }
+      ],
+      "plannedApi": [
+        {
+          "symbol": "recordModerationFlag",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
+        },
+        {
+          "symbol": "logModerationAction",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
+        },
+        {
+          "symbol": "auditedMutation",
+          "status": "declared",
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
+        }
+      ],
+      "mayDependOn": [
+        "contracts"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "guards",
+        "marketing-legal",
+        "oauth-as",
+        "observability",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety",
+        "ui-kit"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "contract",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (audit)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "audit chain is append-only",
+          "a mutation may not proceed if the audit write failed",
+          "moderation_logs.actor_user_id ON DELETE RESTRICT"
+        ],
+        "extraGates": [],
+        "notes": "NEW module (KAN-416 R1b, founder-approved). Inherits plan \u00a75's trust-safety audit obligations because it now owns the write path.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 15
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": true
+    },
+    "access": {
+      "layer": 2,
+      "paths": [
+        "src/app/waitlist/",
+        "src/app/suspended/",
+        "src/app/join/",
+        "src/middleware.ts",
+        "src/modules/access/"
+      ],
+      "owns": {
+        "files": 28,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "user_status",
+          "access_tier",
+          "is_suspended",
+          "is_admin",
+          "suspended_at",
+          "suspension_reason",
+          "beta_requested_at",
+          "beta_approved_at"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "getAccountStanding",
+          "file": "src/modules/access/account-status.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "account",
+            "convene",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "shouldRefuseIssuance",
+          "file": "src/modules/access/account-status.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "account",
+            "convene",
+            "oauth-as"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "INVITE_COOKIE",
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProdFamily",
+          "file": "src/modules/access/beta-access/flow.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "sendBetaApprovedEmail",
+          "file": "src/modules/access/beta-access/email.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProdDeploy",
+          "file": "src/modules/access/beta-access/flow.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "computeAccessTransition",
+          "file": "src/modules/access/access-model/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AccessAction",
+          "file": "src/modules/access/access-model/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "betaInviteLink",
+          "file": "src/modules/access/beta-access/invite-link.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "publicSignupUrl",
+          "file": "src/modules/access/beta-access/invite-link.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "betaRedirectUrl",
+          "file": "src/modules/access/beta-access/flow.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "resolveBetaAccess",
+          "file": "src/modules/access/beta-access/flow.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/access/access-model/index.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/account-status.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/email.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/flow.ts",
+          "consumedBy": [
+            "auth",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-link.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "sometimes",
+        "signupSurface": false,
+        "blastRadius": "critical",
+        "edgeSafe": true,
+        "frozenContracts": [
+          "gate ORDER is a behavioural contract",
+          "fail-open/fail-closed asymmetry must be preserved deliberately"
+        ],
+        "extraGates": [
+          "CTL-028",
+          "CTL-013"
+        ],
+        "notes": "Needs its own gate-ordering test. must-not: import from admin (the only group-level cycle in the graph).",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 33
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 1
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [
+        "src/middleware.ts"
+      ],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "features": {
+      "layer": 2,
+      "paths": [
+        "src/modules/features/"
+      ],
+      "owns": {
+        "files": 5,
+        "tables": [
+          "feature_entitlements",
+          "global_feature_switches"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getMyFeatureEntitlements",
+          "file": "src/modules/features/entitlements.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "account",
+            "convene",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isFeatureGloballyEnabled",
+          "file": "src/modules/features/global-switches-service.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "account",
+            "age",
+            "convene"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GLOBAL_FEATURE_CONFIG",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GLOBAL_FEATURE_KEYS",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getGlobalSwitches",
+          "file": "src/modules/features/global-switches-service.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin",
+            "marketing-legal"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isPaidLinksAllowedForRecipient",
+          "file": "src/modules/features/entitlements-service.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "affiliate",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isGlobalFeatureKey",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "resolveGlobalSwitches",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:GlobalFeatureKey",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "getProfileEntitlements",
+          "file": "src/modules/features/entitlements-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "FEATURE_CONFIG",
+          "file": "src/modules/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GA_FEATURE_KEYS",
+          "file": "src/modules/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "TEST_FEATURE_KEYS",
+          "file": "src/modules/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:FeatureKey",
+          "file": "src/modules/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isFeatureKey",
+          "file": "src/modules/features/registry.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "GlobalFeatureKey",
+          "file": "src/modules/features/global-features.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "marketing-legal"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "isFeatureEnabledByUserId",
+          "file": "src/modules/features/entitlements-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "convene"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/features/entitlements-service.ts",
+          "consumedBy": [
+            "admin",
+            "affiliate",
+            "convene",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/features/entitlements.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-features.ts",
+          "consumedBy": [
+            "admin",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-switches-service.ts",
+          "consumedBy": [
+            "account",
+            "admin",
+            "age",
+            "convene",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/registry.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "age",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "16-symbol index.ts"
+        ],
+        "extraGates": [],
+        "notes": "Registry change must land in @lyra/contracts first, then all 3 consumers.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 44
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": true
+    },
+    "age": {
+      "layer": 2,
+      "paths": [
+        "src/modules/age/",
+        "src/app/verify-age/",
+        "src/app/confirm-age/",
+        "src/app/api/age/"
+      ],
+      "owns": {
+        "files": 11,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "age_status",
+          "age_checked_at",
+          "age_provider",
+          "age_provider_ref",
+          "age_declared_18_at"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "AGE_DECLARATION_COOKIE",
+          "file": "src/modules/age/self-declaration.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_FIELD",
+          "file": "src/modules/age/self-declaration.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_COOKIE_MAX_AGE",
+          "file": "src/modules/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_DECLARATION_REQUIRED_MESSAGE",
+          "file": "src/modules/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isAgeDeclared",
+          "file": "src/modules/age/self-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AGE_GATE_BLOCK_MESSAGE",
+          "file": "src/modules/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isProviderAgeCheckActive",
+          "file": "src/modules/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "passedProviderAgeCheck",
+          "file": "src/modules/age/provider-gate.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "hasDeclaredAge",
+          "file": "src/modules/age/record-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "recordAgeDeclaration",
+          "file": "src/modules/age/record-declaration.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "auth"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/age/provider-gate.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/age/record-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/age/self-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "auth",
+        "features"
+      ],
+      "mustNot": [
+        "access",
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "features",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [
+          "copy on the 18+ path"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "high (compliance)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "age_declared_18_at is an attestation, NOT a fail-closed gate",
+          "the dormant Didit provider path is retained deliberately"
+        ],
+        "extraGates": [],
+        "notes": "Any change to the 18+ path is a compliance event \u2014 DPIA/ROPA check.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 20
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "oauth-as": {
+      "layer": 3,
+      "paths": [
+        "src/modules/oauth-as/",
+        "src/app/oauth/",
+        "src/app/api/well-known/"
+      ],
+      "owns": {
+        "files": 18,
+        "tables": [
+          "oauth_access_tokens",
+          "oauth_authorization_codes",
+          "oauth_clients",
+          "oauth_consents",
+          "oauth_refresh_tokens"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "declaredApi": [],
+      "mayDependOn": [
+        "access",
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "critical (frozen contract)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "URLs",
+          "iss derivation",
+          "scope set",
+          "RS256/JWKS keys",
+          "exact 401 shape"
+        ],
+        "extraGates": [],
+        "notes": "claude.ai, Claude Desktop and MCP Inspector are external consumers. Contract test required BEFORE any move.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 5
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 4,
+        "testBlocks": 41
+      },
+      "enforced": true
+    },
+    "auth": {
+      "layer": 3,
+      "paths": [
+        "src/app/(auth)/",
+        "src/app/auth/",
+        "src/app/session-actions.ts",
+        "src/modules/auth/"
+      ],
+      "owns": {
+        "files": 12,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "resolvePostLoginRedirect",
+          "file": "src/modules/auth/post-login-redirect.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "age"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "signOut",
+          "file": "src/app/session-actions.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "dashboard"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/app/session-actions.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        },
+        {
+          "file": "src/modules/auth/post-login-redirect.ts",
+          "consumedBy": [
+            "age"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "age",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "copy"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": true,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [
+          "CTL-013"
+        ],
+        "notes": "Signup-surface gate fires.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 3
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 5,
+        "testBlocks": 51
+      },
+      "enforced": true
+    },
+    "profile": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/profile/",
+        "src/modules/profile/"
+      ],
+      "owns": {
+        "files": 45,
+        "tables": [
+          "conversation_starter_prompts",
+          "external_links",
+          "profile_conversation_starters",
+          "profile_files",
+          "profile_items",
+          "profile_manual_of_me",
+          "school_affiliations"
+        ],
+        "rpcs": [],
+        "profilesColumns": [
+          "display_name",
+          "slug",
+          "headline",
+          "bio_short",
+          "city",
+          "region",
+          "postcode_prefix",
+          "country",
+          "avatar_url",
+          "is_published",
+          "onboarding_complete",
+          "completion_score",
+          "section_visibility",
+          "age_range"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "coerceSectionVisibility",
+          "file": "src/modules/profile/section-visibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isItemVisibleUnderHybridModel",
+          "file": "src/modules/profile/section-visibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isManualOfMeEmpty",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:ManualOfMe",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "normaliseDeliveryCountry",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "profile",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isIsoAlpha2",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/profile/favourites.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/profile/country-codes.ts",
+          "consumedBy": [
+            "public-profile",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/profile/favourites.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/manual-of-me-fields.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/section-visibility.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "age",
+        "audit",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "affiliate",
+        "convene"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/profile/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "partial-write contract: undefined omits, null clears (BUGS-74)"
+        ],
+        "extraGates": [
+          "CTL-021",
+          "CTL-022",
+          "CTL-020"
+        ],
+        "notes": "Domain-model changes ripple to public-profile + MCP.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 1
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 22,
+        "testBlocks": 309
+      },
+      "enforced": false
+    },
+    "public-profile": {
+      "layer": 3,
+      "paths": [
+        "src/app/[slug]/",
+        "src/app/search/",
+        "src/modules/public-profile/"
+      ],
+      "owns": {
+        "files": 8,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "declaredApi": [],
+      "mayDependOn": [
+        "guards",
+        "platform",
+        "recommendations",
+        "ui-kit"
+      ],
+      "declaredSameLayer": [
+        "recommendations"
+      ],
+      "mayDependOnCandidatesPendingDecision": [
+        "affiliate",
+        "profile"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/[slug]/**",
+          "src/app/search/**",
+          "src/modules/public-profile/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "high (privacy)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "public reads go through the public_profiles VIEW, never the profiles base table (SEC-104; enforced by CTL-028). Supersedes the SEC-44 requirement that .eq('is_published',true).eq('is_suspended',false) stay one tested unit \u2014 that pair no longer appears in this module's files at all, because the predicates moved into the view body, where they apply even to service_role",
+          "SEC-82 cache headers preserved"
+        ],
+        "extraGates": [
+          "CTL-028"
+        ],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 9,
+        "testBlocks": 60
+      },
+      "enforced": false
+    },
+    "dashboard": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/page.tsx",
+        "src/app/dashboard/share-beta.tsx",
+        "src/app/dashboard/share-profile.tsx",
+        "src/app/dashboard/widgets/",
+        "src/modules/dashboard/"
+      ],
+      "owns": {
+        "files": 9,
+        "tables": [],
+        "rpcs": [],
+        "profilesColumns": [
+          "dashboard_widget_state"
+        ]
+      },
+      "publicApi": [],
+      "declaredApi": [],
+      "mayDependOn": [
+        "access",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "auth",
+        "convene"
+      ],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "never reintroduce loading.tsx / Suspense at /dashboard (BUGS-63)"
+        ],
+        "extraGates": [
+          "CTL-019"
+        ],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 4,
+        "testBlocks": 30
+      },
+      "enforced": false
+    },
+    "account": {
+      "layer": 3,
+      "paths": [
+        "src/app/dashboard/settings/",
+        "src/app/api/retention/",
+        "src/modules/account/"
+      ],
+      "owns": {
+        "files": 11,
+        "tables": [
+          "api_keys"
+        ],
+        "rpcs": [],
+        "profilesColumns": []
+      },
+      "publicApi": [],
+      "declaredApi": [],
+      "mayDependOn": [
+        "access",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin",
+        "convene"
+      ],
+      "mustNot": [
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/settings/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (GDPR)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "SAR/erasure completeness test must pass",
+          "moderation_logs.actor_user_id ON DELETE RESTRICT must not be silently dropped"
+        ],
+        "extraGates": [],
+        "notes": "Owns lib/retention + api/retention (founder-ruled); per-module retentionSweep() delegation, so account never reaches into another module's tables directly.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 2
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 4,
+        "testBlocks": 51
+      },
+      "enforced": false
+    },
+    "convene": {
+      "layer": 3,
+      "paths": [
+        "src/lib/recommend/convene/",
+        "src/lib/convene/",
+        "src/app/dashboard/convene/",
+        "src/app/api/convene/",
+        "src/app/r/"
+      ],
+      "owns": {
+        "files": 55,
+        "tables": [
+          "contact_methods",
+          "contacts",
+          "gathering_events_log",
+          "gathering_invite_messages",
+          "gathering_invitees",
+          "gathering_proposed_slots",
+          "gatherings",
+          "oauth_connect_state",
+          "oauth_connections",
+          "venues"
+        ],
+        "rpcs": [
+          "convene_vault_read_secret",
+          "convene_vault_revoke_secret",
+          "convene_vault_store_secret",
+          "gatherings_purge_expired",
+          "search_by_contact_hash"
+        ],
+        "profilesColumns": [
+          "phone_search_hash",
+          "postcode_search_hash",
+          "discoverable_by_phone",
+          "discoverable_by_postcode",
+          "share_availability_with_contacts"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "isConveneEnabledForCurrentUser",
+          "file": "src/lib/convene/flags-user.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "dashboard",
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "timingSafeStrEqual",
+          "file": "src/lib/convene/cron-auth.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "account"
+          ],
+          "typeOnly": false
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/lib/convene/cron-auth.ts",
+          "consumedBy": [
+            "account"
+          ]
+        },
+        {
+          "file": "src/lib/convene/flags-user.ts",
+          "consumedBy": [
+            "dashboard",
+            "profile"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "audit",
+        "contracts",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "high",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/dashboard/convene/**",
+          "src/app/r/**"
+        ],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high \u2014 and it is NOT safe",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "23 live MCP tools"
+        ],
+        "extraGates": [],
+        "notes": "Plan \u00a77-D5: the web flag is off, but the MCP write tools are LIVE in production against the production database.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 3
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 14
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 11,
+        "testBlocks": 164
+      },
+      "enforced": false,
+      "modularisationStatus": {
+        "state": "BLOCKED",
+        "decidedOn": "2026-08-09",
+        "decidedBy": "Luisa",
+        "jira": "KAN-470",
+        "unblockCondition": "Convene is turned back on (CONVENE_ENABLED=true). Nothing else unblocks it.",
+        "reason": "Convene is dark - every src/app/api/convene route 404s behind CONVENE_ENABLED, which is not true on any environment. Extracting 55 files / ~7000 LOC of unexecuted code carries the full risk of a large refactor with none of the payoff, and because the feature is off there is no E2E or soak coverage that would catch a mistake.",
+        "doc": "docs/modularisation/CONVENE-DEFERRED.md"
+      }
+    },
+    "recommendations": {
+      "layer": 3,
+      "paths": [
+        "src/app/api/recommendations/",
+        "src/modules/recommendations/"
+      ],
+      "owns": {
+        "files": 18,
+        "tables": [
+          "recommender_catalogue"
+        ],
+        "rpcs": [
+          "refresh_relationship_signals"
+        ],
+        "profilesColumns": [
+          "recipient_attributes"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "V2Recommendation",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "getRecommendations",
+          "file": "src/modules/recommendations/recommend/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "buildV2Recommendations",
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "ConceptInput",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "RecommendationResult",
+          "file": "src/modules/recommendations/recommend/index.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "profile",
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommend/index.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "affiliate",
+        "features",
+        "platform"
+      ],
+      "declaredSameLayer": [
+        "affiliate"
+      ],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [],
+        "extraGates": [],
+        "notes": "must-not host Convene scoring (plan D8; KAN-353 turns on this).",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 4
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 3
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 2,
+        "testBlocks": 3
+      },
+      "enforced": false
+    },
+    "affiliate": {
+      "layer": 3,
+      "paths": [
+        "src/modules/affiliate/"
+      ],
+      "owns": {
+        "files": 7,
+        "tables": [
+          "affiliate_clicks",
+          "affiliate_merchant_eligibility"
+        ],
+        "rpcs": [
+          "affiliate_clicks_purge_expired"
+        ],
+        "profilesColumns": [
+          "delivery_country_code"
+        ]
+      },
+      "publicApi": [
+        {
+          "symbol": "rollupByDailyMerchant",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "splitByProvider",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "splitBySource",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "type:DailyMerchantRollup",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:ProviderSplit",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:SourceSplit",
+          "file": "src/modules/affiliate/reporting.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "AffiliateClickRow",
+          "file": "src/modules/affiliate/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "eligibleMerchantsForCountry",
+          "file": "src/modules/affiliate/eligibility.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "getAffiliateLink",
+          "file": "src/modules/affiliate/link-service.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "AffiliateProvider",
+          "file": "src/modules/affiliate/types.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "recommendations"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/affiliate/eligibility.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/link-service.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/reporting.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/types.ts",
+          "consumedBy": [
+            "admin",
+            "recommendations"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "features",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [
+          "AffiliateBadge"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "rarely",
+        "signupSurface": false,
+        "blastRadius": "medium",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "backoffice/ must never be reachable from the request path"
+        ],
+        "extraGates": [],
+        "notes": "",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": true
+    },
+    "trust-safety": {
+      "layer": 3,
+      "paths": [
+        "src/app/api/reports/",
+        "src/modules/trust-safety/"
+      ],
+      "owns": {
+        "files": 3,
+        "tables": [
+          "reports"
+        ],
+        "rpcs": [
+          "record_erasure_obligation"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [
+        "admin"
+      ],
+      "mustNot": [
+        "account",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "marketing-legal",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations"
+      ],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "sometimes",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "tools",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (audit)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "a mutation may not proceed if the audit write failed"
+        ],
+        "extraGates": [],
+        "notes": "Write path + audit tables moved to `audit` (layer 1). trust-safety keeps api/reports and app/admin/moderation.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 0
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 0,
+        "testBlocks": 0
+      },
+      "enforced": false
+    },
+    "marketing-legal": {
+      "layer": 3,
+      "paths": [
+        "src/app/(legal)/",
+        "src/app/_marketing/",
+        "src/app/examples/",
+        "src/app/how-we-check-your-age/",
+        "src/app/page.tsx",
+        "src/app/layout.tsx",
+        "src/app/error.tsx",
+        "src/app/global-error.tsx",
+        "src/app/not-found.tsx",
+        "src/app/footer.tsx",
+        "src/app/sitemap.ts",
+        "src/app/cookie-consent.tsx",
+        "src/app/consent-state.ts",
+        "src/app/consented-analytics.tsx",
+        "src/app/install-prompt.tsx",
+        "src/app/service-worker-register.tsx",
+        "src/modules/marketing-legal/"
+      ],
+      "owns": {
+        "files": 29,
+        "tables": [
+          "consent_log"
+        ],
+        "rpcs": [],
+        "profilesColumns": [
+          "is_homepage_example",
+          "homepage_example_order"
+        ]
+      },
+      "publicApi": [],
+      "declaredApi": [],
+      "mayDependOn": [
+        "access",
+        "features",
+        "guards",
+        "platform"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [
+        "account",
+        "admin",
+        "affiliate",
+        "auth",
+        "convene",
+        "dashboard",
+        "oauth-as",
+        "profile",
+        "public-profile",
+        "recommendations",
+        "trust-safety"
+      ],
+      "riskTier": "medium",
+      "changeProcess": {
+        "uiApprovalGated": "always",
+        "uiApprovalPaths": [
+          "src/app/(legal)/**",
+          "src/app/_marketing/**",
+          "src/app/page.tsx",
+          "src/app/examples/**",
+          "src/app/how-we-check-your-age/**"
+        ],
+        "mcpLockstep": "none",
+        "migrationEnvs": [],
+        "migrationFrequency": "no",
+        "signupSurface": false,
+        "blastRadius": "low (functional) / high (legal)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "app/examples must consume public-profile's READ API \u2014 never its own service-role read"
+        ],
+        "extraGates": [
+          "CTL-009"
+        ],
+        "notes": "Legal copy changes need compliance review, not just founder UI sign-off.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 0
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 3
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 14,
+        "testBlocks": 216
+      },
+      "enforced": false
+    },
+    "admin": {
+      "layer": 4,
+      "paths": [
+        "src/app/admin/",
+        "src/modules/admin/"
+      ],
+      "owns": {
+        "files": 21,
+        "tables": [],
+        "rpcs": [
+          "admin_filter_profile_ids",
+          "admin_list_users"
+        ],
+        "profilesColumns": []
+      },
+      "publicApi": [
+        {
+          "symbol": "getAdminServiceClient",
+          "file": "src/modules/admin/admin.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "account",
+            "trust-safety"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "ModerationAction",
+          "file": "src/modules/admin/admin.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": true
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/admin/admin.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "trust-safety"
+          ]
+        }
+      ],
+      "mayDependOn": [
+        "access",
+        "affiliate",
+        "features",
+        "observability",
+        "platform",
+        "trust-safety"
+      ],
+      "declaredSameLayer": [],
+      "mayDependOnCandidatesPendingDecision": [],
+      "mustNot": [],
+      "riskTier": "critical",
+      "changeProcess": {
+        "uiApprovalGated": "never",
+        "uiApprovalPaths": [],
+        "mcpLockstep": "none",
+        "migrationEnvs": [
+          "dev",
+          "staging",
+          "production"
+        ],
+        "migrationFrequency": "yes",
+        "signupSurface": false,
+        "blastRadius": "high (privilege)",
+        "edgeSafe": false,
+        "frozenContracts": [
+          "must not be imported by ANY other module"
+        ],
+        "extraGates": [
+          "CTL-028"
+        ],
+        "notes": "Internal only \u2014 not UI-gated. Every mutation routed through the shared transition matrix; CF Access + is_admin both verified.",
+        "transitiveDependants": {
+          "$comment": "MEASURED: distinct src/ files outside this module that transitively import it (plan \u00a75 blast radius)",
+          "files": 19
+        },
+        "edgeReachableFiles": {
+          "$comment": "MEASURED: files of this module reachable from src/middleware.ts (the edge bundle)",
+          "files": 0
+        },
+        "serviceRole": {
+          "$comment": "MEASURED: files importing supabase-service.ts (createServiceRoleClient bypasses RLS)",
+          "files": 1
+        }
+      },
+      "compositionRoots": [],
+      "testFloor": {
+        "provisional": true,
+        "note": "path-vote mapping; superseded by KAN-417",
+        "testFiles": 1,
+        "testBlocks": 8
+      },
+      "enforced": false
+    }
+  },
+  "serviceRoleClient": {
+    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time. \u26a0\ufe0f CORRECTED 2026-08-14 \u2014 this field previously read 'the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh'. That asserted a control THAT DOES NOT EXIST. check-service-role-client.sh enforces KAN-352 only: it forbids calling env.supabaseServiceRoleKey() outside the single factory src/modules/platform/supabase-service.ts. It imposes NO path restriction on the callers that IMPORT createServiceRoleClient \u2014 measured 2026-08-14 at 39 import sites, none of them under any src/modules/*/data/ directory, because no such directory exists anywhere in the tree. An auditor reading this field would have concluded KAN-415 criterion 3 was guarded. It is not: the data-layer convention is unbuilt and is tracked as remaining work on KAN-415. Any module NOT listed here must not gain the import without review.",
+    "measuredImporters": {
+      "convene": [
+        "src/app/api/convene/cron/token-health/route.ts",
+        "src/app/api/convene/oauth/google/callback/route.ts",
+        "src/app/api/convene/oauth/google/initiate/route.ts",
+        "src/app/api/convene/oauth/microsoft/callback/route.ts",
+        "src/app/api/convene/oauth/microsoft/initiate/route.ts",
+        "src/app/dashboard/convene/gatherings/[id]/actions.ts",
+        "src/app/dashboard/convene/organise/actions.ts",
+        "src/lib/convene/auth-bearer.ts",
+        "src/lib/convene/busy-time-consent.ts",
+        "src/lib/convene/invites/dispatch.ts",
+        "src/lib/convene/invites/repository.ts",
+        "src/lib/convene/oauth-connections.ts",
+        "src/lib/convene/post-event.ts",
+        "src/lib/convene/vault.ts"
+      ],
+      "oauth-as": [
+        "src/modules/oauth-as/lib/access-tokens.ts",
+        "src/modules/oauth-as/lib/clients.ts",
+        "src/modules/oauth-as/lib/codes.ts",
+        "src/modules/oauth-as/lib/consents.ts",
+        "src/modules/oauth-as/lib/refresh.ts"
+      ],
+      "recommendations": [
+        "src/app/api/recommendations/[slug]/route.ts",
+        "src/app/api/recommendations/v2/[slug]/route.ts",
+        "src/modules/recommendations/recommender/v2/candidate-sourcing.ts"
+      ],
+      "marketing-legal": [
+        "src/app/examples/page.tsx",
+        "src/app/page.tsx",
+        "src/app/sitemap.ts"
+      ],
+      "public-profile": [
+        "src/app/[slug]/page.tsx",
+        "src/app/search/page.tsx"
+      ],
+      "access": [
+        "src/app/waitlist/actions.ts",
+        "src/modules/access/beta-access/flow.ts"
+      ],
+      "age": [
+        "src/modules/age/age-service.ts",
+        "src/modules/age/record-declaration.ts"
+      ],
+      "features": [
+        "src/modules/features/entitlements-service.ts",
+        "src/modules/features/global-switches-service.ts"
+      ],
+      "account": [
+        "src/modules/account/retention/affiliate-clicks.ts",
+        "src/modules/account/retention/gatherings.ts"
+      ],
+      "admin": [
+        "src/modules/admin/admin.ts"
+      ],
+      "affiliate": [
+        "src/modules/affiliate/link-service.ts"
+      ],
+      "observability": [
+        "src/modules/observability/metrics.ts"
+      ],
+      "guards": [
+        "src/modules/guards/rate-limit-shared.ts"
+      ]
+    },
+    "totalFiles": 39
+  },
+  "meta": {
+    "db/schema": {
+      "owns": "table-ownership contract; profiles at column granularity",
+      "tables": {
+        "profiles": "db/schema:shared-kernel",
+        "profile_items": "profile",
+        "profile_files": "profile",
+        "profile_manual_of_me": "profile",
+        "profile_conversation_starters": "profile",
+        "conversation_starter_prompts": "profile",
+        "external_links": "profile",
+        "school_affiliations": "profile",
+        "gatherings": "convene",
+        "gathering_invitees": "convene",
+        "gathering_invite_messages": "convene",
+        "gathering_events_log": "convene",
+        "gathering_proposed_slots": "convene",
+        "contacts": "convene",
+        "contact_methods": "convene",
+        "venues": "convene",
+        "oauth_connections": "convene",
+        "oauth_connect_state": "convene",
+        "oauth_clients": "oauth-as",
+        "oauth_authorization_codes": "oauth-as",
+        "oauth_access_tokens": "oauth-as",
+        "oauth_refresh_tokens": "oauth-as",
+        "oauth_consents": "oauth-as",
+        "reports": "trust-safety",
+        "content_moderation_flags": "audit",
+        "moderation_logs": "audit",
+        "api_keys": "account",
+        "global_feature_switches": "features",
+        "feature_entitlements": "features",
+        "affiliate_clicks": "affiliate",
+        "affiliate_merchant_eligibility": "affiliate",
+        "consent_log": "marketing-legal",
+        "recommender_catalogue": "recommendations"
+      },
+      "rpcs": {
+        "get_metrics_for_window": "observability",
+        "rate_limit_hit": "guards",
+        "search_by_contact_hash": "convene",
+        "convene_vault_store_secret": "convene",
+        "convene_vault_read_secret": "convene",
+        "convene_vault_revoke_secret": "convene",
+        "gatherings_purge_expired": "convene",
+        "affiliate_clicks_purge_expired": "affiliate",
+        "refresh_relationship_signals": "recommendations",
+        "record_erasure_obligation": "trust-safety",
+        "admin_list_users": "admin",
+        "admin_filter_profile_ids": "admin"
+      },
+      "profilesColumns": {
+        "db/schema (identity kernel)": [
+          "id",
+          "user_id",
+          "created_at",
+          "updated_at"
+        ],
+        "access": [
+          "user_status",
+          "access_tier",
+          "is_suspended",
+          "is_admin",
+          "suspended_at",
+          "suspension_reason",
+          "beta_requested_at",
+          "beta_approved_at"
+        ],
+        "age": [
+          "age_status",
+          "age_checked_at",
+          "age_provider",
+          "age_provider_ref",
+          "age_declared_18_at"
+        ],
+        "profile": [
+          "display_name",
+          "slug",
+          "headline",
+          "bio_short",
+          "city",
+          "region",
+          "postcode_prefix",
+          "country",
+          "avatar_url",
+          "is_published",
+          "onboarding_complete",
+          "completion_score",
+          "section_visibility",
+          "age_range"
+        ],
+        "convene": [
+          "phone_search_hash",
+          "postcode_search_hash",
+          "discoverable_by_phone",
+          "discoverable_by_postcode",
+          "share_availability_with_contacts"
+        ],
+        "dashboard": [
+          "dashboard_widget_state"
+        ],
+        "recommendations": [
+          "recipient_attributes"
+        ],
+        "affiliate": [
+          "delivery_country_code"
+        ],
+        "marketing-legal": [
+          "is_homepage_example",
+          "homepage_example_order"
+        ]
+      }
+    },
+    "ci/boundaries": {
+      "owns": "enforcement machinery (dependency-cruiser config, allowlist, gates)",
+      "allowlistSeed": "docs/modularisation/KAN-416-boundaries-allowlist.seed.json"
+    }
+  },
+  "unownedByDesign": {
+    "$comment": "Tracked files under src/ that legitimately belong to no module. A literal list, never globs \u2014 a pattern would silently adopt whatever lands beside these, which is the drift tests/unit/modules-manifest-integrity.test.js (CTL-041) exists to catch. Adding an entry should require an argument.",
+    "paths": {
+      "src/app/favicon.ico": "asset",
+      "src/app/globals.css": "founder-owned design surface, not module code (KAN-411)",
+      "src/types/database/dev.ts": "generated schema snapshot; cross-cutting by construction, drift guarded by CTL-036",
+      "src/types/database/staging.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/prod.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/index.ts": "selects which generated snapshot the app compiles against"
+    }
+  },
+  "$schemaNotes": {
+    "enforced": "TRUE means this module currently has ZERO baselined exceptions - no entry in modules-layering-baseline.json and none in supabase/table-ownership-baseline.json. It is a DERIVED fact, checked two-way by tests/unit/modules-manifest-integrity.test.js (CTL-041): claiming true while carrying an exception fails, and so does claiming false while clean. Do not hand-edit it to make a build pass - fix or baseline the exception, then set this to match. \u26a0\ufe0f It does NOT mean 'boundary checks apply to this module'. Plan section 4.5 proposed that depcruise skip unenforced modules; that skip was NEVER BUILT, and CTL-051/053/054/055 all apply to every module unconditionally. The field previously read false on all 21, which asserted the opposite of the truth - a manifest claiming a live control is off is the same hazard as a stale comment claiming it."
+  }
+}

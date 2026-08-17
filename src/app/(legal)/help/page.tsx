@@ -30,8 +30,7 @@ export default function HelpPage() {
 
         <h2>How do people find me?</h2>
         <p>
-          By name, school, or organisation. Your affiliations help
-          people find you <em>even when they&apos;re hidden</em> from your public page.
+          By name. Search by school or organisation isn&apos;t available yet.
         </p>
 
         <h2>How do people contact me?</h2>

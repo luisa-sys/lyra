@@ -50,7 +50,7 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({ from: (t: string) => fromImpl(t) })),
 }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: { supabaseUrl: () => 'http://localhost', supabaseServiceRoleKey: () => 'svc', supabaseAnonKey: () => 'anon' },
 }));
 

@@ -53,11 +53,20 @@ env:
   # happens to be named *.age (SEC-23 leak fix).
   BACKUP_ENC_DIR: ./backups-enc
 
+  # SEC-23 — WHICH PROJECT THIS BACKUP MUST COME FROM (prod-lyra). Not a secret:
+  # it is an identity assertion. `SUPABASE_DB_URL` silently pointed at dev-lyra
+  # from 2026-03-27 to 2026-07-27, so every "successful" daily complete backup
+  # captured DEV's public+auth+storage+roles and production was never captured.
+  # The steps below refuse to run unless BOTH the database URL and the Storage S3
+  # endpoint resolve to this ref — which also prevents the nastier mixed case:
+  # a prod DB dump bundled with dev storage blobs in one artifact that looks whole.
+  EXPECTED_DB_PROJECT_REF: llzkgprqewuwkiwclowi
+
 jobs:
   complete-backup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Install PostgreSQL 17 client
         run: |
@@ -75,6 +84,21 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
+
+          # SEC-23 env-identity gate. Never echo the URL — it carries the DB
+          # password; `grep -q` matches without printing. A mismatch is a HARD
+          # failure: a green backup of the wrong database is worse than none,
+          # because it looks like protection that does not exist.
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL is not set — refusing to run the complete backup."
+            exit 1
+          fi
+          if ! printf '%s' "$SUPABASE_DB_URL" | grep -q "$EXPECTED_DB_PROJECT_REF"; then
+            echo "::error::SUPABASE_DB_URL does not target the expected production project ($EXPECTED_DB_PROJECT_REF). Refusing to produce a 'complete' backup of a non-production database. Check the SUPABASE_DB_URL repo secret."
+            exit 1
+          fi
+          echo "Env-identity check: database URL targets $EXPECTED_DB_PROJECT_REF (prod-lyra) ✅"
+
           chmod +x scripts/backup-database-complete.sh
           ./scripts/backup-database-complete.sh "$BACKUP_DIR"
 
@@ -101,6 +125,31 @@ jobs:
             echo "::error::storage.objects has $OBJ_COUNT object(s) but SUPABASE_STORAGE_S3_* creds are not set — those files would be lost on a restore. Provision the storage S3 access keys (SEC-23)."
             exit 1
           fi
+
+          # SEC-23 storage env-identity gate. The Supabase S3 endpoint embeds the
+          # project ref (https://<ref>.storage.supabase.co/storage/v1/s3), so we can
+          # assert the blobs come from the SAME project as the database dump.
+          # Without this, a prod-pointed SUPABASE_DB_URL plus leftover dev
+          # SUPABASE_STORAGE_S3_* creds silently produces one artifact containing a
+          # PROD database and DEV files — which restores into a corrupt hybrid and
+          # is harder to spot than a plain missing backup. The endpoint is not a
+          # secret, but print nothing beyond the pass/fail verdict.
+          if ! printf '%s' "$STORAGE_S3_ENDPOINT" | grep -q "$EXPECTED_DB_PROJECT_REF"; then
+            if [ "$OBJ_COUNT" = "0" ]; then
+              # Proportionate: the endpoint is wrong, but production Storage holds
+              # nothing, so there is no data to lose and nothing to contaminate.
+              # Do NOT hard-fail the whole backup (that would discard a good
+              # database dump over an empty leg) — but do NOT pass silently either:
+              # warn, and record the reason in STORAGE_STATUS so the artifact
+              # itself states that storage was not captured.
+              echo "::warning::SUPABASE_STORAGE_S3_* still targets a non-production project ($EXPECTED_DB_PROJECT_REF expected) — but production Storage has 0 objects, so nothing is lost. Recording skip. Provision PROD Storage S3 keys before the first user upload (SEC-23)."
+              echo "STORAGE_BACKUP=skipped:wrong-env-creds:empty-bucket" >> "$BACKUP_DIR/STORAGE_STATUS"
+              exit 0
+            fi
+            echo "::error::SUPABASE_STORAGE_S3_ENDPOINT does not target the expected production project ($EXPECTED_DB_PROJECT_REF) while the database dump does, and production Storage has $OBJ_COUNT object(s). Refusing to bundle storage blobs from one environment with a database dump from another — that restores into a corrupt hybrid. Provision PROD Supabase Storage S3 access keys (SEC-23)."
+            exit 1
+          fi
+          echo "Env-identity check: Storage S3 endpoint targets $EXPECTED_DB_PROJECT_REF (prod-lyra) ✅"
 
           pip install awscli --quiet
           export AWS_ACCESS_KEY_ID="$STORAGE_S3_KEY"

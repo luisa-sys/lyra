@@ -11,11 +11,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
-const privacyPath = path.join(root, 'src/app/(legal)/privacy/page.tsx');
-const complaintsPath = path.join(root, 'src/app/(legal)/complaints/page.tsx');
-const footerPath = path.join(root, 'src/app/footer.tsx');
+const privacyPath = path.join(root, SRC.privacyPage);
+const complaintsPath = path.join(root, SRC.complaintsPage);
+const footerPath = path.join(root, SRC.footer);
 
 describe('KAN-283: privacy notice — ICO registration reference', () => {
   let content;

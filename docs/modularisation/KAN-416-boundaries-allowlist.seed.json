@@ -1,0 +1,1359 @@
+{
+  "$comment": "KAN-416 seed of .boundaries-allowlist.json \u2014 every measured edge the proposed layer policy forbids, at derivation time. Shrink-only once adopted; every entry then needs a Jira key + expiry.",
+  "policy": "edge src->dst allowed iff layer(dst) < layer(src) OR dst in declaredSameLayer[src]; upward edges never allowed",
+  "totalViolatingEdges": 14,
+  "pairs": [
+    {
+      "from": "public-profile",
+      "to": "profile",
+      "edges": 0,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/[slug]/page.tsx -> src/modules/profile/manual-of-me-fields.ts",
+        "src/app/[slug]/page.tsx -> src/modules/profile/section-visibility.ts"
+      ],
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
+    },
+    {
+      "from": "profile",
+      "to": "affiliate",
+      "edges": 0,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/dashboard/profile/delivery-country-actions.ts -> src/modules/profile/country-codes.ts",
+        "src/app/dashboard/profile/steps/identity-step.tsx -> src/modules/profile/country-codes.ts"
+      ],
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
+    },
+    {
+      "from": "public-profile",
+      "to": "affiliate",
+      "edges": 0,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/[slug]/page.tsx -> src/modules/profile/country-codes.ts"
+      ],
+      "typeOnly": false,
+      "resolvedBy": "RESOLVED BY KAN-415 D8 (2026-08-11). These edges no longer exist: the profile domain core moved to src/modules/profile/, so what were undeclared same-layer app-to-app edges are now ordinary dependencies on a module. The pair is kept rather than deleted because this file is the dated measurement KAN-416 was seeded from; the paths below are updated so the file stops naming files that are not there, and `edges` is zeroed so it grants no live permission."
+    },
+    {
+      "from": "trust-safety",
+      "to": "admin",
+      "edges": 1,
+      "direction": "upward \u2014 FORBIDDEN ABSOLUTELY",
+      "files": [
+        "src/app/api/reports/route.ts -> src/lib/admin.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "account",
+      "to": "convene",
+      "edges": 1,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/api/retention/cron/sweep/route.ts -> src/lib/convene/cron-auth.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "age",
+      "to": "auth",
+      "edges": 1,
+      "direction": "upward \u2014 FORBIDDEN ABSOLUTELY",
+      "files": [
+        "src/app/confirm-age/actions.ts -> src/lib/auth/post-login-redirect.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "dashboard",
+      "to": "auth",
+      "edges": 1,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/dashboard/page.tsx -> src/app/(auth)/actions.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "dashboard",
+      "to": "convene",
+      "edges": 1,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/dashboard/page.tsx -> src/lib/convene/flags-user.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "profile",
+      "to": "convene",
+      "edges": 1,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/app/dashboard/profile/page.tsx -> src/lib/convene/flags-user.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "account",
+      "to": "admin",
+      "edges": 1,
+      "direction": "upward \u2014 FORBIDDEN ABSOLUTELY",
+      "files": [
+        "src/app/dashboard/settings/actions.ts -> src/lib/admin.ts"
+      ],
+      "typeOnly": false
+    },
+    {
+      "from": "access",
+      "to": "admin",
+      "edges": 1,
+      "direction": "upward \u2014 FORBIDDEN ABSOLUTELY",
+      "files": [
+        "src/lib/access-model/access-transitions.ts -> src/lib/admin.ts"
+      ],
+      "typeOnly": true
+    },
+    {
+      "from": "age",
+      "to": "features",
+      "edges": 1,
+      "direction": "same-layer, undeclared",
+      "files": [
+        "src/lib/age/provider-gate.ts -> src/modules/features/global-switches-service.ts"
+      ],
+      "typeOnly": false
+    }
+  ],
+  "crossModuleTableAccess": [
+    {
+      "kind": "from",
+      "name": "reports",
+      "owner": "trust-safety",
+      "accessor": "admin",
+      "sites": 9
+    },
+    {
+      "kind": "from",
+      "name": "moderation_logs",
+      "owner": "audit",
+      "accessor": "admin",
+      "sites": 3
+    },
+    {
+      "kind": "from",
+      "name": "api_keys",
+      "owner": "account",
+      "accessor": "convene",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "consent_log",
+      "owner": "marketing-legal",
+      "accessor": "convene",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "content_moderation_flags",
+      "owner": "audit",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "global_feature_switches",
+      "owner": "features",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "admin",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "recommendations",
+      "sites": 2
+    },
+    {
+      "kind": "from",
+      "name": "affiliate_clicks",
+      "owner": "affiliate",
+      "accessor": "admin",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "affiliate_clicks_purge_expired",
+      "owner": "affiliate",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "contact_methods",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "contacts",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "content_moderation_flags",
+      "owner": "audit",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "external_links",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "external_links",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "feature_entitlements",
+      "owner": "features",
+      "accessor": "admin",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_events_log",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_invite_messages",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_invitees",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gathering_proposed_slots",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "gatherings",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "gatherings_purge_expired",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "oauth_connections",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_conversation_starters",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_conversation_starters",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_files",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "trust-safety",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "dashboard",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_items",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_manual_of_me",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "profile_manual_of_me",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "record_erasure_obligation",
+      "owner": "trust-safety",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "refresh_relationship_signals",
+      "owner": "recommendations",
+      "accessor": "convene",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "reports",
+      "owner": "trust-safety",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "public-profile",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "dashboard",
+      "sites": 1
+    },
+    {
+      "kind": "from",
+      "name": "school_affiliations",
+      "owner": "profile",
+      "accessor": "account",
+      "sites": 1
+    },
+    {
+      "kind": "rpc",
+      "name": "search_by_contact_hash",
+      "owner": "convene",
+      "accessor": "account",
+      "sites": 1
+    }
+  ],
+  "sharedKernelColumnAccess": {
+    "$comment": "KAN-416 R1b \u2014 the baseline that the first derivation silently skipped. Every .from('profiles') site attributed to the module owning each column it touches. A row is a cross-module data access on the god-table and is exactly what KAN-421 must rule on.",
+    "table": "profiles",
+    "totalSites": 77,
+    "totalCrossModuleColumnAccesses": 103,
+    "distinctColumnAccessorPairs": 47,
+    "rows": [
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "user_status",
+        "owner": "access",
+        "sites": 8,
+        "ops": [
+          "filter",
+          "read",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/beta-queue/actions.ts",
+          "src/app/admin/monitoring/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx",
+          "src/app/admin/users/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "access_tier",
+        "owner": "access",
+        "sites": 6,
+        "ops": [
+          "filter",
+          "read",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/beta-queue/actions.ts",
+          "src/app/admin/monitoring/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx",
+          "src/app/admin/users/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "is_suspended",
+        "owner": "access",
+        "sites": 6,
+        "ops": [
+          "filter",
+          "read",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/monitoring/page.tsx",
+          "src/app/admin/page.tsx",
+          "src/app/admin/reports/[id]/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx",
+          "src/app/admin/users/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 4,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/moderation/page.tsx",
+          "src/app/admin/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx",
+          "src/lib/admin.ts"
+        ]
+      },
+      {
+        "accessor": "convene",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/convene/contacts/actions.ts",
+          "src/app/dashboard/convene/contacts/page.tsx",
+          "src/lib/convene/invites/dispatch.ts"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "is_admin",
+        "owner": "access",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/monitoring/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx",
+          "src/lib/admin.ts"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "is_published",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "is_published",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx",
+          "src/app/sitemap.ts"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "is_published",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx",
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "is_suspended",
+        "owner": "access",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx",
+          "src/app/sitemap.ts"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "is_suspended",
+        "owner": "access",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx",
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/moderation/page.tsx",
+          "src/app/admin/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx",
+          "src/app/sitemap.ts"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 3,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx",
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "profile",
+        "table": "profiles",
+        "column": "age_status",
+        "owner": "age",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/profile/actions.ts"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "avatar_url",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "bio_short",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "account",
+        "table": "profiles",
+        "column": "discoverable_by_phone",
+        "owner": "convene",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/settings/discoverability-actions.ts"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx",
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "headline",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx",
+          "src/app/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "headline",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx",
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "headline",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "convene",
+        "table": "profiles",
+        "column": "is_published",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/convene/contacts/actions.ts"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "is_published",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "is_suspended",
+        "owner": "access",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/[slug]/route.ts",
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "suspended_at",
+        "owner": "access",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/reports/[id]/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "suspension_reason",
+        "owner": "access",
+        "sites": 2,
+        "ops": [
+          "filter",
+          "read",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/reports/[id]/page.tsx",
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "age_declared_18_at",
+        "owner": "age",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "avatar_url",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "beta_approved_at",
+        "owner": "access",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "write"
+        ],
+        "files": [
+          "src/app/admin/beta-queue/actions.ts"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "bio_short",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "bio_short",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "convene",
+        "table": "profiles",
+        "column": "city",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/convene/contacts/actions.ts"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "city",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "city",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "marketing-legal",
+        "table": "profiles",
+        "column": "country",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/examples/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "country",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "recommendations",
+        "table": "profiles",
+        "column": "delivery_country_code",
+        "owner": "affiliate",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/recommendations/v2/[slug]/route.ts"
+        ]
+      },
+      {
+        "accessor": "access",
+        "table": "profiles",
+        "column": "display_name",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/lib/beta-access/flow.ts"
+        ]
+      },
+      {
+        "accessor": "admin",
+        "table": "profiles",
+        "column": "headline",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/admin/users/[slug]/page.tsx"
+        ]
+      },
+      {
+        "accessor": "public-profile",
+        "table": "profiles",
+        "column": "is_homepage_example",
+        "owner": "marketing-legal",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/search/page.tsx"
+        ]
+      },
+      {
+        "accessor": "convene",
+        "table": "profiles",
+        "column": "is_suspended",
+        "owner": "access",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/convene/contacts/actions.ts"
+        ]
+      },
+      {
+        "accessor": "convene",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/dashboard/convene/contacts/actions.ts"
+        ]
+      },
+      {
+        "accessor": "trust-safety",
+        "table": "profiles",
+        "column": "slug",
+        "owner": "profile",
+        "sites": 1,
+        "ops": [
+          "filter",
+          "read"
+        ],
+        "files": [
+          "src/app/api/reports/route.ts"
+        ]
+      }
+    ],
+    "unboundedSites": {
+      "$comment": "sites whose column set could not be bounded from source \u2014 select('*'), a bare select(), a variable write payload, or an object spread. Each touches an UNKNOWN subset of all 41 columns and must be read as a potential access to every one of them.",
+      "count": 19,
+      "sites": [
+        {
+          "file": "src/app/[slug]/page.tsx",
+          "line": 185,
+          "module": "public-profile",
+          "ops": [
+            "filter",
+            "read"
+          ],
+          "columnsSeen": [
+            "is_published",
+            "is_suspended",
+            "slug"
+          ]
+        },
+        {
+          "file": "src/app/admin/users/[slug]/page.tsx",
+          "line": 107,
+          "module": "admin",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "id"
+          ]
+        },
+        {
+          "file": "src/app/admin/users/[slug]/page.tsx",
+          "line": 150,
+          "module": "admin",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "id"
+          ]
+        },
+        {
+          "file": "src/app/admin/users/actions.ts",
+          "line": 114,
+          "module": "admin",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/convene/connections/availability-actions.ts",
+          "line": 25,
+          "module": "convene",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/page.tsx",
+          "line": 29,
+          "module": "dashboard",
+          "ops": [
+            "filter",
+            "read"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/actions.ts",
+          "line": 132,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/actions.ts",
+          "line": 608,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/actions.ts",
+          "line": 643,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/actions.ts",
+          "line": 710,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/delivery-country-actions.ts",
+          "line": 58,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/legacy/page.tsx",
+          "line": 36,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "read"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/profile/page.tsx",
+          "line": 36,
+          "module": "profile",
+          "ops": [
+            "filter",
+            "read"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/settings/actions.ts",
+          "line": 50,
+          "module": "account",
+          "ops": [
+            "filter",
+            "read"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/settings/discoverability-actions.ts",
+          "line": 114,
+          "module": "account",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/app/dashboard/widgets/actions.ts",
+          "line": 43,
+          "module": "dashboard",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "id"
+          ]
+        },
+        {
+          "file": "src/app/waitlist/actions.ts",
+          "line": 61,
+          "module": "access",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/lib/age/record-declaration.ts",
+          "line": 40,
+          "module": "age",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "age_declared_18_at",
+            "user_id"
+          ]
+        },
+        {
+          "file": "src/lib/beta-access/flow.ts",
+          "line": 134,
+          "module": "access",
+          "ops": [
+            "filter",
+            "write"
+          ],
+          "columnsSeen": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    "columnsNotInOwnershipMap": {}
+  }
+}

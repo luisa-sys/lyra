@@ -30,6 +30,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -42,7 +43,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -329,7 +330,7 @@ describe('KAN-404: addSchoolAffiliation postcode requirement', () => {
 describe('KAN-220: surface-area regression guards', () => {
   test('migration file exists with the affiliation_type CHECK constraint', () => {
     const src = readFileSync(
-      resolve(ROOT, 'supabase/migrations/20260517010000_affiliation_type.sql'),
+      resolve(ROOT, SRC.migrations20260517010000AffiliationType),
       'utf-8',
     );
     expect(src).toMatch(/add column affiliation_type/i);
@@ -340,7 +341,7 @@ describe('KAN-220: surface-area regression guards', () => {
   });
 
   test('affiliation-fields module exists and exports the right surface', () => {
-    const path = resolve(ROOT, 'src/app/dashboard/profile/affiliation-fields.ts');
+    const path = resolve(ROOT, SRC.affiliationFields);
     expect(existsSync(path)).toBe(true);
     const src = readFileSync(path, 'utf-8');
     expect(src).toMatch(/export const ALLOWED_AFFILIATION_TYPES/);
@@ -351,7 +352,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('actions.ts addSchoolAffiliation accepts affiliation_type', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/actions.ts'),
+      resolve(ROOT, SRC.profileActions),
       'utf-8',
     );
     expect(src).toMatch(/affiliation_type\?:\s*string/);
@@ -360,7 +361,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('WizardSchool type declares affiliation_type', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/steps/types.tsx'),
+      resolve(ROOT, SRC.profileTypes),
       'utf-8',
     );
     // Type now carries affiliation_type — KAN-220 schools/orgs/communities split
@@ -383,7 +384,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('edit-profile-form orchestrator imports all four new sections + uses ItemsStep for lists', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/edit-profile-form.tsx'),
+      resolve(ROOT, SRC.editProfileForm),
       'utf-8',
     );
     expect(src).toMatch(/BasicInfoSection/);
@@ -413,7 +414,7 @@ describe('KAN-220: surface-area regression guards', () => {
   });
 
   test('legacy wizard route exists at /dashboard/profile/legacy', () => {
-    const p = resolve(ROOT, 'src/app/dashboard/profile/legacy/page.tsx');
+    const p = resolve(ROOT, SRC.legacyPage);
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toMatch(/ProfileWizard/);
@@ -422,7 +423,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('main /dashboard/profile route renders EditProfileForm (new single-page editor)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/page.tsx'),
+      resolve(ROOT, SRC.profilePage),
       'utf-8',
     );
     expect(src).toMatch(/EditProfileForm/);
@@ -435,7 +436,7 @@ describe('KAN-220: surface-area regression guards', () => {
     // module, which broke that test by hiding the strings — reverted.
     // This sibling assertion documents the intent.
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/page.tsx'),
+      resolve(ROOT, SRC.profilePage),
       'utf-8',
     );
     expect(src).toMatch(/conversation_starter_prompts/);
@@ -444,7 +445,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('legacy /dashboard/profile/legacy page also fetches the full dataset', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/legacy/page.tsx'),
+      resolve(ROOT, SRC.legacyPage),
       'utf-8',
     );
     expect(src).toMatch(/conversation_starter_prompts/);
@@ -454,7 +455,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('public profile [slug]/page.tsx groups Schools / Orgs / Communities', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/[slug]/page.tsx'),
+      resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
     // The render groups by affiliation_type — checking distinctive strings
@@ -465,7 +466,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('legacy wizard.tsx left untouched (preserves profile-sections.test.js assertions)', () => {
     const src = readFileSync(
-      resolve(ROOT, 'src/app/dashboard/profile/wizard.tsx'),
+      resolve(ROOT, SRC.wizard),
       'utf-8',
     );
     // These strings are still expected by tests/unit/profile-sections.test.js

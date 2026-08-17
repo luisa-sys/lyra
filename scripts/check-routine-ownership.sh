@@ -91,6 +91,19 @@ check_marker ".github/workflows/weekly-report.yml" \
   "Source of record: **Daily Security routine**" \
   "weekly-report Section 5 cites the Daily Security routine as source of record"
 
+# ── Release owner = the Weekly Health + Regression routine ──────────────────
+# SEC-153 added Section 15b (CTL-065 production deploy drift) to weekly-report.
+# That is a RELEASE concern, and weekly-report is a *reporting* surface — so the
+# section must keep deferring to the release owner rather than becoming a second
+# authority on release state. Marker added 2026-08-16 after the SEC-153 PR
+# ticked "Ops routine / Control-Room registry — N/A", which was wrong: adding a
+# release-concern section to the reporting routine IS an ownership event, and
+# recording nothing is how a second owner appears without anyone deciding to
+# create one.
+check_marker ".github/workflows/weekly-report.yml" \
+  "Source of record: **Weekly Health" \
+  "weekly-report Section 15b cites the Weekly Health + Regression routine as release owner"
+
 # ── Stale liveness snapshot must stay labelled a point-in-time snapshot ──────
 check_marker "docs/ENDPOINT_HEALTH_AUDIT.md" \
   "POINT-IN-TIME SNAPSHOT" \

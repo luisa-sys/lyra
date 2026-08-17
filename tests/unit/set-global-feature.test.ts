@@ -9,7 +9,7 @@ const mockGetCurrentAdmin = jest.fn();
 const mockUpsert = jest.fn();
 const mockLog = jest.fn();
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: () => mockGetCurrentAdmin(),
   getAdminServiceClient: () => ({
     from: () => ({ upsert: (...a: unknown[]) => mockUpsert(...a) }),
@@ -19,7 +19,7 @@ jest.mock('@/lib/admin', () => ({
 
 // Deterministic environment context: this "deployment" is dev, so only 'dev'
 // is manageable. Keeps the real isDeployEnv shape.
-jest.mock('@/lib/deploy-env', () => ({
+jest.mock('@/modules/platform/deploy-env', () => ({
   isDeployEnv: (v: string) => ['dev', 'staging', 'beta', 'prod'].includes(v),
   manageableEnvironments: () => ['dev'],
   getDeployEnv: () => 'dev',

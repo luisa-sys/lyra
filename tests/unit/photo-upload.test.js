@@ -5,11 +5,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 
 describe('KAN-135: Upload action exists with validation', () => {
-  const actionsPath = path.join(root, 'src/app/dashboard/profile/actions.ts');
+  const actionsPath = path.join(root, SRC.profileActions);
   let content;
 
   beforeAll(() => {
@@ -49,7 +50,7 @@ describe('KAN-135: Upload action exists with validation', () => {
 });
 
 describe('KAN-135: WizardProfile includes avatar_url', () => {
-  const typesPath = path.join(root, 'src/app/dashboard/profile/steps/types.tsx');
+  const typesPath = path.join(root, SRC.profileTypes);
   let content;
 
   beforeAll(() => {
@@ -62,7 +63,7 @@ describe('KAN-135: WizardProfile includes avatar_url', () => {
 });
 
 describe('KAN-135: Identity step has photo upload UI', () => {
-  const identityPath = path.join(root, 'src/app/dashboard/profile/steps/identity-step.tsx');
+  const identityPath = path.join(root, SRC.identityStep);
   let content;
 
   beforeAll(() => {
@@ -95,7 +96,7 @@ describe('KAN-135: Identity step has photo upload UI', () => {
 });
 
 describe('KAN-135: Public profile shows avatar', () => {
-  const profilePath = path.join(root, 'src/app/[slug]/page.tsx');
+  const profilePath = path.join(root, SRC.slugPage);
   let content;
 
   beforeAll(() => {
@@ -113,7 +114,7 @@ describe('KAN-135: Public profile shows avatar', () => {
 });
 
 describe('KAN-135: Search page shows avatar in cards', () => {
-  const searchPath = path.join(root, 'src/app/search/page.tsx');
+  const searchPath = path.join(root, SRC.searchPage);
   let content;
 
   beforeAll(() => {
@@ -137,7 +138,7 @@ describe('KAN-135: Search page shows avatar in cards', () => {
 
 describe('KAN-135: Migration file exists', () => {
   test('migration SQL file is present', () => {
-    const migrationPath = path.join(root, 'supabase/migrations/20260330120000_add_avatar_url_and_storage.sql');
+    const migrationPath = path.join(root, SRC.migrations20260330120000AddAvatarUrlAndStorage);
     expect(fs.existsSync(migrationPath)).toBe(true);
     const content = fs.readFileSync(migrationPath, 'utf8');
     expect(content).toContain('avatar_url');
