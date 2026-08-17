@@ -350,6 +350,25 @@ jobs:
           set -euo pipefail
           python3 scripts/check-absent-secret-probe.py --self-test
           python3 scripts/check-absent-secret-probe.py
+      - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
+        # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
+        # to the OTHER value, so it could never return PASS and could not have
+        # caught SEC-100 — the defect it existed for. It shipped red and stayed
+        # red four days.
+        #
+        # Two things made that possible. The instrument did not vary with the
+        # property (only measurement could catch that), and the decision was
+        # INLINE bash reachable by no test — so nothing could observe that its
+        # PASS branch was unreachable. This gates the second.
+        #
+        # Shrink-only and two-way: a NEW inline verdict fails, and a baselined
+        # one that has been extracted fails as STALE. Extraction is credited
+        # only when the classifier has a test asserting BOTH verdicts —
+        # otherwise "extract it" is a way to leave the baseline for free.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-soak-classifier-coverage.py --self-test
+          python3 scripts/check-soak-classifier-coverage.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
