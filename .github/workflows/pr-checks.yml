@@ -447,6 +447,22 @@ jobs:
           set -euo pipefail
           python3 scripts/check-required-checks.py --self-test
           python3 scripts/check-required-checks.py --local
+      - name: Scheduled workflows have actually FIRED — self-test (CTL-072, SEC-106)
+        # A cron is a REQUEST, not a fact. CTL-042 (the step two above) asserts a
+        # scheduled workflow is not `disabled_manually`; it cannot see a workflow
+        # that is enabled and silent — a suspended schedule on a quiet repo, a
+        # cron that parses and never matches, a `schedule` trigger never
+        # registered on the default branch. That gap is the SEC-79 shape: a
+        # control nobody has heard from, reporting nothing, counted as green.
+        #
+        # ONLY THE SELF-TEST RUNS HERE. The live arm needs the Actions API, so
+        # it runs on a schedule in required-checks.yml — a pull request cannot
+        # change whether yesterday's cron fired, and putting a third-party API
+        # on the merge path is the SEC-88 shape (gotcha #23). What IS decided by
+        # the diff is the config's two-way ratchet, which the self-test covers.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-run-freshness.py --self-test
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in
         # lyra AND lyra-mcp-server, with nothing checking they still agree.

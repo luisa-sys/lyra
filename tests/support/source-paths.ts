@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 246 entries.
+// 248 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -22,6 +22,7 @@ export const SRC = {
   expectedProtection: '.github/expected-protection.json',
   scheduledWorkflowExceptions: '.github/scheduled-workflow-exceptions.json',
   signupSurface: '.github/signup-surface.paths',
+  workflowFreshness: '.github/workflow-freshness.json',
   workflows: '.github/workflows',
   backupComplete: '.github/workflows/backup-complete.yml',
   backupDatabase: '.github/workflows/backup-database.yml',
@@ -90,6 +91,7 @@ export const SRC = {
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',
   checkWaiverHygiene: 'scripts/check-waiver-hygiene.py',
   checkWorkflowIntegrity: 'scripts/check-workflow-integrity.sh',
+  checkWorkflowRunFreshness: 'scripts/check-workflow-run-freshness.py',
   dailySecurityCheck: 'scripts/daily-security-check.sh',
   decideReleaseTag: 'scripts/decide-release-tag.py',
   depcruiseSeverity: 'scripts/depcruise-severity.cjs',

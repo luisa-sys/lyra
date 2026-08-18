@@ -31,6 +31,11 @@ on:
 
 permissions:
   contents: read
+  # SEC-106 §3 item 3 / CTL-072: listing workflow runs. Unlike branch protection
+  # (administration:read, PAT-only), GITHUB_TOKEN CAN hold actions:read — so the
+  # freshness job below reports a real measured answer from day one rather than
+  # a standing UNVERIFIED.
+  actions: read
 
 defaults:
   run:
@@ -55,3 +60,29 @@ jobs:
           set -euo pipefail
           python3 scripts/check-required-checks.py --self-test
           python3 scripts/check-required-checks.py --live
+
+  # ⚠️ DELIBERATELY NOT `needs: drift`. The whole point of this job is the
+  # `needs:`-skip trap (SEC-106 §1): a job skipped because a dependency failed
+  # reports SKIPPED, which GitHub counts as a successful status. Chaining a
+  # freshness assertion behind a job that is EXPECTED to fail — `drift` exits 2
+  # UNVERIFIED until BRANCH_PROTECTION_READ_TOKEN exists — would have made this
+  # control silently skip every single day while the workflow reported the
+  # amber it already reports. The two jobs measure unrelated things and must
+  # fail independently.
+  freshness:
+    name: Watched scheduled workflows have actually run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Every workflow in .github/workflow-freshness.json succeeded inside its window
+        env:
+          # actions:read is within GITHUB_TOKEN's reach, so no secret is needed
+          # and no silent-skip is possible. If this ever starts reporting
+          # UNVERIFIED, that is a real finding about the token, not a placeholder.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-run-freshness.py --self-test
+          python3 scripts/check-workflow-run-freshness.py

@@ -710,6 +710,57 @@ by a job in `.github/workflows/`. That is the case in this ticket's title —
 id** (the job carries no `name:`), so a one-character rename would leave SEC-98
 production change control gated by a check nothing reports.
 
+### Watched scheduled workflows have actually run (daily 06:20 UTC) — SEC-106 / CTL-072
+
+A second, independent job in the same `required-checks.yml` runs
+`scripts/check-workflow-run-freshness.py`, which asserts that every workflow
+named in `.github/workflow-freshness.json` has a run concluding **`success`**
+inside its declared window.
+
+**A cron is a request, not a fact.** `db-invariants.yml` has declared a daily
+schedule since it was written, and until now nothing asserted it fired. CTL-042
+(`check-scheduled-workflows-active.py`) answers the adjacent question — is the
+workflow `disabled_manually`? — and is correctly green for every state in which
+a workflow is enabled and silent: a schedule GitHub suspends after 60 days of
+repository inactivity, a cron that parses and never matches, a `schedule`
+trigger never registered on the default branch. The two controls are
+complements; this is the half that can see a control nobody has heard from.
+
+**Only `success` counts, and that is the whole point.** GitHub's successful
+status set is `{success, skipped, neutral}`, so a freshness check keyed on "a
+run exists" is satisfied by a job skipped because a `needs:` dependency failed —
+the `needs:`-skip trap named in SEC-106 §1, and most of the
+promote-reports-success cluster. `skipped`, `cancelled`, `neutral`, `failure`,
+`timed_out`, `action_required`, `startup_failure` and an in-flight run are each
+reported with their own wording so the reader is not sent after the wrong cause.
+
+Same three-valued contract as CTL-066 — 0 fresh, 1 measured-and-stale, 2
+UNVERIFIED — and **being unable to list runs is 2, never "stale" and certainly
+never "fresh"**. Unlike the drift job above, this one needs only `actions:read`,
+which `GITHUB_TOKEN` can hold, so it gives a real measured answer today rather
+than a standing UNVERIFIED. The two jobs are deliberately **not** chained with
+`needs:` — chaining freshness behind a job expected to exit 2 would make it
+report SKIPPED every day, which is the exact trap it exists to detect.
+
+**Reading a failure.** Exit 1 names the workflow, its window, and what the newest
+run actually concluded and when. Resolve it by fixing the workflow — not by
+widening the window, and not by removing the entry. The config is a **two-way**
+ratchet: an entry naming a workflow file that no longer exists fails as STALE, so
+it cannot decay into a list that only grows.
+
+**Two stated gaps.** It measures at *run* granularity, so a workflow of three
+jobs in which one fails reads as stale even though two did their work — the
+conservative direction, deliberately. And it asserts a run *succeeded*, not that
+it did anything useful; a workflow whose every step is a no-op still concludes
+`success` (that class is CTL-062 and the workflow-integrity guards).
+
+⚠️ **`required-checks.yml` is deliberately not watched**, despite SEC-106 §4f
+saying to point this at it. Its drift job exits 2 UNVERIFIED on every run until
+`BRANCH_PROTECTION_READ_TOKEN` is provisioned, so watching it would install a
+permanent red — a red you have learned to expect is a control you have switched
+off. **Add it the same day that token lands**; a test asserts its absence, so
+doing so is a deliberate act rather than a thing someone must remember.
+
 ### Staging testing program (KAN-176)
 
 Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E suite that runs inline in `deploy-staging.yml` (KAN-114).
