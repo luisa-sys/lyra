@@ -299,6 +299,13 @@ export const SEEDED_PATHS = [
   '.github/expected-protection.json',
   '.github/workflows/required-checks.yml',
   '.github/workflows/main-chain-guard.yml',
+  // CTL-072 / SEC-106 §3 item 3. Same reasoning, and the config file carries the
+  // same sharp edge as the expectation file above: the test asserts positive
+  // facts about its CONTENT (that db-invariants.yml is watched, and that
+  // required-checks.yml deliberately is NOT), so a lost key would turn those
+  // into `resolve(root, undefined)` rather than a quiet vacuous pass.
+  'scripts/check-workflow-run-freshness.py',
+  '.github/workflow-freshness.json',
   // CTL-061 (BUGS-81). Reached only via `SRC` in
   // tests/scripts/check-heartbeat-page-id.test.js, so gotcha #31 would turn a
   // lost key into `resolve(root, undefined)`. The guard's anchor doc
