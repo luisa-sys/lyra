@@ -447,6 +447,53 @@ jobs:
           set -euo pipefail
           python3 scripts/check-required-checks.py --self-test
           python3 scripts/check-required-checks.py --local
+      - name: Workflow lint — actionlint + zizmor (CTL-073, SEC-106 §3 item 2)
+        # SEC-106 §1: "Nothing lints .github/workflows/** for the false-green
+        # primitives themselves." These two tools are the answer to part of
+        # that, and the script header states exactly which part — actionlint
+        # catches the `if:` guard referencing secrets.*, and neither tool sees
+        # continue-on-error, `|| true`, `set +e`, a missing set -euo pipefail
+        # or a missing defaults.run.shell. That gap is recorded rather than
+        # implied to be covered.
+        #
+        # A RATCHET, not "zero findings": measured at landing, the 43 workflows
+        # here carry 7 actionlint + 109 zizmor findings. A gate that reddens
+        # dozens of files on day one is a gate someone turns off, so the past
+        # is grandfathered per (tool, rule, file) and may only SHRINK — and a
+        # baselined finding that has been fixed fails as STALE, because a list
+        # you may only add to is a suppression list.
+        #
+        # BOTH VERSIONS ARE PINNED, and the baseline records them. This is the
+        # only control in the estate besides npm-audit whose subject is a
+        # third-party tool, and SEC-105 is the lesson: a rule set that moves on
+        # its own schedule goes red overnight on an unchanged repo. A version
+        # bump is therefore a deliberate act with a regenerated baseline in the
+        # same commit; running a different version is UNVERIFIED, not a
+        # comparison of one tool's findings against another tool's baseline.
+        env:
+          ACTIONLINT_VERSION: v1.7.12
+          ZIZMOR_VERSION: 1.29.0
+        run: |
+          set -euo pipefail
+          # Installed from source/PyPI rather than via marketplace actions: a
+          # new remote action would need a 40-hex SHA pin (check-action-pinning
+          # .sh), and go + pipx are already on ubuntu-latest. No secret is
+          # involved, so there is no silent-skip path here — a missing tool
+          # exits non-zero.
+          go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+          ACTIONLINT_BIN="$(go env GOPATH)/bin/actionlint"
+          ZIZMOR_CMD="$(command -v zizmor || echo "${HOME}/.local/bin/zizmor")"
+          export ACTIONLINT_BIN ZIZMOR_CMD
+          python3 scripts/check-workflow-lint.py --self-test
+          # The fixture arm that drives the real binaries (§4d: a dirty fixture
+          # is rejected AND a clean one passes, so the rule is not always-red).
+          # It is separate from --self-test because the linters are not on every
+          # machine, and it reports UNVERIFIED rather than skipping when one is
+          # missing. THIS is where that contract is actually exercised — the
+          # jest suite runs only the hermetic arm.
+          python3 scripts/check-workflow-lint.py --self-test-tools
+          python3 scripts/check-workflow-lint.py
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in
         # lyra AND lyra-mcp-server, with nothing checking they still agree.
