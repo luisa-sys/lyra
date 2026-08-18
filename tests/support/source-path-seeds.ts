@@ -79,6 +79,12 @@
  * paths directly.
  */
 export const SEEDED_PATHS = [
+  // CTL-073 (SEC-106 §3 item 2). The checker and its ratchet baseline are both
+  // read via SRC by tests/scripts/check-workflow-lint.test.js and by no literal
+  // that survives a regeneration, so without these seeds the two keys vanish and
+  // every assertion against them turns into a path.join(root, undefined).
+  'scripts/check-workflow-lint.py',
+  '.github/workflow-lint-baseline.json',
   // The 18+ self-declaration (KAN-407) — the age half of the signup contract.
   'src/modules/age/self-declaration.ts',
   // Where D4 moved the gating that decides where a new user lands.
