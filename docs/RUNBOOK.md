@@ -566,6 +566,46 @@ columns were live on all three databases and absent from all three snapshots.
 | **CTL-036** (`check-schema-type-parity.py`, every PR) | the three snapshots **to each other** | all three stale the same way — no *relative* drift to find |
 | **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
 | **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
+| **CTL-071** (`check-snapshot-regeneration.py`, `db-invariants.yml`, daily) | each snapshot to a **fresh generation** of its own database, whole file | trailing whitespace at end of file, and nothing else |
+
+**Which dimensions each one can see — this is the part that was re-derived the
+hard way ([SEC-151](https://checklyra.atlassian.net/browse/SEC-151)):**
+
+| dimension | CTL-036 | CTL-048 | CTL-071 |
+|---|---|---|---|
+| a column exists / does not | ✅ relative only | ✅ | ✅ |
+| a column's **nullability** | ❌ | ❌ | ✅ |
+| **enum membership** | ✅ relative only | ❌ | ✅ |
+| **view updatability** (`Insert`/`Update` blocks) | ❌ | ❌ | ✅ |
+| anything else the generator expresses | ❌ | ❌ | ✅ |
+
+The `relative only` entries are the trap. CTL-036 compares the three snapshots
+**to each other**, so it sees a dimension perfectly well *when they disagree*
+and not at all when they are wrong in the same way — and they are usually wrong
+in the same way, because they are usually regenerated together or not at all.
+CTL-048 asks the databases, but through PostgREST's OpenAPI document, which
+advertises column **names**: a column with the wrong nullability is still in the
+set, an enum member is not a column, and view updatability is not a column.
+
+On 2026-08-16 all three snapshots were simultaneously wrong on the three middle
+rows and **both controls were green, correctly**. Neither was defective; there
+was simply no control on those dimensions.
+
+⚠️ **CTL-071 is a whole-file diff on purpose, and resist the urge to replace it
+with three targeted assertions.** Those three dimensions are not a category —
+they are the three that happened to be found. A control that enumerates
+dimensions catches only the ones somebody thought of, and the finding was
+precisely that nobody thought of these.
+
+⚠️ **A CTL-071 red has two causes needing opposite responses**, and the
+annotation says which it thinks it is. Either the schema changed and the
+snapshot was not regenerated (the finding — run
+`npm run gen:db-types -- --env <env>` and commit), or the **generator** changed:
+`gen-db-types.sh` runs `npx --yes supabase`, which is unpinned and absent from
+`package.json`, so a CLI release can alter formatting with no schema change at
+all. The tell for the second is a diff that is purely cosmetic, or one that hits
+all three environments at once. Same command either way, but say so in the
+commit message. Pinning the CLI is SEC-151's follow-up.
 
 > ⚠️ **The SEC-143 admin schema-contract step in this same workflow is currently
 > INERT, and its daily red is not a schema finding.** It reads

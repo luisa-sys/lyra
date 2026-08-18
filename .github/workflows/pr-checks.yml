@@ -263,6 +263,20 @@ jobs:
         # `kan_143_profile_items_visibility`, and one that collapsed too much
         # would MASK an unrebuildable migration while reporting green.
         run: python3 scripts/check-migration-ledger-parity.py --self-test
+      - name: Snapshot-regeneration checker self-test (CTL-071)
+        # SEC-151. Same split again: the LIVE run regenerates from three
+        # databases and lives in db-invariants.yml; the comparison is pure
+        # logic and must be proven to still fail here.
+        #
+        # What matters in these fixtures is the NORMALISATION. It collapses
+        # exactly one thing — trailing whitespace at end of file, because the
+        # CLI and the Supabase MCP generator disagree about the final newline
+        # and a control red on all three environments over a blank line is one
+        # somebody switches off. A normaliser that collapsed any more than
+        # that would hide real schema drift while reporting green, so the
+        # fixtures pin both directions: EOF whitespace is not drift, a blank
+        # line INSIDE the file is.
+        run: python3 scripts/check-snapshot-regeneration.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
@@ -334,6 +348,41 @@ jobs:
           set -euo pipefail
           python3 scripts/check-workflow-secret-refs.py --self-test
           python3 scripts/check-workflow-secret-refs.py
+      - name: Absent-secret ledger has a live probe (SEC-158 / CTL-068)
+        # The check above is ONE-DIRECTIONAL: it fails when a workflow names a
+        # secret in neither ledger, and never asks whether a recorded ABSENCE is
+        # still real. So an entry saying "this does not exist" passed forever
+        # once the secret was provisioned — SUPABASE_ACCESS_TOKEN sat there
+        # under 20 lines of confident, false prose while CTL-049 was quietly
+        # green, pointing anyone triaging a red run at the wrong job entirely.
+        #
+        # `${{ secrets[NAME] }}` cannot be indexed dynamically, so the probe is
+        # GENERATED with one literal per entry. This step asserts the generated
+        # workflow still matches the ledger; the probe itself runs weekly and
+        # is what actually catches an absence that has ended.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-absent-secret-probe.py --self-test
+          python3 scripts/check-absent-secret-probe.py
+      - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
+        # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
+        # to the OTHER value, so it could never return PASS and could not have
+        # caught SEC-100 — the defect it existed for. It shipped red and stayed
+        # red four days.
+        #
+        # Two things made that possible. The instrument did not vary with the
+        # property (only measurement could catch that), and the decision was
+        # INLINE bash reachable by no test — so nothing could observe that its
+        # PASS branch was unreachable. This gates the second.
+        #
+        # Shrink-only and two-way: a NEW inline verdict fails, and a baselined
+        # one that has been extracted fails as STALE. Extraction is credited
+        # only when the classifier has a test asserting BOTH verdicts —
+        # otherwise "extract it" is a way to leave the baseline for free.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-soak-classifier-coverage.py --self-test
+          python3 scripts/check-soak-classifier-coverage.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and

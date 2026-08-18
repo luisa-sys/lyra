@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 242 entries.
+// 246 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -52,6 +52,7 @@ export const SRC = {
   backupDatabaseApi: 'scripts/backup-database-api.sh',
   backupDatabaseComplete: 'scripts/backup-database-complete.sh',
   scriptsBackupDatabase: 'scripts/backup-database.sh',
+  checkAbsentSecretProbe: 'scripts/check-absent-secret-probe.py',
   checkActionPinning: 'scripts/check-action-pinning.sh',
   checkCommentOnlyAssertions: 'scripts/check-comment-only-assertions.py',
   checkCompleteBackup: 'scripts/check-complete-backup.sh',
@@ -82,6 +83,8 @@ export const SRC = {
   checkScheduledWorkflowsActive: 'scripts/check-scheduled-workflows-active.py',
   checkSchemaTypeParity: 'scripts/check-schema-type-parity.py',
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
+  checkSnapshotRegeneration: 'scripts/check-snapshot-regeneration.py',
+  checkSoakClassifierCoverage: 'scripts/check-soak-classifier-coverage.py',
   checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',
@@ -98,6 +101,7 @@ export const SRC = {
   rollbackVercel: 'scripts/rollback-vercel.sh',
   routineWatchdog: 'scripts/routine-watchdog.sh',
   securityAlertEmail: 'scripts/security-alert-email.sh',
+  stagingSoak: 'scripts/staging-soak.sh',
   weeklyHealthRegression: 'scripts/weekly-health-regression.sh',
   app: 'src/app',
   srcApp: 'src/app/',

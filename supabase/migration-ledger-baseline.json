@@ -7,7 +7,14 @@
     "SHRINK-ONLY, BOTH WAYS. A new divergence fails. A baselined divergence",
     "that has been resolved ALSO fails, so this cannot quietly become a",
     "suppression list. Regenerate with --write-baseline in the same commit",
-    "that fixes something; never hand-edit."
+    "that fixes something; never hand-edit.",
+    "",
+    "`reconciliations` (SEC-160) pairs a ledger name with the repo file that",
+    "now carries its SQL. It is CARRIED THROUGH regeneration rather than",
+    "recomputed, because it records a human claim that two names denote the",
+    "same migration — something no measurement can derive. Losing it on a",
+    "regenerate would resurrect the entries it suppresses, so it is preserved",
+    "explicitly and its liveness is re-checked on every run."
   ],
   "ticket": "SEC-137",
   "environments": {
@@ -107,5 +114,25 @@
         "bugs69_revoke_global_feature_switch_trigger_exec"
       ]
     }
-  }
+  },
+  "reconciliations": [
+    {
+      "ledger": "kan_232_mcp_tool_call_log",
+      "repo": "sec160_reconcile_mcp_tool_call_log",
+      "ticket": "SEC-160",
+      "why": "Table live on dev, staging and prod (31,965 rows on prod) with no CREATE TABLE in the repo. The committed file reproduces production exactly as measured 2026-08-17 and is idempotent, so applying it to an existing environment is a no-op."
+    },
+    {
+      "ledger": "kan_244_content_moderation_flags",
+      "repo": "sec160_reconcile_content_moderation_flags",
+      "ticket": "SEC-160",
+      "why": "Same situation as the row above. Includes the single own_flags_select RLS policy and the deliberate absence of any write policy, which is what leaves service_role the only writer."
+    },
+    {
+      "ledger": "kan_245_mcp_tool_call_log_retention",
+      "repo": "sec160_reconcile_retention_jobs",
+      "ticket": "SEC-160",
+      "why": "One repo file carries BOTH pg_cron retention jobs, because the second — content_moderation_flags_retention — exists on production under no ledger name at all and so has no row here to pair with. That asymmetry is the SEC-160 finding: this control counts out-of-band LEDGER ROWS, and an object created without one is invisible to it by construction."
+    }
+  ]
 }
