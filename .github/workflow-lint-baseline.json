@@ -12,10 +12,9 @@
     "zizmor": "1.29.0"
   },
   "totals": {
-    "findings": 116,
-    "keys": 67,
+    "findings": 109,
+    "keys": 66,
     "by_tool": {
-      "actionlint": 7,
       "zizmor": 109
     }
   },
@@ -23,7 +22,6 @@
     "actionlint:expression:.github/workflows/absent-secrets-probe.yml": "SEC-165 \u2014 step-level `if: ${{ secrets.X != '' }}`; the secrets context is not available in jobs.<id>.steps.if, so the CTL-068 absent-secret probe cannot be trusted to fire. Grandfathered so this control can land; NOT accepted."
   },
   "entries": {
-    "actionlint:expression:.github/workflows/absent-secrets-probe.yml": 7,
     "zizmor:adhoc-packages:.github/workflows/deploy-beta.yml": 1,
     "zizmor:adhoc-packages:.github/workflows/deploy-dev.yml": 1,
     "zizmor:adhoc-packages:.github/workflows/deploy-production.yml": 1,
