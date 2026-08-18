@@ -486,6 +486,13 @@ jobs:
           ZIZMOR_CMD="$(command -v zizmor || echo "${HOME}/.local/bin/zizmor")"
           export ACTIONLINT_BIN ZIZMOR_CMD
           python3 scripts/check-workflow-lint.py --self-test
+          # The fixture arm that drives the real binaries (§4d: a dirty fixture
+          # is rejected AND a clean one passes, so the rule is not always-red).
+          # It is separate from --self-test because the linters are not on every
+          # machine, and it reports UNVERIFIED rather than skipping when one is
+          # missing. THIS is where that contract is actually exercised — the
+          # jest suite runs only the hermetic arm.
+          python3 scripts/check-workflow-lint.py --self-test-tools
           python3 scripts/check-workflow-lint.py
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in

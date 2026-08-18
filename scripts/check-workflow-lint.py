@@ -65,7 +65,9 @@ then a deliberate act with a regenerated baseline in the same commit.
 USAGE
     check-workflow-lint.py                    check against the baseline
     check-workflow-lint.py --write-baseline   regenerate (review the diff!)
-    check-workflow-lint.py --self-test        fixtures, no repo state
+    check-workflow-lint.py --self-test        hermetic fixtures, no tools needed
+    check-workflow-lint.py --self-test-tools  the fixture arm that drives the real
+                                              linters; UNVERIFIED if either is absent
     check-workflow-lint.py --findings-json F  replay a collected findings dump
                                               instead of invoking the tools
 
@@ -441,6 +443,10 @@ jobs:
 
 
 def self_test() -> int:
+    """The HERMETIC arm: every case here is decided by this file alone, so it
+    runs identically on a laptop, in the unit-test suite and in CI. The cases
+    that need actionlint/zizmor installed live in --self-test-tools, because a
+    case that quietly disappears when its subject is absent is not a case."""
     cases: list[tuple[str, bool]] = []
 
     # --- the ratchet's three verdicts, and its clean state -------------------
@@ -495,12 +501,36 @@ def self_test() -> int:
     cases.append(("a tool the baseline never recorded is not a mismatch",
                   version_problem({}, {"zizmor": "1.29.0"}) is None))
 
-    # --- the tools themselves, driven against real fixtures ------------------
-    # §4d wants BOTH directions: the dirty fixture rejected AND the clean one
-    # passed, so the rule is not simply always-red. If a linter is absent this
-    # arm reports UNVERIFIED rather than skipping — a skipped security case
-    # that prints "passed" is the exact defect this control exists to catch.
-    tool_cases: list[tuple[str, bool]] = []
+
+    # SEC-140: the verdict is read AFTER every case loop has appended to it.
+    # Eight self-test cases in check-npm-audit-gate.py were added after the
+    # `if failures:` line, so three separate mutations all printed "passed" and
+    # the case count went UP. Nothing below this line may append a case.
+    failed = [n for n, ok in cases if not ok]
+    for name, ok in cases:
+        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
+    if failed:
+        print(f"::error::self-test: {len(failed)} case(s) failed: {', '.join(failed)}")
+        return EXIT_DRIFT
+    print(f"self-test: {len(cases)}/{len(cases)} passed")
+    return EXIT_OK
+
+
+def tool_self_test() -> int:
+    """The arm that needs the real binaries — SEC-106 §4d's fixture contract.
+
+    Split out of --self-test rather than skipped inside it. The tools are not
+    installed on every machine, and a case that silently vanishes when its
+    subject is absent reports the same green as a case that passed. Here, an
+    absent linter is UNVERIFIED (exit 2) and says so.
+
+    CI runs this on every PR with both versions pinned; the jest suite drives
+    --self-test instead and states this gap in its header, exactly as CTL-066's
+    suite does for its live arm.
+    """
+    cases: list[tuple[str, bool]] = []
+    unverified: list[str] = []
+    cases: list[tuple[str, bool]] = []
     unverified: list[str] = []
     with tempfile.TemporaryDirectory() as td:
         dirty, clean = Path(td) / "dirty.yml", Path(td) / "clean.yml"
@@ -514,42 +544,43 @@ def self_test() -> int:
                 unverified.append(f"{name}: {exc}")
                 continue
             if name == "actionlint":
-                tool_cases.append((
+                cases.append((
                     "actionlint rejects a step-level `if: secrets.*` (the §1 primitive it covers)",
                     any(f["rule"] == "expression" for f in dirty_findings)))
-                tool_cases.append((
+                cases.append((
                     "actionlint passes a CLEAN fixture, so the rule is not always-red",
                     clean_findings == []))
             else:
-                tool_cases.append((
+                cases.append((
                     "zizmor rejects a dangerous fixture (push:main + unpinned checkout-less job)",
                     len(dirty_findings) > 0))
-                tool_cases.append((
+                cases.append((
                     "zizmor finds strictly fewer findings on the CLEAN fixture",
                     len(clean_findings) < len(dirty_findings)))
 
-    cases.extend(tool_cases)
 
-    # SEC-140: the verdict is read AFTER every case loop has appended to it.
-    # Eight self-test cases in check-npm-audit-gate.py were added after the
-    # `if failures:` line, so three separate mutations all printed "passed" and
-    # the case count went UP. Nothing below this line may append a case.
     failed = [n for n, ok in cases if not ok]
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
     if unverified:
         for message in unverified:
-            print(f"::error::self-test: UNVERIFIED — {message}")
-        print("::error::self-test: a linter is unavailable, so its fixture arm proved nothing.")
+            print(f"::error::tool-self-test: UNVERIFIED — {message}")
+        print("::error::tool-self-test: a linter is unavailable, so its fixture arm proved nothing.")
+        print("::error::  This is NOT a clean result. Exit 2.")
+        return EXIT_UNVERIFIED
+    if not cases:
+        print("::error::tool-self-test: no cases ran at all — refusing to report a pass.")
         return EXIT_UNVERIFIED
     if failed:
-        print(f"::error::self-test: {len(failed)} case(s) failed: {', '.join(failed)}")
+        print(f"::error::tool-self-test: {len(failed)} case(s) failed: {', '.join(failed)}")
         return EXIT_DRIFT
-    print(f"self-test: {len(cases)}/{len(cases)} passed")
+    print(f"tool-self-test: {len(cases)}/{len(cases)} passed")
     return EXIT_OK
 
 
 if __name__ == "__main__":
+    if "--self-test-tools" in sys.argv:
+        sys.exit(tool_self_test())
     if "--self-test" in sys.argv:
         sys.exit(self_test())
     if "--write-baseline" in sys.argv:

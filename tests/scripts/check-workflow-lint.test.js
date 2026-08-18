@@ -10,15 +10,19 @@
  *                    does a new finding fail, and does a fixed-but-still-listed
  *                    one fail too.
  *
- *   The linters     — NOT exercised here, deliberately. actionlint and zizmor
- *                    are third-party binaries that are not installed on every
- *                    machine, and a test that silently passes when its subject
- *                    is absent is the exact defect this control exists to
- *                    catch. Their fixture arm lives in the script's own
- *                    --self-test, which reports UNVERIFIED (exit 2) rather
- *                    than skipping when a linter is missing — and CI runs it
- *                    with both installed and pinned. Stated rather than
- *                    implied, per SEC-106 §4: recording a gap is a finding.
+ *   The linters     — NOT exercised here, deliberately, and this suite's first
+ *                    cut got it wrong: it asserted `--self-test` exits 0, which
+ *                    held locally and went RED in CI, because the binaries are
+ *                    installed in the workflow-lint STEP and are not on PATH in
+ *                    the unit-test step. The fix is not to relax the assertion
+ *                    to tolerate exit 2 — that is the silent-skip shape — but to
+ *                    split the arms: `--self-test` is hermetic and runs
+ *                    anywhere, `--self-test-tools` drives the real binaries and
+ *                    reports UNVERIFIED (exit 2) when either is absent. CI runs
+ *                    BOTH with the versions pinned; this suite runs the hermetic
+ *                    one and asserts CI invokes the other. Same split CTL-066's
+ *                    suite makes for its --live arm, and stated rather than
+ *                    implied per SEC-106 §4: recording a gap is a finding.
  *
  * The self-test assertion below is a FLOOR on the case count, not an
  * "N/N passed" tally. A tally moves its denominator with its numerator, so it
@@ -38,7 +42,7 @@ const PR_CHECKS = path.join(ROOT, SRC.prChecks);
 
 // The floor. Raise it when cases are added; it may never be lowered to make a
 // red build pass.
-const SELF_TEST_CASE_FLOOR = 20;
+const SELF_TEST_CASE_FLOOR = 16;
 
 function run(args = [], env = {}) {
   try {
@@ -134,6 +138,18 @@ describe('check-workflow-lint.py (CTL-073)', () => {
     expect(stdout).not.toContain('NEW finding');
   });
 
+  test('--self-test-tools reports UNVERIFIED when a linter is absent, never a pass', () => {
+    // Environment-independent: point it at a binary that cannot exist. This is
+    // the fail-closed contract asserted from the OUTCOME, not inferred from an
+    // exit code alone (gotcha #30) — exit 2 AND the annotation.
+    const { exitCode, stdout } = run(['--self-test-tools'], {
+      ACTIONLINT_BIN: '/nonexistent/actionlint',
+    });
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain('::error::tool-self-test: UNVERIFIED');
+    expect(stdout).not.toContain('tool-self-test: 4/4 passed');
+  });
+
   // -------------------------------------------------------------------------
   // The committed baseline
   // -------------------------------------------------------------------------
@@ -173,9 +189,12 @@ describe('check-workflow-lint.py (CTL-073)', () => {
   // -------------------------------------------------------------------------
   // Wiring — a control nothing invokes is not a control (SEC-79)
   // -------------------------------------------------------------------------
-  test('pr-checks.yml runs both the self-test and the check, with pinned versions', () => {
+  test('pr-checks.yml runs BOTH self-test arms and the check, with pinned versions', () => {
     const wf = fs.readFileSync(PR_CHECKS, 'utf8');
-    expect(wf).toContain(`python3 ${SRC.checkWorkflowLint} --self-test`);
+    expect(wf).toContain(`python3 ${SRC.checkWorkflowLint} --self-test\n`);
+    // The arm this suite cannot run. If CI stops invoking it, the fixture
+    // contract of SEC-106 §4d is exercised by nothing at all.
+    expect(wf).toContain(`python3 ${SRC.checkWorkflowLint} --self-test-tools`);
     expect(wf).toContain(`python3 ${SRC.checkWorkflowLint}\n`);
     // Pinned, per SEC-105: an unpinned linter is a rule set that changes under
     // an unchanged repo. Both pins must name an exact version, not a range.
