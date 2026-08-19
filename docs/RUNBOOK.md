@@ -765,6 +765,47 @@ When an alert fires:
 
 UptimeRobot setup, monitor list, and bootstrap procedure: [`docs/UPTIMEROBOT_SETUP.md`](./UPTIMEROBOT_SETUP.md).
 
+## Moderation — suspending a user (SEC-57)
+
+**Suspension is retroactive, and it is one-way.** Setting `profiles.is_suspended`
+from false to true fires the `profiles_revoke_credentials_on_suspend` trigger
+(migration `20260819210000_sec57_revoke_credentials_on_suspend.sql`), which for
+that user alone stamps:
+
+| table | column written | effect |
+|---|---|---|
+| `api_keys` | `revoked_at` | every `lyra_…` key stops authenticating at the MCP server immediately |
+| `oauth_access_tokens` | `revoked_at` | inert until SEC-46 leg 1 sets `OAUTH_REVOCATION_CHECK=1` on the resource servers; until then the live token dies at its ~1h TTL |
+| `oauth_refresh_tokens` | `used_at` | the refresh family is dead, so no new access token can be minted |
+| `oauth_consents` | `revoked_at` | the client must pass a fresh consent screen |
+
+It fires wherever the transition happens — the admin console bulk action, the
+admin-MCP `admin_suspend_user` tool, or SQL applied by hand — because the check
+lives on the column, not in the application paths. That is deliberate: this
+defect family (a guard added to one call site but not its siblings) has recurred
+eight times.
+
+**Unsuspending restores nothing.** The user must generate a new API key from
+Settings and re-authorise every OAuth client. Tell them that when you unsuspend
+them, or they will report working integrations as broken with no explanation.
+Re-minting is correctly gated — a still-suspended account cannot obtain a new
+credential (PR #448).
+
+Re-suspending an already-suspended user, or editing any other column on their
+profile, is a no-op and does not re-stamp the original revocation timestamps.
+
+**If the trigger errors, the suspension itself fails.** That is intended: a
+recorded suspension whose credentials are still live is the worse outcome. Do
+not add an exception handler to make the suspend "succeed anyway".
+
+Rollback (removes future revocation; does not un-revoke anything already
+revoked):
+
+```sql
+drop trigger if exists profiles_revoke_credentials_on_suspend on public.profiles;
+drop function if exists public.sec57_revoke_credentials_on_suspend();
+```
+
 ## Emergency Contacts
 
 ServiceDashboardSupportVercel[vercel.com/luisa-sys-projects/lyra](http://vercel.com/luisa-sys-projects/lyra)[vercel.com/help](http://vercel.com/help)Supabase[supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj](http://supabase.com/dashboard/project/ilprytcrnqyrsbsrfujj)[supabase.com/support](http://supabase.com/support)Cloudflare[dash.cloudflare.com](http://dash.cloudflare.com)[cloudflare.com/support](http://cloudflare.com/support)GitHub[github.com/luisa-sys/lyra](http://github.com/luisa-sys/lyra)[support.github.com](http://support.github.com)Railwayrailway.app (Lyra project)railway.app/helpUptimeRobot[dashboard.uptimerobot.com](https://dashboard.uptimerobot.com/)[uptimerobot.com/help](https://uptimerobot.com/help)
