@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 246 entries.
+// 247 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -56,6 +56,7 @@ export const SRC = {
   checkActionPinning: 'scripts/check-action-pinning.sh',
   checkCommentOnlyAssertions: 'scripts/check-comment-only-assertions.py',
   checkCompleteBackup: 'scripts/check-complete-backup.sh',
+  checkControlRegistry: 'scripts/check-control-registry.py',
   checkDependencyRules: 'scripts/check-dependency-rules.sh',
   checkDesignBaseline: 'scripts/check-design-baseline.py',
   checkDocMirrorContent: 'scripts/check-doc-mirror-content.sh',

@@ -23,12 +23,11 @@
       "id": "CTL-001",
       "name": "Workflow integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
+      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back. SEC-119: promote-to-production.yml was listed as a second wiring and never ran it \u2014 the only two occurrences of the script's name in that file are inside # comment blocks explaining the SEC-86 and SEC-66 residuals its Patterns 5 and 6 pin. That file is a SUBJECT of this scan (pr-checks.yml runs the script over every workflow, this one included), not an invoker of it, and wired_in means 'the control RUNS here'. Dropped rather than wired in: adding a gate to the production promote is a release-control change under SEC-98, and the coverage already exists from pr-checks.yml.",
       "implementation": "scripts/check-workflow-integrity.sh",
       "kind": "ci-gate",
       "wired_in": [
-        ".github/workflows/pr-checks.yml",
-        ".github/workflows/promote-to-production.yml"
+        ".github/workflows/pr-checks.yml"
       ],
       "prevents": [
         "BUGS-4",
