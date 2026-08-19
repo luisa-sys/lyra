@@ -530,7 +530,14 @@ jobs:
         # control to its invoker in controls/registry.json; `npm run lint` alone
         # reaches it only by convention, and a convention is precisely what the
         # registry exists to stop us relying on.
-        run: npm run lint  # uses eslint.config.mjs
+        #
+        # SEC-119: that name used to live in a trailing `# uses eslint.config.mjs`
+        # comment, and check-control-registry.py's substring scan was satisfied by
+        # it — so the registry's proof that this control is invoked was a comment.
+        # --config is the SAME file eslint would load by convention (flat config
+        # default), so behaviour is unchanged; it is now an argument rather than a
+        # remark, which is the difference between a claim and a wiring.
+        run: npm run lint -- --config eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)
