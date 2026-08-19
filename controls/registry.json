@@ -1256,6 +1256,23 @@
       ],
       "escape_hatch": "none - regenerate with `npm run gen:db-types -- --env <env>` and commit the result. There is no annotation, because an accepted difference between a snapshot and its own database is exactly the defect this control exists to find.",
       "added": "2026-08-17"
+    },
+    {
+      "id": "CTL-074",
+      "name": "Convene OAuth route error-masking coverage",
+      "defect_class": "guard-names-its-targets-so-siblings-go-uncovered",
+      "summary": "Asserts that NO Convene OAuth route returns internal error text to the caller, over a corpus DISCOVERED with `git ls-files` rather than listed. SEC-76 masked the two callback routes and shipped a guard whose targets were a hand-written two-entry array, so both INITIATE routes carried the identical `{ error: 'state_persist_failed', detail: error.message }` leak - on the same line number, for both providers - while that guard reported green. SEC-115. Same shape as the eight-ticket suspension-guard family: a fix applied at one call site and not its siblings. THE FIX IS THE ORACLE, NOT THE ASSERTION: the assertions are unchanged, the corpus is what changed, so a fifth provider route is covered on the day it is committed with nobody remembering to add it. Three properties are asserted per discovered route - no `detail:` in any response, the raw message still reaches logStep server-side (masking must not merely discard it), and the stable error codes survive. CORPUS IS ASSERTED BEFORE IT IS ITERATED, because `describe.each([])` registers zero tests and an empty suite is green (catalogue failure mode 4) - a discovery glob that silently stopped matching would otherwise turn the file into a no-op with a tick. COMMENTS ARE STRIPPED before matching, both directions of CTL-039: the prose explaining why `detail:` must not appear would otherwise redden the fix's own documentation, and a positive assertion could otherwise be satisfied by a comment whose code was deleted. Mutation-proven five ways - reintroducing the leak on the google initiate route reddens it (the route SEC-76's guard could not see), reintroducing it on the microsoft callback reddens it, deleting the logStep call reddens it, narrowing discovery back to callbacks reddens it, and removing the comment-stripping reddens a comment-only reintroduction (so the stripping is load-bearing, not decoration). STATED GAP: this is a source-text scan, not a behavioural test - Convene is dark in every environment (CONVENE_ENABLED false, routes 404) so there is no reachable endpoint to exercise, which also bounds the live exposure of the original leak to zero.",
+      "implementation": "tests/unit/convene/oauth-callback-error-masking.test.ts",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-76",
+        "SEC-115"
+      ],
+      "escape_hatch": "none - a route that must return internal error text is not a case this codebase has; log it server-side via logStep and return the stable code.",
+      "added": "2026-08-19"
     }
   ]
 }
