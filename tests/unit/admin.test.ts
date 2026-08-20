@@ -96,6 +96,74 @@ describe('KAN-141 admin — getCurrentAdmin', () => {
     });
     expect(await getCurrentAdmin()).toBeNull();
   });
+
+  // SEC-121: getCurrentAdmin is the DURABLE second layer for the admin console
+  // — the middleware suspension gate can be reordered (or, before SEC-121's
+  // fix, could be positioned below the admin-host early return so it never
+  // ran on admin.checklyra.com at all), but this helper answers the same
+  // question independently. Every /admin page and every admin action reaches
+  // it, so refusing a suspended admin here removes the dependency on
+  // middleware ordering entirely for the console.
+  test('SEC-121 — returns null when is_admin=true but is_suspended=true', async () => {
+    authGetUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'admin@b.com' } } });
+    fromMock.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: { id: 'p1', display_name: 'Admin', is_admin: true, is_suspended: true },
+        error: null,
+      }),
+    });
+    expect(await getCurrentAdmin()).toBeNull();
+  });
+
+  test('SEC-121 — admits an admin with is_suspended=false explicitly', async () => {
+    // The complement of the case above: the new predicate must not
+    // over-reject. This case only rules out the mistake of coercing
+    // `is_suspended` truthiness without care (e.g. inverting the check).
+    authGetUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'admin@b.com' } } });
+    fromMock.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: { id: 'p1', display_name: 'Admin', is_admin: true, is_suspended: false },
+        error: null,
+      }),
+    });
+    const admin = await getCurrentAdmin();
+    expect(admin).toEqual({
+      userId: 'u1',
+      profileId: 'p1',
+      email: 'admin@b.com',
+      displayName: 'Admin',
+    });
+  });
+
+  test('SEC-121 — reads is_suspended in the SAME select as is_admin (single round-trip)', async () => {
+    // The predicate is one query, not two: the helper must not issue a
+    // second lookup for suspension, and the column list must actually name
+    // `is_suspended`. This pins that shape so a future refactor cannot
+    // remove the column from the select and re-open the defect (mutating
+    // the select back to `'id, display_name, is_admin'` reddens THIS test
+    // even if the admits/refuses cases above still incidentally pass
+    // because the mocked object still carries the field).
+    authGetUser.mockResolvedValue({ data: { user: { id: 'u1', email: 'admin@b.com' } } });
+    const selectMock = jest.fn().mockReturnThis();
+    fromMock.mockReturnValue({
+      select: selectMock,
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: { id: 'p1', display_name: 'Admin', is_admin: true, is_suspended: false },
+        error: null,
+      }),
+    });
+    await getCurrentAdmin();
+    expect(fromMock).toHaveBeenCalledTimes(1);
+    expect(fromMock).toHaveBeenCalledWith('profiles');
+    expect(selectMock).toHaveBeenCalledTimes(1);
+    const columns = String(selectMock.mock.calls[0][0]).split(',').map((s) => s.trim());
+    expect(columns).toEqual(expect.arrayContaining(['is_admin', 'is_suspended']));
+  });
 });
 
 describe('KAN-141 admin — logModerationAction', () => {
