@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 246,
+  "count": 247,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -60,6 +60,7 @@
     "checkModuleLayering": "scripts/check-module-layering.py",
     "checkModuleTableOwnership": "scripts/check-module-table-ownership.py",
     "checkNpmAuditGate": "scripts/check-npm-audit-gate.py",
+    "checkPooledEqMock": "scripts/check-pooled-eq-mock.py",
     "checkProductionDeployDrift": "scripts/check-production-deploy-drift.py",
     "checkReleaseBranchPush": "scripts/check-release-branch-push.py",
     "checkReleaseTagged": "scripts/check-release-tagged.py",

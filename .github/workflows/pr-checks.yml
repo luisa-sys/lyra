@@ -608,6 +608,14 @@ jobs:
           # another regressing.
           python3 scripts/check-route-thinness.py --self-test
           python3 scripts/check-route-thinness.py
+          # CTL-076 / KAN-459. A test-side Supabase mock must record .eq()
+          # filters PER STATEMENT. KAN-447/448 pooled them per TABLE, so the
+          # ownership pre-read satisfied assertions meant to be about the
+          # UPDATE: both owner filters were deletable while 27 tests stayed
+          # green. CTL-039's shape inside out — there a comment satisfies the
+          # assertion, here an incidental adjacent statement does.
+          python3 scripts/check-pooled-eq-mock.py --self-test
+          python3 scripts/check-pooled-eq-mock.py
           # CTL-064 / SEC-99. SEC-98 forbids pushing directly to main/beta/
           # staging, and until now that rule existed only in CLAUDE.md while the
           # repo shipped two scripts that did exactly it — six direct pushes,

@@ -263,6 +263,19 @@ export const SEEDED_PATHS = [
   // `SRC` in tests/scripts/check-route-thinness.test.js, and the baseline is
   // seeded too because the test asserts positive facts about its shape (the
   // computed totals, and that every baselined path is still tracked).
+  // CTL-076 / KAN-459. Reached only via `SRC` in
+  // tests/scripts/check-pooled-eq-mock.test.js, so without seeding it does not
+  // survive a regeneration (gotcha #31). The checker path is also the registry's
+  // `implementation` value and the string pr-checks.yml must name, so the
+  // assertion IS the path - a literal in the test would let a rename read as a
+  // pass against a control nobody runs.
+  //
+  // Its BASELINE is deliberately not seeded: the generator harvests only src,
+  // supabase, scripts, public, design and .github literals, so no tests/ key can
+  // exist, and seeding one would fail source-path-manifest-integrity's "every
+  // seed is in the manifest" assertion. The test carries that one literal
+  // directly, which the F4 raw-literal ratchet also does not count.
+  'scripts/check-pooled-eq-mock.py',
   'scripts/check-route-thinness.py',
   'supabase/route-thinness-baseline.json',
   // The directory CTL-056 scans. A DIRECTORY rather than a file, and seeded
