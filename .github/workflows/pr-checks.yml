@@ -364,6 +364,21 @@ jobs:
           set -euo pipefail
           python3 scripts/check-absent-secret-probe.py --self-test
           python3 scripts/check-absent-secret-probe.py
+      - name: Admin moderation writes refuse a self-target (SEC-118 / CTL-075)
+        # SEC-118: three of four writers of a member's `profiles` row carried a
+        # self-moderation guard and one did not, so an admin reviewing a report
+        # filed against their OWN profile was shown a live Suspend button that
+        # locked them out of the product with no in-app way back.
+        #
+        # Keyed on the ADMIN MODERATION SIGNATURE (writes `profiles` AND logs a
+        # moderation action), deliberately NOT on the column name: the bulk
+        # path passes an opaque payload built in another module, so a
+        # column-keyed matcher reports clean over the highest-volume moderation
+        # path in the product. Same lesson as CTL-055's `opaque-builder`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-self-moderation-guard.py --self-test
+          python3 scripts/check-self-moderation-guard.py
       - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
         # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
         # to the OTHER value, so it could never return PASS and could not have
