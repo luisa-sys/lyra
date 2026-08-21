@@ -2,7 +2,7 @@
   "$comment": "KAN-475 / CTL-070 \u2014 the IDENTITY lock for tests/support/source-paths.json. Each entry pins what an SRC key MEANS, not merely that it resolves. The generator names keys by widening leftwards until unique, so a key's name depends on the other paths present: moving one file can repoint a key belonging to a file that did not move, and the repointed key still resolves to a real tracked file, so nothing else in the estate can see it. Written ONLY by `python3 scripts/check-source-path-identity.py --write`, never by `npm run gen:test-paths` \u2014 a lock the generator maintains is the manifest again. A changed VALUE is refused by --write unless the key is named in --accept-repoint, which is what makes re-declaration explicit.",
   "ticket": "KAN-475",
   "control": "CTL-070",
-  "count": 246,
+  "count": 247,
   "keys": {
     "aboutPage": "src/app/(legal)/about/page.tsx",
     "accessibilityPage": "src/app/(legal)/accessibility/page.tsx",
@@ -56,6 +56,7 @@
     "checkScheduledWorkflowsActive": "scripts/check-scheduled-workflows-active.py",
     "checkSchemaTypeParity": "scripts/check-schema-type-parity.py",
     "checkSharedCodeDrift": "scripts/check-shared-code-drift.py",
+    "checkSnapshotRegeneration": "scripts/check-snapshot-regeneration.py",
     "checkSoakClassifierCoverage": "scripts/check-soak-classifier-coverage.py",
     "checkSourcePathIdentity": "scripts/check-source-path-identity.py",
     "checkSuspensionGuardCoverage": "scripts/check-suspension-guard-coverage.py",
