@@ -1274,6 +1274,22 @@
       ],
       "escape_hatch": "none - a route that must return internal error text is not a case this codebase has; log it server-side via logStep and return the stable code.",
       "added": "2026-08-19"
+    },
+    {
+      "id": "CTL-077",
+      "name": "Source-scanning tests are a two-way ratchet",
+      "defect_class": "grep-test-debt-grows-unbounded-because-nothing-counts-it",
+      "summary": "KAN-356 finding web-tests-06: the suite mixes source-grep tests with behavioural ones and nothing distinguishes them or bounds how many exist. CTL-038 and CTL-039 attack two specific vacuous shapes - a test that reimplements its subject, and an assertion a comment can satisfy - but neither CLASSIFIES a test as grep-vs-behavioural, and neither stops the count rising. IT REUSES scripts/triage-source-text-tests.py RATHER THAN RESTATING IT: that KAN-414 F4 script already buckets every readFileSync-backed assertion, and it was TRIAGE - it printed a report and nothing invoked it, so the number could only grow. Two copies of a bucket regex would drift, and a control that reimplemented the classifier it polices would be the CTL-038 defect wearing the badge of the guard against it. WHAT IS COUNTED is the 'behavioural' bucket only: a source read where a positive, observable assertion was available instead. Structural buckets - absence, existence, migration, surface, ordering, copy-pin - are NOT counted, because proving a pattern is absent or what a migration says cannot be observed by a running program, so converting them produces a test that looks more modern and proves less; counting all 523 blocks would make the ratchet unpayable and therefore ignorable. KEYED PER FILE, NOT AS A TOTAL - an aggregate lets one file improve while another regresses and nets out green, the blindness CTL-055 carried before ESCALATED. TWO-WAY: a NEW file or a GROWN count fails, and a count now LOWER than baselined (or a baselined file gone from the tree) fails as STALE, so an improvement is locked in rather than left as headroom for the next regression. A list you may only add to is a suppression list. Landed at 143 files / 328 convertible blocks, which IS the triage script's own headline - the two agree because they are the same code. MUTATION-PROVEN EIGHT WAYS: adding a convertible scan to a real test file fires NEW; annotating a baselined file fires STALE; hiding the classifier and emptying the corpus each fail CLOSED at exit 2 rather than reporting a clean scan that never ran (gotcha #30 / SEC-79); inverting a self-test expectation reddens the self-test, proving its verdict is actually read (SEC-140, catalogue failure mode 9); repointing COUNTED_BUCKET at a structural bucket reddens 142 files; deleting the STALE half reddens 3 jest cases; and making the missing-baseline path return 0 reddens 3 more. ITS OWN FIXTURES ARE ASSEMBLED AT RUNTIME in a temp git repo, not committed, so the suite stays genuinely in scope of every sibling control with no exclusion and no annotation - the CTL-061 lesson, as CTL-064 and CTL-076 already do it. ONE HARNESS BUG IS RECORDED BECAUSE IT PASSED: the sandbox cases first invoked the REAL script with a sandbox cwd, and since the script derives its root from its own location, seven cases were quietly measuring develop instead of the fixture (catalogue failure mode 6). STATED GAP: this bounds the QUANTITY of source-text scanning and does not itself require a behavioural assertion alongside one on critical surfaces. That second half of KAN-356 criterion 6 is not built here, and neither are legs A, B and D of that ticket.",
+      "implementation": "scripts/check-source-scan-inventory.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-356"
+      ],
+      "escape_hatch": "// source-scan-ok: <JIRA-KEY> <reason> - per file, visible in the diff. Use it when a file's source reads are genuinely structural and the triage classifier has over-called them.",
+      "added": "2026-08-21"
     }
   ]
 }
