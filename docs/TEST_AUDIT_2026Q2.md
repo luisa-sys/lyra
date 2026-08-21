@@ -185,3 +185,76 @@ updatability). Investigated the same day and deliberately **not** built: the
 cheap route (extending CTL-048) rests on PostgREST's OpenAPI `required` array,
 which is NOT a NOT NULL list. Reasoning and the two sound alternatives are on
 the ticket.
+
+---
+
+## Addendum — 2026-08-21 (KAN-356 §C — source-scan inventory, CTL-077)
+
+**What changed.** KAN-356 finding **web-tests-06** — *"the suite mixes
+source-grep tests with behavioural ones without distinction"* — is now
+bounded by a gate. `scripts/check-source-scan-inventory.py` (**CTL-077**, in
+`pr-checks.yml`) ratchets, per test file, the number of assertion blocks that
+read source text where a positive runtime assertion was available instead.
+
+**Landed measurement: 143 files / 328 convertible blocks**, recorded in
+`tests/support/source-scan-inventory-baseline.json`.
+
+| gate | +tests | suites | what it pins |
+| --- | --- | --- | --- |
+| KAN-356 / CTL-077 | +16, one suite (`tests/scripts/check-source-scan-inventory.test.js`) | 309 → 310 | source-text scanning may not grow, and may not silently improve either |
+
+Measured on this branch off `develop` `087ffcc`: **4193 tests / 310 suites**,
+against a base of 4177 / 309 — so the +16 / +1 is arithmetic on two readings,
+not an estimate. The generated floor moved 3585 → 3601 blocks.
+
+### Three things worth keeping from building it
+
+1. **It reuses the classifier rather than restating it.**
+   `scripts/triage-source-text-tests.py` (KAN-414 F4) already bucketed every
+   `readFileSync`-backed assertion — and it was **triage**: it printed a report,
+   nothing invoked it, so the number could only go up. A measurement nobody is
+   accountable to is a number, not a control. The gate imports that module. A
+   second copy of the bucket regexes would drift, and a control that
+   reimplemented the classifier it polices would be the **CTL-038** defect
+   wearing the badge of the guard against it. The two agree by construction:
+   the gate's 328 is the triage headline's 328.
+
+2. **Only the convertible bucket is counted, and that is the design.**
+   Structural scans — `absence`, `existence`, `migration`, `surface`,
+   `ordering`, `copy-pin` — cannot be observed by a running program, so
+   "converting" one produces a test that looks more modern and proves less.
+   Counting all 523 blocks would have made the ratchet unpayable, and an
+   unpayable ratchet is one somebody turns off. Repointing `COUNTED_BUCKET` at
+   a structural bucket reddens 142 files, which is the evidence the choice is
+   load-bearing rather than cosmetic.
+
+3. **Keyed per file, and two-way.** An aggregate lets one file improve while
+   another regresses and nets out green — the blindness CTL-055 carried before
+   its ESCALATED case. And an improved-but-still-baselined count fails as
+   **STALE**, so the win is locked in rather than left as headroom for the next
+   regression. That second half is the one people forget to build; it is also
+   what caught this change's own floor staleness (309 → 310) on the run that
+   added it.
+
+**Mutation-proven eight ways** — NEW on a real file, STALE on an annotated one,
+fail-closed (exit 2) both when the classifier is unreachable and when the
+corpus is empty, an inverted self-test expectation reddening the self-test
+(proving its verdict is *read* — SEC-140, catalogue failure mode 9), the
+bucket repoint above, and two jest-visible mutations (deleting the STALE half,
+and making the missing-baseline path return 0) each reddening 3 cases.
+
+⚠️ **One harness bug in the new suite is worth recording, because it passed.**
+The sandbox cases originally invoked the *real* script with a sandbox `cwd`;
+the script derives its repo root from its own location, so every sandbox
+assertion was quietly measuring `develop` instead of the fixture. Seven cases
+went green for the wrong reason (catalogue failure mode 6). The gate is now
+invoked from its sandbox copy, and mutations M7/M8 exist specifically to prove
+the sandbox cases can still fail.
+
+**Stated gap — the second half of criterion 6 is NOT built.** CTL-077 bounds
+the *quantity* of source-text scanning. It does not require a behavioural
+assertion to exist alongside a source scan on critical surfaces (auth,
+age-gate, publish, suspension, ownership). That remains open on KAN-356, as do
+legs **A** (runtime cross-user isolation in `lyra-mcp-server`), **B** (Stryker
+scope + a measured `thresholds.break`) and **D** (the authenticated E2E
+journey).
