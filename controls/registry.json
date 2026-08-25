@@ -1293,6 +1293,22 @@
       "added": "2026-08-19"
     },
     {
+      "id": "CTL-075",
+      "name": "Admin moderation writes refuse a self-target",
+      "defect_class": "guard-added-at-one-call-site-but-not-its-siblings",
+      "summary": "Fails any PR in which a function BOTH writes the profiles table and records a moderation action, yet performs no self-moderation check. SEC-118: three of four such writers had the guard and suspendProfileFromReport did not, so an admin reviewing a report filed against their own profile was shown a live Suspend button; one click locked them out of dev/staging on every path with no self-unsuspend route anywhere, recoverable only by a second admin or direct SQL. docs/DEFECT_FEEDBACK_LOOP.md counts EIGHT prior tickets in this family, so fixing the ninth call site without a control produces a tenth. CTL-028 named this class in its prevents list and could never fire on it (it matched .eq(is_published,true) READ chains); that claim was removed on 2026-08-12 by an unrelated rewrite, leaving the class with no control at all until this one. KEYED ON THE MODERATION SIGNATURE, NOT THE COLUMN NAME, and that is the load-bearing design decision: bulkUserAction writes svc.from(profiles).update(transition.update) where the payload is built in another module, so is_suspended appears nowhere in the writing function and a column-keyed matcher would report clean over the highest-volume moderation path in the product (CTL-055 opaque-builder lesson). FUNCTION-SCOPED, not file-scoped, per gotcha #27: a guard in a sibling function must not cover its neighbour, which is the entire defect class. COMMENTS ARE STRIPPED before matching (catalogue failure mode 2) and the case is live - the fixed file names isSelfModeration in a header paragraph explaining the defect, so raw matching would let the prose satisfy the guard. A guard-the-guard self-test case proves the stripper actually removes that token, and a second proves it does not remove one in executable code. FAILS CLOSED on a short corpus or an unreadable file rather than reporting a clean scan that never ran (gotcha #30). FOUND A LIVE FIFTH WRITER the ticket did not list: approveBetaUser in src/app/admin/beta-queue/actions.ts, where an admin could grant themselves beta access - already refused via the bulk path, so the two routes to one outcome disagreed. Mutation-proven: removing the guard from suspendProfileFromReport, from approveBetaUser, or from bulkUserAction each reddens the scan; moving a guard into a comment reddens it; and the behavioural suites redden independently. STATED GAPS: deleteProfileItem logs a moderation action with no self-guard but writes profile_items, not profiles, so it is out of the predicate by design (SEC-118 section D - a product decision with an owner, not a defect); and this is a static scan, so it proves a check is PRESENT, not that it is correct - the behavioural contract is pinned by tests/unit/trust-safety-report-actions.test.ts and tests/unit/beta-queue-approve.test.ts.",
+      "implementation": "scripts/check-self-moderation-guard.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-118"
+      ],
+      "escape_hatch": "// self-moderation-ok: <JIRA-KEY> <reason> inside the function. A bare marker with no ticket key does NOT satisfy it.",
+      "added": "2026-08-20"
+    },
+    {
       "id": "CTL-078",
       "name": "The weekly mutation job can actually fail",
       "defect_class": "threshold-that-cannot-fail",
