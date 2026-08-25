@@ -1308,6 +1308,25 @@
       "added": "2026-08-20"
     },
     {
+      "id": "CTL-076",
+      "name": "Per-statement Supabase mock recording",
+      "defect_class": "assertion-satisfied-by-an-incidental-adjacent-statement",
+      "summary": "Flags a test-side Supabase mock whose .eq() recorder is keyed by TABLE rather than created per .from() call. KAN-447/448 asserted the owner-scoping of a school_affiliations UPDATE through such a pool; updateSchoolAffiliation reads the row before it writes it, so the SELECT's own .eq('id', ...) / .eq('profile_id', ...) satisfied assertions meant to be about the WRITE - both filters were deletable while all 27 tests stayed green, and the realised impact of that class is editing another member's row or bulk-overwriting every row of your own. It is CTL-039's shape turned inside out: there a COMMENT satisfies the assertion, here an incidental ADJACENT STATEMENT does. DELIBERATELY NARROW - three conditions must all hold: a tracked file under tests/, an .eq() recorder, and a table-keyed subscript INSIDE that recorder's body. A broad 'your Supabase mock looks suspicious' heuristic over the ~40 hand-rolled mocks here would be standing noise, and standing noise is what teaches reviewers to wave a gate through. Four self-test cases pin the narrowness by asserting the NEGATIVE: a table-keyed subscript outside any recorder, a recorder with no subscript, a subscript by something other than the table identifier, and a real .eq('id', x) CALL are all silent. COMMENTS ARE STRIPPED using check-comment-only-assertions.py's own strip_comments rather than a second copy of the rules - two implementations of one rule set with nothing comparing them is the SEC-152 drift shape, and it is the exact mistake KAN-459 step 3 corrected for stripComments. WHY A DETECTOR AND NOT ONLY THE SHARED HARNESS KAN-459 step 2 prefers: measured at landing, exactly ONE file in the estate uses the pooled shape, and it is non-vacuous today only by luck - its actions happen not to pre-read the table they write. A shared harness with no consumer that is not already correct is decorative; a gate covers every mock written from here on. The failure message names tests/unit/kan447-kan448-inline-edit.test.ts as the reference implementation, so it points at working code rather than at a rule.",
+      "implementation": "scripts/check-pooled-eq-mock.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-459",
+        "KAN-447",
+        "KAN-448"
+      ],
+      "escape_hatch": "none by annotation - record filters per .from() statement instead. An accepted instance goes in tests/support/pooled-eq-mock-baseline.json via --write-baseline, never by hand, and the list may only shrink: a baselined file that grows fails, and one that is fixed fails as STALE until the entry is removed. The single grandfathered entry is tests/unit/profile-ownership.test.ts (the KAN-260 owner-scoping net), baselined rather than converted because converting it rewrites existing assertions, which the Test Integrity Policy requires be signed off first.",
+      "self_test": "23 in-process cases via --self-test, floor-checked rather than tallied by hand (SEC-155's shape), with the verdict list read after every case has run (SEC-140 / catalogue failure mode 9). Mutation-proven four ways at landing, two on the real estate and two on the control: (1) converting kan447-kan448-inline-edit.test.ts's per-statement mock to a pool reddens the run as NEW and restoring it goes green; (2) converting the one baselined instance to per-statement reddens it as STALE; (3) removing the strip_comments call reddens 3 self-test cases; (4) dropping the method-shorthand branch of the recorder parser reddens 1. Separately, KAN-459 acceptance criterion 6 was verified against the real subject: deleting either .eq() from the school_affiliations UPDATE turns 2 tests of kan447-kan448-inline-edit.test.ts RED independently, so both filters are load-bearing.",
+      "added": "2026-08-20"
+    },
+    {
       "id": "CTL-078",
       "name": "The weekly mutation job can actually fail",
       "defect_class": "threshold-that-cannot-fail",
