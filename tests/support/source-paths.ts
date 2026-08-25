@@ -86,6 +86,7 @@ export const SRC = {
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
   checkSnapshotRegeneration: 'scripts/check-snapshot-regeneration.py',
   checkSoakClassifierCoverage: 'scripts/check-soak-classifier-coverage.py',
+  checkSourcePathIdentity: 'scripts/check-source-path-identity.py',
   checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',

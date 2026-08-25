@@ -176,3 +176,65 @@ describe('suspendProfileFromReport — the highest-consequence write', () => {
     expect(calls).toEqual(['redirect:/']);
   });
 });
+
+/**
+ * SEC-118 — the guard that was missing here and present in all three siblings.
+ *
+ * These are net-new; nothing above is modified. The existing block above runs
+ * with an `admin` fixture that has no `profileId` at all, so the guard added
+ * for SEC-118 cannot fire in any of those cases — which is why they still
+ * pass unchanged, and why this block has to supply its own admin.
+ *
+ * The property asserted is REFUSAL BEFORE THE AUDIT WRITE, not merely
+ * "nobody was suspended". A refused action is not a moderation action: if it
+ * logged first and then bailed, `moderation_logs` would accumulate rows for
+ * suspensions that never happened, and that trail is the tamper-evident
+ * record SEC-64 exists to protect.
+ */
+describe('suspendProfileFromReport — self-moderation is refused (SEC-118)', () => {
+  const selfAdmin = { userId: 'admin-user-1', email: 'ops@checklyra.com', profileId: 'profile-9' };
+
+  test('an admin cannot suspend themselves from a report — bails before logging', async () => {
+    currentAdmin = selfAdmin as typeof admin;
+    await expect(suspendProfileFromReport('report-1', 'profile-9', 'x')).rejects.toThrow(
+      /NEXT_REDIRECT/,
+    );
+    // The ONLY thing that happened is the redirect. No log row, no update.
+    expect(calls).toEqual(['redirect:/admin/reports/report-1']);
+    expect(adminModule.logModerationAction).not.toHaveBeenCalled();
+  });
+
+  test('the refusal happens BEFORE the audit write, not after it', async () => {
+    // Distinct from the case above: this one would still pass if the guard
+    // were placed after logModerationAction, so it is asserted separately.
+    currentAdmin = selfAdmin as typeof admin;
+    await expect(suspendProfileFromReport('report-1', 'profile-9', 'x')).rejects.toThrow(
+      /NEXT_REDIRECT/,
+    );
+    expect(calls.some((c) => c.startsWith('log:'))).toBe(false);
+    expect(calls.some((c) => c.startsWith('update:'))).toBe(false);
+  });
+
+  test('a DIFFERENT admin suspending this profile is still allowed', async () => {
+    // The negative control. Without it, `redirect()` on every call would also
+    // satisfy the two tests above — a guard that refuses everything is
+    // indistinguishable from a correct one unless the permitted case is
+    // pinned too.
+    currentAdmin = { ...selfAdmin, profileId: 'profile-OTHER' } as typeof admin;
+    await suspendProfileFromReport('report-1', 'profile-9', 'repeated abuse');
+    expect(calls).toEqual([
+      'log:suspend',
+      'update:profiles:is_suspended,suspended_at,suspension_reason',
+      'update:reports:resolved_at,resolved_by,status',
+    ]);
+  });
+
+  test('an admin with no profileId is NOT treated as matching a target', async () => {
+    // `isSelfModeration` requires both ids present AND equal. "Unknown" must
+    // never match and silently block a legitimate moderation action — the
+    // failure mode would be a moderation console that appears to do nothing.
+    currentAdmin = { userId: 'u', email: 'e' } as typeof admin;
+    await suspendProfileFromReport('report-1', 'profile-9', 'x');
+    expect(calls[0]).toBe('log:suspend');
+  });
+});
