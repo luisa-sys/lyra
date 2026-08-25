@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 247 entries.
+// 249 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
