@@ -398,6 +398,19 @@ jobs:
           set -euo pipefail
           python3 scripts/check-soak-classifier-coverage.py --self-test
           python3 scripts/check-soak-classifier-coverage.py
+      - name: SRC key identity lock (KAN-475 / CTL-070)
+        # The manifest guards ask "does every SRC key resolve to a tracked
+        # file?". After a repoint every key still resolves, so they are blind to
+        # a key that silently changed MEANING — measured: moving one file made
+        # SRC.pipeline point at a different pipeline while
+        # `SRC.pipeline is defined and points at a tracked file` stayed green.
+        # Two-way: a repointed key fails, and a lock that has drifted from the
+        # manifest fails as stale. A repoint can only be cleared by naming the
+        # key in --accept-repoint, so it cannot ride out on a routine refresh.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-source-path-identity.py --self-test
+          python3 scripts/check-source-path-identity.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
