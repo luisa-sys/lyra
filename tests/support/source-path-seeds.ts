@@ -116,6 +116,11 @@ export const SEEDED_PATHS = [
   // infer it from. Two suites reach it by path; seeded so neither needs a raw
   // literal, which the F4 ratchet correctly refuses to let rise.
   'scripts/depcruise-severity.cjs',
+  // CTL-026's own implementation. SEC-119 gave the meta-control its first
+  // test; that suite reaches the checker by path and nothing else names it as
+  // a literal, so without this seed the key would not come back on the next
+  // regeneration and SRC.checkControlRegistry would go `undefined`.
+  'scripts/check-control-registry.py',
   // D8 moved the profile domain core out of the editor's app tree. All three
   // keys were DROPPED by the regeneration — read only via SRC, hard-coded
   // nowhere that counts — which is the self-sustaining loop breaking exactly as
