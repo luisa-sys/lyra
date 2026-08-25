@@ -23,12 +23,11 @@
       "id": "CTL-001",
       "name": "Workflow integrity check",
       "defect_class": "false-green-ci",
-      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back.",
+      "summary": "Static scan for workflow patterns that report SUCCESS while doing nothing \u2014 GITHUB_TOKEN pushes that suppress downstream triggers, --limit 1 deploy verification, 401 acceptance without SHA verification, rollback steps that never roll back. SEC-119: promote-to-production.yml was listed as a second wiring and never ran it \u2014 the only two occurrences of the script's name in that file are inside # comment blocks explaining the SEC-86 and SEC-66 residuals its Patterns 5 and 6 pin. That file is a SUBJECT of this scan (pr-checks.yml runs the script over every workflow, this one included), not an invoker of it, and wired_in means 'the control RUNS here'. Dropped rather than wired in: adding a gate to the production promote is a release-control change under SEC-98, and the coverage already exists from pr-checks.yml.",
       "implementation": "scripts/check-workflow-integrity.sh",
       "kind": "ci-gate",
       "wired_in": [
-        ".github/workflows/pr-checks.yml",
-        ".github/workflows/promote-to-production.yml"
+        ".github/workflows/pr-checks.yml"
       ],
       "prevents": [
         "BUGS-4",
@@ -1242,6 +1241,23 @@
       "added": "2026-08-15"
     },
     {
+      "id": "CTL-070",
+      "name": "An SRC key still means what it meant",
+      "defect_class": "identity-drift-behind-a-still-valid-reference",
+      "summary": "Pins key -> path for tests/support/source-paths.json in a committed lock, so a key cannot silently change MEANING. gen-test-paths.mjs names keys by widening leftwards until unique, which makes a key's name depend on the OTHER paths present: moving one file can repoint a key belonging to a file that did not move. KAN-475 observed exactly that - moving src/lib/recommender/v2/pipeline.ts left SRC.pipeline pointing at src/modules/access/pipeline.ts, and tests/unit/kan342-gift-visibility.test.ts went on reading a file it was never written for. This is QUIETER than the vanished-key case (gotcha #31): after a repoint the key still resolves to a real, tracked, existing file, so source-path-manifest-integrity is satisfied and nothing about the reading test's shape is detectably wrong - no undefined, no throw, no dangling path. It failed only because that one assertion happened to look for a specific symbol; phrased as toContain('export') or any not.toContain(...) it would have reported green forever. Measured on the real tree rather than argued: re-running the move made SRC.pipeline flip while the case 'SRC.pipeline is defined and points at a tracked file' PASSED - the two suites that did redden did so for two OTHER reasons (a vanished key a test names, and a seeded path), neither of which is present in the general case. The stakes are not cosmetic: CTL-013's signup-surface fixtures, CTL-028's suspension coverage and the KAN-411 ownership test all reach their subject through SRC, so a repointed key there makes a SECURITY guard assert against the wrong file while reporting green - the SEC-79 shape. Two-way: a REPOINTED key fails, and an ADDED or REMOVED key fails as staleness, because a lock that may only be appended to is a suppression list. The two are deliberately not interchangeable - a plain --write clears staleness but REFUSES a repoint, which can only be cleared by naming the key in --accept-repoint, so the dangerous case cannot ride out on the routine one. npm run gen:test-paths must never write this lock: a lock the generator maintains is the manifest again, and the control would agree with itself forever.",
+      "implementation": "scripts/check-source-path-identity.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-475"
+      ],
+      "escape_hatch": "No annotation. A genuine move is re-declared by naming the key: --write --accept-repoint=<key>. That is deliberately not a marker in a file - the point is that re-declaration is an explicit act by whoever made the move, not a line someone can copy from the diff above it.",
+      "self_test": "24 cases via --self-test covering the repoint finding, both staleness directions, key-order independence, the refusal of an unaccepted repoint, the refusal of an unrelated --accept-repoint key (else it degrades into --force), and a case asserting the REAL committed manifest and lock agree - the case that would catch the artefacts drifting while the fixtures stayed green (catalogue failure mode 4). The corpus is COUNTED, not typed, and the verdict list is read after every case is appended (catalogue failure mode 9). Annotations are suppressed over fixtures so a passing self-test puts no false ::error:: lines in the run summary. Plus 15 jest cases in tests/scripts/source-path-identity.test.js driving the script as a subprocess, including one asserting gen-test-paths does NOT touch the lock. MUTATION-PROVEN on the real tree, mutation confirmed applied and restore verified byte-exact: git mv src/modules/access/pipeline.ts + regenerate reddens this control naming both paths, while the pre-existing manifest guard for that key stays green.",
+      "added": "2026-08-17"
+    },
+    {
       "id": "CTL-071",
       "name": "Schema snapshot regeneration parity",
       "defect_class": "snapshot-stale-in-an-unenumerated-dimension",
@@ -1276,6 +1292,22 @@
       "added": "2026-08-19"
     },
     {
+      "id": "CTL-075",
+      "name": "Admin moderation writes refuse a self-target",
+      "defect_class": "guard-added-at-one-call-site-but-not-its-siblings",
+      "summary": "Fails any PR in which a function BOTH writes the profiles table and records a moderation action, yet performs no self-moderation check. SEC-118: three of four such writers had the guard and suspendProfileFromReport did not, so an admin reviewing a report filed against their own profile was shown a live Suspend button; one click locked them out of dev/staging on every path with no self-unsuspend route anywhere, recoverable only by a second admin or direct SQL. docs/DEFECT_FEEDBACK_LOOP.md counts EIGHT prior tickets in this family, so fixing the ninth call site without a control produces a tenth. CTL-028 named this class in its prevents list and could never fire on it (it matched .eq(is_published,true) READ chains); that claim was removed on 2026-08-12 by an unrelated rewrite, leaving the class with no control at all until this one. KEYED ON THE MODERATION SIGNATURE, NOT THE COLUMN NAME, and that is the load-bearing design decision: bulkUserAction writes svc.from(profiles).update(transition.update) where the payload is built in another module, so is_suspended appears nowhere in the writing function and a column-keyed matcher would report clean over the highest-volume moderation path in the product (CTL-055 opaque-builder lesson). FUNCTION-SCOPED, not file-scoped, per gotcha #27: a guard in a sibling function must not cover its neighbour, which is the entire defect class. COMMENTS ARE STRIPPED before matching (catalogue failure mode 2) and the case is live - the fixed file names isSelfModeration in a header paragraph explaining the defect, so raw matching would let the prose satisfy the guard. A guard-the-guard self-test case proves the stripper actually removes that token, and a second proves it does not remove one in executable code. FAILS CLOSED on a short corpus or an unreadable file rather than reporting a clean scan that never ran (gotcha #30). FOUND A LIVE FIFTH WRITER the ticket did not list: approveBetaUser in src/app/admin/beta-queue/actions.ts, where an admin could grant themselves beta access - already refused via the bulk path, so the two routes to one outcome disagreed. Mutation-proven: removing the guard from suspendProfileFromReport, from approveBetaUser, or from bulkUserAction each reddens the scan; moving a guard into a comment reddens it; and the behavioural suites redden independently. STATED GAPS: deleteProfileItem logs a moderation action with no self-guard but writes profile_items, not profiles, so it is out of the predicate by design (SEC-118 section D - a product decision with an owner, not a defect); and this is a static scan, so it proves a check is PRESENT, not that it is correct - the behavioural contract is pinned by tests/unit/trust-safety-report-actions.test.ts and tests/unit/beta-queue-approve.test.ts.",
+      "implementation": "scripts/check-self-moderation-guard.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-118"
+      ],
+      "escape_hatch": "// self-moderation-ok: <JIRA-KEY> <reason> inside the function. A bare marker with no ticket key does NOT satisfy it.",
+      "added": "2026-08-20"
+    },
+    {
       "id": "CTL-076",
       "name": "Per-statement Supabase mock recording",
       "defect_class": "assertion-satisfied-by-an-incidental-adjacent-statement",
@@ -1293,6 +1325,24 @@
       "escape_hatch": "none by annotation - record filters per .from() statement instead. An accepted instance goes in tests/support/pooled-eq-mock-baseline.json via --write-baseline, never by hand, and the list may only shrink: a baselined file that grows fails, and one that is fixed fails as STALE until the entry is removed. The single grandfathered entry is tests/unit/profile-ownership.test.ts (the KAN-260 owner-scoping net), baselined rather than converted because converting it rewrites existing assertions, which the Test Integrity Policy requires be signed off first.",
       "self_test": "23 in-process cases via --self-test, floor-checked rather than tallied by hand (SEC-155's shape), with the verdict list read after every case has run (SEC-140 / catalogue failure mode 9). Mutation-proven four ways at landing, two on the real estate and two on the control: (1) converting kan447-kan448-inline-edit.test.ts's per-statement mock to a pool reddens the run as NEW and restoring it goes green; (2) converting the one baselined instance to per-statement reddens it as STALE; (3) removing the strip_comments call reddens 3 self-test cases; (4) dropping the method-shorthand branch of the recorder parser reddens 1. Separately, KAN-459 acceptance criterion 6 was verified against the real subject: deleting either .eq() from the school_affiliations UPDATE turns 2 tests of kan447-kan448-inline-edit.test.ts RED independently, so both filters are load-bearing.",
       "added": "2026-08-20"
+    },
+    {
+      "id": "CTL-078",
+      "name": "The weekly mutation job can actually fail",
+      "defect_class": "threshold-that-cannot-fail",
+      "summary": "KAN-356 criterion 5 asks for a non-null `thresholds.break` in stryker.config.mjs. `.github/workflows/mutation-testing.yml` carried `continue-on-error: true` on the Stryker step, so a break threshold could never fail anything: Stryker exits non-zero, the step is marked success, the artifact uploads, the job goes green. Criterion 5 was satisfiable ON PAPER while the control stayed incapable of failing - the repo's own 'a control that has never been seen to fail is indistinguishable from no control'. Note the Workflow & Backup Integrity Policy DOES permit continue-on-error on an advisory step and names mutation testing as its own worked example; that permission is precisely what expires the moment a break threshold is set, which is why the two facts are checked together rather than as two independent greps. THE SECOND DIRECTION was a green tick over no report at all: the Summary step exited 0 whether or not Stryker produced anything - a missing report printed 'No report generated' and passed, an unparseable one printed the literal score 'N/A%' via a lossy `|| echo` over a bare `except:`. Both are KAN-167 banned pattern #3, and the reader cannot distinguish either from a real measurement, so the job reported green while dark - CTL-042's failure by another mechanism. Both now fail loud. WHAT THIS DELIBERATELY DOES NOT ASSERT is that `thresholds.break` is non-null. It is still null on purpose, because setting it needs a measured baseline and that measurement is BLOCKED (see notes); asserting an unmeasured value gives a red build on day one, which is a control someone turns off. What is pinned is the PRECONDITION - that if and when a threshold is set, the workflow it runs in can act on it. It also pins that every `mutate` pattern still matches a tracked file, the KAN-415 'narrow, not dead' lesson: a path-anchored pattern does not break when the tree moves, it quietly covers less, and a mutate list matching nothing yields zero mutants and a 100%-of-nothing score reported green.",
+      "implementation": "tests/scripts/mutation-testing-can-fail.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-356"
+      ],
+      "escape_hatch": "None. `continue-on-error` may not be reinstated on this job. If mutation testing must be made advisory again, the honest change is to remove `thresholds.break` in the same commit and say so - the assertion here is not 'never advisory', it is 'not advisory while claiming a break threshold'.",
+      "self_test": "15 Jest cases, with a corpus FLOOR on the step list asserted BEFORE anything iterates it - a renamed job key would otherwise leave every assertion passing over an empty list (catalogue failure mode 4). Comments are STRIPPED before every source-text match, and that is load-bearing rather than defensive: the Summary run block's own comment explaining why there is no lossy fallback CONTAINS that very string, so the un-stripped scan fails on the prose documenting the fix - catalogue failure mode 2, hit inside the test written by someone applying the rule, and pinned as mutation M7. MUTATION-PROVEN 2026-08-21, seven mutations, each asserted to have applied before the run was trusted and each restore confirmed byte-exact with cmp: (M1) re-adding `continue-on-error: true` to the stryker step reddens 2 - the step assertion and the job-wide one, which exists because moving the invocation into a new step carrying the flag would leave the first green; (M2) restoring the lossy `|| echo` fallback reddens 1; (M3) dropping the unparseable-report `exit 1` reddens 1, which is why the assertion counts TWO exits rather than matching one - the two failure directions can be dropped independently; (M4) moving the cron off Sunday reddens 1 (CTL-042 checks a scheduled workflow is ACTIVE at GitHub and cannot see a cron edited in the file, the same end state from the other side); (M5) repointing a mutate pattern at the library prefix the KAN-415 modularisation programme retired reddens 1; (M6) emptying the mutate list reddens 2 AND drops the total from 15 to 14, the parameterised cases correctly deregistering; (M7) above.",
+      "notes": "STATED GAP, recorded rather than hidden - the measured baseline KAN-356 step 7 needs cannot currently be taken, and this is the blocker on that ticket's step 6. Reproduced 2026-08-21 against develop b20e3d6: the 2-file scope on develop today instruments 187 mutants and reports 'Initial test run succeeded. Ran 529 tests'; the ticket's intended scope (src/modules/guards, access, age, auth) instruments 1661 mutants across 40 files and dies with 'One or more tests failed in the initial test run' -> ConfigError, non-zero exit, no report at all. The cause is NOT the extra files. Stryker's jest runner selects tests by the IMPORT graph, and a source-scanning test - one reading its subject with readFileSync - has no import edge to that subject, so at 2 files it is never selected. At 40 files it IS selected, and then reads Stryker's INSTRUMENTED copy where the literal it greps for no longer appears. Both observed failures were in tests/unit/age-self-declaration.test.ts asserting against src/app/(auth)/actions.ts - a file ALREADY in the mutate list on develop - which is what proves selection rather than scope is the variable. So the mutation surface cannot widen until the source-scanning tests over the modules being widened into are converted or exempted, which couples this directly to web-tests-06 and CTL-077's inventory.",
+      "added": "2026-08-21"
     }
   ]
 }

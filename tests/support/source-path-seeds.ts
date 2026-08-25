@@ -116,6 +116,11 @@ export const SEEDED_PATHS = [
   // infer it from. Two suites reach it by path; seeded so neither needs a raw
   // literal, which the F4 ratchet correctly refuses to let rise.
   'scripts/depcruise-severity.cjs',
+  // CTL-026's own implementation. SEC-119 gave the meta-control its first
+  // test; that suite reaches the checker by path and nothing else names it as
+  // a literal, so without this seed the key would not come back on the next
+  // regeneration and SRC.checkControlRegistry would go `undefined`.
+  'scripts/check-control-registry.py',
   // D8 moved the profile domain core out of the editor's app tree. All three
   // keys were DROPPED by the regeneration — read only via SRC, hard-coded
   // nowhere that counts — which is the self-sustaining loop breaking exactly as
@@ -169,6 +174,14 @@ export const SEEDED_PATHS = [
   // IS the path and a literal in the test would let a rename read as a pass
   // against a control nobody runs. SEC-104 step 3.
   'scripts/check-suspension-guard-coverage.py',
+  // CTL-070's implementation (KAN-475). source-path-identity.test.js runs the
+  // checker as a subprocess and asserts the registry's `implementation` field
+  // and pr-checks.yml both name this exact path — the assertion IS the path, so
+  // a literal in the test would let a rename read as a pass against a control
+  // nobody runs. Seeded rather than hard-coded for the usual reason: the test
+  // reaches it only as `SRC.checkSourcePathIdentity`, so the key would not come
+  // back on the next regeneration.
+  'scripts/check-source-path-identity.py',
   // The snapshot gen-db-types.sh must leave untouched when it fails closed.
   // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
   // had none, so it is the one that would silently vanish.
