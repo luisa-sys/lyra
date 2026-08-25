@@ -94,6 +94,18 @@ export const AUTHED_GATES: Readonly<Record<string, Gate<AuthedContext>>> = {
  *     /waitlist.
  *   beta-tier BEFORE auth-page-redirect — an ineligible user is bounced to
  *     /waitlist rather than sent to /dashboard and bounced from there.
+ *
+ * SEC-121 note: the admin-host gate returns early on the admin host, so
+ * `suspension` positioned after it does NOT run for a request to
+ * `admin.checklyra.com`. That is the containment failure this file's ordering
+ * still carries. The DURABLE mitigation lives in `getCurrentAdmin()`, which
+ * refuses a suspended admin independently of middleware ordering, so the
+ * console is defended today. Promoting `suspension` above `admin-host` would
+ * additionally return the suspended admin to `/suspended` on the admin host
+ * (rather than the layout's `notFound()` — same containment, different UX),
+ * and requires updating the exact-order pin in access-pipeline.test.ts — a
+ * change to an existing assertion that needs Luisa's sign-off per the Test
+ * Integrity Policy. Tracked on SEC-121 as the un-shipped half of this ticket.
  */
 export const AUTHED_ORDER: readonly string[] = [
   'admin-host',
