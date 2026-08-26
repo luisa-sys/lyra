@@ -11,7 +11,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/modules/admin/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
 import {
   resolveReport,
   suspendProfileFromReport,
@@ -102,6 +102,13 @@ export default async function ReportDetailPage({
   const { id } = await params;
   const report = await loadReport(id);
   if (!report) notFound();
+
+  // SEC-118: the same `!isSelf` condition the users page puts on these
+  // buttons. The action defends itself too (report-actions.ts) — this only
+  // stops an admin being SHOWN a live "suspend" button for their own profile,
+  // which on dev/staging locks them out of the product with no way back in.
+  const admin = (await getCurrentAdmin())!; // layout already gated
+  const isSelf = report.profile?.id === admin.profileId;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
@@ -202,7 +209,7 @@ export default async function ReportDetailPage({
             </button>
           </form>
 
-          {report.profile && !report.profile.is_suspended && (
+          {report.profile && !report.profile.is_suspended && !isSelf && (
             <form action={actionSuspendProfile} className="space-y-3 pt-2 border-t border-[var(--color-border)]">
               <input type="hidden" name="reportId" value={report.id} />
               <input type="hidden" name="profileId" value={report.profile.id} />

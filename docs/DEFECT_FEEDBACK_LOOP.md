@@ -164,12 +164,27 @@ Each entry records: `id`, `name`, `defect_class`, `summary`, `implementation`,
 `kind` (`ci-gate` / `test` / `scheduled` / `policy`), `wired_in`, `prevents`,
 optional `self_test`, and its `escape_hatch`.
 
+**`wired_in` means "the control RUNS here" — every entry, not just one of
+them.** A file that is merely *relevant* to a control (scanned by it,
+documented alongside it, mentioned in a comment near it) does not belong in the
+list. SEC-119 fixed two ways that distinction used to blur:
+
+- A `#` comment naming the control satisfied the invocation test, because it
+  was a bare substring scan over whole file text. Comments are now stripped
+  first, reusing CTL-039's helper. If a control's implementation is a **tool
+  config** rather than a script named on a command line, name it as an argument
+  (`npm run lint -- --config eslint.config.mjs`), not in a remark — an argument
+  is a wiring, a remark is a claim.
+- Satisfaction was ANY-of across `wired_in`, so one live target proved the
+  whole list and a rotted entry could never be reported by name. It is now
+  per-target.
+
 `scripts/check-control-registry.py` runs on **every PR** and fails if:
 
 1. a registered control's implementation file is missing;
-2. nothing actually invokes it — *the SEC-79 failure mode, where
-   `health-check.yml` and `weekly-report.yml` sat disabled for over a month
-   while still reporting green*;
+2. **any** `wired_in` target does not invoke it — *the SEC-79 failure mode,
+   where `health-check.yml` and `weekly-report.yml` sat disabled for over a
+   month while still reporting green*;
 3. a `scripts/check-*.{sh,py}` exists in the repo but is not registered;
 4. a control cites no Jira key, or its declared `self_test` names a missing file.
 
