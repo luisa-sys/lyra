@@ -364,6 +364,21 @@ jobs:
           set -euo pipefail
           python3 scripts/check-absent-secret-probe.py --self-test
           python3 scripts/check-absent-secret-probe.py
+      - name: Admin moderation writes refuse a self-target (SEC-118 / CTL-075)
+        # SEC-118: three of four writers of a member's `profiles` row carried a
+        # self-moderation guard and one did not, so an admin reviewing a report
+        # filed against their OWN profile was shown a live Suspend button that
+        # locked them out of the product with no in-app way back.
+        #
+        # Keyed on the ADMIN MODERATION SIGNATURE (writes `profiles` AND logs a
+        # moderation action), deliberately NOT on the column name: the bulk
+        # path passes an opaque payload built in another module, so a
+        # column-keyed matcher reports clean over the highest-volume moderation
+        # path in the product. Same lesson as CTL-055's `opaque-builder`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-self-moderation-guard.py --self-test
+          python3 scripts/check-self-moderation-guard.py
       - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
         # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
         # to the OTHER value, so it could never return PASS and could not have
@@ -543,7 +558,14 @@ jobs:
         # control to its invoker in controls/registry.json; `npm run lint` alone
         # reaches it only by convention, and a convention is precisely what the
         # registry exists to stop us relying on.
-        run: npm run lint  # uses eslint.config.mjs
+        #
+        # SEC-119: that name used to live in a trailing `# uses eslint.config.mjs`
+        # comment, and check-control-registry.py's substring scan was satisfied by
+        # it — so the registry's proof that this control is invoked was a comment.
+        # --config is the SAME file eslint would load by convention (flat config
+        # default), so behaviour is unchanged; it is now an argument rather than a
+        # remark, which is the difference between a claim and a wiring.
+        run: npm run lint -- --config eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)
@@ -621,6 +643,14 @@ jobs:
           # another regressing.
           python3 scripts/check-route-thinness.py --self-test
           python3 scripts/check-route-thinness.py
+          # CTL-076 / KAN-459. A test-side Supabase mock must record .eq()
+          # filters PER STATEMENT. KAN-447/448 pooled them per TABLE, so the
+          # ownership pre-read satisfied assertions meant to be about the
+          # UPDATE: both owner filters were deletable while 27 tests stayed
+          # green. CTL-039's shape inside out — there a comment satisfies the
+          # assertion, here an incidental adjacent statement does.
+          python3 scripts/check-pooled-eq-mock.py --self-test
+          python3 scripts/check-pooled-eq-mock.py
           # CTL-064 / SEC-99. SEC-98 forbids pushing directly to main/beta/
           # staging, and until now that rule existed only in CLAUDE.md while the
           # repo shipped two scripts that did exactly it — six direct pushes,

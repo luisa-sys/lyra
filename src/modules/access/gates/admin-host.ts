@@ -70,6 +70,15 @@ export const adminHost: Gate<AuthedContext> = {
       // so the beta gate below never runs. An admin whose own profile is not
       // `live` must still reach the console, or enabling the beta gate locks out
       // the operator. Pinned by middleware-gate-order.test.ts.
+      //
+      // SEC-121: this early return ALSO skips the suspension gate on the admin
+      // host, which was the containment defect. The durable mitigation lives
+      // in `getCurrentAdmin()` (src/modules/admin/admin.ts) — it now refuses a
+      // suspended admin, so the layout `notFound()`s them before any admin
+      // page renders. Promoting `suspension` above `admin-host` in AUTHED_ORDER
+      // would additionally handle the redirect at the middleware layer but is
+      // held pending Luisa's sign-off on the accompanying exact-order
+      // assertion change (see the AUTHED_ORDER SEC-121 note in pipeline.ts).
       ctx.res.current.headers.set('Content-Security-Policy-Report-Only', ctx.csp());
       return ctx.res.current;
     }

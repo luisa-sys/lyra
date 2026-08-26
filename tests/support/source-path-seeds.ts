@@ -116,6 +116,11 @@ export const SEEDED_PATHS = [
   // infer it from. Two suites reach it by path; seeded so neither needs a raw
   // literal, which the F4 ratchet correctly refuses to let rise.
   'scripts/depcruise-severity.cjs',
+  // CTL-026's own implementation. SEC-119 gave the meta-control its first
+  // test; that suite reaches the checker by path and nothing else names it as
+  // a literal, so without this seed the key would not come back on the next
+  // regeneration and SRC.checkControlRegistry would go `undefined`.
+  'scripts/check-control-registry.py',
   // D8 moved the profile domain core out of the editor's app tree. All three
   // keys were DROPPED by the regeneration — read only via SRC, hard-coded
   // nowhere that counts — which is the self-sustaining loop breaking exactly as
@@ -271,6 +276,19 @@ export const SEEDED_PATHS = [
   // `SRC` in tests/scripts/check-route-thinness.test.js, and the baseline is
   // seeded too because the test asserts positive facts about its shape (the
   // computed totals, and that every baselined path is still tracked).
+  // CTL-076 / KAN-459. Reached only via `SRC` in
+  // tests/scripts/check-pooled-eq-mock.test.js, so without seeding it does not
+  // survive a regeneration (gotcha #31). The checker path is also the registry's
+  // `implementation` value and the string pr-checks.yml must name, so the
+  // assertion IS the path - a literal in the test would let a rename read as a
+  // pass against a control nobody runs.
+  //
+  // Its BASELINE is deliberately not seeded: the generator harvests only src,
+  // supabase, scripts, public, design and .github literals, so no tests/ key can
+  // exist, and seeding one would fail source-path-manifest-integrity's "every
+  // seed is in the manifest" assertion. The test carries that one literal
+  // directly, which the F4 raw-literal ratchet also does not count.
+  'scripts/check-pooled-eq-mock.py',
   'scripts/check-route-thinness.py',
   'supabase/route-thinness-baseline.json',
   // The directory CTL-056 scans. A DIRECTORY rather than a file, and seeded
