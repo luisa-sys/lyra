@@ -1,6 +1,6 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-floor`. The enforced test floor. The guard fails if the counts DROP (a test was deleted) and also if they RISE (this baseline is stale and is overstating how much of the estate is actually protected). The rise case is the one that matters: the previous hand-maintained floor sat at 29 files / 320 blocks against an actual 260 / 2963, so ~89% of the tests could have been deleted silently. Raise it in the SAME commit as any net-new test.",
   "measured_at": "2026-08-26",
-  "test_files": 314,
-  "test_blocks": 3669
+  "test_files": 315,
+  "test_blocks": 3678
 }
