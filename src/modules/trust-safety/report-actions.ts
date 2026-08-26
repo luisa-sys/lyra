@@ -38,6 +38,7 @@
  */
 import { redirect } from 'next/navigation';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
+import { isSelfModeration } from './user-actions';
 
 /** The two ways a report can be closed without suspending anyone. */
 export type ReportResolution = 'actioned' | 'dismissed';
@@ -97,6 +98,24 @@ export async function resolveReport(
  * midway leaves the report open — an open report about an already-suspended
  * member is a visible inconsistency someone will resolve, whereas a closed
  * report about an un-suspended member looks like a decision that was made.
+ *
+ * SEC-118 — SELF-MODERATION. This was the ONLY writer of
+ * `profiles.is_suspended` with no self-moderation guard; its three siblings
+ * (`setSuspendState`, `setPublishedState`, `bulkUserAction`) all have one.
+ * The consequence was not privilege escalation — an admin can already suspend
+ * a peer through the sanctioned UI — it was an unrecoverable SELF-lockout:
+ * `src/app/api/reports/route.ts` blocks only self-REPORTS, so any member can
+ * report an admin, and on dev/staging `middleware.ts` then redirects that
+ * admin to `/suspended` on every path with no self-unsuspend route anywhere.
+ * Recovery needs a second admin or direct SQL.
+ *
+ * The guard is here, in the action, and not only in the page that hides the
+ * button: a server action is reachable by anyone who can post a form, so it
+ * must defend itself. That is the same reasoning `setSuspendState` states,
+ * and `isSelfModeration` is IMPORTED from it rather than re-implemented —
+ * re-implementing this guard per call site is precisely what produced the
+ * gap (the plan predicted it at D7, and `docs/DEFECT_FEEDBACK_LOOP.md` counts
+ * eight prior tickets in the same family).
  */
 export async function suspendProfileFromReport(
   reportId: string,
@@ -105,6 +124,13 @@ export async function suspendProfileFromReport(
 ): Promise<void> {
   const admin = await getCurrentAdmin();
   if (!admin) redirect('/');
+
+  // SEC-118: bail before the audit write, as the siblings do. Nothing is
+  // logged, because nothing happened — a refused action is not a moderation
+  // action, and writing one would put noise in the tamper-evident trail.
+  if (isSelfModeration(admin.profileId, profileId)) {
+    redirect(`/admin/reports/${reportId}`);
+  }
 
   const supabase = getAdminServiceClient();
   const effectiveReason = reason || 'Action taken following report';

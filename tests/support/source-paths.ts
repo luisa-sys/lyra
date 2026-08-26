@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 248 entries.
+// 251 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -57,6 +57,7 @@ export const SRC = {
   checkActionPinning: 'scripts/check-action-pinning.sh',
   checkCommentOnlyAssertions: 'scripts/check-comment-only-assertions.py',
   checkCompleteBackup: 'scripts/check-complete-backup.sh',
+  checkControlRegistry: 'scripts/check-control-registry.py',
   checkDependencyRules: 'scripts/check-dependency-rules.sh',
   checkDesignBaseline: 'scripts/check-design-baseline.py',
   checkDocMirrorContent: 'scripts/check-doc-mirror-content.sh',
@@ -74,6 +75,7 @@ export const SRC = {
   checkModuleLayering: 'scripts/check-module-layering.py',
   checkModuleTableOwnership: 'scripts/check-module-table-ownership.py',
   checkNpmAuditGate: 'scripts/check-npm-audit-gate.py',
+  checkPooledEqMock: 'scripts/check-pooled-eq-mock.py',
   checkProductionDeployDrift: 'scripts/check-production-deploy-drift.py',
   checkReleaseBranchPush: 'scripts/check-release-branch-push.py',
   checkReleaseTagged: 'scripts/check-release-tagged.py',
@@ -86,6 +88,7 @@ export const SRC = {
   checkSharedCodeDrift: 'scripts/check-shared-code-drift.py',
   checkSnapshotRegeneration: 'scripts/check-snapshot-regeneration.py',
   checkSoakClassifierCoverage: 'scripts/check-soak-classifier-coverage.py',
+  checkSourcePathIdentity: 'scripts/check-source-path-identity.py',
   checkSuspensionGuardCoverage: 'scripts/check-suspension-guard-coverage.py',
   checkTestReimplementation: 'scripts/check-test-reimplementation.py',
   checkUiCopyOwnership: 'scripts/check-ui-copy-ownership.sh',

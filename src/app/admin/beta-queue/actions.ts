@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
 import { sendBetaApprovedEmail } from '@/modules/access/beta-access/email';
+import { isSelfModeration } from '@/modules/trust-safety/user-actions';
 
 /**
  * KAN-277 (epic KAN-273): approve a queued user into the beta.
@@ -23,6 +24,20 @@ export async function approveBetaUser(formData: FormData): Promise<void> {
   const userId = String(formData.get('user_id') ?? '').trim();
   if (!profileId || !userId) {
     throw new Error('Missing target profile');
+  }
+
+  // SEC-118: an admin may not grant themselves beta access. Found by CTL-075
+  // rather than by the ticket, which listed four moderation writers; this is a
+  // fifth. The same capability is ALREADY refused through the bulk path —
+  // `bulkUserAction` filters the acting admin out of `promote_live` — so
+  // allowing it here was an inconsistency between two routes to one outcome,
+  // which is the shape of the eight prior tickets in this family.
+  //
+  // It throws rather than redirecting because that is this action's own
+  // convention for a refused input (see the two checks above); the sibling
+  // actions in trust-safety/ redirect because they are page-bound.
+  if (isSelfModeration(admin.profileId, profileId)) {
+    throw new Error('You cannot approve your own beta access');
   }
 
   const svc = getAdminServiceClient();
