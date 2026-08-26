@@ -1,7 +1,7 @@
 {
   "$comment": "GENERATED — regenerate with `npm run gen:test-paths`. Mirror of tests/support/source-paths.ts for .cjs and shell consumers (KAN-414 F4).",
   "generated_from": "literals referenced by tracked files under tests/",
-  "count": 249,
+  "count": 251,
   "SRC": {
     "codeowners": ".github/CODEOWNERS",
     "pullRequestTemplate": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -9,6 +9,7 @@
     "expectedProtection": ".github/expected-protection.json",
     "scheduledWorkflowExceptions": ".github/scheduled-workflow-exceptions.json",
     "signupSurface": ".github/signup-surface.paths",
+    "workflowLintBaseline": ".github/workflow-lint-baseline.json",
     "workflows": ".github/workflows",
     "backupComplete": ".github/workflows/backup-complete.yml",
     "backupDatabase": ".github/workflows/backup-database.yml",
@@ -80,6 +81,7 @@
     "checkUiCopyOwnership": "scripts/check-ui-copy-ownership.sh",
     "checkWaiverHygiene": "scripts/check-waiver-hygiene.py",
     "checkWorkflowIntegrity": "scripts/check-workflow-integrity.sh",
+    "checkWorkflowLint": "scripts/check-workflow-lint.py",
     "dailySecurityCheck": "scripts/daily-security-check.sh",
     "decideReleaseTag": "scripts/decide-release-tag.py",
     "depcruiseSeverity": "scripts/depcruise-severity.cjs",
