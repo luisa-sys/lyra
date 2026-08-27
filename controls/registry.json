@@ -1275,6 +1275,23 @@
       "added": "2026-08-17"
     },
     {
+      "id": "CTL-073",
+      "name": "actionlint + zizmor over .github/workflows, as a two-way shrink-only ratchet",
+      "defect_class": "a-control-that-reports-green-while-gating-nothing",
+      "summary": "SEC-106 section 3 item 2: 'Nothing lints .github/workflows/** for the false-green primitives themselves.' This wires the two standard linters - actionlint (workflow syntax, expression contexts, action inputs) and zizmor (workflow security auditing) - into pr-checks.yml. WHAT IT ACTUALLY CLOSES, measured rather than assumed: of the six false-green primitives section 1 names, these tools cover exactly ONE - an `if:` guard referencing secrets.*, which actionlint rejects because the secrets context is not available in jobs.<id>.steps.if. continue-on-error, `|| true`, `set +e`, a multi-line run: with no `set -euo pipefail` and a missing defaults.run.shell are covered by NEITHER tool and by nothing else in the estate; three further primitives (GITHUB_TOKEN pushing a release branch, `gh run list --limit 1` deploy verification, a 401-accepting health check) are check-workflow-integrity.sh's. That gap table is in the script header so 'wired in' cannot be read as 'covered'. IT FOUND A REAL DEFECT ON DAY ONE: all 7 actionlint findings are the same step-level `if: secrets.X != ''` in absent-secrets-probe.yml, which is CTL-068 - so the control asserting every deliberately-absent secret is still absent cannot be trusted to fire. Raised as SEC-165, grandfathered with that ticket named in the baseline, NOT waved through. A RATCHET, NOT ZERO: 7 + 109 findings across 43 workflows at landing, grandfathered per (tool, rule, file) with a count. A gate that reddens dozens of files on day one is a gate someone turns off. Two-way, so a NEW key, MORE of an existing one, AND a fixed-but-still-listed key all fail - a list you may only add to is a suppression list. VERSIONS ARE PINNED IN CI AND RECORDED IN THE BASELINE, and a mismatch is exit 2 UNVERIFIED rather than a comparison: this is the second control in the estate whose subject is a third-party feed, and SEC-105 is what happens when such a rule set moves on its own schedule (~11 days of frozen pipeline). actionlint's shellcheck/pyflakes integration is disabled for the same reason - it lints whichever shellcheck happens to be installed, so the finding set would differ per machine; shell-body linting of run: blocks is therefore a stated gap. Exit 2 carries its own vocabulary (CTL-059): 'This is NOT a drift report.'",
+      "implementation": "scripts/check-workflow-lint.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "self_test": "scripts/check-workflow-lint.py",
+      "prevents": [
+        "SEC-106"
+      ],
+      "escape_hatch": "The baseline itself is the allow-list, and it may only shrink. An INLINE suppression (`# zizmor: ignore[rule]` or `# actionlint-ok:`) is honoured only when the same line cites a Jira key with digits - a bare ignore, or a placeholder like SEC-xxx, fails. Bumping a pinned linter version is allowed but must regenerate the baseline in the same commit; otherwise the run is UNVERIFIED rather than green.",
+      "added": "2026-08-18"
+    },
+    {
       "id": "CTL-074",
       "name": "Convene OAuth route error-masking coverage",
       "defect_class": "guard-names-its-targets-so-siblings-go-uncovered",
