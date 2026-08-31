@@ -199,8 +199,8 @@ Full details: `docs/JIRA_TICKET_STANDARD.md`
 ### Every BUGS/SEC ticket needs a `Prevention:` line before it goes to Done (SEC-101)
 
 **A fix that does not change a control is a repair, not a lesson.** Lyra has
-closed 129 defects, and the same root causes kept returning: nine tickets for
-Postgres `EXECUTE` grants, eight for a suspension guard added to one call site
+closed 129 defects, and the same root causes kept returning: ten tickets for
+Postgres `EXECUTE` grants, nine for a suspension guard added to one call site
 but not its siblings, fourteen for release workflows reporting SUCCESS while
 doing nothing. Each was fixed properly. What was missing was the step *after*
 the fix.
