@@ -18,8 +18,8 @@ The evidence is in the ticket history:
 
 | Root cause | Recurrences | Tickets |
 |---|---|---|
-| Postgres `EXECUTE` granted to `anon`/`authenticated` on a `SECURITY DEFINER` function | **9** | SEC-12, SEC-15, SEC-27, SEC-28, SEC-29, SEC-42, SEC-43, BUGS-48, BUGS-65, BUGS-69 |
-| A suspension / eligibility guard added to one call site but not its siblings | **8** | SEC-44, SEC-47, SEC-57, SEC-58, SEC-81, SEC-83, SEC-84, SEC-85 |
+| Postgres `EXECUTE` granted to `anon`/`authenticated` on a `SECURITY DEFINER` function | **10** | SEC-12, SEC-15, SEC-27, SEC-28, SEC-29, SEC-42, SEC-43, BUGS-48, BUGS-65, BUGS-69 |
+| A suspension / eligibility guard added to one call site but not its siblings | **9** | SEC-44, SEC-47, SEC-57, SEC-58, SEC-81, SEC-83, SEC-84, SEC-85, SEC-118 |
 | Release workflows reporting SUCCESS while doing nothing | **14** | BUGS-4, 6, 7, 8, 9, 10, 11, 13, 15, 16, 18, 20, 54, 72 |
 | An `npm audit` gate red-lining the entire deploy chain | **6** | SEC-89, SEC-90, SEC-91, SEC-92, SEC-94, SEC-97 |
 | Partial-read / whole-row-write data loss | **3** | BUGS-70, BUGS-73, BUGS-74 |
