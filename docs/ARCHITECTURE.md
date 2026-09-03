@@ -194,15 +194,15 @@ reachable only through a denylisted action.
 | Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
 | MCP Dev | mcp-dev.checklyra.com | main | Railway | ilprytcrnqyrsbsrfujj (dev) | Public |
-| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` |
+| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` AND NOT `is_suspended` (SEC-121) |
 
 **Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
 
 ### Admin back-office (`admin.checklyra.com`, KAN-309)
 
-The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Two gates: **Cloudflare Access** (allow-list of admin emails) in front, plus the existing `is_admin` DB check (`getCurrentAdmin`).
+The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Three conditions must hold: **Cloudflare Access** (allow-list of admin emails) in front, plus the `is_admin` DB check AND `is_suspended = false` in `getCurrentAdmin()` (SEC-121: suspension is the incident-response kill-switch for a compromised admin account, so a suspended admin is refused even on `admin.checklyra.com`).
 
-Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod** Vercel scope):
+Host routing lives in `src/modules/access/gates/admin-host.ts`, ordered inside `AUTHED_ORDER` in `src/modules/access/pipeline.ts` (post-KAN-415 D4 — the middleware composition root has no function body left). The `admin-host` gate returns early on the admin host so the beta gate below never runs, and — currently, until SEC-121's ordering fix lands — the middleware `suspension` gate positioned after it also does not run for admin-host requests. Containment is therefore provided by `getCurrentAdmin()` refusing a suspended admin at the layout, not by the middleware gate. Two env vars (set on the **prod** Vercel scope):
 
 | Env var | Default | Purpose |
 |---------|---------|---------|

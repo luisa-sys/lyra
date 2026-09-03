@@ -364,6 +364,21 @@ jobs:
           set -euo pipefail
           python3 scripts/check-absent-secret-probe.py --self-test
           python3 scripts/check-absent-secret-probe.py
+      - name: Admin moderation writes refuse a self-target (SEC-118 / CTL-075)
+        # SEC-118: three of four writers of a member's `profiles` row carried a
+        # self-moderation guard and one did not, so an admin reviewing a report
+        # filed against their OWN profile was shown a live Suspend button that
+        # locked them out of the product with no in-app way back.
+        #
+        # Keyed on the ADMIN MODERATION SIGNATURE (writes `profiles` AND logs a
+        # moderation action), deliberately NOT on the column name: the bulk
+        # path passes an opaque payload built in another module, so a
+        # column-keyed matcher reports clean over the highest-volume moderation
+        # path in the product. Same lesson as CTL-055's `opaque-builder`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-self-moderation-guard.py --self-test
+          python3 scripts/check-self-moderation-guard.py
       - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
         # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
         # to the OTHER value, so it could never return PASS and could not have
@@ -383,6 +398,19 @@ jobs:
           set -euo pipefail
           python3 scripts/check-soak-classifier-coverage.py --self-test
           python3 scripts/check-soak-classifier-coverage.py
+      - name: SRC key identity lock (KAN-475 / CTL-070)
+        # The manifest guards ask "does every SRC key resolve to a tracked
+        # file?". After a repoint every key still resolves, so they are blind to
+        # a key that silently changed MEANING — measured: moving one file made
+        # SRC.pipeline point at a different pipeline while
+        # `SRC.pipeline is defined and points at a tracked file` stayed green.
+        # Two-way: a repointed key fails, and a lock that has drifted from the
+        # manifest fails as stale. A repoint can only be cleared by naming the
+        # key in --accept-repoint, so it cannot ride out on a routine refresh.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-source-path-identity.py --self-test
+          python3 scripts/check-source-path-identity.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
@@ -447,6 +475,53 @@ jobs:
           set -euo pipefail
           python3 scripts/check-required-checks.py --self-test
           python3 scripts/check-required-checks.py --local
+      - name: Workflow lint — actionlint + zizmor (CTL-073, SEC-106 §3 item 2)
+        # SEC-106 §1: "Nothing lints .github/workflows/** for the false-green
+        # primitives themselves." These two tools are the answer to part of
+        # that, and the script header states exactly which part — actionlint
+        # catches the `if:` guard referencing secrets.*, and neither tool sees
+        # continue-on-error, `|| true`, `set +e`, a missing set -euo pipefail
+        # or a missing defaults.run.shell. That gap is recorded rather than
+        # implied to be covered.
+        #
+        # A RATCHET, not "zero findings": measured at landing, the 43 workflows
+        # here carry 7 actionlint + 109 zizmor findings. A gate that reddens
+        # dozens of files on day one is a gate someone turns off, so the past
+        # is grandfathered per (tool, rule, file) and may only SHRINK — and a
+        # baselined finding that has been fixed fails as STALE, because a list
+        # you may only add to is a suppression list.
+        #
+        # BOTH VERSIONS ARE PINNED, and the baseline records them. This is the
+        # only control in the estate besides npm-audit whose subject is a
+        # third-party tool, and SEC-105 is the lesson: a rule set that moves on
+        # its own schedule goes red overnight on an unchanged repo. A version
+        # bump is therefore a deliberate act with a regenerated baseline in the
+        # same commit; running a different version is UNVERIFIED, not a
+        # comparison of one tool's findings against another tool's baseline.
+        env:
+          ACTIONLINT_VERSION: v1.7.12
+          ZIZMOR_VERSION: 1.29.0
+        run: |
+          set -euo pipefail
+          # Installed from source/PyPI rather than via marketplace actions: a
+          # new remote action would need a 40-hex SHA pin (check-action-pinning
+          # .sh), and go + pipx are already on ubuntu-latest. No secret is
+          # involved, so there is no silent-skip path here — a missing tool
+          # exits non-zero.
+          go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+          ACTIONLINT_BIN="$(go env GOPATH)/bin/actionlint"
+          ZIZMOR_CMD="$(command -v zizmor || echo "${HOME}/.local/bin/zizmor")"
+          export ACTIONLINT_BIN ZIZMOR_CMD
+          python3 scripts/check-workflow-lint.py --self-test
+          # The fixture arm that drives the real binaries (§4d: a dirty fixture
+          # is rejected AND a clean one passes, so the rule is not always-red).
+          # It is separate from --self-test because the linters are not on every
+          # machine, and it reports UNVERIFIED rather than skipping when one is
+          # missing. THIS is where that contract is actually exercised — the
+          # jest suite runs only the hermetic arm.
+          python3 scripts/check-workflow-lint.py --self-test-tools
+          python3 scripts/check-workflow-lint.py
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in
         # lyra AND lyra-mcp-server, with nothing checking they still agree.
@@ -530,7 +605,14 @@ jobs:
         # control to its invoker in controls/registry.json; `npm run lint` alone
         # reaches it only by convention, and a convention is precisely what the
         # registry exists to stop us relying on.
-        run: npm run lint  # uses eslint.config.mjs
+        #
+        # SEC-119: that name used to live in a trailing `# uses eslint.config.mjs`
+        # comment, and check-control-registry.py's substring scan was satisfied by
+        # it — so the registry's proof that this control is invoked was a comment.
+        # --config is the SAME file eslint would load by convention (flat config
+        # default), so behaviour is unchanged; it is now an argument rather than a
+        # remark, which is the difference between a claim and a wiring.
+        run: npm run lint -- --config eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)
@@ -608,6 +690,14 @@ jobs:
           # another regressing.
           python3 scripts/check-route-thinness.py --self-test
           python3 scripts/check-route-thinness.py
+          # CTL-076 / KAN-459. A test-side Supabase mock must record .eq()
+          # filters PER STATEMENT. KAN-447/448 pooled them per TABLE, so the
+          # ownership pre-read satisfied assertions meant to be about the
+          # UPDATE: both owner filters were deletable while 27 tests stayed
+          # green. CTL-039's shape inside out — there a comment satisfies the
+          # assertion, here an incidental adjacent statement does.
+          python3 scripts/check-pooled-eq-mock.py --self-test
+          python3 scripts/check-pooled-eq-mock.py
           # CTL-064 / SEC-99. SEC-98 forbids pushing directly to main/beta/
           # staging, and until now that rule existed only in CLAUDE.md while the
           # repo shipped two scripts that did exactly it — six direct pushes,
