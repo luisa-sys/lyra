@@ -1,7 +1,7 @@
 /**
  * KAN-345 — dashboard widget dismissal helpers: re-surface on state change.
  */
-import { dismissedForState, withDismissal, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
+import { dismissedForState, withDismissal, type DashboardWidgetState } from '@/modules/dashboard/dismissal';
 
 describe('KAN-345 dismissal helpers', () => {
   it('withDismissal records the widget with the current state + timestamp', () => {

@@ -4,7 +4,7 @@
  * Lyra test suite runs against Jest's `node` test environment).
  */
 
-import type { V2Recommendation } from '@/lib/recommender/v2/types';
+import type { V2Recommendation } from '@/modules/recommendations/recommender/v2/types';
 
 /**
  * Price range in human form. Returns null when no price info is available.

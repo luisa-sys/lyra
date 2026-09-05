@@ -17,6 +17,7 @@
  */
 
 import { getOauthClient, type ClientRecord } from './clients';
+import { oauthConfig } from './config';
 
 export interface AuthorizeRequest {
   response_type?: string;
@@ -26,6 +27,8 @@ export interface AuthorizeRequest {
   state?: string;
   code_challenge?: string;
   code_challenge_method?: string;
+  /** SEC-46 / RFC 8707 §2 — which resource server the token is for. */
+  resource?: string;
 }
 
 export type AuthorizeError =
@@ -40,7 +43,7 @@ export type AuthorizeError =
       // Return to the client's redirect_uri with these query params.
       redirectUri: string;
       state: string | undefined;
-      code: 'invalid_request' | 'unsupported_response_type' | 'invalid_scope' | 'access_denied' | 'server_error';
+      code: 'invalid_request' | 'unsupported_response_type' | 'invalid_scope' | 'access_denied' | 'server_error' | 'invalid_target';
       description: string;
     };
 
@@ -51,6 +54,13 @@ export interface ValidatedAuthorizeRequest {
   state: string | undefined;
   codeChallenge: string;
   codeChallengeMethod: 'S256';
+  /**
+   * SEC-46 — the canonical resource URI this authorization is for. Always a
+   * concrete value, never undefined: an absent `resource` resolves to the
+   * environment default, so every token minted from here is bound to exactly
+   * one resource server.
+   */
+  resource: string;
 }
 
 export async function validateAuthorizeRequest(
@@ -86,6 +96,41 @@ export async function validateAuthorizeRequest(
   // From here on, errors can redirect back to the (now-validated) URI.
   const state = typeof raw.state === 'string' ? raw.state : undefined;
   const redirectUri = raw.redirect_uri;
+
+  // 2b. SEC-46 / RFC 8707 §2 — resource indicator.
+  //
+  // Validated by EXACT allow-list membership after a trailing-slash strip.
+  // Never parse-and-trust, never prefix-match: this value becomes the signed
+  // `aud` claim, and the entire point of binding it is that a token for one
+  // resource cannot be replayed at another. A prefix test would give that back
+  // (`https://mcp.checklyra.com/mcp.evil.test` starts with the real one).
+  //
+  // An UNKNOWN resource is rejected rather than ignored. RFC 8707 leaves the
+  // no-resource case to AS policy, but silently dropping a resource the client
+  // explicitly asked for is what makes the whole mechanism decorative — the
+  // client believes it holds a narrowly-scoped token and does not.
+  //
+  // ABSENT is different from unknown, and resolves to the environment default.
+  // That is what keeps non-RFC-8707 clients (including claude.ai today) working
+  // AND correctly bound, which is what makes it safe to enforce `aud` on the
+  // resource servers without waiting for every client to learn the parameter.
+  const rawResource =
+    typeof raw.resource === 'string' && raw.resource.trim() !== ''
+      ? raw.resource.trim().replace(/\/$/, '')
+      : undefined;
+  if (rawResource && !oauthConfig.allowedResources().includes(rawResource)) {
+    return {
+      ok: false,
+      error: {
+        kind: 'redirect',
+        redirectUri,
+        state,
+        code: 'invalid_target',
+        description: 'unknown resource indicator',
+      },
+    };
+  }
+  const resource = rawResource ?? oauthConfig.defaultResource();
 
   // 3. response_type — must be 'code'.
   if (raw.response_type !== 'code') {
@@ -149,6 +194,7 @@ export async function validateAuthorizeRequest(
       state,
       codeChallenge: raw.code_challenge,
       codeChallengeMethod: 'S256',
+      resource,
     },
   };
 }

@@ -13,7 +13,7 @@
  * in /admin/users/[slug].
  */
 
-import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
 import { getDeployEnv, manageableEnvironments, type DeployEnv } from '@/modules/platform/deploy-env';
 import {
   GLOBAL_FEATURE_KEYS,

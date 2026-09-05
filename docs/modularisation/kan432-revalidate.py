@@ -101,7 +101,7 @@ def is_deep_import(dst: str, barrels: set[str]) -> bool:
     """Plan's 'deep import into another area's internals'.
 
     An edge into a file that lives INSIDE another group's directory, other
-    than via that group's barrel. A top-level leaf module (`src/lib/admin.ts`)
+    than via that group's barrel. A top-level leaf module (`src/modules/admin/admin.ts`)
     is its own group, so importing it is not a deep import; reaching into
     `src/lib/convene/invites/repository.ts` is.
 
@@ -287,7 +287,7 @@ def main():
         "src/modules/platform/supabase-server.ts": 46,
         "src/modules/platform/supabase-service.ts": 39,
         "src/modules/platform/env.ts": 17,
-        "src/lib/admin.ts": 17,
+        "src/modules/admin/admin.ts": 17,
         "src/modules/platform/deploy-env.ts": 5,
     }
     out["kernel"] = {

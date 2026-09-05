@@ -208,11 +208,13 @@ describe('per-rule severity (KAN-414 F3)', () => {
     expect(cfg).toMatch(/name: 'no-circular',\s*\n\s*severity: severityFor\(BLOCKING\)/);
   });
 
-  test('no-cross-segment-app is still warn, with its 4 edges owned elsewhere', () => {
-    // Deliberately NOT blocking: 3 of its 4 violations are assigned to D8 and
-    // KAN-422 by the plan, and the 4th is unrouted. Flipping it early would
-    // force someone to either do D8 out of order or weaken the rule.
-    expect(cfg).toMatch(/no-cross-segment-app\/\$\{segment\}`,\s*\n\s*severity: severityFor\(NOT_YET\)/);
+  test('no-cross-segment-app is NOW blocking too — KAN-415 cleared its last edge', () => {
+    // Was deliberately NOT blocking while 3 of its 4 violations belonged to D8
+    // and KAN-422 and the 4th was unrouted. All four are cleared, so the
+    // demotion this test guards against is now a demotion from error.
+    expect(cfg).toMatch(
+      /no-cross-segment-app\/\$\{segment\}`,\s*\n\s*severity: severityFor\(BLOCKING\)/,
+    );
   });
 
   test('the reason each rule sits where it does is written down', () => {
@@ -222,12 +224,24 @@ describe('per-rule severity (KAN-414 F3)', () => {
     // wrapped sentence reads as "D8's * acceptance criteria".
     const prose = cfg.replace(/^\s*\*\s?/gm, '').replace(/\s+/g, ' ');
     expect(prose).toMatch(/no-module-to-app 0 violations/);
-    expect(prose).toMatch(/D8's acceptance criteria/);
-    expect(prose).toMatch(/KAN-422's DELETE list/);
-    expect(prose).toMatch(/routed NOWHERE/);
+    // How each cross-segment edge was cleared, still named rather than merely
+    // declared gone — a rule that reaches zero with no record of HOW is one
+    // nobody can safely re-open.
+    expect(prose).toMatch(/cleared by D8/);
+    expect(prose).toMatch(/PRIVATE folder/);
+    expect(prose).toMatch(/session-actions\.ts/);
   });
 
   test('DEPCRUISE_SEVERITY=error still forces every rule to error', () => {
-    expect(cfg).toMatch(/FORCE_ERROR \|\| ruleAtZero/);
+    // The dial moved into scripts/depcruise-severity.cjs when the last rule
+    // flipped — see that file's header. Assert it where it now lives, or this
+    // passes against a config that no longer contains the mechanism at all.
+    const { SRC } = require('../support/source-paths.json');
+    const dial = require('node:fs').readFileSync(
+      require('node:path').resolve(__dirname, '../..', SRC.depcruiseSeverity),
+      'utf-8',
+    );
+    expect(dial).toMatch(/forceError \|\| ruleAtZero/);
+    expect(cfg).toMatch(/require\('\.\/scripts\/depcruise-severity\.cjs'\)/);
   });
 });

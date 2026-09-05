@@ -90,7 +90,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
 jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (...args: unknown[]) => mockModerate(...(args as [])),
 }));
 

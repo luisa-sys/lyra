@@ -229,3 +229,207 @@ describe('it fails CLOSED when it cannot verify (KAN-167, gotcha #30)', () => {
     expect(out).not.toContain('not implicated');
   });
 });
+
+/**
+ * SEC-155 — the action-version-pin exemption.
+ *
+ * These cases MUST drive the script against a real git history, not the
+ * `--files` mode used above: the exemption is decided from `git diff` content,
+ * so a path-list harness cannot reach it at all. Building a throwaway repo is
+ * the only way to observe `pin_only_workflow_paths` doing its job — and the
+ * `--files` cases above deliberately keep firing on every workflow path, which
+ * is the conservative answer when no diff is available.
+ *
+ * The defect: the `workflow` trigger described itself as "added or removed" and
+ * fired on every EDIT. Dependabot's github-actions group PR (#661) sat red for
+ * 15 days carrying seven action bumps, three of them CodeQL, with no way out —
+ * a robot cannot write a `Docs-N/A:` trailer and no doc here records an action
+ * version. A documentation control was holding a supply-chain control shut.
+ *
+ * What must NOT regress is the strictness: the exemption is per file and
+ * demands that EVERY changed line in that file be a `uses:` pin. Half of these
+ * cases exist to prove a substantive change cannot ride along with a bump.
+ */
+describe('SEC-155 — action-version pin bumps are doc-neutral, everything else is not', () => {
+  const WF = j('.github', 'workflows');
+  let sandbox;
+
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: sandbox, stdio: 'pipe' }).toString();
+
+  const write = (rel, body) => {
+    const abs = path.join(sandbox, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+  };
+
+  /** Run the gate over a real base...head diff inside the sandbox. */
+  const runDiff = (base, head) => {
+    try {
+      const out = execFileSync('python3', [SCRIPT, base, head], {
+        cwd: sandbox,
+        stdio: 'pipe',
+      }).toString();
+      return { code: 0, out };
+    } catch (err) {
+      return { code: err.status, out: `${err.stdout || ''}${err.stderr || ''}` };
+    }
+  };
+
+  const SCHEDULED = [
+    'name: A',
+    'on:',
+    '  schedule:',
+    "    - cron: '0 7 * * 1'",
+    'jobs:',
+    '  go:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - uses: actions/checkout@v7.0.0',
+    '      - uses: actions/setup-node@v6.4.0',
+    '',
+  ].join('\n');
+
+  const PUSHED = [
+    'name: B',
+    'on: push',
+    'jobs:',
+    '  go:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - uses: actions/checkout@v7.0.0',
+    '',
+  ].join('\n');
+
+  beforeAll(() => {
+    sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-gate-git-'));
+    git('init', '-q', '.');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'test');
+    write(j(WF, 'a.yml'), SCHEDULED);
+    write(j(WF, 'b.yml'), PUSHED);
+    git('add', '-A');
+    git('commit', '-qm', 'base');
+    git('branch', '-q', 'basebr');
+  });
+
+  afterAll(() => {
+    if (sandbox) fs.rmSync(sandbox, { recursive: true, force: true });
+  });
+
+  /** Cut a fresh branch off basebr, apply `mutate`, commit, and evaluate. */
+  const scenario = (branch, mutate, message = 'ci: change') => {
+    git('checkout', '-q', '-B', branch, 'basebr');
+    mutate();
+    git('add', '-A');
+    git('commit', '-qm', message);
+    return runDiff('basebr', 'HEAD');
+  };
+
+  test('the sandbox really is a git repo with the fixture workflows', () => {
+    // Guard against the whole suite passing because nothing was ever set up —
+    // an empty or non-git sandbox would make every runDiff exit 2, and a test
+    // asserting only "not 0" would read that as success.
+    expect(git('ls-files').trim().split('\n').sort()).toEqual([
+      j(WF, 'a.yml'),
+      j(WF, 'b.yml'),
+    ]);
+  });
+
+  test('a pin-only change to one workflow does not fire', () => {
+    const r = scenario('pin-one', () => {
+      write(j(WF, 'b.yml'), PUSHED.replace('checkout@v7.0.0', 'checkout@v7.0.1'));
+    });
+    expect(r.code).toBe(SATISFIED);
+    expect(r.out).toContain('action-version pins');
+  });
+
+  test('the PR #661 shape — every changed workflow is a pin bump — does not fire', () => {
+    const r = scenario('pin-many', () => {
+      write(
+        j(WF, 'a.yml'),
+        SCHEDULED.replace('checkout@v7.0.0', 'checkout@v7.0.1').replace(
+          'setup-node@v6.4.0',
+          'setup-node@v7.0.0',
+        ),
+      );
+      write(j(WF, 'b.yml'), PUSHED.replace('checkout@v7.0.0', 'checkout@v7.0.1'));
+    }, 'ci: bump the github-actions group across 1 directory with 7 updates');
+    expect(r.code).toBe(SATISFIED);
+  });
+
+  test('a cron change in the SAME file as a pin bump still fires', () => {
+    // The smuggling case. If this ever goes green, the exemption has become a
+    // way to edit a schedule with nobody looking.
+    const r = scenario('cron-plus-pin', () => {
+      write(
+        j(WF, 'a.yml'),
+        SCHEDULED.replace('checkout@v7.0.0', 'checkout@v7.0.1').replace(
+          "cron: '0 7 * * 1'",
+          "cron: '0 3 * * 1'",
+        ),
+      );
+    });
+    expect(r.code).toBe(UNSATISFIED);
+  });
+
+  test('a pin bump in one file does not excuse a substantive change in another', () => {
+    const r = scenario('split', () => {
+      write(j(WF, 'b.yml'), PUSHED.replace('checkout@v7.0.0', 'checkout@v7.0.1'));
+      write(j(WF, 'a.yml'), SCHEDULED.replace("cron: '0 7 * * 1'", "cron: '0 3 * * 1'"));
+    });
+    expect(r.code).toBe(UNSATISFIED);
+    // Both halves observable: one excused, one fired.
+    expect(r.out).toContain('action-version pins');
+    expect(r.out).toContain('[workflow]');
+  });
+
+  test('an ADDED workflow fires even when every line is a pin', () => {
+    // Its existence is the documented fact, not its contents. `--diff-filter=M`
+    // is what keeps added files away from the classifier.
+    const r = scenario('added', () => {
+      write(j(WF, 'new.yml'), '- uses: actions/checkout@v7.0.1\n');
+    });
+    expect(r.code).toBe(UNSATISFIED);
+  });
+
+  test('a RENAMED workflow fires even with identical contents', () => {
+    const r = scenario('renamed', () => {
+      git('mv', j(WF, 'b.yml'), j(WF, 'b2.yml'));
+    });
+    expect(r.code).toBe(UNSATISFIED);
+  });
+
+  test('a pin bump alongside a migration still fires — the exemption is trigger-scoped', () => {
+    const r = scenario('pin-plus-migration', () => {
+      write(j(WF, 'b.yml'), PUSHED.replace('checkout@v7.0.0', 'checkout@v7.0.1'));
+      write(j('supabase', 'migrations', '20260816000000_x.sql'), 'select 1;\n');
+    });
+    expect(r.code).toBe(UNSATISFIED);
+    expect(r.out).toContain('[migration]');
+  });
+
+  test('a pin-only PR that ALSO touches a doc is still satisfied', () => {
+    const r = scenario('pin-plus-doc', () => {
+      write(j(WF, 'b.yml'), PUSHED.replace('checkout@v7.0.0', 'checkout@v7.0.1'));
+      write(j('docs', 'RUNBOOK.md'), '# runbook\n');
+    });
+    expect(r.code).toBe(SATISFIED);
+  });
+
+  test('a non-pin edit with no doc and no trailer fires, and the trailer still rescues it', () => {
+    const bare = scenario('bare-run-change', () => {
+      write(j(WF, 'b.yml'), PUSHED.replace('runs-on: ubuntu-latest', 'runs-on: ubuntu-24.04'));
+    });
+    expect(bare.code).toBe(UNSATISFIED);
+
+    const declared = scenario(
+      'run-change-declared',
+      () => {
+        write(j(WF, 'b.yml'), PUSHED.replace('runs-on: ubuntu-latest', 'runs-on: ubuntu-24.04'));
+      },
+      'ci: pin the runner\n\nDocs-N/A: SEC-155 no doc records the runner image',
+    );
+    expect(declared.code).toBe(SATISFIED);
+  });
+});

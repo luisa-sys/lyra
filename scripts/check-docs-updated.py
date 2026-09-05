@@ -85,7 +85,8 @@ TRIGGERS = [
     ),
     (
         "workflow",
-        "a GitHub Actions workflow was added or removed",
+        "a GitHub Actions workflow was added, removed, or changed beyond an "
+        "action-version pin",
         "docs/RUNBOOK.md (Scheduled Workflows) and CLAUDE.md",
         lambda p: p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml")),
     ),
@@ -112,6 +113,72 @@ TRIGGERS = [
 TRAILER_RE = re.compile(
     r"^\s*Docs-(Updated|N/A):\s*([A-Z][A-Z0-9]+-[0-9]+)\s+(\S.*)$", re.M
 )
+
+# ── The action-version-pin exemption (SEC-155) ───────────────────────────────
+# A workflow file that is MODIFIED and whose every changed line is a `uses:`
+# action pin changes nothing any doc in this repo records — no doc here states
+# an action version. Such a change is excluded from the `workflow` trigger.
+#
+# WHY THIS EXEMPTION EXISTS, and why it is not just convenience: dependabot's
+# github-actions group PR is *structurally incapable* of satisfying this gate.
+# It cannot write a `Docs-N/A:` trailer, and there is no doc for it to touch.
+# PR #661 sat red for 15 days carrying seven action bumps, three of them
+# CodeQL — a DOCUMENTATION control holding a SUPPLY-CHAIN control shut, with no
+# path out for the only author who hits it every single time.
+#
+# WHY IT IS STRICT: the exemption is per FILE and requires EVERY changed line in
+# that file to be a pin. One `cron:`, one `run:`, one `if:` moving alongside the
+# pins and the file fires as before. That is what stops a substantive workflow
+# change being smuggled through by co-locating it with a bump — the exemption
+# must not become a way to edit a schedule unobserved.
+#
+# Added / removed / renamed workflow files are NEVER exempt, whatever they
+# contain: their existence is the documented fact, not their contents.
+USES_PIN_RE = re.compile(r"^\s*-?\s*uses:\s*\S+@\S+\s*(#.*)?$")
+
+
+def pin_only_workflow_paths(base: str, head: str, paths: list[str]) -> set[str]:
+    """Of `paths`, those whose diff consists ONLY of `uses:` pin lines.
+
+    Raises on any git failure so the caller can fail CLOSED — an undecidable
+    file must never be silently treated as exempt.
+    """
+    exempt: set[str] = set()
+    for path in paths:
+        out = subprocess.run(
+            ["git", "diff", "--unified=0", f"{base}...{head}", "--", path],
+            capture_output=True,
+            text=True,
+        )
+        if out.returncode != 0:
+            raise RuntimeError(out.stderr.strip() or f"git diff for {path} failed")
+        body = [
+            line
+            for line in out.stdout.splitlines()
+            if (line.startswith("+") or line.startswith("-"))
+            and not line.startswith(("+++", "---"))
+        ]
+        # An empty body means nothing textual changed (a mode bit, say). That is
+        # not evidence of a pin bump, so it is NOT exempt — conservative.
+        if body and all(USES_PIN_RE.match(line[1:]) for line in body):
+            exempt.add(path)
+    return exempt
+
+
+def modified_workflows(base: str, head: str) -> list[str]:
+    """Workflow files whose change is a plain MODIFICATION (not A/D/R/C)."""
+    out = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=M", f"{base}...{head}"],
+        capture_output=True,
+        text=True,
+    )
+    if out.returncode != 0:
+        raise RuntimeError(out.stderr.strip() or f"git diff -M {base}...{head} failed")
+    return [
+        line
+        for line in out.stdout.splitlines()
+        if line.startswith(".github/workflows/") and line.endswith((".yml", ".yaml"))
+    ]
 
 
 def err(msg: str) -> None:
@@ -147,10 +214,28 @@ def commit_messages(base: str, head: str) -> str:
     return out.stdout if out.returncode == 0 else ""
 
 
-def evaluate(changed: list[str], messages: str) -> int:
+def evaluate(
+    changed: list[str], messages: str, pin_only: "set[str] | None" = None
+) -> int:
+    # SEC-155: paths the caller proved are pure action-version pin bumps. Only
+    # the `workflow` trigger honours it — a pin bump is doc-neutral for that
+    # trigger and for no other, so the exemption is not applied globally.
+    exempt = pin_only or set()
     fired = []
     for tid, desc, where, pred in TRIGGERS:
         hits = [p for p in changed if pred(p)]
+        if tid == "workflow" and exempt:
+            skipped = [p for p in hits if p in exempt]
+            hits = [p for p in hits if p not in exempt]
+            if skipped:
+                note(
+                    f"{len(skipped)} workflow file(s) changed only action-version "
+                    "pins — doc-neutral, not counted (SEC-155):"
+                )
+                for p in skipped[:8]:
+                    print(f"    {p}")
+                if len(skipped) > 8:
+                    print(f"    … and {len(skipped) - 8} more")
         if hits:
             fired.append((tid, desc, where, hits))
 
@@ -270,21 +355,122 @@ def self_test() -> int:
             "refactor: D6",
             0,
         ),
+        # ── SEC-155: the action-version-pin exemption ───────────────────────
+        # A 5th element is the pin_only set the caller would have computed
+        # from the diff. Absent, it defaults to empty — which is exactly the
+        # pre-SEC-155 behaviour, so every case above still asserts what it did.
+        (
+            "one workflow, pin-only change → doc-neutral",
+            [".github/workflows/codeql.yml"],
+            "ci: bump codeql-action",
+            0,
+            {".github/workflows/codeql.yml"},
+        ),
+        (
+            "the PR #661 shape: many workflows, all pin-only",
+            [
+                ".github/workflows/codeql.yml",
+                ".github/workflows/pr-checks.yml",
+                ".github/workflows/backup-database.yml",
+            ],
+            "ci: bump the github-actions group across 1 directory with 7 updates",
+            0,
+            {
+                ".github/workflows/codeql.yml",
+                ".github/workflows/pr-checks.yml",
+                ".github/workflows/backup-database.yml",
+            },
+        ),
+        # The load-bearing negative: a schedule change is NOT a pin bump, so the
+        # classifier never puts it in the exempt set and the trigger still fires.
+        (
+            "a workflow whose cron changed is NOT exempt",
+            [".github/workflows/weekly-report.yml"],
+            "ci: move the weekly report",
+            1,
+            set(),
+        ),
+        # The smuggling case: one file is a genuine pin bump, another is not.
+        # The non-exempt file must still fire — the exemption is per file, and
+        # a substantive change must not ride along with a bump.
+        (
+            "mixed PR: pin-only file excused, substantive file still fires",
+            [
+                ".github/workflows/codeql.yml",
+                ".github/workflows/health-check.yml",
+            ],
+            "ci: bump + retune",
+            1,
+            {".github/workflows/codeql.yml"},
+        ),
+        # An exempt workflow alongside a DIFFERENT trigger must not excuse that
+        # other trigger — the exemption is scoped to the `workflow` trigger only.
+        (
+            "the exemption does not leak to another trigger",
+            [".github/workflows/codeql.yml", "supabase/migrations/2026_x.sql"],
+            "ci: bump + a migration",
+            1,
+            {".github/workflows/codeql.yml"},
+        ),
     ]
+
+    # ── Classifier-level cases: what counts as an action-version pin line ────
+    # These test USES_PIN_RE directly, because the evaluate() cases above take
+    # the pin_only set as a GIVEN and so cannot tell whether the classifier
+    # that produces it is right.
+    pin_line_cases = [
+        ("a pinned step", "      - uses: actions/checkout@v7.0.1", True),
+        ("a pinned SHA", "  - uses: actions/cache@a1b2c3d4", True),
+        ("a trailing comment", "  - uses: actions/cache@v6.1.0 # v6", True),
+        ("uses without a list dash", "    uses: ./.github/actions/setup", False),
+        ("a cron line", "    - cron: '0 7 * * 1'", False),
+        ("a run line", "        run: npm ci", False),
+        ("an if condition", "    if: github.event_name == 'push'", False),
+        ("a job name", "  name: PR Quality Gate", False),
+        ("a bare uses with no ref", "  - uses: actions/checkout", False),
+        ("an env assignment", "      FOO: bar", False),
+    ]
+
+    failures = []
     passed = 0
-    for name, changed, msg, want in cases:
+    for case in cases:
+        name, changed, msg, want = case[0], case[1], case[2], case[3]
+        pin_only = case[4] if len(case) > 4 else set()
         # Suppress the informational output of each case.
         stdout, sys.stdout = sys.stdout, open(os.devnull, "w")
         try:
-            got = evaluate(changed, msg)
+            got = evaluate(changed, msg, pin_only)
         finally:
             sys.stdout.close()
             sys.stdout = stdout
         ok = got == want
         passed += ok
+        if not ok:
+            failures.append(name)
         print(f"  {'ok  ' if ok else 'FAIL'} {name} (want {want}, got {got})")
-    print(f"self-test: {passed}/{len(cases)} passed")
-    return 0 if passed == len(cases) else 1
+
+    for name, line, want in pin_line_cases:
+        got = bool(USES_PIN_RE.match(line))
+        ok = got == want
+        passed += ok
+        if not ok:
+            failures.append(name)
+        print(f"  {'ok  ' if ok else 'FAIL'} pin-line: {name} (want {want}, got {got})")
+
+    total = len(cases) + len(pin_line_cases)
+    # A floor, not a tally: an "N/N passed" line stays reassuring when N drops
+    # (catalogue failure mode 8). If a case is deleted this goes red.
+    minimum = 26
+    if total < minimum:
+        print(f"::error::self-test corpus shrank: {total} cases, expected >= {minimum}")
+        failures.append(f"corpus floor ({total} < {minimum})")
+
+    print(f"self-test: {passed}/{total} passed")
+    if failures:
+        for name in failures:
+            print(f"::error::self-test FAILED: {name}")
+        return 1
+    return 0
 
 
 def main() -> int:
@@ -307,6 +493,10 @@ def main() -> int:
     base, head = args[0], args[1]
     try:
         changed = changed_from_git(base, head)
+        # SEC-155: only files that are plain MODIFICATIONS can be pin-exempt.
+        # An added/removed/renamed workflow is never exempt, so it is not even
+        # offered to the classifier.
+        pin_only = pin_only_workflow_paths(base, head, modified_workflows(base, head))
     except Exception as exc:  # noqa: BLE001 — any failure here must fail closed
         err(f"could not compute the changed set ({exc}).")
         err("  Failing closed (exit 2) rather than reporting a clean pass that never ran.")
@@ -314,7 +504,7 @@ def main() -> int:
         err(f"  '{base}...{head}' to resolve.")
         return 2
 
-    return evaluate(changed, commit_messages(base, head))
+    return evaluate(changed, commit_messages(base, head), pin_only)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@
 
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
-import { getRecommendations, getProfileInsights } from '@/lib/recommend';
+import { getRecommendations, getProfileInsights } from '@/modules/recommendations/recommend';
 
 interface ProfileRow {
   id: string;

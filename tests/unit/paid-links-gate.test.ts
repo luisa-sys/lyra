@@ -22,7 +22,7 @@ jest.mock('@/modules/platform/env', () => ({
   },
 }));
 
-import { getAffiliateLink } from '@/lib/affiliate/link-service';
+import { getAffiliateLink } from '@/modules/affiliate/link-service';
 
 const BASE = {
   rawUrl: 'https://amazon.co.uk/dp/B07XYZ',

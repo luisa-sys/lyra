@@ -37,7 +37,7 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getCurrentAdmin: jest.fn(async () => currentAdmin),
   logModerationAction: jest.fn(async (input: { action: string }) => {
     calls.push(`log:${input.action}`);
@@ -62,7 +62,7 @@ jest.mock('@/lib/admin', () => ({
   })),
 }));
 
-const adminModule = require('@/lib/admin');
+const adminModule = require('@/modules/admin/admin');
 
 beforeEach(() => {
   calls = [];

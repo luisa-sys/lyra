@@ -3,6 +3,25 @@
 **Spike · research artefact · read-only · epic KAN-414**
 **Produced:** 2026-07-27 · **Base:** `develop` · **Tracked files at scan time:** 791
 
+> ⚠️ **Restored 2026-08-12 (KAN-474).** This document is a record of what was
+> true on 2026-07-27. Between then and 2026-08-12 the KAN-415 D1 extraction
+> commits (`424b454`, `b735028`) rewrote **12 path references inside it**,
+> because the KAN-428 DoD sweep requires moved paths to be updated and this
+> file was not on its `ARCHIVE_FILES` exemption list — that list held the
+> `.json` data outputs and missed the write-ups.
+>
+> The effect was to make the register assert measurements it never made:
+> `src/lib/env.ts` was recorded as a LIVE pattern here; `src/modules/platform/env.ts`
+> did not exist on the scan date. Row 10 of the migration table was worse — its
+> columns are *current path* and *proposed destination*, and the rewrite set the
+> first equal to the second, erasing the distinction the row existed to record.
+>
+> All 12 have been restored from the birth revision `a42ad84`, and the
+> file's path-reference multiset now matches that revision exactly. Legitimate
+> later edits (e.g. `dfca57c`, which documented the design-change loop) are
+> preserved. The file is now in `ARCHIVE_FILES`, so no future extraction can
+> rewrite it.
+
 > **What this is.** A complete register of every path literal and glob in Lyra's
 > verification and documentation estate, each one classified LIVE (matches ≥1
 > tracked file today) or DEAD (matches nothing — a control that is not
@@ -80,9 +99,9 @@ prefix at any depth. Comments (`#`) and blank lines stripped.
 | `src/lib/auth/**` | 1 | LIVE |
 | `src/lib/age/**` | 5 | LIVE |
 | `src/lib/beta-access/**` | 4 | LIVE |
-| `src/modules/platform/supabase-server.ts` | 1 | LIVE |
-| `src/modules/platform/supabase-service.ts` | 1 | LIVE |
-| `src/modules/platform/env.ts` | 1 | LIVE |
+| `src/lib/supabase-server.ts` | 1 | LIVE |
+| `src/lib/supabase-service.ts` | 1 | LIVE |
+| `src/lib/env.ts` | 1 | LIVE |
 | `src/middleware.ts` | 1 | LIVE |
 | `supabase/migrations/**` | 73 | LIVE (content-filtered) |
 
@@ -106,8 +125,8 @@ Syntax: **gitignore-style, leading `/` anchors to repo root.**
 | `/src/lib/oauth/` | 10 | | `/vercel.json` | 1 |
 | `/src/lib/beta-access/` | 4 | | `/wrangler.toml` | 1 |
 | `/src/app/admin/` | 20 | | `/.github/CODEOWNERS` | 1 |
-| `/src/modules/platform/cookie-domain.ts` | 1 | | `/SECURITY.md` | 1 |
-| `/src/modules/platform/env.ts` | 1 | | `/docs/compliance/` | 7 |
+| `/src/lib/cookie-domain.ts` | 1 | | `/SECURITY.md` | 1 |
+| `/src/lib/env.ts` | 1 | | `/docs/compliance/` | 7 |
 | | | | `/CLAUDE.md` | 1 |
 
 **Move-exposure: 8 of 17.** The eight security-critical `/src/…` rules all move
@@ -144,7 +163,7 @@ patterns are the ones that must be drift-checked.**
 #### A4 · `scripts/check-service-role-client.sh` — 2 literals, 2 LIVE
 
 `src/` (grep root, 274 files) and the factory literal
-`src/modules/platform/supabase-service.ts` (1). Guard passes today (exit 0, verified).
+`src/lib/supabase-service.ts` (1). Guard passes today (exit 0, verified).
 
 **Move-exposure: both.** If the factory moves to `modules/platform/` and the
 `FACTORY` literal is not updated, the factory's *own* legal call site becomes a
@@ -153,7 +172,7 @@ direction. If `src/` becomes `src/modules/`, the grep root still covers it.
 
 #### A5 · `stryker.config.mjs` — 2 literals, 2 LIVE
 
-`mutate: ['src/app/(auth)/actions.ts', 'src/modules/guards/sanitise.ts']`.
+`mutate: ['src/app/(auth)/actions.ts', 'src/lib/sanitise.ts']`.
 
 **Move-exposure: both, and this one is the quietest failure in the estate.**
 Stryker with a `mutate` list that matches nothing does not error — it reports a
@@ -212,7 +231,7 @@ documented as removed (`src/app/dashboard/loading.tsx`, `src/app/**/loading.*` �
 BUGS-63/66), cross-repo MCP paths cited in a lyra doc (`src/index.ts`,
 `tests/mcp-rate-limit.test.cjs`), or package names that look like paths
 (`supabase/ssr`). A handful are real drift (`src/sanitise.ts` in
-`docs/ARCHITECTURE.md` — the file is `src/modules/guards/sanitise.ts`; `src/lib/age/gate.ts`
+`docs/ARCHITECTURE.md` — the file is `src/lib/sanitise.ts`; `src/lib/age/gate.ts`
 in `docs/TEST_RUNBOOK_SIGNUP_ACCESS_AGE_PUBLISH.md`).
 
 This is the empirical case for the guard: **an unguarded path reference layer
@@ -288,9 +307,9 @@ list, which is the correct direction for this gate.
 | 7 | `src/lib/auth/**` | 1 | `auth` | *(subsumed by #1)* |
 | 8 | `src/lib/age/**` | 5 | `age` | `src/modules/age/**` |
 | 9 | `src/lib/beta-access/**` | 4 | `access` | `src/modules/access/**` |
-| 10 | `src/modules/platform/supabase-server.ts` | 1 | `platform` | `src/modules/platform/**` |
-| 11 | `src/modules/platform/supabase-service.ts` | 1 | `platform` | *(subsumed by #10)* |
-| 12 | `src/modules/platform/env.ts` | 1 | `platform` | *(subsumed by #10)* |
+| 10 | `src/lib/supabase-server.ts` | 1 | `platform` | `src/modules/platform/**` |
+| 11 | `src/lib/supabase-service.ts` | 1 | `platform` | *(subsumed by #10)* |
+| 12 | `src/lib/env.ts` | 1 | `platform` | *(subsumed by #10)* |
 | 13 | `src/middleware.ts` | 1 | — (stays) | `src/middleware.ts` — unchanged |
 | 14 | `supabase/migrations/**` | 73 | — (stays) | `supabase/migrations/**` — unchanged, content-filtered |
 
@@ -599,7 +618,7 @@ Per the ticket, F1 implements; this is the required list.
 | 4 | `bash-case` `*` crossing `/` (`src/app/*.tsx` → 97) | pass — proves fnmatch was not used |
 | 5 | `bash-case` trailing `/**` prefix rule (`src/lib/age/**`) | pass |
 | 6 | `bash-dbl-bracket` carve-out vs protected ordering | carve-out wins |
-| 7 | `codeowners` leading-`/` anchoring | `/src/modules/platform/env.ts` matches 1, not any nested `env.ts` |
+| 7 | `codeowners` leading-`/` anchoring | `/src/lib/env.ts` matches 1, not any nested `env.ts` |
 | 8 | `literal` exact path (stryker `mutate`) | pass |
 | 9 | `glob` `**` vs `*` depth (eslint/jest) | `tests/**/*.ts` ≠ `tests/*.ts` |
 | 10 | `regex` (`package.json --testPathPatterns`) | pass |

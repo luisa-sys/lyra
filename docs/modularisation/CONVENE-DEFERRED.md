@@ -70,7 +70,7 @@ declared module in `modules.json`, which means:
   declared path exists, and that nothing under it is unowned. Convene code cannot
   silently drift out of the manifest just because the extraction is parked.
 - The dependency rules still name it.
-- `src/lib/recommend/convene/` is nested inside `recommendations`' `src/lib/recommend/`
+- `src/lib/recommend/convene/` is nested inside `recommendations`' `src/modules/recommendations/recommend/`
   and is owned by `convene` under **longest-prefix-wins**. This reads like an
   ambiguous boundary and is not. **CTL-041 pins this exact case** — do not "tidy" it
   away while working on `recommendations`.

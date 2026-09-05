@@ -63,7 +63,7 @@
       "NEXT_PUBLIC_VERCEL_ENV",
       "NODE_ENV"
     ],
-    "src/lib/affiliate/link-service.ts": [
+    "src/modules/affiliate/link-service.ts": [
       "SOVRN_API_KEY"
     ],
     "src/modules/age/didit.ts": [
@@ -72,7 +72,7 @@
       "DIDIT_WEBHOOK_SECRET",
       "DIDIT_WORKFLOW_ID"
     ],
-    "src/lib/beta-access/email.ts": [
+    "src/modules/access/beta-access/email.ts": [
       "LYRA_BETA_FROM_EMAIL",
       "LYRA_BETA_NOTIFY_EMAIL",
       "RESEND_API_KEY"
@@ -105,10 +105,10 @@
     "src/modules/features/entitlements-service.ts": [
       "PAID_LINKS_COMPLIANCE_READY"
     ],
-    "src/lib/geo/places-city.ts": [
+    "src/modules/profile/geo/places-city.ts": [
       "GOOGLE_PLACES_API_KEY"
     ],
-    "src/lib/invite-text.ts": [
+    "src/modules/dashboard/invite-text.ts": [
       "NEXT_PUBLIC_SITE_URL"
     ],
     "src/modules/oauth-as/lib/config.ts": [
@@ -122,17 +122,17 @@
       "OAUTH_JWT_PUBLIC_KEY_B64",
       "OAUTH_JWT_SIGNING_SECRET"
     ],
-    "src/lib/recommender/v2/candidate-sourcing.ts": [
+    "src/modules/recommendations/recommender/v2/candidate-sourcing.ts": [
       "ANTHROPIC_API_KEY",
       "SOVRN_API_KEY"
     ],
-    "src/lib/retention/affiliate-clicks.ts": [
+    "src/modules/account/retention/affiliate-clicks.ts": [
       "RETENTION_AFFILIATE_CLICKS_MONTHS"
     ],
-    "src/lib/retention/flags.ts": [
+    "src/modules/account/retention/flags.ts": [
       "RETENTION_ENABLED"
     ],
-    "src/lib/retention/gatherings.ts": [
+    "src/modules/account/retention/gatherings.ts": [
       "RETENTION_GATHERINGS_MONTHS"
     ],
     "src/modules/guards/turnstile.ts": [

@@ -4,7 +4,7 @@
  *
  * Three subjects, all driven for real:
  *
- *   1. `src/lib/geo/places-schools.ts` (pure picker logic) and its sibling
+ *   1. `src/modules/profile/geo/places-schools.ts` (pure picker logic) and its sibling
  *      `places-schools-lookup.ts` (the Places call). Every decision the React
  *      component makes lives in the pure module on purpose: the repo's jest
  *      environment is `node` with no DOM, and changing that is a Test-Integrity
@@ -94,14 +94,15 @@ import {
   resolvePickedLocation,
   shouldSuggest,
   type PlaceSuggestion,
-} from '@/lib/geo/places-schools';
-import { lookupPlaceSuggestions } from '@/lib/geo/places-schools-lookup';
+} from '@/modules/profile/geo/places-schools';
+import { lookupPlaceSuggestions } from '@/modules/profile/geo/places-schools-lookup';
 import { suggestAffiliations } from '@/app/dashboard/profile/affiliation-search-actions';
 import { addSchoolAffiliation } from '@/app/dashboard/profile/actions';
 import { isSchoolPostcodeValid } from '@/app/dashboard/profile/affiliation-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // Each test gets its own user id so the in-memory per-user write rate limit
 // (KAN-231, 30/min) can never make a later test fail for an earlier one's reason.
@@ -578,11 +579,6 @@ describe('KAN-451: the school postcode requirement survives the picker work', ()
 // invisible. Comments are stripped so no comment can satisfy them (KAN-459).
 describe('KAN-451: the add form is wired to the picker and the description', () => {
   const ROOT = resolve(__dirname, '../..');
-  const stripComments = (src: string): string =>
-    src
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const section = stripComments(
     readFileSync(resolve(ROOT, SRC.profile, 'sections/affiliations-section.tsx'), 'utf-8'),
   );

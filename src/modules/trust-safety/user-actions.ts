@@ -34,7 +34,7 @@
  * moderation action we could not record must not commit.
  */
 import { redirect } from 'next/navigation';
-import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/lib/admin';
+import { getCurrentAdmin, getAdminServiceClient, logModerationAction } from '@/modules/admin/admin';
 
 /** The admin's own profile is never a legitimate moderation target. */
 export function isSelfModeration(

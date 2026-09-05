@@ -25,7 +25,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   }),
 }));
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({
     from: (table: string) => {
       if (table === 'profiles') {

@@ -25,7 +25,7 @@ jobs:
     name: PR Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0 # KAN-411: full history so the UI/copy-ownership guard can diff against the base branch
       - name: Workflow integrity check (BUGS-4)
@@ -80,6 +80,22 @@ jobs:
         # heading, has substance); content drift-vs-wiki stays a separate
         # founder/ops-gated leg of KAN-363.
         run: bash scripts/check-doc-mirror-content.sh
+      - name: Ops-heartbeat page-id guard (BUGS-81, CTL-061)
+        # Two Confluence Control Rooms are trivially confusable. 33554434 is
+        # the Backlog Autopilot Control Room, which has a "Run ledger" section
+        # of its own; the ops-routines Heartbeat / Run-ledger table that the
+        # routine-watchdog reads lives on the other one, 34275370.
+        # A doc pointing the heartbeat at the autopilot page makes the watchdog
+        # either
+        # report UNVERIFIED for every routine or misread the autopilot's rows as
+        # heartbeats (a false PASS from the one control that detects a silently
+        # dead routine). Fails both on a WRONG page id and on an ABSENT one.
+        run: python3 scripts/check-heartbeat-page-id.py
+      - name: Ops-heartbeat page-id guard self-test (CTL-061)
+        # A guard whose matcher has never been seen to fire is indistinguishable
+        # from no guard. Runs the pinned fixtures, including the one-line
+        # repoint that defeated this control's first cut.
+        run: python3 scripts/check-heartbeat-page-id.py --self-test
       - name: CODEOWNERS single-source-of-truth check (SEC-3)
         # GitHub uses only the first CODEOWNERS it finds (.github/ > root >
         # docs/) and silently ignores the rest, so two CODEOWNERS files means
@@ -238,6 +254,29 @@ jobs:
         # comparators rot, every environment would report clean for the wrong
         # reason, and that must fail here rather than during a promotion.
         run: python3 scripts/check-live-schema-parity.py --self-test
+      - name: Migration ledger-parity checker self-test (CTL-049)
+        # Same split as CTL-048 above: the LIVE run needs a Management API
+        # token and lives in db-invariants.yml, but the comparison and the
+        # two-way ratchet are pure logic and must be proven to still fail here.
+        # The normaliser is the part that matters — it collapses the repo's
+        # `profile_items_visibility` onto the ledger's
+        # `kan_143_profile_items_visibility`, and one that collapsed too much
+        # would MASK an unrebuildable migration while reporting green.
+        run: python3 scripts/check-migration-ledger-parity.py --self-test
+      - name: Snapshot-regeneration checker self-test (CTL-071)
+        # SEC-151. Same split again: the LIVE run regenerates from three
+        # databases and lives in db-invariants.yml; the comparison is pure
+        # logic and must be proven to still fail here.
+        #
+        # What matters in these fixtures is the NORMALISATION. It collapses
+        # exactly one thing — trailing whitespace at end of file, because the
+        # CLI and the Supabase MCP generator disagree about the final newline
+        # and a control red on all three environments over a blank line is one
+        # somebody switches off. A normaliser that collapsed any more than
+        # that would hide real schema drift while reporting green, so the
+        # fixtures pin both directions: EOF whitespace is not drift, a blank
+        # line INSIDE the file is.
+        run: python3 scripts/check-snapshot-regeneration.py --self-test
       - name: macOS Finder-duplicate file check (KAN-357)
         # Reject any committed " <n>"-suffixed file/dir (e.g. "[slug] 2/" or
         # "profile-sections 2.cjs"). These Finder-copy duplicates shadow the
@@ -309,6 +348,69 @@ jobs:
           set -euo pipefail
           python3 scripts/check-workflow-secret-refs.py --self-test
           python3 scripts/check-workflow-secret-refs.py
+      - name: Absent-secret ledger has a live probe (SEC-158 / CTL-068)
+        # The check above is ONE-DIRECTIONAL: it fails when a workflow names a
+        # secret in neither ledger, and never asks whether a recorded ABSENCE is
+        # still real. So an entry saying "this does not exist" passed forever
+        # once the secret was provisioned — SUPABASE_ACCESS_TOKEN sat there
+        # under 20 lines of confident, false prose while CTL-049 was quietly
+        # green, pointing anyone triaging a red run at the wrong job entirely.
+        #
+        # `${{ secrets[NAME] }}` cannot be indexed dynamically, so the probe is
+        # GENERATED with one literal per entry. This step asserts the generated
+        # workflow still matches the ledger; the probe itself runs weekly and
+        # is what actually catches an absence that has ended.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-absent-secret-probe.py --self-test
+          python3 scripts/check-absent-secret-probe.py
+      - name: Admin moderation writes refuse a self-target (SEC-118 / CTL-075)
+        # SEC-118: three of four writers of a member's `profiles` row carried a
+        # self-moderation guard and one did not, so an admin reviewing a report
+        # filed against their OWN profile was shown a live Suspend button that
+        # locked them out of the product with no in-app way back.
+        #
+        # Keyed on the ADMIN MODERATION SIGNATURE (writes `profiles` AND logs a
+        # moderation action), deliberately NOT on the column name: the bulk
+        # path passes an opaque payload built in another module, so a
+        # column-keyed matcher reports clean over the highest-volume moderation
+        # path in the product. Same lesson as CTL-055's `opaque-builder`.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-self-moderation-guard.py --self-test
+          python3 scripts/check-self-moderation-guard.py
+      - name: Soak verdicts are extracted and testable (BUGS-103 / CTL-069)
+        # BUGS-103: the C1-sitemap-fresh probe asserted a header Next hardcodes
+        # to the OTHER value, so it could never return PASS and could not have
+        # caught SEC-100 — the defect it existed for. It shipped red and stayed
+        # red four days.
+        #
+        # Two things made that possible. The instrument did not vary with the
+        # property (only measurement could catch that), and the decision was
+        # INLINE bash reachable by no test — so nothing could observe that its
+        # PASS branch was unreachable. This gates the second.
+        #
+        # Shrink-only and two-way: a NEW inline verdict fails, and a baselined
+        # one that has been extracted fails as STALE. Extraction is credited
+        # only when the classifier has a test asserting BOTH verdicts —
+        # otherwise "extract it" is a way to leave the baseline for free.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-soak-classifier-coverage.py --self-test
+          python3 scripts/check-soak-classifier-coverage.py
+      - name: SRC key identity lock (KAN-475 / CTL-070)
+        # The manifest guards ask "does every SRC key resolve to a tracked
+        # file?". After a repoint every key still resolves, so they are blind to
+        # a key that silently changed MEANING — measured: moving one file made
+        # SRC.pipeline point at a different pipeline while
+        # `SRC.pipeline is defined and points at a tracked file` stayed green.
+        # Two-way: a repointed key fails, and a lock that has drifted from the
+        # manifest fails as stale. A repoint can only be cleared by naming the
+        # key in --accept-repoint, so it cannot ride out on a routine refresh.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-source-path-identity.py --self-test
+          python3 scripts/check-source-path-identity.py
       - name: Control registry integrity (SEC-101)
         # The meta-control. controls/registry.json is the durable memory of the
         # Defect Feedback Loop — which control stops which defect class, and
@@ -352,6 +454,74 @@ jobs:
           set -euo pipefail
           python3 scripts/check-scheduled-workflows-active.py --self-test
           python3 scripts/check-scheduled-workflows-active.py
+      - name: Required checks are still satisfiable (CTL-066, SEC-106)
+        # A required status check is a STRING. GitHub stores the context name a
+        # branch demands and never verifies that anything still produces it, so
+        # renaming main-chain-guard.yml's `guard` job un-gates SEC-98 production
+        # change control with no error anywhere: protection keeps waiting for a
+        # check nothing reports, and the PR is admin-merged and forgotten.
+        #
+        # ONLY THE --local ARM RUNS HERE, and blocking from day one is safe
+        # because it is decided entirely by the diff: it compares the contexts
+        # in .github/expected-protection.json against the jobs this repo
+        # defines, needs no credentials, and passes on develop today.
+        #
+        # The --live arm (does GitHub's actual configuration match the file?)
+        # runs on a SCHEDULE in required-checks.yml, not here. A pull request
+        # cannot change branch protection, so it would answer nothing in the PR
+        # gate while putting a third-party API on the merge path - the shape
+        # that froze the pipeline ~11 days under SEC-88 (gotcha #23).
+        run: |
+          set -euo pipefail
+          python3 scripts/check-required-checks.py --self-test
+          python3 scripts/check-required-checks.py --local
+      - name: Workflow lint — actionlint + zizmor (CTL-073, SEC-106 §3 item 2)
+        # SEC-106 §1: "Nothing lints .github/workflows/** for the false-green
+        # primitives themselves." These two tools are the answer to part of
+        # that, and the script header states exactly which part — actionlint
+        # catches the `if:` guard referencing secrets.*, and neither tool sees
+        # continue-on-error, `|| true`, `set +e`, a missing set -euo pipefail
+        # or a missing defaults.run.shell. That gap is recorded rather than
+        # implied to be covered.
+        #
+        # A RATCHET, not "zero findings": measured at landing, the 43 workflows
+        # here carry 7 actionlint + 109 zizmor findings. A gate that reddens
+        # dozens of files on day one is a gate someone turns off, so the past
+        # is grandfathered per (tool, rule, file) and may only SHRINK — and a
+        # baselined finding that has been fixed fails as STALE, because a list
+        # you may only add to is a suppression list.
+        #
+        # BOTH VERSIONS ARE PINNED, and the baseline records them. This is the
+        # only control in the estate besides npm-audit whose subject is a
+        # third-party tool, and SEC-105 is the lesson: a rule set that moves on
+        # its own schedule goes red overnight on an unchanged repo. A version
+        # bump is therefore a deliberate act with a regenerated baseline in the
+        # same commit; running a different version is UNVERIFIED, not a
+        # comparison of one tool's findings against another tool's baseline.
+        env:
+          ACTIONLINT_VERSION: v1.7.12
+          ZIZMOR_VERSION: 1.29.0
+        run: |
+          set -euo pipefail
+          # Installed from source/PyPI rather than via marketplace actions: a
+          # new remote action would need a 40-hex SHA pin (check-action-pinning
+          # .sh), and go + pipx are already on ubuntu-latest. No secret is
+          # involved, so there is no silent-skip path here — a missing tool
+          # exits non-zero.
+          go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+          ACTIONLINT_BIN="$(go env GOPATH)/bin/actionlint"
+          ZIZMOR_CMD="$(command -v zizmor || echo "${HOME}/.local/bin/zizmor")"
+          export ACTIONLINT_BIN ZIZMOR_CMD
+          python3 scripts/check-workflow-lint.py --self-test
+          # The fixture arm that drives the real binaries (§4d: a dirty fixture
+          # is rejected AND a clean one passes, so the rule is not always-red).
+          # It is separate from --self-test because the linters are not on every
+          # machine, and it reports UNVERIFIED rather than skipping when one is
+          # missing. THIS is where that contract is actually exercised — the
+          # jest suite runs only the hermetic arm.
+          python3 scripts/check-workflow-lint.py --self-test-tools
+          python3 scripts/check-workflow-lint.py
       - name: Shared-code drift across repos (CTL-043, KAN-418)
         # content-moderation.ts and moderation-policy.ts exist as COPIES in
         # lyra AND lyra-mcp-server, with nothing checking they still agree.
@@ -423,7 +593,7 @@ jobs:
           python3 scripts/check-comment-only-assertions.py --self-test
           python3 scripts/check-comment-only-assertions.py
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -435,7 +605,14 @@ jobs:
         # control to its invoker in controls/registry.json; `npm run lint` alone
         # reaches it only by convention, and a convention is precisely what the
         # registry exists to stop us relying on.
-        run: npm run lint  # uses eslint.config.mjs
+        #
+        # SEC-119: that name used to live in a trailing `# uses eslint.config.mjs`
+        # comment, and check-control-registry.py's substring scan was satisfied by
+        # it — so the registry's proof that this control is invoked was a comment.
+        # --config is the SAME file eslint would load by convention (flat config
+        # default), so behaviour is unchanged; it is now an argument rather than a
+        # remark, which is the difference between a claim and a wiring.
+        run: npm run lint -- --config eslint.config.mjs
       - name: Run type check
         run: npm run type-check
       - name: Dependency-rule gate (KAN-425)
@@ -449,22 +626,106 @@ jobs:
         #
         # Placed after `npm ci` because dependency-cruiser is a dev-dependency.
         #
-        # ROLL-OUT: severity `warn` — violations are printed and annotated, the
-        # build stays green. Flip to blocking by changing DEPCRUISE_SEVERITY to
-        # `error` once the outstanding findings are cleared (they are KAN-424
-        # Defects 2 and 3 plus two more found by this gate; see docs/RUNBOOK.md
-        # → "Dependency-rule gate (KAN-425)"). That variable is the ONLY
-        # intended change — never relax a rule's definition to make it pass.
+        # ⚠️ `DEPCRUISE_SEVERITY=warn` DOES NOT MAKE THIS STEP NON-BLOCKING.
+        # This comment used to read "the build stays green", which has been
+        # FALSE since KAN-414 F3 (2026-07-29) replaced the single global dial
+        # with per-rule severity. `FORCE_ERROR` is a one-way override, so a rule
+        # measured at zero violations resolves to `error` regardless of the env
+        # var: no-module-to-app and no-circular BLOCK today. Only
+        # no-cross-segment-app is genuinely warn, because 2 violations remain.
+        #
+        # Proven by mutation 2026-08-14 rather than by reading the config: a
+        # src/modules/platform → src/app/globals.css import under this exact
+        # invocation exits 1 with `error no-module-to-app`.
+        #
+        # Left as `warn` deliberately — it is the value that keeps the one
+        # unfinished rule advisory while the two finished ones block. Never
+        # relax a rule's definition to make it pass.
         #
         # Fails closed: if dependency-cruiser cannot run (missing/unparseable
         # config, missing binary), the step fails rather than passing quietly.
         run: DEPCRUISE_SEVERITY=warn bash scripts/check-dependency-rules.sh
+      - name: Module layering policy (CTL-051)
+        # KAN-415 C2, the layering half. modules.json declares a layer per
+        # module and an explicit layerPolicy — "edge src->dst allowed iff
+        # layer(dst) < layer(src) OR dst in declaredSameLayer[src]; upward edges
+        # FORBIDDEN ABSOLUTELY" — and until now NOTHING read any of it. All 21
+        # modules carried "enforced": false and no script consumed that field,
+        # so the manifest described an architecture rather than constraining
+        # one. Measured when this landed: 62 cross-module edges, 12 violating.
+        #
+        # Not a dependency-cruiser rule: the policy is a function of two JSON
+        # fields across 21 modules, which as depcruise regexes would be ~400
+        # generated pairwise rules that go stale on every layer change. Reading
+        # the manifest keeps one source of truth; depcruise still produces the
+        # graph.
+        #
+        # Two-way ratchet on modules-layering-baseline.json — a NEW violation
+        # fails, and so does a baselined one that has been FIXED. Fails closed
+        # (exit 2) if the manifest, graph or baseline cannot be read.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-module-layering.py --self-test
+          python3 scripts/check-module-layering.py
+          python3 scripts/check-module-api.py --self-test
+          python3 scripts/check-module-api.py
+          python3 scripts/check-edge-safe.py --self-test
+          python3 scripts/check-edge-safe.py
+          # CTL-055. The three checks above constrain the IMPORT graph; this one
+          # constrains the DATA graph, and they are not the same boundary.
+          # Convene is the proof: it passes CTL-051 and CTL-053 cleanly — 2
+          # declared entry points, every outward edge legal and downward — and
+          # still reaches 3 tables owned by other modules. `modules.json` has
+          # carried `owns.tables` since it was written and nothing read it.
+          python3 scripts/check-module-table-ownership.py --self-test
+          python3 scripts/check-module-table-ownership.py
+          # CTL-056. `app-routes-are-thin` — the last of the nine rules KAN-415
+          # criterion 2 names, and the only one never built, because "thin" was
+          # never defined. Defined now as a shrink-only ratchet on direct
+          # database calls inside request entry points: 48 of 99 route files,
+          # 217 calls at landing. Not "zero calls" — that is a 48-file
+          # relocation, exactly the work criterion 3 concluded was unnecessary,
+          # and a rule that reddens 48 files on day one is a rule someone turns
+          # off. Per file, not a total, so one file improving cannot mask
+          # another regressing.
+          python3 scripts/check-route-thinness.py --self-test
+          python3 scripts/check-route-thinness.py
+          # CTL-076 / KAN-459. A test-side Supabase mock must record .eq()
+          # filters PER STATEMENT. KAN-447/448 pooled them per TABLE, so the
+          # ownership pre-read satisfied assertions meant to be about the
+          # UPDATE: both owner filters were deletable while 27 tests stayed
+          # green. CTL-039's shape inside out — there a comment satisfies the
+          # assertion, here an incidental adjacent statement does.
+          python3 scripts/check-pooled-eq-mock.py --self-test
+          python3 scripts/check-pooled-eq-mock.py
+          # CTL-064 / SEC-99. SEC-98 forbids pushing directly to main/beta/
+          # staging, and until now that rule existed only in CLAUDE.md while the
+          # repo shipped two scripts that did exactly it — six direct pushes,
+          # three of them --force onto main. A documented convention with no
+          # gate erodes (the gotcha #28 lesson). Scans every TRACKED file under
+          # scripts/ with no extension filter: SEC-99's own §1 called those
+          # scripts unreferenced on the strength of a grep over
+          # *.md/*.yml/*.json/*.sh, and missed docs/lyra-project-reference.jsx.
+          # .github/workflows/ is out of scope by design — the promote workflows
+          # push to release branches because that IS the supervised path, and
+          # CTL-016 already governs them.
+          python3 scripts/check-release-branch-push.py --self-test
+          python3 scripts/check-release-branch-push.py
       - name: Run unit tests
         run: npm run test:unit
         env:
           CI: true
-      - name: Run npm audit (high/critical vulnerabilities block PR)
-        run: npm audit --audit-level=high
+      # SEC-105. Scoped to the production dependency tree and waiver-aware.
+      # This is now the ONLY blocking npm audit in the estate — the four deploy
+      # workflows re-audited a lockfile this step had already passed, adding no
+      # information and a spontaneous-failure window on the release path.
+      # The full tree is still audited weekly by security-audit.yml, which
+      # raises a ticket rather than blocking.
+      - name: npm audit — production tree (high/critical block the PR)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-npm-audit-gate.py --self-test
+          python3 scripts/check-npm-audit-gate.py --scope prod
       - name: Check for lint/type bypasses without Jira reference
         run: |
           set -euo pipefail

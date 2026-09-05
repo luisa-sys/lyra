@@ -11,7 +11,7 @@ import {
   isRecommendationEventType,
   isRecommendationEventSource,
   sanitiseEventMetadata,
-} from '@/lib/recommender/events';
+} from '@/modules/recommendations/recommender/events';
 
 describe('KAN-202 recommendation events — RECOMMENDATION_EVENT_TYPES', () => {
   test('matches the SQL CHECK constraint exactly', () => {

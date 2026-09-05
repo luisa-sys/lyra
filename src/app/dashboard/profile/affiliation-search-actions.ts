@@ -6,7 +6,7 @@
  *
  * Same shape as the KAN-341 town/city lookup (`city-actions.ts`): a thin
  * authenticated wrapper around a pure Places client that lives in
- * `src/lib/geo/places-schools.ts`. Constants and types stay in that module —
+ * `src/modules/profile/geo/places-schools.ts`. Constants and types stay in that module —
  * a `'use server'` file may export only async functions (BUGS-12 / gotcha #18).
  *
  * This is a SUGGESTION service, not a gate. When it returns nothing — no key
@@ -16,8 +16,8 @@
  */
 
 import { createClient } from '@/modules/platform/supabase-server';
-import { shouldSuggest, type PlaceSuggestion } from '@/lib/geo/places-schools';
-import { lookupPlaceSuggestions } from '@/lib/geo/places-schools-lookup';
+import { shouldSuggest, type PlaceSuggestion } from '@/modules/profile/geo/places-schools';
+import { lookupPlaceSuggestions } from '@/modules/profile/geo/places-schools-lookup';
 import { coerceAffiliationType } from './affiliation-fields';
 
 export type SuggestAffiliationsResult =

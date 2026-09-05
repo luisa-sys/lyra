@@ -14,12 +14,52 @@
 # against the FOUNDER-OWNED UI/COPY surface (mirrored 1:1 from the autopilot's
 # protected-surface list so the guard and the robot agree). If any protected
 # path is touched, it requires an approval trailer on a commit in the range:
-#   * UI-Change-Approved: <JIRA-KEY>  — a Luisa-initiated design/copy change.
-#   * UI-Bugfix-Only:     <JIRA-KEY>  — a fix STRICTLY limited to a text error
+#   * UI-Change-Approved:  <JIRA-KEY> — a Luisa-initiated design/copy change.
+#   * UI-Bugfix-Only:      <JIRA-KEY> — a fix STRICTLY limited to a text error
 #                                       (typo/wrong/stale string) or a rendering
 #                                       error (blank page, broken layout, styling
 #                                       regression), which *restores* the intended
 #                                       design rather than changing it.
+#   * UI-No-Visual-Change: <JIRA-KEY> — the diff touches a protected path but
+#                                       changes NEITHER the rendered output NOR
+#                                       any user-visible string. See below.
+#
+# WHY THE THIRD TRAILER EXISTS (SEC-152).
+# The guard matches on PATH, so any .tsx under src/app trips it — including
+# changes that alter no pixel and no word: threading a prop, a type signature, a
+# rename, a parameter passed through to a server action. For those, BOTH of the
+# original trailers are false statements. `UI-Change-Approved` asserts the
+# founder approved a design change that does not exist; `UI-Bugfix-Only` asserts
+# a text or rendering error that does not exist either.
+#
+# That mattered more than a wording quibble. CLAUDE.md already records the trap
+# that "the trailer is a string, not evidence" — a gate reads a commit message
+# and cannot read a design. That analysis assumed the failure mode is someone
+# claiming approval they do not have. This is the MIRROR IMAGE and is more
+# corrosive: a rule that forces a routine, unavoidable misstatement teaches
+# everyone that the trailer is a formality to satisfy rather than a claim to
+# mean. Once it is noise, the founder-approval signal is worth nothing, and the
+# first genuinely unapproved design change rides through on the same reflex.
+#
+# Concrete case: SEC-46 Phase C (2026-08-16) threaded an RFC 8707 `resource`
+# parameter through src/app/oauth/authorize/page.tsx — six lines, zero design
+# delta, zero copy delta. It shipped under `UI-Bugfix-Only:` with the
+# discrepancy disclosed in the commit body, the PR and this ticket, because
+# there was no honest option.
+#
+# ⚠️ WHAT WAS DELIBERATELY *NOT* DONE: carving src/app/oauth/** out of
+# `is_protected`. That path genuinely holds founder-owned consent-screen copy,
+# and narrowing the surface would remove it from ownership permanently and
+# SILENTLY — the KAN-473 failure exactly, where extracting three components to
+# src/modules/ would have dropped them out of protection with no red build. A
+# third trailer keeps the surface intact and makes the claim honest.
+#
+# ⚠️ AND THE HONEST LIMIT OF IT: this trailer is checked no more than the other
+# two. Nothing here verifies that the diff really is visually inert — a changed
+# className changes rendering, and no cheap static test distinguishes that from
+# a renamed variable. It is a truthful CLAIM, not evidence, and it is recorded
+# as such rather than dressed up as a check.
+#
 # No trailer → HARD FAIL (a false positive only forces a human to add a trailer;
 # a false negative would let the product's voice/look drift silently, which is
 # the case we bias hard against).
@@ -34,6 +74,74 @@
 #   BASE_REF defaults to origin/develop; HEAD_REF defaults to HEAD. Both are
 #   overridable via env so the unit tests can drive crafted histories.
 set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# --describe : emit the founder-owned surface, DERIVED from is_protected()
+# ---------------------------------------------------------------------------
+#
+# KAN-474. This exists because the surface was maintained in TWO places — this
+# guard, and the Backlog Autopilot's prompt, which is a SaaS routine no CI job
+# can read. They are supposed to be 1:1 mirrors. They drifted twice:
+#
+#   * KAN-415 moved `src/lib/invite-text.ts` and `src/lib/beta-access/email.ts`
+#     into `src/modules/`. The guard was updated; the prompt was not, so two
+#     copy modules were protected by CI and unprotected by the robot.
+#   * KAN-473 added `src/modules/*.tsx`. Again the guard only. The autopilot
+#     would have read three founder-owned components as fair game.
+#
+# Neither drift could go red, because nothing in CI can see a routine prompt.
+# So the fix is not another checker — it is removing the second copy. The
+# autopilot now reads this at runtime instead of restating it, and the guard
+# becomes the single source of truth.
+#
+# ⚠️ THE OUTPUT IS PARSED OUT OF is_protected() ITSELF, not hand-written
+# alongside it. That distinction is the whole point: a hand-written
+# description is a third copy and would drift exactly like the second one did.
+# Add a rule to the function and it appears here with no further edit —
+# `tests/scripts/check-ui-copy-ownership.test.js` proves that by adding one.
+#
+# Contract: line-oriented and stable, because a routine prompt parses it.
+#   PROTECTED <glob>     founder-owned; autopilot must not touch
+#   CARVE-OUT <glob>     explicitly NOT founder-owned; checked first, wins
+# Carve-outs are printed FIRST because that is the order they are evaluated in.
+describe_surface() {
+  local body
+  body="$(sed -n '/^is_protected()/,/^}/p' "$0")"
+
+  echo "# Founder-owned UI/copy surface — KAN-411."
+  echo "# Derived from is_protected() in scripts/check-ui-copy-ownership.sh."
+  echo "# Do not restate this list anywhere; read it."
+  echo "#"
+  echo "# CARVE-OUT lines are evaluated FIRST and win over PROTECTED lines."
+  echo
+
+  # ⚠️ The extraction must tolerate a TRAILING COMMENT and arbitrary internal
+  # whitespace, because the function is written for humans and several rules
+  # carry both. The first cut of this anchored on `]] && return N$` and
+  # silently emitted 1 carve-out instead of 4, dropping `src/*.css` — a list
+  # that LOOKS right while omitting rules is the exact failure mode KAN-474
+  # exists to end, so the parser is strict about the shape it matches and the
+  # test below pins the counts rather than trusting the output looks sensible.
+  extract_rules() {  # $1 = return code to select
+    printf '%s\n' "$body" \
+      | sed -n "s/^[[:space:]]*\[\[[[:space:]]*\\\$f[[:space:]]*==[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*\]\][[:space:]]*\&\&[[:space:]]*return[[:space:]]*$1[[:space:]]*\(#.*\)\{0,1\}\$/\1/p"
+  }
+
+  # `return 1` inside the function = explicitly not protected.
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf 'CARVE-OUT %s\n' "$line"
+  done < <(extract_rules 1)
+
+  # `return 0` = founder-owned.
+  while IFS= read -r line; do
+    [ -n "$line" ] && printf 'PROTECTED %s\n' "$line"
+  done < <(extract_rules 0)
+}
+
+if [ "${1:-}" = "--describe" ]; then
+  describe_surface
+  exit 0
+fi
 
 BASE_REF="${BASE_REF:-origin/develop}"
 HEAD_REF="${HEAD_REF:-HEAD}"
@@ -59,10 +167,10 @@ is_protected() {
   [[ $f == */route.ts ]]      && return 1     # any route handler = logic
   [[ $f == src/middleware.ts ]] && return 1
   # --- named user-facing copy modules ---
-  [[ $f == src/lib/invite-text.ts ]] && return 0
+  [[ $f == src/modules/dashboard/invite-text.ts ]] && return 0
   [[ $f == src/lib/convene/invites/templates.ts ]] && return 0
   [[ $f == src/lib/convene/invites/sms-templates.ts ]] && return 0
-  [[ $f == src/lib/beta-access/email.ts ]] && return 0
+  [[ $f == src/modules/access/beta-access/email.ts ]] && return 0
   [[ $f == src/app/dashboard/profile/affiliation-fields.ts ]] && return 0
   [[ $f == src/app/dashboard/convene/organise/organise-fields.ts ]] && return 0
   # --- design / styling / brand ---
@@ -121,7 +229,7 @@ fi
 
 # A UI/copy change is present → require an approval trailer somewhere in range.
 COMMIT_MSGS="$(git log "${MERGE_BASE}..${HEAD_REF}" --format='%B' 2>/dev/null || true)"
-TRAILER_RE='^(UI-Change-Approved|UI-Bugfix-Only):[[:space:]]*[A-Z][A-Z0-9]+-[0-9]+'
+TRAILER_RE='^(UI-Change-Approved|UI-Bugfix-Only|UI-No-Visual-Change):[[:space:]]*[A-Z][A-Z0-9]+-[0-9]+'
 # here-strings (not pipes) so `set -o pipefail` can't SIGPIPE-fail a match.
 if grep -Eq "$TRAILER_RE" <<<"$COMMIT_MSGS"; then
   TRAILER="$(grep -m1 -Eo "$TRAILER_RE" <<<"$COMMIT_MSGS" || true)"
@@ -138,10 +246,20 @@ The look and text of Lyra's user-facing pages belong to Luisa (CLAUDE.md
 "LOOK AND TEXT"; autopilot House rule 9). A change to these paths must be
 FOUNDER-INITIATED. Add ONE of these trailers to a commit in this PR:
 
-  UI-Change-Approved: <JIRA-KEY>   # Luisa-initiated design/copy change
-  UI-Bugfix-Only:     <JIRA-KEY>   # fix limited to a text error or rendering error
+  UI-Change-Approved:  <JIRA-KEY>  # Luisa-initiated design/copy change
+  UI-Bugfix-Only:      <JIRA-KEY>  # fix limited to a text error or rendering error
+  UI-No-Visual-Change: <JIRA-KEY>  # touches a protected path but changes NEITHER
+                                   # the rendered output NOR any user-visible
+                                   # string (a prop threaded through, a type, a
+                                   # rename). SEC-152.
 
-and label the Jira ticket `ui-approval-required`. If this really is not a
-UI/copy change, the path may need adding to the carve-out list in this script.
+Pick the one that is TRUE. Each is a claim someone may later be held to, not a
+formality — if none of them describes your change, that is a finding worth
+raising rather than a trailer worth guessing.
+
+Label the Jira ticket `ui-approval-required` for the first two. If this really
+is not a UI/copy path at all, it may need adding to the carve-out list in this
+script — but prefer a trailer: narrowing the surface removes a path from
+founder ownership permanently and silently (KAN-473).
 EOF
 exit 1

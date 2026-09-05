@@ -13,8 +13,8 @@
  */
 import { cookies } from 'next/headers';
 import type { createClient } from '@/modules/platform/supabase-server';
-import { resolveBetaAccess, betaRedirectUrl, isProdFamily } from '@/lib/beta-access/flow';
-import { INVITE_COOKIE } from '@/lib/beta-access/invite-cookie';
+import { resolveBetaAccess, betaRedirectUrl, isProdFamily } from '@/modules/access/beta-access/flow';
+import { INVITE_COOKIE } from '@/modules/access/beta-access/invite-cookie';
 import { AGE_DECLARATION_COOKIE } from '@/modules/age/self-declaration';
 import { hasDeclaredAge, recordAgeDeclaration } from '@/modules/age/record-declaration';
 

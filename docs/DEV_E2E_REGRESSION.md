@@ -25,7 +25,7 @@ Fast, ~2 min. A logged-in dev session is required for the dashboard checks (cook
 
 ## 2. Widget-journey state matrix (KAN-349)
 
-The dashboard widget set is a pure function of the profile signals (`src/lib/dashboard/resolve-widgets.ts`). Verify each row by setting the signals (UI or SQL) and reloading `/dashboard`; read `document.querySelector('[data-onboarding-state]')` + `[data-widget]`.
+The dashboard widget set is a pure function of the profile signals (`src/modules/dashboard/resolve-widgets.ts`). Verify each row by setting the signals (UI or SQL) and reloading `/dashboard`; read `document.querySelector('[data-onboarding-state]')` + `[data-widget]`.
 
 | State | Signals | Widgets (in order) |
 |---|---|---|
@@ -34,7 +34,7 @@ The dashboard widget set is a pure function of the profile signals (`src/lib/das
 | `published_activate` | published, missing gifts **or** affiliations | W3 `add_gifts` · W4 `add_affiliations` · W5 `share` |
 | `published_grow` | published, has gifts **and** affiliations | W5 `share` · W6 `convene` (only if convene-entitled) |
 
-- **Completion is derived at read-time** from live content (`src/lib/dashboard/profile-completion.ts`) — NOT the stored `profiles.completion_score` (which is vestigial / always 0 for real users). Name only = 20%; name + a short intro = 40% (→ drafted).
+- **Completion is derived at read-time** from live content (`src/modules/dashboard/profile-completion.ts`) — NOT the stored `profiles.completion_score` (which is vestigial / always 0 for real users). Name only = 20%; name + a short intro = 40% (→ drafted).
 - **Dismissal** (`✕` on secondary widgets; W1/W2 are not dismissible) persists to `profiles.dashboard_widget_state` as `{ widget_id: { state, dismissed_at } }` and **re-surfaces on a state change** (the record is keyed to the state it was dismissed in).
 - The **share widget has two versions**: while a beta invite link exists (`LYRA_INVITE_CODE` set) it's the "Share beta access" /join card; otherwise a "Share Lyra" /signup card. Dev has no invite code, so expect the /signup version.
 

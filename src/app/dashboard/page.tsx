@@ -2,14 +2,14 @@ import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { signOut } from '../(auth)/actions';
+import { signOut } from '../session-actions';
 import ShareBeta from './share-beta';
 import DashboardWidgets, { type WidgetContext } from './widgets/dashboard-widgets';
-import { betaInviteLink, publicSignupUrl } from '@/lib/beta-access/invite-link';
+import { betaInviteLink, publicSignupUrl } from '@/modules/access/beta-access/invite-link';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
-import { resolveWidgets, resolveOnboardingState } from '@/lib/dashboard/resolve-widgets';
-import { dismissedForState, type DashboardWidgetState } from '@/lib/dashboard/dismissal';
-import { computeProfileCompletion } from '@/lib/dashboard/profile-completion';
+import { resolveWidgets, resolveOnboardingState } from '@/modules/dashboard/resolve-widgets';
+import { dismissedForState, type DashboardWidgetState } from '@/modules/dashboard/dismissal';
+import { computeProfileCompletion } from '@/modules/dashboard/profile-completion';
 
 export const metadata = {
   title: 'Dashboard — Lyra',

@@ -34,7 +34,7 @@ src/modules/auth/**
 src/modules/age/**
 
 # Beta-access / invite-code grant applied at signup + confirm
-src/lib/beta-access/**
+src/modules/access/beta-access/**
 
 # Supabase clients used by the signup + confirm paths
 src/modules/platform/supabase-server.ts

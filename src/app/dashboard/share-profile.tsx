@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { buildInviteText } from '@/lib/invite-text';
+import { buildInviteText } from '@/modules/dashboard/invite-text';
 
 /**
  * KAN-154-B: client component for the dashboard "Share your invite" card.

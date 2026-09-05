@@ -10,9 +10,9 @@ let mockIsProdFamily = false;
 jest.mock('@/modules/platform/env', () => ({
   env: { inviteCode: () => mockInviteCode, siteUrl: () => mockSiteUrl },
 }));
-jest.mock('@/lib/beta-access/flow', () => ({ isProdFamily: () => mockIsProdFamily }));
+jest.mock('@/modules/access/beta-access/flow', () => ({ isProdFamily: () => mockIsProdFamily }));
 
-import { publicSignupUrl } from '@/lib/beta-access/invite-link';
+import { publicSignupUrl } from '@/modules/access/beta-access/invite-link';
 import fs from 'fs';
 import path from 'path';
 import { SRC } from '../support/source-paths';

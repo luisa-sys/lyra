@@ -65,6 +65,18 @@ export interface IssueAccessTokenInput {
   userId: string;
   clientId: string;
   scope: string;
+  /**
+   * SEC-46 — the canonical resource URI this token is for. Becomes `aud`.
+   *
+   * ⚠️ `aud` USED TO BE `client_id`. That is why one token was accepted by BOTH
+   * resource servers: they verify against the same JWKS with issuer only, so a
+   * consumer token minted through the ordinary consent screen reached admin
+   * tools, with `is_admin` and the Cloudflare Access edge the only things in the
+   * way (SEC-48). `client_id` remains a SEPARATE claim — it is read for caller
+   * identity on the resource server and for the client-mismatch check in
+   * /oauth/revoke, so it must not be conflated with `aud` again.
+   */
+  resource: string;
 }
 
 export interface IssuedAccessToken {
@@ -84,7 +96,7 @@ export async function issueAccessToken(input: IssueAccessTokenInput): Promise<Is
   const claims: AccessTokenClaims = {
     iss: issuer,
     sub: input.userId,
-    aud: input.clientId,
+    aud: input.resource,
     exp,
     iat: now,
     jti,
@@ -95,7 +107,7 @@ export async function issueAccessToken(input: IssueAccessTokenInput): Promise<Is
   const builder = new SignJWT({ scope: input.scope, client_id: input.clientId })
     .setIssuer(issuer)
     .setSubject(input.userId)
-    .setAudience(input.clientId)
+    .setAudience(input.resource)
     .setJti(jti)
     .setIssuedAt(now)
     .setExpirationTime(exp);

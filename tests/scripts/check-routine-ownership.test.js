@@ -21,6 +21,9 @@ const GOOD_FILES = {
     '# Section 1 reads the liveness owner:',
     'gh run list --workflow=health-check.yml -L 1',
     'echo "_Source of record: **Daily Security routine** (docs/DAILY_SECURITY_CHECK.md)._"',
+    // SEC-153 Section 15b: reports a RELEASE concern, so it must keep naming
+    // the release owner rather than becoming a second authority on it.
+    '# Source of record: **Weekly Health + Regression routine**.',
   ].join('\n'),
   [SRC.securityAudit]: [
     'name: Weekly Security Audit',
@@ -138,6 +141,11 @@ describe(SRC.checkRoutineOwnership, () => {
       name: 'weekly-report Section 5 drops the Daily-Security source-of-record cite',
       file: SRC.weeklyReport,
       strip: /Source of record: \*\*Daily Security routine\*\*/,
+    },
+    {
+      name: 'weekly-report Section 15b drops the release source-of-record cite',
+      file: SRC.weeklyReport,
+      strip: /Source of record: \*\*Weekly Health/,
     },
     {
       name: 'ENDPOINT_HEALTH_AUDIT loses its point-in-time snapshot banner',

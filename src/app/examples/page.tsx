@@ -3,7 +3,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/modules/platform/supabase-service";
-import { isProdDeploy } from "@/lib/beta-access/flow";
+import { isProdDeploy } from "@/modules/access/beta-access/flow";
 
 /**
  * "See example profiles" gallery.

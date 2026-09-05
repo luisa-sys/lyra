@@ -9,7 +9,7 @@ import {
   EMPTY_TO_DRAFTED_THRESHOLD,
   type WidgetResolverInput,
   type WidgetId,
-} from '@/lib/dashboard/resolve-widgets';
+} from '@/modules/dashboard/resolve-widgets';
 
 function input(overrides: Partial<WidgetResolverInput> = {}): WidgetResolverInput {
   return {

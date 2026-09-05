@@ -94,7 +94,7 @@ NOT stored in JSONB:
 - Anything PII-grade (full address, real DOB) — those go in columns with RLS we can reason about.
 - Anything regulated (financial, health) — Lyra is not a healthcare app and we keep that boundary deliberately.
 
-### Helper module: `src/lib/recommender/inputs.ts`
+### Helper module: `src/modules/recommendations/recommender/inputs.ts`
 
 Type guards and constants for the new fields (the canonical age-range buckets, the dietary enum, the allergies enum) — used by the (future) recommender, the (future) MCP tool, and the (future) profile UI. Adding the helpers in this ticket so downstream tickets can import canonical types instead of duplicating literals.
 

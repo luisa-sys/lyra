@@ -81,7 +81,7 @@ The reconciliation cron will silently produce zero updates. The dashboard will s
 
 ### FX rate API is down
 
-`convertToGbp` falls back to the hardcoded approximate rates in `src/lib/affiliate/fx.ts`. The variance check (step 2 above) will catch any material drift. If the API is down for >30 days, update the hardcoded rates from a current ECB snapshot.
+`convertToGbp` falls back to the hardcoded approximate rates in `src/modules/affiliate/fx.ts`. The variance check (step 2 above) will catch any material drift. If the API is down for >30 days, update the hardcoded rates from a current ECB snapshot.
 
 ### A new affiliate network goes live (Phase 2: Amazon direct, KAN-196)
 

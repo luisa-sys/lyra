@@ -152,7 +152,7 @@ describe('the gate fires on the surface it is written to protect', () => {
     ['post-login redirect', SRC.postLoginRedirect],
     ['the 18+ declaration', SRC.selfDeclaration],
     ['the middleware composition root', SRC.middleware],
-    ['the access pipeline (D4 moved the gating here)', SRC.accessPipeline],
+    ['the access pipeline (D4 moved the gating here)', SRC.pipeline],
     ['the server Supabase client', SRC.supabaseServer],
     ['the env accessor', SRC.platformEnv],
   ];

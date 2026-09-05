@@ -9,10 +9,10 @@
  * then saves the chosen city via updateProfileFields (city is in the allowlist).
  *
  * '`use server`' constraint: every export is an async function. The pure Places
- * client + extractor live in src/lib/geo/places-city.ts. See BUGS-12.
+ * client + extractor live in src/modules/profile/geo/places-city.ts. See BUGS-12.
  */
 import { createClient } from '@/modules/platform/supabase-server';
-import { lookupCityFromPostcode } from '@/lib/geo/places-city';
+import { lookupCityFromPostcode } from '@/modules/profile/geo/places-city';
 
 export type ResolveCityResult =
   | { success: true; city: string; region: string | null }

@@ -4,15 +4,31 @@
 # KAN-425 (Modular Architecture, Phase 0 / F3): run the three structural
 # dependency rules defined in .dependency-cruiser.cjs as a CI gate.
 #
-#   no-module-to-app        nothing under src/lib/** may import src/app/**
-#   no-cross-segment-app/*  one src/app segment may not import another
-#   no-circular             no import cycles
+#   no-module-to-app        no library root may import src/app/**   BLOCKING
+#   no-cross-segment-app/*  one src/app segment may not import another  warn
+#   no-circular             no import cycles                       BLOCKING
 #
-# ROLL-OUT: the gate ships at severity `warn` — violations are printed and
-# annotated, the build stays green — and flips to `error` (blocking) once the
-# outstanding findings are cleared and develop has been clean for a week. Set
-# DEPCRUISE_SEVERITY=error to flip it (that is the ONLY intended change; never
-# weaken a rule's definition to make the gate pass).
+# ⚠️ SEVERITY IS PER RULE, AND `DEPCRUISE_SEVERITY=warn` DOES NOT SWITCH THE
+# GATE OFF. This header used to say "the gate ships at severity `warn` … the
+# build stays green", describing the single global dial that KAN-414 F3 replaced
+# on 2026-07-29. Since then severity is assigned per rule:
+#
+#     const severityFor = (ruleAtZero) => (FORCE_ERROR || ruleAtZero ? 'error' : 'warn')
+#
+# `FORCE_ERROR` is a ONE-WAY override. A rule measured at zero violations passes
+# `ruleAtZero = true`, so it resolves to `error` whatever the env var says.
+# no-module-to-app and no-circular have therefore been BLOCKING since
+# 2026-07-29, while this comment and pr-checks.yml both described them as
+# switched off.
+#
+# Verified by mutation 2026-08-14, not by reading: adding a
+# src/modules/platform → src/app/globals.css import under DEPCRUISE_SEVERITY=warn
+# gives `error no-module-to-app: …` and exit 1.
+#
+# A stale comment claiming a live control is off is its own hazard — it is how
+# someone concludes the gate is decorative and stops reading its output, or
+# removes it as dead weight. Only `no-cross-segment-app` is genuinely warn, and
+# only because 2 violations remain (see .dependency-cruiser.cjs).
 #
 # FAIL-CLOSED (Workflow & Backup Integrity Policy). A gate that cannot run must
 # fail the build, never pass quietly. dependency-cruiser exits non-zero both

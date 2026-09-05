@@ -34,7 +34,7 @@
 /src/app/(auth)/                    @luisa-sys
 /src/app/oauth/                     @luisa-sys
 /src/modules/oauth-as/lib/          @luisa-sys
-/src/lib/beta-access/               @luisa-sys
+/src/modules/access/beta-access/               @luisa-sys
 # KAN-415 D4: the request-gating pipeline. Same reasoning as beta-access —
 # a change here decides who reaches the app at all.
 /src/modules/access/                @luisa-sys

@@ -4,8 +4,8 @@ import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
-import { getRecommendations } from '@/lib/recommend';
-import { keyForRecommendation } from '@/lib/recommend/dismissals';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { keyForRecommendation } from '@/modules/recommendations/recommend/dismissals';
 import type { GiftSuggestionView } from './sections';
 
 export const metadata = {

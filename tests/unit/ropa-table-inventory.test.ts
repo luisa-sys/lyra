@@ -12,7 +12,7 @@
  *
  * Fixing the export alone would have left that second path broken. So the ROPA
  * now carries the inventory, and this test makes the two un-driftable: every
- * table in `src/lib/gdpr/person-keyed-tables.ts` must appear in the document,
+ * table in `src/modules/contracts/person-keyed-tables.ts` must appear in the document,
  * and every table the document names must exist in the manifest.
  *
  * Both directions matter. Only checking one lets the doc silently fall behind
@@ -25,7 +25,7 @@ import {
   PERSON_KEYED_TABLES,
   JOIN_KEYED_TABLES,
   DELIBERATELY_EXCLUDED,
-} from '@/lib/gdpr/person-keyed-tables';
+} from '@/modules/contracts/person-keyed-tables';
 
 const ROOT = resolve(__dirname, '../..');
 const ROPA = 'docs/compliance/ROPA.md';

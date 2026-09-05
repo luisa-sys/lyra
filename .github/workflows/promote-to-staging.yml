@@ -6,6 +6,26 @@ on:
         description: 'Type "promote" to confirm'
         required: true
 
+# SEC-141: promotes must not run simultaneously.
+#
+# A single dispatch of promote-staging-to-beta produced TWO runs 63 seconds
+# apart on 2026-08-14 (cause unconfirmed; a client retry on a slow 204 is the
+# leading hypothesis). Each promote fetches, merges and pushes, so two in
+# flight can interleave in the lost-update window. That day it was harmless
+# only because someone noticed and cancelled one, which is not a control.
+#
+# ⚠️ cancel-in-progress MUST stay false. The reflexive `true` is actively
+# worse here: it would kill an in-flight promote MID-MERGE OR MID-PUSH, a
+# nastier failure than the race it prevents. With false the second run
+# queues, then finds the merge already done — a harmless no-op.
+#
+# Each workflow gets its OWN group. staging→beta and beta→main target
+# different branches and are independent; serialising them across workflows
+# would only make a release slower.
+concurrency:
+  group: promote-${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: read
@@ -25,7 +45,7 @@ jobs:
     outputs:
       develop_sha: ${{ steps.check.outputs.develop_sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 1
           ref: develop
@@ -129,7 +149,7 @@ jobs:
       E2E_CF_BYPASS_HEADER: ${{ secrets.E2E_CF_BYPASS_HEADER }}
       E2E_CF_BYPASS_SECRET: ${{ secrets.E2E_CF_BYPASS_SECRET }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           ref: develop
@@ -165,7 +185,7 @@ jobs:
           echo "prod guard passed"
       - name: Setup Node.js
         if: steps.detect.outputs.touched == 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -238,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - name: Self-test the checker
         # Prove the comparators can still fail before trusting a clean report.
@@ -267,7 +287,7 @@ jobs:
       # — "events triggered by the GITHUB_TOKEN will not create a new
       # workflow run"). The PAT is attributed to a real user and DOES
       # trigger deploy-staging.yml on push.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.LYRA_RELEASE_PAT }}

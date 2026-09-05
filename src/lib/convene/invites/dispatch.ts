@@ -25,7 +25,7 @@ import {
 } from './templates';
 import { renderSmsBody } from './sms-templates';
 import { isFeatureEnabledByUserId } from '@/modules/features/entitlements-service';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;

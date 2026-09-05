@@ -32,14 +32,14 @@
   },
   "shared": [
     {
-      "local": "src/lib/content-moderation.ts",
+      "local": "src/modules/contracts/content-moderation.ts",
       "source": "lyra-mcp-server",
       "remote": "src/content-moderation.ts",
       "mode": "exact",
       "why": "The moderation wordlist and severity grading. Byte-identical across both repos as of 2026-08-09 (md5 b07eac8ed85ae3cc5669522f0afad395), and there is no reason for it ever not to be."
     },
     {
-      "local": "src/lib/moderation-policy.ts",
+      "local": "src/modules/contracts/moderation-policy.ts",
       "source": "lyra-mcp-server",
       "remote": "src/moderation-policy.ts",
       "mode": "normalised",

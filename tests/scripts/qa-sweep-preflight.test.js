@@ -283,7 +283,13 @@ describe('qa-sweep/config.py — the safety envelope', () => {
     // The scan must actually find call sites, or this passes by vacuous truth —
     // the exact failure mode the whole qa-sweep exists to avoid.
     expect(found.length).toBeGreaterThanOrEqual(5);
-    expect(found).toContain('src/app/(auth)/actions.ts::signOut');
+    // KAN-415 moved this to the app root to clear the last cross-segment edge.
+    // Via SRC, not a literal, for the same reason as the line below: the key is
+    // path-anchored, so a raw path here would have to be hand-edited on every
+    // move and a missed edit reads as a passing test. `toContain` is safe
+    // against gotcha #31 — a dropped key yields 'undefined::signOut', which is
+    // absent from `found`, so the test FAILS rather than passing vacuously.
+    expect(found).toContain(`${SRC.sessionActions}::signOut`);
     // KAN-415 D7 part 3 moved this body into a module. TWO-WAY ratchet: it
     // fails if the scan stops finding the call site at all, and it failed at
     // the old path the moment the file moved.

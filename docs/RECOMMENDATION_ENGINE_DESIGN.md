@@ -1,6 +1,6 @@
 # Recommendation Engine — V2 architecture (KAN-199)
 
-> Lyra's V1 recommender (`src/lib/recommend/`, shipped in PR #191) ranks **gift concepts** drawn from a 50-template pool — useful but not monetisable. V2 evolves the engine so every output is a **real, geo-appropriate, monetisable product** that the buyer can click and Lyra can attribute commission on. V2 wraps V1 (not replaces it) and feeds into the Affiliate Link Service (KAN-188) and the MCP tool (KAN-201).
+> Lyra's V1 recommender (`src/modules/recommendations/recommend/`, shipped in PR #191) ranks **gift concepts** drawn from a 50-template pool — useful but not monetisable. V2 evolves the engine so every output is a **real, geo-appropriate, monetisable product** that the buyer can click and Lyra can attribute commission on. V2 wraps V1 (not replaces it) and feeds into the Affiliate Link Service (KAN-188) and the MCP tool (KAN-201).
 
 This is a design ticket. Implementation lands in KAN-200 (candidate sourcing), KAN-190 (eligibility filter wiring), KAN-191 (web rendering), KAN-201 (MCP), KAN-202 (feedback loop).
 
@@ -18,7 +18,7 @@ Inputs
                           │
                           ▼
   ┌──────────────────────────────────────────────────────────┐
-  │ V1 concept layer (src/lib/recommend/, SHIPPED PR #191)    │
+  │ V1 concept layer (src/modules/recommendations/recommend/, SHIPPED PR #191)    │
   │ - Output: ranked list of CONCEPTS                         │
   │   (templateId, category, rationale_partial)               │
   └──────────────────────────────────────────────────────────┘
@@ -97,7 +97,7 @@ V2 uses a **three-tier waterfall** per concept, not a single approach:
 
 ## Ranking + scoring
 
-V1's 11-rule scorer (`src/lib/recommend/score.ts`) ranks **concepts**. V2's ranker ranks **products within each concept** and selects across concepts for the final list.
+V1's 11-rule scorer (`src/modules/recommendations/recommend/score.ts`) ranks **concepts**. V2's ranker ranks **products within each concept** and selects across concepts for the final list.
 
 Score per product:
 
@@ -177,7 +177,7 @@ Mitigations:
 
 ## Architecture impact
 
-- New module: `src/lib/recommender/` (NOTE: separate from existing `src/lib/recommend/` for V1 — V1 stays untouched; V2 imports from V1).
+- New module: `src/modules/recommendations/recommender/` (NOTE: separate from existing `src/modules/recommendations/recommend/` for V1 — V1 stays untouched; V2 imports from V1).
   - `candidates.ts` — three-tier waterfall (KAN-200).
   - `rank.ts` — V2 scoring (this ticket's design, implementation in KAN-200/190).
   - `explain.ts` — rationale generator.
@@ -185,7 +185,7 @@ Mitigations:
 - New env vars: `ANTHROPIC_API_KEY`, `RECOMMENDER_WEIGHTS_JSON`, `RECOMMENDER_LLM_MONTHLY_USD_CAP`.
 - New Supabase table: `recommender_catalogue` (KAN-200 migration).
 - Reuses `SOVRN_API_KEY` from KAN-184.
-- Cross-cutting docs: this design doc + cross-link from V1's `src/lib/recommend/index.ts` header.
+- Cross-cutting docs: this design doc + cross-link from V1's `src/modules/recommendations/recommend/index.ts` header.
 
 ## Tests required (when implementation lands)
 

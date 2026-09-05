@@ -1,0 +1,71 @@
+{
+  "$comment": [
+    "SEC-106 / CTL-066 — the branch protection this repository INTENDS to have.",
+    "",
+    "Read by scripts/check-required-checks.py. Two arms read this file and they",
+    "answer different questions:",
+    "",
+    "  --local   (pr-checks.yml, every PR) Does a workflow in this repo still",
+    "            PRODUCE each context named below? A required check whose",
+    "            producing job has been renamed is not enforced by anything —",
+    "            GitHub keeps requiring the old name, which nothing ever reports,",
+    "            and the PR simply waits or is admin-merged. That is this",
+    "            ticket's title, and it needs no credentials to detect.",
+    "",
+    "  --live    (required-checks.yml, scheduled) Does the LIVE protection on",
+    "            GitHub match what is written here? Scheduled rather than on PRs",
+    "            because a pull request cannot change branch protection, so",
+    "            running it in the PR gate would only add a third-party API to",
+    "            the merge path (gotcha #23: the one control keyed on an external",
+    "            feed is the one that froze the pipeline for eleven days).",
+    "",
+    "⚠️ THIS FILE IS AN EXPECTATION, NOT A MEASUREMENT, AND THAT IS DELIBERATE.",
+    "",
+    "It was seeded on 2026-08-15 from what CLAUDE.md records under SEC-106 for",
+    "2026-07-30, because no branch-protection read was available to the session",
+    "that wrote it. SEC-106's own comment 15065 says exactly why that is not good",
+    "enough on its own: 'that is documentation, not measurement'. Seeding from the",
+    "documented intent is how the documentation stops being the only evidence —",
+    "the first --live run compares it against reality and reports any divergence",
+    "as drift. A red first run is therefore a SUCCESS of this control, not a bug",
+    "in this file: it means the sentence in CLAUDE.md was wrong, which is the",
+    "finding SEC-106 was raised to obtain.",
+    "",
+    "Changing branch protection now requires a matching commit here. That is the",
+    "point (SEC-106 §6): protection becomes reviewable.",
+    "",
+    "enforce_admins stays FALSE on every branch, deliberately. SEC-106 §2 'Do NOT",
+    "do these': promote-to-production.yml pushes directly to main with a PAT and",
+    "required checks have not run at push time, so enforcing admins deadlocks the",
+    "promote with nobody able to unblock it. It is recorded here so that turning",
+    "it on is a visible diff rather than a quiet dashboard click.",
+    "",
+    "NOT COVERED HERE, stated rather than hidden: the `production` Environment's",
+    "required reviewer (SEC-106 §2, acceptance criterion 2). Environments are a",
+    "different API surface from branch protection and are Luisa's to configure;",
+    "asserting them is a follow-up, and until it exists nothing in this repo",
+    "proves that reviewer is present."
+  ],
+  "branches": {
+    "develop": {
+      "contexts": ["CodeQL Analysis", "PR Quality Gate"],
+      "enforce_admins": false,
+      "note": "Every feature PR lands here. CodeQL reported on all of them long before it could block one."
+    },
+    "staging": {
+      "contexts": ["CodeQL Analysis", "PR Quality Gate"],
+      "enforce_admins": false,
+      "note": "Had no required checks at all until 2026-07-30 — the last stop before beta was the least-checked branch in the chain."
+    },
+    "beta": {
+      "contexts": ["CodeQL Analysis", "PR Quality Gate"],
+      "enforce_admins": false,
+      "note": "beta.checklyra.com runs against the PRODUCTION Supabase project, so this is the last gate before real user data."
+    },
+    "main": {
+      "contexts": ["CodeQL Analysis", "PR Quality Gate", "guard"],
+      "enforce_admins": false,
+      "note": "`guard` is main-chain-guard.yml's JOB ID — that job carries no `name:` field, so the context is the id itself. Rename the job and the requirement silently stops being satisfiable. That single rename is what this whole control exists to catch."
+    }
+  }
+}

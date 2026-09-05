@@ -45,10 +45,24 @@ describe('check-scheduled-workflows-active.py (CTL-042)', () => {
     expect(fs.statSync(SCRIPT).mode & 0o111).toBeTruthy();
   });
 
-  test('self-test passes in full', () => {
+  test('self-test passes in full, and runs at least its committed floor', () => {
     const r = run(['--self-test']);
     expect(r.exitCode).toBe(0);
     expect(r.stdout).toMatch(/self-test: \d+\/\d+ passed/);
+
+    // ⚠️ THE FLOOR IS NET-NEW (BUGS-102), AND THE REGEX ABOVE IS WHY.
+    // `\d+\/\d+ passed` moves its denominator with its numerator, so it detects
+    // a fixture that FAILS and never one that is DELETED — the whole corpus
+    // could be cut to a single case and this stayed green. That is catalogue
+    // failure mode 8 (a number nothing enforces), and it mattered here: the six
+    // classification fixtures BUGS-102 added are the only thing standing
+    // between this control and the deadlock returning, and nothing would have
+    // noticed their removal.
+    //
+    // Raise it with any net-new case; never lower it to make a red build green.
+    const [, passed, total] = /self-test: (\d+)\/(\d+) passed/.exec(r.stdout).map(Number);
+    expect(`${passed}/${total}`).toBe(`${total}/${total}`);
+    expect(total).toBeGreaterThanOrEqual(13);
   });
 
   test('a commented-out cron is not treated as a live schedule', () => {

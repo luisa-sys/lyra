@@ -172,7 +172,7 @@ Enforced by `rebuild/check-design-sync.py`:
 
 | Control | Relationship to the loop |
 |---|---|
-| **KAN-411 quality gate** (`scripts/check-ui-copy-ownership.sh`, run from `pr-checks.yml`) | Any PR touching founder-owned UI paths must carry a `UI-Change-Approved: <KEY>` or `UI-Bugfix-Only: <KEY>` commit trailer. **The design loop is what produces the approval that trailer asserts** — the trailer is the claim, `DESIGN_APPROVED` is the evidence. |
+| **KAN-411 quality gate** (`scripts/check-ui-copy-ownership.sh`, run from `pr-checks.yml`) | Any PR touching founder-owned UI paths must carry a `UI-Change-Approved: <KEY>`, `UI-Bugfix-Only: <KEY>` or `UI-No-Visual-Change: <KEY>` commit trailer. **The design loop is what produces the approval that trailer asserts** — the trailer is the claim, `DESIGN_APPROVED` is the evidence. `UI-No-Visual-Change` (SEC-152) exists because the guard matches on **path**, so a diff that alters no pixel and no word still trips it, and the other two would both be false statements for it. It carries **no** design-loop obligation — by definition there is nothing to approve — but it is checked no more than the others, so it is a truthful claim rather than evidence. |
 | **The founder-gated UI rule** (`CLAUDE.md` → "LOOK AND TEXT") | Anything **changing** the look or wording of a user-facing page is founder-approved-and-initiated. **Restoring** intended design, or fixing a plain text or rendering error, is not gated and does not need a card. |
 | **SEC-98 production change control** | Unchanged. Design approval is **not** a release approval and never bypasses `develop → staging → beta → main`. |
 

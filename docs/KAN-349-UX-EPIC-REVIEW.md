@@ -23,7 +23,7 @@ The epic was raised from a chat session **without code access**, so several of i
 |---|---|---|---|
 | **KAN-340** dashboard widget journey | proposal | **CODED to a proposed spec** (§3 below) | "no build before sign-off" — spec + build done together for review; defaults flagged. |
 | **KAN-343** audit/reconcile | discovery | **DONE** (§4) | I had the repo access the chat session lacked. |
-| **KAN-344** state resolver | build | **CODED + 15 tests** | `src/lib/dashboard/resolve-widgets.ts` (pure). |
+| **KAN-344** state resolver | build | **CODED + 15 tests** | `src/modules/dashboard/resolve-widgets.ts` (pure). |
 | **KAN-345** dismissal persistence | build | **CODED + 5 tests + migration** | `dismissal.ts`, `widgets/actions.ts`, migration `20260630010000_…`. |
 | **KAN-346** widget framework | build | **CODED** | `widgets/dashboard-widgets.tsx` registry + shell; dashboard refit. |
 | **KAN-347** widgets W1–W6 | build | **CODED** (copy = PROPOSED) | all six render + gate; copy needs your confirm. |

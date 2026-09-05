@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { SRC } = require('../support/source-paths.json');
+const { stripComments } = require('../support/strip-comments');
 
 const root = path.join(__dirname, '../..');
 
@@ -108,12 +109,6 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // above the real heading, so the entire favourites grid could be disabled
   // and the heading renamed with this suite still fully green. The prose
   // documenting a fix is what conceals its removal — same shape as SEC-100.
-  const stripComments = (source) =>
-    source
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ') // JSX {/* ... */}
-      .replace(/\/\*[\s\S]*?\*\//g, ' ') //           block /* ... */
-      .replace(/(^|[^:])\/\/.*$/gm, '$1'); //         line   // ...
-
   beforeAll(() => {
     pageContent = stripComments(fs.readFileSync(profilePath, 'utf8'));
     content = pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'));

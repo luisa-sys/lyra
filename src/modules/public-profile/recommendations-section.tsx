@@ -11,7 +11,7 @@
  * naturally returns 0 results, so this is the right behaviour.
  */
 
-import type { RecommendationResult } from '@/lib/recommend';
+import type { RecommendationResult } from '@/modules/recommendations/recommend';
 
 interface RecommendationsSectionProps {
   /** Display name of the person whose profile this is — used in the heading. */

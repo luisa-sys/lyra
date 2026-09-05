@@ -19,9 +19,9 @@ in-repo, engineer-facing detail and the **recovery test plan**. Tracked under
 | # | Layer | Scope | Frequency | Lives where | Survives account compromise? |
 |---|-------|-------|-----------|-------------|------------------------------|
 | 1 | Supabase built-in backup | Whole DB incl. `auth` | Daily (plan-dependent), 7-day | Supabase account | ❌ same account as prod |
-| 2 | `backup-database.yml` | `public` schema **+ data only** | Weekly Sun 02:00 | GitHub artifact (90d) + R2 | ⚠️ partial — same GitHub/CF accounts |
+| 2 | `backup-database.yml` | `public` + `supabase_migrations` schemas **+ data only** (`supabase_migrations` added 2026-08-09, BUGS-91) | Weekly Sun 02:00 | GitHub artifact (90d) + R2 | ⚠️ partial — same GitHub/CF accounts |
 | 3 | `backup-platform.yml` | Repos, DNS, `public` schema-only, secret **names** | Weekly Sun 02:30 | GitHub artifact + R2 | ⚠️ partial |
-| 4 | **`backup-complete.yml` (NEW, SEC-23)** | **`public` + `auth` + `storage` + roles + storage blobs + KV**, **age-encrypted** | **Daily** once commissioned (ships dispatch-only — §8) | GitHub artifact + **R2 WORM (write-only key, COMPLIANCE lock)** | ✅ **designed to** — see §5 |
+| 4 | **`backup-complete.yml` (NEW, SEC-23)** | **`public` + `auth` + `storage` + `supabase_migrations` (added 2026-08-09, BUGS-91) + roles + storage blobs + KV**, **age-encrypted** | **Daily** once commissioned (ships dispatch-only — §8) | GitHub artifact + **R2 WORM (write-only key, COMPLIANCE lock)** | ✅ **designed to** — see §5 |
 
 Layer 4 is the one that matters in a hack: it is the only copy that is
 **complete**, **encrypted with a key the attacker does not hold**, and written
@@ -40,7 +40,8 @@ until a real drill has recorded it.
 
 ## 3. What each backup contains — and the gaps it closes
 
-`scripts/backup-database.sh` dumps `--schema=public` only. Verified against the
+`scripts/backup-database.sh` dumps `--schema=public` and, as of 2026-08-09
+(BUGS-91, commit `183a375f`), `--schema=supabase_migrations`. Verified against the
 real 2026-06-21 artifact: 38 `public` tables with data and RLS, **zero** `auth`
 or `storage` objects. A restore from it yields profiles whose `user_id` points at
 `auth.users` rows that do not exist — **nobody can log in.**
@@ -50,6 +51,21 @@ or `storage` objects. A restore from it yields profiles whose `user_id` points a
 per-table row counts (the round-trip baseline the drill checks against). Because
 the `auth` dump contains password hashes and tokens, the workflow **encrypts
 every artifact with `age`** before it leaves CI.
+
+**BUGS-91 (2026-08-09, commit `183a375f`, PR #728): neither script captured
+the migration lineage.** Neither of the two scripts above ever dumped the
+`supabase_migrations` schema (75 rows / 133 KB on production, measured
+2026-08-09). A restore from either backup therefore produced a database with
+NO migration history — running `supabase db push` afterwards would consider
+every migration unapplied and replay the entire lineage against the
+already-restored data. Both scripts now include `--schema=supabase_migrations`,
+and `scripts/restore-database.sh` now also DROPS and recreates the
+`supabase_migrations` schema on restore (not optional — a dump that carries the
+schema and a restore that does not reset it would collide with existing rows).
+`scripts/check-complete-backup.sh`'s required-schema list now includes it too,
+mutation-proven: a manifest listing only public/auth/storage is now
+**rejected**. See the Confluence runbook's BUGS-91 finding panel for the full
+write-up.
 
 ## 4. Recovery test plan — how we prove restore works
 

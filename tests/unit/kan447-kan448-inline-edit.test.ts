@@ -14,8 +14,9 @@
  *
  * The tests drive the real server actions through a mocked Supabase client and
  * assert on the payload that reaches `.update()`, so deleting a check in
- * `actions.ts` turns them red. Filters are recorded PER STATEMENT — see the
- * `MockStatement` note below for why a per-table pool is not good enough.
+ * `actions.ts` turns them red. Filters are recorded PER STATEMENT by the shared
+ * harness — see `tests/support/supabase-statement-mock.ts` for why a per-table
+ * pool is not good enough.
  */
 
 const mockInsertCapture = jest.fn();
@@ -23,25 +24,12 @@ const mockUpdateCapture = jest.fn();
 const mockRevalidatePath = jest.fn();
 
 /**
- * One `.from()` call === one statement, so each statement keeps its OWN `.eq()`
- * log rather than a pool shared per table.
- *
- * Pooling per table is what made the owner-scoping and row-id assertions
- * vacuous. `updateSchoolAffiliation` reads the row before it writes, and the
- * SELECT's `.eq('id', …)` / `.eq('profile_id', …)` satisfied assertions that
- * were meant to be about the UPDATE — so deleting either `.eq()` from the
- * UPDATE left all 27 tests green while an attacker could edit another member's
- * affiliation, or bulk-overwrite every affiliation the owner has. Read-satisfied
- * assertions about a write are the SEC-100 shape: the check fires constantly and
- * answers a different question.
+ * Filters are recorded PER STATEMENT by the shared harness in
+ * `tests/support/supabase-statement-mock.ts` — one `.from()` call is one
+ * statement, so a filter on the pre-read can never satisfy an assertion about
+ * the write. That module's header documents why the per-table pool this
+ * replaces made the owner-scoping assertions vacuous (KAN-459 §2).
  */
-type MockStatement = {
-  table: string;
-  kind: 'select' | 'update' | 'insert' | 'unknown';
-  eq: Array<[string, unknown]>;
-};
-const mockStatements: MockStatement[] = [];
-
 const mockState: {
   userId: string | null;
   affiliationRow: { affiliation_type: string } | null;
@@ -55,71 +43,20 @@ jest.mock('next/cache', () => ({
 }));
 
 jest.mock('@/modules/platform/supabase-server', () => {
-  type Builder = {
-    select: () => Builder;
-    update: (data: unknown) => Builder;
-    insert: (data: unknown) => Promise<{ error: null }>;
-    eq: (col: string, val: unknown) => Builder;
-    single: () => Promise<{ data: unknown; error: null }>;
-    maybeSingle: () => Promise<{ data: unknown; error: null }>;
-    then: (
-      resolve: (v: { error: null }) => unknown,
-      reject?: (e: unknown) => unknown,
-    ) => Promise<unknown>;
-  };
-
-  const build = (table: string): Builder => {
-    // Recorded per builder, i.e. per statement — never pooled across the
-    // pre-read and the write (see the MockStatement note above).
-    const statement: MockStatement = { table, kind: 'unknown', eq: [] };
-    mockStatements.push(statement);
-
-    const b: Builder = {
-      select: () => {
-        statement.kind = 'select';
-        return b;
-      },
-      update: (data: unknown) => {
-        statement.kind = 'update';
-        mockUpdateCapture(table, data);
-        return b;
-      },
-      insert: (data: unknown) => {
-        statement.kind = 'insert';
-        mockInsertCapture(table, data);
-        return Promise.resolve({ error: null });
-      },
-      eq: (col: string, val: unknown) => {
-        statement.eq.push([col, val]);
-        return b;
-      },
-      single: () =>
-        Promise.resolve(
-          table === 'profiles'
-            ? { data: { id: 'profile-1' }, error: null }
-            : { data: null, error: null },
-        ),
-      maybeSingle: () =>
-        Promise.resolve(
-          table === 'school_affiliations'
-            ? { data: mockState.affiliationRow, error: null }
-            : { data: null, error: null },
-        ),
-      then: (resolve, reject) => Promise.resolve({ error: null }).then(resolve, reject),
-    };
-    return b;
-  };
-
+  // `jest.mock` factories are hoisted above imports, so the shared harness is
+  // required here rather than closed over from an import.
+  const harness = require('../../tests/support/supabase-statement-mock');
   return {
-    createClient: jest.fn().mockResolvedValue({
-      auth: {
-        getUser: () =>
-          Promise.resolve({
-            data: { user: mockState.userId ? { id: mockState.userId } : null },
-          }),
-      },
-      from: (table: string) => build(table),
-    }),
+    createClient: jest.fn().mockResolvedValue(
+      harness.createStatementMockClient({
+        getUserId: () => mockState.userId,
+        single: (table: string) => (table === 'profiles' ? { id: 'profile-1' } : null),
+        maybeSingle: (table: string) =>
+          table === 'school_affiliations' ? mockState.affiliationRow : null,
+        onInsert: (table: string, data: unknown) => mockInsertCapture(table, data),
+        onUpdate: (table: string, data: unknown) => mockUpdateCapture(table, data),
+      }),
+    ),
   };
 });
 
@@ -128,6 +65,11 @@ import {
   updateExternalLink,
   updateSchoolAffiliation,
 } from '@/app/dashboard/profile/actions';
+import {
+  expectUpdateScopedTo,
+  onlyStatement,
+  statementLog,
+} from '../support/supabase-statement-mock';
 
 // Each test gets its own user id so the in-memory per-user write rate limit
 // (KAN-231, 30/min) can never make a later test fail for an earlier test's
@@ -138,37 +80,11 @@ beforeEach(() => {
   mockInsertCapture.mockClear();
   mockUpdateCapture.mockClear();
   mockRevalidatePath.mockClear();
-  mockStatements.length = 0;
+  statementLog.reset();
   userCounter += 1;
   mockState.userId = `kan447-user-${userCounter}`;
   mockState.affiliationRow = { affiliation_type: 'school' };
 });
-
-function statementsFor(table: string, kind: MockStatement['kind']): MockStatement[] {
-  return mockStatements.filter((s) => s.table === table && s.kind === kind);
-}
-
-/**
- * The one statement of `kind` against `table`. Asserting there is exactly one
- * is part of the point: "some statement somewhere carried this filter" is the
- * weak form that let a read stand in for a write.
- */
-function onlyStatement(table: string, kind: MockStatement['kind']): MockStatement {
-  const found = statementsFor(table, kind);
-  expect(found).toHaveLength(1);
-  return found[0];
-}
-
-/**
- * A write is safe only if the UPDATE statement ITSELF carries both filters:
- * `id` alone would let it touch another member's row, `profile_id` alone would
- * bulk-overwrite every row the owner has.
- */
-function expectUpdateScopedTo(table: string, rowId: string): void {
-  const update = onlyStatement(table, 'update');
-  expect(update.eq).toContainEqual(['id', rowId]);
-  expect(update.eq).toContainEqual(['profile_id', 'profile-1']);
-}
 
 // ───────────── KAN-447: addExternalLink description ─────────────
 
@@ -223,12 +139,15 @@ describe('KAN-447: updateExternalLink', () => {
       description: 'Updated note',
       url: 'https://example.com/new-list',
     });
-    expectUpdateScopedTo('external_links', 'link-1');
+    expectUpdateScopedTo('external_links', [
+      ['id', 'link-1'],
+      ['profile_id', 'profile-1'],
+    ]);
     // `updateExternalLink` has no pre-read, so today nothing else COULD have
     // supplied those filters. Pinned so that a pre-read added later cannot
     // quietly start satisfying the assertion above on the UPDATE's behalf —
     // which is exactly how the sibling affiliations assertion went vacuous.
-    expect(statementsFor('external_links', 'select')).toHaveLength(0);
+    expect(statementLog.filter('external_links', 'select')).toHaveLength(0);
   });
 
   test('omitted fields are not written at all (BUGS-74 partial-write contract)', async () => {
@@ -317,7 +236,10 @@ describe('KAN-448: updateSchoolAffiliation', () => {
     // Asserted on the UPDATE statement specifically: the pre-read carries the
     // same two filters, so a pooled-per-table assertion passes here even when
     // the UPDATE itself carries neither.
-    expectUpdateScopedTo('school_affiliations', 'aff-1');
+    expectUpdateScopedTo('school_affiliations', [
+      ['id', 'aff-1'],
+      ['profile_id', 'profile-1'],
+    ]);
   });
 
   test('the UPDATE carries the row id AND the owner scope, not just the pre-read', async () => {
@@ -419,6 +341,6 @@ describe('KAN-448: updateSchoolAffiliation', () => {
     const result = await updateSchoolAffiliation('aff-1', { description: 'Hi' });
     expect(result).toEqual({ success: false, error: 'Not authenticated' });
     expect(mockUpdateCapture).not.toHaveBeenCalled();
-    expect(mockStatements.filter((s) => s.table === 'school_affiliations')).toHaveLength(0);
+    expect(statementLog.all.filter((s) => s.table === 'school_affiliations')).toHaveLength(0);
   });
 });

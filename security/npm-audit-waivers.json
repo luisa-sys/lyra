@@ -1,0 +1,30 @@
+{
+  "_why": [
+    "SEC-105. Dated, owned exceptions to the npm-audit gate.",
+    "",
+    "An advisory with no patched version is not a bug you can fix — it is a",
+    "decision you have to take. Before this file existed there was nowhere to",
+    "record that decision, so the only options were an emergency override pin or",
+    "a frozen pipeline. SEC-88 took the second: eleven days, 40+ green PRs held,",
+    "twelve tested security fixes kept out of production. SEC-94 took the first,",
+    "and the resulting blanket brace-expansion pin crashed `npm run lint`.",
+    "",
+    "Hygiene is enforced by scripts/check-waiver-hygiene.py (CTL-025): every",
+    "entry needs advisory + package + severity + ticket + owner + reason, and",
+    "exactly one of `expires` (a real risk accepted temporarily — FAILS the",
+    "build on lapse) or `review_by` (accepted by design — notifies on lapse).",
+    "`expires` may be at most 12 months out.",
+    "",
+    "Note the direction of the expiry failure, which is deliberate and is the",
+    "opposite of what several commercial tools do: Snyk's own docs concede that",
+    "a malformed `expires` means the ignore 'will be respected and persist",
+    "indefinitely'. Theirs fails OPEN. This one fails CLOSED — a lapsed or",
+    "unparseable date reddens the build rather than silently granting forever.",
+    "",
+    "EMPTY IS THE CORRECT STEADY STATE. An entry here is a known-unfixable",
+    "finding being carried on purpose, not a way to quiet a noisy gate. Fix the",
+    "advisory if it has a fix."
+  ],
+  "ticket": "SEC-105",
+  "waivers": []
+}

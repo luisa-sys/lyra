@@ -372,7 +372,7 @@ describe('KAN-241: surface-area regression guards', () => {
   // ("moderation is wired in this file") is preserved.
   test('actions.ts imports + calls moderation (checkModeration or moderateAndAudit)', () => {
     const src = readFileSync(resolve(ROOT, SRC.profileActions), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/modules\/(?:contracts|audit)\/moderation-(?:policy|audit)['"]/);
     // Used in at least 4 places (updateProfileFields, addProfileItem,
     // addSchoolAffiliation, addExternalLink)
     const callCount = (src.match(/(?:checkModeration|moderateAndAudit)\(/g) || []).length;
@@ -381,13 +381,13 @@ describe('KAN-241: surface-area regression guards', () => {
 
   test('manual-of-me-actions.ts imports + calls moderation', () => {
     const src = readFileSync(resolve(ROOT, SRC.manualOfMeActions), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/modules\/(?:contracts|audit)\/moderation-(?:policy|audit)['"]/);
     expect(src).toMatch(/(?:checkModeration|moderateAndAudit)\(/);
   });
 
   test('conversation-starters-actions.ts imports + calls moderation in both add + update', () => {
     const src = readFileSync(resolve(ROOT, SRC.conversationStartersActions), 'utf-8');
-    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/lib\/moderation-(?:policy|audit)['"]/);
+    expect(src).toMatch(/import\s*\{\s*(?:checkModeration|moderateAndAudit)\s*\}\s*from\s*['"]@\/modules\/(?:contracts|audit)\/moderation-(?:policy|audit)['"]/);
     // One call in add path, one in update path
     const callCount = (src.match(/(?:checkModeration|moderateAndAudit)\(/g) || []).length;
     expect(callCount).toBeGreaterThanOrEqual(2);

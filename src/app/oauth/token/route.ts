@@ -76,6 +76,8 @@ interface TokenRequest {
   client_secret?: string;
   code_verifier?: string;
   refresh_token?: string;
+  /** SEC-46 / RFC 8707 §2 — optional at the token endpoint; must MATCH the code. */
+  resource?: string;
 }
 
 async function readTokenRequest(req: NextRequest): Promise<TokenRequest | null> {
@@ -93,6 +95,7 @@ async function readTokenRequest(req: NextRequest): Promise<TokenRequest | null> 
         'client_secret',
         'code_verifier',
         'refresh_token',
+        'resource',
       ] as const) {
         const v = params.get(k);
         if (v !== null) out[k] = v;
@@ -215,11 +218,21 @@ async function handleAuthorizationCode(body: TokenRequest, clientId: string): Pr
   const claimed = await markCodeUsed(body.code);
   if (!claimed) return errorJson('invalid_grant', 'code already used (race)', 400);
 
+  // SEC-46 — the resource is fixed at AUTHORIZE time. If the client also sends
+  // one here it must match; a mismatch is invalid_target, never a silent
+  // re-target. NULL on the row means the code predates Phase C, which resolves
+  // to the environment default so in-flight codes survive the deploy.
+  const codeResource = codeRow.resource ?? oauthConfig.defaultResource();
+  if (body.resource && body.resource.trim().replace(/\/$/, '') !== codeResource) {
+    return errorJson('invalid_target', 'resource does not match the authorization request', 400);
+  }
+
   // Issue access token (JWT) + refresh token.
   const access = await issueAccessToken({
     userId: codeRow.user_id,
     clientId,
     scope: codeRow.scope,
+    resource: codeResource,
   });
   await issueAccessTokenJti({
     jti: access.jti,
@@ -232,6 +245,7 @@ async function handleAuthorizationCode(body: TokenRequest, clientId: string): Pr
     clientId,
     userId: codeRow.user_id,
     scope: codeRow.scope,
+    resource: codeResource,
   });
 
   return successJson({
@@ -269,11 +283,18 @@ async function handleRefresh(body: TokenRequest, clientId: string): Promise<Next
     return errorJson('invalid_grant', 'refresh token already used (race)', 400);
   }
 
+  // SEC-46 — carry the ORIGINAL resource forward. A refresh must not be able to
+  // re-target a token at a different resource server, so `body.resource` is
+  // deliberately not consulted here: the binding is whatever the user consented
+  // to. NULL means the row predates Phase C.
+  const refreshResource = existing.resource ?? oauthConfig.defaultResource();
+
   // Issue new tokens, continuing the family.
   const access = await issueAccessToken({
     userId: existing.user_id,
     clientId,
     scope: existing.scope,
+    resource: refreshResource,
   });
   await issueAccessTokenJti({
     jti: access.jti,
@@ -286,6 +307,7 @@ async function handleRefresh(body: TokenRequest, clientId: string): Promise<Next
     clientId,
     userId: existing.user_id,
     scope: existing.scope,
+    resource: refreshResource,
     familyId: existing.family_id,
   });
 

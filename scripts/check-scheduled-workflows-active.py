@@ -145,6 +145,63 @@ def live_states() -> dict[str, str]:
     return {w["path"]: w.get("state", "unknown") for w in entries if "path" in w}
 
 
+def classify(
+    scheduled: list[tuple[str, list[str]]],
+    states: dict[str, str],
+    exceptions: dict[str, dict],
+) -> tuple[list[tuple[str, str, list[str]]], list[str], list[tuple[str, dict]]]:
+    """Split scheduled workflows into (problems, stale_exceptions, excepted).
+
+    EXTRACTED FROM main() BY BUGS-102 so it can be exercised directly. Before
+    that, `--self-test` covered only `declares_cron` parsing and the Jira-key
+    regex — the classification decision, which is the whole judgement this
+    control makes, had no fixtures at all. That is how the bug below survived:
+    every self-test case passed while the branch was unreachable.
+
+    ⚠️ THE `state is None` BRANCH MUST CONSULT `exceptions` (BUGS-102).
+    It used to `continue` straight into `problems`, so an unregistered workflow
+    could never be excepted. GitHub does not register a workflow's `schedule`
+    trigger until the file is on the DEFAULT branch, so a PR ADDING a scheduled
+    workflow was unconditionally failed by the very gate its file had to pass to
+    reach that branch — a deadlock with no documented way out. The exceptions
+    file, the stated escape hatch, was consulted only on the
+    registered-but-disabled path.
+
+    The danger of widening an allowlist is that entries outlive their reason.
+    That half needs no new code: the `state == "active"` arm below already marks
+    an exception STALE, so a "not yet registered" entry becomes a BUILD FAILURE
+    the moment its workflow registers and runs. Asserted by a fixture rather
+    than assumed — the ticket predicted this would need extending, and reading
+    the code showed it did not.
+    """
+    problems: list[tuple[str, str, list[str]]] = []
+    stale: list[str] = []
+    excepted: list[tuple[str, dict]] = []
+
+    for path, crons in scheduled:
+        state = states.get(path)
+        if state is None:
+            # On disk with a schedule, absent from the API: unregistered, so it
+            # cannot run and cannot be seen to be not running. Excepted only
+            # with a ticketed entry — silence is still a failure.
+            if path in exceptions:
+                excepted.append((path, exceptions[path]))
+            else:
+                problems.append((path, "NOT-REGISTERED-WITH-GITHUB", crons))
+            continue
+        if state != "active":
+            if path in exceptions:
+                excepted.append((path, exceptions[path]))
+            else:
+                problems.append((path, state, crons))
+        elif path in exceptions:
+            # Active AND excepted: the reason has expired. This is what stops
+            # the widening above from becoming a suppression list.
+            stale.append(path)
+
+    return problems, stale, excepted
+
+
 def main() -> int:
     enforce = "--enforce" in sys.argv or os.environ.get("SCHEDULED_WORKFLOW_GATE_ENFORCE") == "1"
 
@@ -167,22 +224,9 @@ def main() -> int:
     if not scheduled:
         die_unverifiable("no workflow declares a cron schedule — that is not credible for this repo; the scan did not work.")
 
-    problems, stale_exceptions = [], []
-    for path, crons in scheduled:
-        state = states.get(path)
-        if state is None:
-            # On disk with a schedule, absent from the API: unregistered, so it
-            # cannot run and cannot be seen to be not running.
-            problems.append((path, "NOT-REGISTERED-WITH-GITHUB", crons))
-            continue
-        if state != "active":
-            if path in exceptions:
-                e = exceptions[path]
-                print(f"  excepted  {path}  [{e['key']}] {e['reason']}")
-            else:
-                problems.append((path, state, crons))
-        elif path in exceptions:
-            stale_exceptions.append(path)
+    problems, stale_exceptions, excepted = classify(scheduled, states, exceptions)
+    for path, meta in excepted:
+        print(f"  excepted  {path}  [{meta['key']}] {meta['reason']}")
 
     print(f"check-scheduled-workflows-active: {len(scheduled)} workflow(s) declare a cron schedule.")
 
@@ -232,6 +276,52 @@ def self_test() -> int:
          == ["0 1 * * *", "0 5 * * 0"]),
         ("jira key shape enforced", bool(KEY_RE.match("SEC-79")) and not KEY_RE.match("SEC-xxx")),
     ]
+
+    # ---------------------------------------------------------------------
+    # BUGS-102 — classification fixtures.
+    #
+    # These are the cases the control actually decides, and until now it had
+    # NONE. Everything above tests `declares_cron`; the deadlock lived in
+    # main()'s untested body, which is why a green self-test coexisted with a
+    # branch nobody could reach.
+    # ---------------------------------------------------------------------
+    NEW = [("wf/new.yml", ["0 9 * * *"])]
+    TICKET = {"key": "BUGS-102", "reason": "new workflow, not yet on the default branch"}
+
+    # THE DEFECT. Unregistered + ticketed exception must PASS. Before the fix
+    # this landed in `problems` regardless, so no PR adding a scheduled
+    # workflow could ever go green.
+    p, s, e = classify(NEW, {}, {"wf/new.yml": TICKET})
+    cases.append(("BUGS-102: an UNREGISTERED workflow WITH an exception is excepted",
+                  (p, s, [x[0] for x in e]) == ([], [], ["wf/new.yml"])))
+
+    # The control's whole point — must not regress into "unregistered is fine".
+    p, s, e = classify(NEW, {}, {})
+    cases.append(("BUGS-102: an UNREGISTERED workflow with NO exception still FAILS",
+                  len(p) == 1 and p[0][1] == "NOT-REGISTERED-WITH-GITHUB" and not e))
+
+    # The ratchet. Once it registers and runs, the exception has expired — so
+    # widening above cannot decay into a permanent allowlist entry.
+    p, s, e = classify(NEW, {"wf/new.yml": "active"}, {"wf/new.yml": TICKET})
+    cases.append(("BUGS-102: the exception goes STALE once the workflow is ACTIVE",
+                  s == ["wf/new.yml"] and not p and not e))
+
+    # Pre-existing behaviour, pinned so this change is proven not to alter it.
+    p, s, e = classify(NEW, {"wf/new.yml": "disabled_manually"}, {"wf/new.yml": TICKET})
+    cases.append(("BUGS-102: registered-but-DISABLED + exception is still excepted, not stale",
+                  [x[0] for x in e] == ["wf/new.yml"] and not p and not s))
+
+    # And a disabled workflow with no exception is still a finding.
+    p, s, e = classify(NEW, {"wf/new.yml": "disabled_manually"}, {})
+    cases.append(("BUGS-102: registered-but-DISABLED with NO exception still FAILS",
+                  len(p) == 1 and p[0][1] == "disabled_manually"))
+
+    # An active workflow with no exception is the healthy steady state — without
+    # this the four cases above would also be satisfied by a classifier that
+    # flagged everything.
+    p, s, e = classify(NEW, {"wf/new.yml": "active"}, {})
+    cases.append(("BUGS-102: an ACTIVE workflow with no exception is clean",
+                  (p, s, e) == ([], [], [])))
     failed = [n for n, ok in cases if not ok]
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")

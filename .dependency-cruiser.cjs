@@ -18,29 +18,36 @@
  * finding: fix it, or record it in the ticket.
  *
  * SEVERITY IS NOW PER RULE (KAN-414 F3, 2026-07-29). A single global dial made
- * the whole gate hostage to its worst rule: two of the three rules have been at
- * zero violations for some time and could not go blocking because the third
- * could not. Measured on this branch:
+ * the whole gate hostage to its worst rule: two of the three rules were at zero
+ * violations for some time and could not go blocking because the third could
+ * not.
+ *
+ * ALL THREE RULES NOW BLOCK (KAN-415, 2026-08-14). Measured on this branch:
  *
  *     no-module-to-app          0 violations  -> error (BLOCKING)
- *     no-circular               0 violations  -> error (BLOCKING), once
- *                                                BUGS-80's type-only cycle is
- *                                                fixed (it is, on this branch)
- *     no-cross-segment-app      4 violations  -> warn
+ *     no-circular               0 violations  -> error (BLOCKING)
+ *     no-cross-segment-app      0 violations  -> error (BLOCKING)
  *
- * The 4 remaining cross-segment edges are NOT unrouted work being tolerated;
- * the plan assigns three of them elsewhere on purpose:
+ * The four cross-segment edges were cleared as the plan assigned them, not by
+ * relaxing anything:
  *   - src/app/[slug]/page.tsx -> dashboard/profile/{section-visibility,
- *     manual-of-me-fields}.ts   are the D-4 privacy finding, moved into D8's
- *     acceptance criteria (plan §6 F2 note), not F2/F3 debt.
- *   - src/app/(legal)/about/page.tsx -> _marketing/sections.tsx  is implicated
- *     in KAN-422's DELETE list.
- *   - src/app/dashboard/page.tsx -> (auth)/actions.ts  is currently routed
- *     NOWHERE. It needs an owner before this rule can flip.
+ *     manual-of-me-fields}.ts   were the D-4 privacy finding — cleared by D8.
+ *   - src/app/(legal)/about/page.tsx -> _marketing/sections.tsx  was never a
+ *     real cross-segment edge: `_marketing` is a Next.js PRIVATE folder, and
+ *     the rule's definition was corrected to read segments the way Next does.
+ *   - src/app/dashboard/page.tsx -> (auth)/actions.ts  was "routed NOWHERE".
+ *     It has an owner now: `signOut` moved to src/app/session-actions.ts, the
+ *     app root, because sign-out is not an (auth) concern the dashboard
+ *     borrows — it is shared, and shared code belongs above the segments.
  *
- * So `no-cross-segment-app` flips to error when D8 and KAN-422 land and that
- * fourth edge has a home — not on a calendar date. DEPCRUISE_SEVERITY=error
- * still forces every rule to error for a local dry run.
+ * ⚠️ THE CONTRAST CASE IS GONE, AND THAT IS WHY severityFor MOVED OUT.
+ * `dependency-rules-severity.test.js` used to prove the dial genuinely varies by
+ * asserting this rule was `warn` — evidence that depended on a rule being
+ * UNFINISHED. With nothing left at NOT_YET, `severityFor` would have been
+ * replaceable by `() => 'error'` with no test noticing, and the next rule landed
+ * in reporting mode would have blocked on day one. The dial is now unit-tested
+ * directly in scripts/depcruise-severity.cjs. DEPCRUISE_SEVERITY=error still
+ * forces every rule to error for a local dry run, and is still one-way.
  *
  * Run via `npm run depcruise` (see scripts/check-dependency-rules.sh).
  */
@@ -48,20 +55,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const FORCE_ERROR = process.env.DEPCRUISE_SEVERITY === 'error';
-
-/**
- * Per-rule severity. A rule at zero violations should block; a rule with known,
- * ticketed, elsewhere-owned violations should warn. Collapsing both into one
- * dial means the cleanest rule gets no enforcement until the messiest one is
- * finished, which is how a gate spends months reporting and preventing nothing.
- */
-const severityFor = (ruleAtZero) => (FORCE_ERROR || ruleAtZero ? 'error' : 'warn');
-
-// Flipped to blocking 2026-07-29 (KAN-414 F3): measured 0 violations each.
-const BLOCKING = true;
-// Still warn: 4 violations, 3 of them owned by D8 / KAN-422, 1 unrouted.
-const NOT_YET = false;
+// The severity dial lives in its own module so it can be tested directly rather
+// than inferred from whichever rules are unfinished — see its header for why
+// that mattered the moment the last rule reached zero.
+//
+// `NOT_YET` is deliberately NOT imported here: every rule is at zero, so it
+// would be an unused binding. It still exists in the dial module as the
+// vocabulary for landing the next rule in reporting mode, and both of its
+// branches are asserted there, so it cannot rot while unused.
+const { severityFor, BLOCKING } = require('./scripts/depcruise-severity.cjs');
 
 /** Escape a literal string for safe embedding in a regular expression. */
 const rx = (literal) => literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -97,12 +99,32 @@ const APP_SEGMENTS = (() => {
     .readdirSync(appDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
+    // A LEADING UNDERSCORE IS NEXT.JS FOR "NOT A ROUTE" (a private folder).
+    // Next opts `_foo` out of routing entirely, so `src/app/_marketing/` is a
+    // colocation directory, not a route segment — no URL maps to it and nothing
+    // is served from it.
+    //
+    // This is a CORRECTION TO THE RULE'S DEFINITION, not a relaxation of it, and
+    // the distinction matters because relaxing a rule to make it pass is
+    // forbidden here. The rule's own stated rationale is "segments are
+    // independent ROUTE TREES; a cross-segment edge silently couples two
+    // features so neither can be changed or extracted alone." A private folder
+    // is not a route tree and has no independent existence to protect — it is
+    // shared code already, which is precisely what the rule tells you to create.
+    // Reading directories off disk is what let a colocation folder become a
+    // "segment"; the fix is to read them the way Next.js does.
+    //
+    // Measured: this removes exactly one violation,
+    // src/app/(legal)/about/page.tsx -> src/app/_marketing/sections.tsx, which
+    // was never a real cross-segment edge. The other violation is untouched and
+    // the rule stays `warn` because of it.
+    .filter((name) => !name.startsWith('_'))
     .sort();
 })();
 
 const crossSegmentRules = APP_SEGMENTS.map((segment) => ({
   name: `no-cross-segment-app/${segment}`,
-  severity: severityFor(NOT_YET),
+  severity: severityFor(BLOCKING),
   comment:
     'One top-level src/app segment must not import from another. Segments are independent ' +
     'route trees; a cross-segment edge silently couples two features so neither can be ' +
@@ -110,7 +132,13 @@ const crossSegmentRules = APP_SEGMENTS.map((segment) => ({
     'module) and let both segments depend on that instead.',
   from: { path: `^src/app/${rx(segment)}/` },
   to: {
-    path: '^src/app/[^/]+/',
+    // `(?!_)` applies the SAME private-folder definition to the target as
+    // APP_SEGMENTS applies to the source. Excluding `_foo` from the segment list
+    // alone was not enough: it stopped rules being generated FOR `_marketing`,
+    // while every other segment still flagged an import INTO it, because this
+    // pattern matched `src/app/<anything>/`. Measured after the first attempt —
+    // still 2 violations, unchanged. Both ends need the same rule.
+    path: '^src/app/(?!_)[^/]+/',
     pathNot: `^src/app/${rx(segment)}/`,
   },
 }));
