@@ -22,6 +22,18 @@
 #               dependency gate that blocks all PRs + the deploy chain is surfaced
 #               by the runner itself, not discovered by hand (SEC-91, 2026-07-22).
 #
+# The `e2e` phase defaults CI, E2E_LOCAL_SERVER and four dummy Supabase vars
+# (only when unset) to the exact values .github/workflows/e2e-tests.yml sets
+# for its "Playwright E2E (local build)" gate. Without them, `playwright.config.ts`
+# falls back to `npm run dev` and any route that calls `requireEnv()`
+# (src/modules/platform/env.ts) 500s with "Missing required environment
+# variable" — a local-environment gap, not a product regression, but one that
+# reads exactly like a real E2E FAIL until you notice the missing env vars.
+# Found the hard way during the 2026-08-19 weekly run: public-pages.spec.ts's
+# waitlist test failed locally on both browsers and passed 12/12 once these
+# were exported to match CI. Real secrets, if already exported, are never
+# overridden — these are non-secret CI dummies, safe to inline.
+#
 # Exit: 2 if any phase FAILs; 1 if any UNVERIFIED and no FAIL; 0 if all PASS.
 #
 # NB: `set -e` is off — we run EVERY phase and aggregate; nothing is swallowed.
@@ -49,7 +61,16 @@ cmd_for() {
   scripts)     echo "npm run test:scripts" ;;
   audit)       echo "npm audit --audit-level=high" ;;
   integration) echo "npm run test:integration" ;;
-  e2e)         echo "npm run test:e2e" ;;
+  # NB: no quotes around these values — $c is executed unquoted below ($c, not
+  # "$c"), so word-splitting is what tokenises this into argv for `env`. A
+  # quoted "${VAR:-default}" here would pass its literal quote characters
+  # through as PART OF THE VALUE (env sees NEXT_PUBLIC_SUPABASE_URL=`"https:...`"`,
+  # an invalid URL) rather than stripping them — quote-stripping only happens
+  # when a variable is *expanded*, not when it is merely word-split. Found by
+  # a webServer timeout that reproduced 100% via this script and 0% calling
+  # `npx playwright test` directly with the same values exported normally.
+  # Safe here because none of the six defaults contain whitespace.
+  e2e)         echo "env CI=${CI:-true} E2E_LOCAL_SERVER=${E2E_LOCAL_SERVER:-1} NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://e2e-dummy.supabase.co} NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-e2e-dummy-anon-key} SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-e2e-dummy-service-role-key} NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} npm run test:e2e" ;;
   build)       echo "npm run build" ;;
   *)           echo "" ;;
 esac; }

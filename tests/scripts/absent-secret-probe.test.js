@@ -1,6 +1,7 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const { SRC } = require('../support/source-paths.json');
 
@@ -95,11 +96,67 @@ describe('the generated probe is not decorative', () => {
   test('each probe step FAILS when the secret is present, not when it is absent', () => {
     // The direction is the entire point and is easy to invert by accident. The
     // step must be conditional on the secret EXISTING — that is the stale case.
+    //
+    // ⚠️ CHANGED ASSERTION — SEC-165, and it needs Luisa's Test Integrity
+    // sign-off. This line read:
+    //
+    //     expect(probe).toMatch(/if: \$\{\{ secrets\.[A-Z0-9_]+ != '' \}\}/)
+    //
+    // which pinned a shape GitHub REFUSES TO RUN. The `secrets` context is not
+    // available in a step-level `if:`, so that file was invalid: 43 runs on
+    // this repository, every one `failure`, zero jobs started, zero successes,
+    // and not one scheduled execution. The assertion was green throughout —
+    // it was checking the source text of a control that had never once fired.
+    //
+    // The intent is unchanged and the encoding is strictly stronger: the same
+    // direction is asserted at the location GitHub actually evaluates it, and
+    // the old shape is now a NEGATIVE assertion so the regression reddens here
+    // rather than merely reappearing in the CTL-073 lint baseline.
     const probe = fs.readFileSync(PROBE, 'utf8');
-    expect(probe).toMatch(/if: \$\{\{ secrets\.[A-Z0-9_]+ != '' \}\}/);
+    expect(probe).toMatch(/^\s+PROBE_HAS_[A-Z0-9_]+: \$\{\{ secrets\.[A-Z0-9_]+ != '' \}\}$/m);
+    expect(probe).toMatch(/^\s+if: env\.PROBE_HAS_[A-Z0-9_]+ == 'true'$/m);
+    expect(probe).not.toMatch(/^\s*if:\s*\$\{\{\s*secrets\./m);
     expect(probe).toContain('exit 1');
     // And it must say what to do, or a future reader will just delete the step.
     expect(probe).toContain('known-secrets.txt');
+  });
+
+  test('the env key and the secret it tests are the SAME name', () => {
+    // A step gated on PROBE_HAS_A while the env line computes it from
+    // secrets.B would be a control pointed at the wrong secret, and every
+    // other assertion here would still pass. Checked pairwise, per entry.
+    const probe = fs.readFileSync(PROBE, 'utf8');
+    const pairs = [
+      ...probe.matchAll(/^\s+PROBE_HAS_([A-Z0-9_]+): \$\{\{ secrets\.([A-Z0-9_]+) != '' \}\}$/gm),
+    ];
+    expect(pairs.length).toBeGreaterThan(0); // corpus first (failure mode 4)
+    for (const [, envName, secretName] of pairs) {
+      expect(envName).toBe(secretName);
+    }
+    // …and every one of those env keys is actually consumed by a step.
+    for (const [, envName] of pairs) {
+      expect(probe).toContain(`if: env.PROBE_HAS_${envName} == 'true'`);
+    }
+  });
+
+  test('every ledger entry has BOTH halves — no entry gated on nothing', () => {
+    // The two halves are generated independently. An entry present in the env
+    // block but with no step, or a step whose env key was never computed,
+    // would silently never fire — `env.MISSING == 'true'` is simply false.
+    const ledger = fs
+      .readFileSync(LEDGER, 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+      .map((l) => l.split('#')[0].trim())
+      .filter(Boolean);
+    expect(ledger.length).toBeGreaterThan(0);
+
+    const probe = fs.readFileSync(PROBE, 'utf8');
+    for (const name of ledger) {
+      expect(probe).toContain(`PROBE_HAS_${name}: \${{ secrets.${name} != '' }}`);
+      expect(probe).toContain(`if: env.PROBE_HAS_${name} == 'true'`);
+    }
   });
 
   test('it never reads a secret VALUE — only the boolean', () => {
@@ -117,6 +174,122 @@ describe('the generated probe is not decorative', () => {
     const probe = fs.readFileSync(PROBE, 'utf8');
     expect(probe).toContain('DO NOT EDIT BY HAND');
     expect(probe).toContain(SRC.checkAbsentSecretProbe);
+  });
+});
+
+describe('SEC-165 — the probe has been SEEN to fire', () => {
+  /**
+   * The defect this closes is not "a wrong expression". It is that nothing had
+   * ever asked what happens when a listed secret IS present — so a control
+   * that GitHub refused to run at all (43 runs, 0 jobs, 0 successes) reported
+   * nothing wrong for as long as it existed.
+   *
+   * These drive the REAL evaluator in the generator against the REAL committed
+   * probe, in both directions.
+   *
+   * ⚠️ STATED GAP: `--simulate` models GitHub's documented evaluation of the
+   * two expressions the generator emits; it does not execute GitHub's
+   * expression engine. It proves the two halves agree and point the right way.
+   * That the file is ACCEPTED is proven separately, by actionlint via CTL-073.
+   */
+  const ledgerNames = () =>
+    fs
+      .readFileSync(LEDGER, 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'))
+      .map((l) => l.split('#')[0].trim())
+      .filter(Boolean);
+
+  test('with every recorded absence still real, NOTHING fires', () => {
+    const r = run(['--simulate', '']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('simulate: 0 step(s) would fail');
+    expect(r.out).not.toContain('FIRES');
+  });
+
+  test('each ledger entry fires on its own when that secret appears', () => {
+    const names = ledgerNames();
+    expect(names.length).toBeGreaterThan(0); // corpus first (failure mode 4)
+    for (const name of names) {
+      const r = run(['--simulate', name]);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain(`FIRES ${name}`);
+      expect(r.out).toContain('simulate: 1 step(s) would fail');
+    }
+  });
+
+  test('a secret NOT in the ledger fires nothing — no over-broad gate', () => {
+    const r = run(['--simulate', 'SOME_SECRET_NOT_IN_THE_LEDGER']);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('simulate: 0 step(s) would fail');
+  });
+
+  test('all of them present fires all of them, not just the first', () => {
+    const names = ledgerNames();
+    const r = run(['--simulate', names.join(',')]);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain(`simulate: ${names.length} step(s) would fail`);
+  });
+});
+
+describe('regenerating does not revert a dependabot action bump', () => {
+  /**
+   * FOUND BY MUTATION while building SEC-165, not theorised. `render()` bakes
+   * an `actions/checkout` pin into the generated file, and `check()` compares
+   * only secret NAMES — so a `--write` that ignored the existing pin would
+   * silently roll a security bump back and every test in this file stayed
+   * green. It did: dependabot's #841 bump was reverted to the generator's
+   * older literal with 17/17 passing.
+   *
+   * The self-test covers `render(names, checkout)` in isolation; this covers
+   * the `--write` PATH, which is where the argument is actually supplied and
+   * where the mutation lived. Testing the function and not its only caller is
+   * how that gap existed in the first place.
+   *
+   * Deliberately NOT an equality gate between the generator's literal and the
+   * committed file: dependabot cannot edit the .py, so such a gate would be
+   * permanently unsatisfiable for the one author that trips it (gotcha #34).
+   */
+  const BUMPED = `actions/checkout@${'a'.repeat(40)} # v9`;
+
+  function sandbox() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'absent-probe-'));
+    fs.mkdirSync(path.join(dir, '.github', 'workflows'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'scripts'), { recursive: true });
+    fs.copyFileSync(LEDGER, path.join(dir, '.github', 'absent-secrets.txt'));
+    fs.copyFileSync(SCRIPT, path.join(dir, SRC.checkAbsentSecretProbe));
+    return dir;
+  }
+
+  test('--write carries the committed pin forward instead of resetting it', () => {
+    const dir = sandbox();
+    const probe = path.join(dir, '.github', 'workflows', 'absent-secrets-probe.yml');
+    const original = fs.readFileSync(PROBE, 'utf8');
+    const current = original.match(/actions\/checkout@[0-9a-f]{40}[^\n]*/)[0];
+    // Stand in for a dependabot bump: same file, newer pin.
+    fs.writeFileSync(probe, original.replace(current, BUMPED));
+
+    const r = run(['--write'], { cwd: dir });
+    expect(r.code).toBe(0);
+    const after = fs.readFileSync(probe, 'utf8');
+    expect(after).toContain(BUMPED);
+    // The bump must survive; the pre-bump pin must not come back.
+    expect(after).not.toContain(current.split(' ')[0]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('--write into a fresh tree still produces a pinned checkout', () => {
+    // The other direction: with nothing to carry forward, the fallback is used
+    // rather than an unpinned `actions/checkout@v6`, which check-action-pinning
+    // would reject.
+    const dir = sandbox();
+    const r = run(['--write'], { cwd: dir });
+    expect(r.code).toBe(0);
+    const after = fs.readFileSync(
+      path.join(dir, '.github', 'workflows', 'absent-secrets-probe.yml'), 'utf8');
+    expect(after).toMatch(/uses: actions\/checkout@[0-9a-f]{40} # v\d+/);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 

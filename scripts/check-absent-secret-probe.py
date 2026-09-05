@@ -80,6 +80,80 @@ SECRET_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 # The literal each entry contributes to the generated workflow.
 PROBE_EXPR = "secrets.{name} != ''"
 
+# WHERE THAT EXPRESSION IS EVALUATED, and why it is not in the step's `if:`
+# (SEC-165). The `secrets` context is NOT available in `jobs.<id>.steps[*].if`.
+# GitHub's context-availability table lists env, github, inputs, job, matrix,
+# needs, runner, steps, strategy and vars there — and not secrets. Written as
+# `if: ${{ secrets.X != '' }}` the whole workflow file is INVALID: measured on
+# this repository, 43 runs, every one `failure`, zero jobs started, zero
+# successes, and not one scheduled run ever executed. CTL-068 could not fire.
+#
+# `jobs.<id>.env` DOES get the secrets context, so the presence test is
+# evaluated there and the step reads the result through `env`, which a step
+# `if:` can see. The comparison happens inside the `${{ }}`, so what lands in
+# the environment is the literal string "true" or "false" — never the secret's
+# VALUE. That invariant is the reason for the shape; do not "simplify" it to
+# `HAS_X: ${{ secrets.X }}`, which would put the credential itself into the
+# environment of every step in the job.
+ENV_PREFIX = "PROBE_HAS_"
+ENV_TRUE = "true"
+
+# How the two halves are recognised when reading a generated file back.
+ENV_LINE_RE = re.compile(
+    r"^\s*" + ENV_PREFIX + r"([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\.([A-Z][A-Z0-9_]*)\s*!=\s*''\s*\}\}\s*$",
+    re.MULTILINE,
+)
+STEP_IF_RE = re.compile(
+    r"^\s*if:\s*env\." + ENV_PREFIX + r"([A-Z][A-Z0-9_]*)\s*==\s*'" + ENV_TRUE + r"'\s*$",
+    re.MULTILINE,
+)
+# Any step-level `if:` reaching for the secrets context — the SEC-165 defect.
+# Kept as a named pattern so the regression is detectable rather than merely
+# absent from a lint baseline.
+BAD_STEP_IF_RE = re.compile(r"^\s*if:\s*\$\{\{\s*secrets\.", re.MULTILINE)
+
+# The checkout pin the generator writes when it has nothing better to copy.
+# ⚠️ IT IS A FALLBACK, NOT THE SOURCE OF TRUTH. `--write` preserves whatever
+# pin the committed workflow already carries, because dependabot bumps this
+# file directly and `check()` compares only secret NAMES — so without the
+# preservation a routine regeneration would silently revert a security update
+# with nothing going red. Preserving rather than asserting is deliberate: a
+# gate demanding the generator be edited alongside the workflow would be
+# unsatisfiable for dependabot, which is gotcha #34 exactly.
+DEFAULT_CHECKOUT = "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6"
+CHECKOUT_RE = re.compile(r"uses:\s*(actions/checkout@[0-9a-f]{40}[^\n]*)")
+
+
+def current_checkout(text: str | None) -> str | None:
+    """The `actions/checkout` pin already in a generated probe, if any."""
+    if not text:
+        return None
+    m = CHECKOUT_RE.search(text)
+    return m.group(1).strip() if m else None
+
+
+def simulate(probe_text: str, present: set[str]) -> set[str]:
+    """Which steps FIRE, given `present` as the set of secrets that exist.
+
+    Reads the generated text and applies GitHub's documented semantics for the
+    two expressions this generator emits — a job-level `env:` value computed
+    from the secrets context, and a step-level `if:` comparing that value.
+
+    ⚠️ STATED GAP: this MODELS GitHub's evaluation, it does not execute it.
+    What it can prove is that the two halves agree and point the right way —
+    that a present secret reaches the failing branch and an absent one does
+    not. What it cannot prove is that GitHub accepts the file; only a real run
+    does that, and the SEC-165 measurement (43 runs, 0 jobs) is what showed the
+    previous shape did not.
+    """
+    env: dict[str, bool] = {}
+    for var, secret in ENV_LINE_RE.findall(probe_text):
+        # The name in the env key and the name in the expression must agree, or
+        # a step would be gated on a different secret than the one it names.
+        if var == secret:
+            env[var] = secret in present
+    return {var for (var,) in ((m,) for m in STEP_IF_RE.findall(probe_text)) if env.get(var)}
+
 
 def load_absent_names(path: Path = ABSENT_PATH) -> list[str]:
     """Ordered, de-duplicated secret names from the absent ledger."""
@@ -105,13 +179,26 @@ def probe_names(text: str) -> list[str]:
     return re.findall(r"secrets\.([A-Z][A-Z0-9_]*)\s*!=\s*''", text)
 
 
-def render(names: list[str]) -> str:
-    """The full probe workflow for `names`."""
+def render(names: list[str], checkout: str | None = None) -> str:
+    """The full probe workflow for `names`.
+
+    `checkout` carries the existing `actions/checkout` pin forward; see
+    DEFAULT_CHECKOUT for why it is preserved rather than asserted.
+    """
+    checkout = checkout or DEFAULT_CHECKOUT
+    # An EMPTY ledger is the correct steady state, so it must render a valid
+    # workflow. A bare `env:` with no mapping under it is null, which actionlint
+    # rejects — so the block is omitted entirely rather than left dangling.
+    env_lines = "".join(
+        f"      {ENV_PREFIX}{name}: ${{{{ {PROBE_EXPR.format(name=name)} }}}}\n"
+        for name in names
+    )
+    env_block = f"    env:\n{env_lines}" if names else ""
     steps = []
     for name in names:
         steps.append(
             f"""      - name: {name} must still be absent
-        if: ${{{{ {PROBE_EXPR.format(name=name)} }}}}
+        if: env.{ENV_PREFIX}{name} == '{ENV_TRUE}'
         run: |
           set -euo pipefail
           echo "::error::{name} is listed in .github/absent-secrets.txt as"
@@ -146,8 +233,16 @@ def render(names: list[str]) -> str:
 # can change it, and it can become true while no PR is open -- the same reason
 # db-invariants.yml runs on a schedule.
 #
+# WHY THE PRESENCE TEST IS AT JOB LEVEL AND NOT IN THE STEP'S `if:` (SEC-165):
+# the `secrets` context is NOT available in a step-level `if:`. Written that
+# way this file is INVALID and GitHub refuses to run it at all -- measured on
+# this repository as 43 runs, every one `failure`, zero jobs started and not a
+# single scheduled run. `jobs.<id>.env` does get the secrets context, so the
+# comparison happens there and each step reads the RESULT through `env`.
+#
 # No secret VALUE is ever read, logged or compared here: only the boolean
-# `!= ''`.
+# `!= ''`. The comparison is inside the `${{{{ }}}}`, so what reaches the
+# environment is the string "true" or "false", never the credential.
 
 name: Absent-secret ledger freshness
 
@@ -169,9 +264,9 @@ jobs:
   probe:
     name: Every deliberately-absent secret is still absent
     runs-on: ubuntu-latest
-    steps:
+{env_block}    steps:
       - name: Check out
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        uses: {checkout}
 
       - name: The probe matches the ledger
         # Belt and braces: if someone edits the ledger without regenerating,
@@ -262,9 +357,67 @@ def self_test() -> int:
     # The generated step must actually reference the secret, or the whole
     # mechanism is decorative.
     case("the rendered probe evaluates each name", set(probe_names(txt)) == set(led))
+
+    # ---- SEC-165: the presence test must be evaluated where GitHub provides
+    # the context, and the step must FIRE on presence. The previous shape put
+    # `secrets.X` in the step's own `if:`, which made the whole file invalid —
+    # 43 runs, 0 jobs, 0 successes, and the control never once executed.
+    # ⚠️ These two expected values are written out as LITERALS, deliberately.
+    # Building them from ENV_PREFIX/ENV_TRUE would derive the oracle from the
+    # subject (catalogue failure mode 10): flipping ENV_TRUE to "false" changes
+    # the generated file AND the expectation together, and the case stays
+    # green. Measured — that mutation reddened the jest suite, which uses
+    # literals, and not this self-test, which did not.
     case(
-        "the rendered step is conditional on the secret being PRESENT",
-        "if: ${{ secrets.ALPHA_TOKEN != '' }}" in txt,
+        "the presence test is evaluated at JOB level, where secrets exists",
+        "      PROBE_HAS_ALPHA_TOKEN: ${{ secrets.ALPHA_TOKEN != '' }}" in txt,
+    )
+    case(
+        "the step reads that result through env, which a step `if:` CAN see",
+        "if: env.PROBE_HAS_ALPHA_TOKEN == 'true'" in txt,
+    )
+    case(
+        "NO step-level `if:` reaches for the secrets context (the defect)",
+        BAD_STEP_IF_RE.search(txt) is None,
+    )
+
+    # The firing branch, driven in both directions. This is the half that was
+    # missing and is how a control invalid since the day it was written went
+    # unnoticed: nothing had ever asked what happens when a secret IS present.
+    case(
+        "a PRESENT secret reaches the failing step",
+        simulate(txt, {"ALPHA_TOKEN"}) == {"ALPHA_TOKEN"},
+    )
+    case(
+        "an ABSENT secret does not — a clean ledger stays green",
+        simulate(txt, set()) == set(),
+    )
+    case(
+        "every entry can fire, not just the first",
+        simulate(txt, {"ALPHA_TOKEN", "BETA_TOKEN"}) == {"ALPHA_TOKEN", "BETA_TOKEN"},
+    )
+    case(
+        "…and only the present one fires when they differ",
+        simulate(txt, {"BETA_TOKEN"}) == {"BETA_TOKEN"},
+    )
+
+    # The checkout pin is CARRIED FORWARD, not re-asserted from this file.
+    # Without this, a dependabot bump of the generated workflow is silently
+    # reverted by the next --write and nothing goes red (check() compares only
+    # secret names). Asserting equality instead would make the gate
+    # unsatisfiable for dependabot — gotcha #34.
+    bumped = txt.replace(
+        DEFAULT_CHECKOUT, "actions/checkout@" + "b" * 40 + " # v7"
+    )
+    case("a bumped checkout pin is detected", current_checkout(bumped) is not None)
+    case(
+        "…and regenerating PRESERVES it rather than reverting the bump",
+        current_checkout(render(led, current_checkout(bumped)))
+        == current_checkout(bumped),
+    )
+    case(
+        "with no prior file, the default pin is used",
+        current_checkout(render(led, current_checkout(None))) == DEFAULT_CHECKOUT,
     )
 
     # An empty ledger renders a valid workflow and agrees with itself. The
@@ -273,6 +426,11 @@ def self_test() -> int:
     empty = render([])
     case("an empty ledger is valid, not an error", check([], empty) == [])
     case("an empty probe checks nothing", probe_names(empty) == [])
+    case(
+        "an empty ledger emits NO dangling `env:` key (null, which is invalid)",
+        "\n    env:\n" not in empty,
+    )
+    case("an empty probe fires nothing whatever exists", simulate(empty, {"X"}) == set())
 
     # Injection: a name that is not a plain identifier must be REFUSED, never
     # interpolated. The ledger is repo-controlled, but a name carrying `}}`
@@ -303,7 +461,11 @@ def self_test() -> int:
 
     # A floor, not a tally: "N/N passed" stays reassuring when N silently drops
     # (catalogue failure mode 8).
-    minimum = 13
+    # 25 cases today; the floor is 24 because the last one is conditional on
+    # the real ledger + probe existing in the working directory. SEC-165 took
+    # this from 13 to 24 — eleven of the additions drive the FIRING branch and
+    # the shape it now depends on.
+    minimum = 24
     if len(cases) < minimum:
         print(f"::error::self-test corpus shrank: {len(cases)} < {minimum}")
         failures.append(f"corpus floor ({len(cases)} < {minimum})")
@@ -323,10 +485,29 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--self-test", action="store_true")
     ap.add_argument("--write", action="store_true", help="regenerate the probe")
+    ap.add_argument(
+        "--simulate",
+        metavar="NAMES",
+        help="comma-separated secrets to treat as PRESENT; prints which steps "
+        "of the committed probe would fire. Read-only; for tests and for "
+        "answering 'would this actually catch it?' without waiting a week "
+        "for the schedule.",
+    )
     args = ap.parse_args()
 
     if args.self_test:
         return self_test()
+
+    if args.simulate is not None:
+        if not PROBE_PATH.exists():
+            print(f"::error::{PROBE_PATH} is missing — cannot decide. Failing closed.")
+            return 2
+        present = {n.strip() for n in args.simulate.split(",") if n.strip()}
+        firing = simulate(PROBE_PATH.read_text(encoding="utf-8"), present)
+        for name in sorted(firing):
+            print(f"FIRES {name}")
+        print(f"simulate: {len(firing)} step(s) would fail")
+        return 0
 
     if not ABSENT_PATH.exists():
         print(f"::error::{ABSENT_PATH} is missing — cannot decide. Failing closed.")
@@ -336,7 +517,10 @@ def main() -> int:
 
     if args.write:
         PROBE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        PROBE_PATH.write_text(render(ledger), encoding="utf-8")
+        existing = PROBE_PATH.read_text(encoding="utf-8") if PROBE_PATH.exists() else None
+        PROBE_PATH.write_text(
+            render(ledger, current_checkout(existing)), encoding="utf-8"
+        )
         print(f"Wrote {PROBE_PATH} covering {len(ledger)} entr(y/ies).")
         return 0
 

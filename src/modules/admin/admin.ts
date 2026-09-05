@@ -72,11 +72,23 @@ export interface AdminUser {
 
 /**
  * Returns the current admin user if-and-only-if the cookie-authenticated
- * session is a real admin. Null otherwise. Never throws — the caller
- * decides how to respond (rewrite to 404, redirect to login, return 403).
+ * session is a real, non-suspended admin. Null otherwise. Never throws — the
+ * caller decides how to respond (rewrite to 404, redirect to login, return 403).
  *
  * The deliberate choice of `notFound()` over `403` in the route handlers
- * is in `src/middleware.ts` — this helper just answers "is admin or no".
+ * is in the admin layout — this helper just answers "is admin or no".
+ *
+ * SEC-121: this reads `is_suspended` and treats a suspended admin as not-admin.
+ * The `access` module's suspension gate in the middleware pipeline also refuses
+ * a suspended user (KAN-319, and now runs ABOVE the admin-host early return per
+ * SEC-121 so it fires on `admin.checklyra.com` too), but this second layer is
+ * the durable half: it makes the answer "is this admin allowed to act" true or
+ * false in ONE PLACE, so a future middleware reorder that misses the admin
+ * host cannot re-open the console to a suspended admin. Two call sites
+ * non-null-assert this result (`src/app/admin/users/page.tsx` and
+ * `src/app/admin/users/[slug]/page.tsx`); they stay correct only because the
+ * layout and this helper apply exactly the same predicate — widening it here
+ * without widening the layout would turn `!` into a runtime null.
  */
 export async function getCurrentAdmin(): Promise<AdminUser | null> {
   const supabase = await createSupabaseServerClient();
@@ -85,11 +97,21 @@ export async function getCurrentAdmin(): Promise<AdminUser | null> {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, display_name, is_admin')
+    .select('id, display_name, is_admin, is_suspended')
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (error || !profile?.is_admin) return null;
+  // SEC-121: `is_suspended` is a HARD refusal alongside `is_admin`. Note the
+  // asymmetry with the middleware suspension gate — that one fails OPEN on a
+  // read error (KAN-319: locking out the whole authenticated userbase on a
+  // transient DB error is worse than admitting a suspended user's own
+  // session, whose public exposure is already gated by RLS). Here the read
+  // error path is different: we're gating access to the moderation console
+  // for someone we already know is an admin, and admitting a possibly-
+  // suspended admin to that console on a transient error is not comparable
+  // to the ordinary-user case. Fail CLOSED — the `error || …` clause below
+  // already does that, this comment names it.
+  if (error || !profile?.is_admin || profile?.is_suspended) return null;
 
   return {
     userId: user.id,

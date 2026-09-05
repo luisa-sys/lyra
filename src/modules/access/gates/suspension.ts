@@ -16,6 +16,12 @@
  * middleware-gate-order.test.ts, where moving this gate below the beta gate
  * reddens exactly one test.
  *
+ * SEC-121 note: this gate is currently POSITIONED AFTER admin-host, which
+ * means it does not run for requests to `admin.checklyra.com` (that gate
+ * returns early). Containment on the admin host is provided by
+ * `getCurrentAdmin()`'s own is_suspended check, not by this gate. See the
+ * SEC-121 note on AUTHED_ORDER in pipeline.ts.
+ *
  * ⚠️ The console.error signature is pinned by that suite:
  *   toHaveBeenCalledWith(stringContaining('failing open'), 'connection reset')
  * Two arguments, and the message must contain "failing open". Reformatting it

@@ -47,6 +47,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before the imports they intercept (jest hoists jest.mock).
@@ -365,16 +366,6 @@ describe('restoreGiftSuggestion', () => {
 //    first, and the stripper is itself tested below.
 // ===========================================================================
 const ROOT = path.resolve(__dirname, '../..');
-
-/** Remove /* … *​/ blocks (which is also how JSX `{/* … *​/}` is written) and
- *  trailing `//` line comments, without eating `https://` inside a string. */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split('\n')
-    .map((line) => line.replace(/(^|[^:'"`\\])\/\/.*$/, '$1'))
-    .join('\n');
-}
 
 describe('the comment stripper used below actually strips', () => {
   test('removes a trailing line comment', () => {

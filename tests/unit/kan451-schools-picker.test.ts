@@ -102,6 +102,7 @@ import { isSchoolPostcodeValid } from '@/app/dashboard/profile/affiliation-field
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // Each test gets its own user id so the in-memory per-user write rate limit
 // (KAN-231, 30/min) can never make a later test fail for an earlier one's reason.
@@ -578,11 +579,6 @@ describe('KAN-451: the school postcode requirement survives the picker work', ()
 // invisible. Comments are stripped so no comment can satisfy them (KAN-459).
 describe('KAN-451: the add form is wired to the picker and the description', () => {
   const ROOT = resolve(__dirname, '../..');
-  const stripComments = (src: string): string =>
-    src
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const section = stripComments(
     readFileSync(resolve(ROOT, SRC.profile, 'sections/affiliations-section.tsx'), 'utf-8'),
   );

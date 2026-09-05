@@ -185,3 +185,70 @@ updatability). Investigated the same day and deliberately **not** built: the
 cheap route (extending CTL-048) rests on PostgREST's OpenAPI `required` array,
 which is NOT a NOT NULL list. Reasoning and the two sound alternatives are on
 the ticket.
+
+## 2026-08-21 update — the mutation gate could not fail (KAN-356 step 6/7/8, CTL-078)
+
+KAN-356 finding **web-tests-05** asks for two things: widen Stryker's `mutate`
+scope to the security-critical modules, and set a **measured** `thresholds.break`
+so the mutation score cannot regress silently. Working that slice turned up a
+precondition neither the finding nor this document had noticed, and a blocker on
+the scope half.
+
+**The precondition: `thresholds.break` would have been inert.**
+`.github/workflows/mutation-testing.yml` carried `continue-on-error: true` on
+the Stryker step. Stryker signals a breached break threshold by exiting
+non-zero — so with that line present the step is marked success, the artifact
+uploads, and the job goes green regardless. Criterion 5 was satisfiable on paper
+while the control remained incapable of failing.
+
+Worth being precise about, because it is not simply a banned pattern: the
+Workflow & Backup Integrity Policy explicitly permits `continue-on-error: true`
+on an **advisory** step and names mutation testing as its own worked example.
+That permission is exactly what expires the moment a break threshold is set. The
+two facts are only wrong *together*, which is why CTL-078 checks them together
+rather than as two independent greps.
+
+The same step's `Summary` block ended on exit 0 in both failure directions — a
+missing report printed "No report generated" and passed; an unparseable one
+printed the literal score `N/A%` through a lossy `|| echo` over a bare
+`except:`. Neither is distinguishable by the reader from a real measurement, so
+the job reported green while dark. Both now fail loud with a `::error::`
+annotation.
+
+**The blocker on the scope half, stated rather than deferred silently.**
+Widening `mutate` to `src/modules/{guards,access,age,auth}` makes Stryker abort
+in its *initial test run*, so no score can be measured at all. Measured
+2026-08-21 against `develop` `b20e3d6`:
+
+| `mutate` scope | mutants | initial test run |
+| --- | --- | --- |
+| 2 files (`develop` today) | 187 | succeeded — ran 529 tests |
+| 40 files (the ticket's) | 1661 | **failed** → `ConfigError`, no report |
+
+The cause is not the extra files. Stryker's jest runner selects tests by the
+**import graph**, and a source-scanning test — one that reads its subject with
+`readFileSync` — has no import edge to that subject, so at 2 files it is simply
+never selected. At 40 files it *is* selected, and then reads Stryker's
+**instrumented** copy of the source, in which the literal it greps for no longer
+appears. Both observed failures were in `tests/unit/age-self-declaration.test.ts`
+asserting against `src/app/(auth)/actions.ts` — a file that was **already** in
+the mutate list on `develop`, which is what proves test *selection*, not scope,
+is the variable.
+
+So the mutation surface cannot widen until the source-scanning tests over the
+modules being widened into are converted or exempted. That couples web-tests-05
+directly to **web-tests-06** and the CTL-077 source-scan inventory: the two
+findings are sequential, not parallel, and this document previously listed them
+as independent.
+
+**`thresholds.break` is therefore still `null`, deliberately.** Setting a value
+nobody has measured produces a red build on day one, which is a control someone
+turns off. CTL-078 pins the *precondition* instead.
+
+**Gate added:** CTL-078 (`tests/scripts/mutation-testing-can-fail.test.js`),
+registered and wired into `pr-checks.yml`; mutation-proven seven ways, each
+mutation asserted to have applied and each restore confirmed byte-exact.
+
+**Still open on KAN-356:** step 6 (scope, blocked as above), step 7 (the
+measured threshold, blocked on step 6), leg A (runtime cross-user isolation, in
+`lyra-mcp-server`) and leg D (the authenticated E2E journey, Luisa-gated).
