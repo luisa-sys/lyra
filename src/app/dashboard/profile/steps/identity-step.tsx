@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from 'react';
 import { Field, SaveButton, type WizardProfile } from './types';
-import { SUPPORTED_DELIVERY_COUNTRIES } from '@/lib/affiliate/country-codes';
+import { SUPPORTED_DELIVERY_COUNTRIES } from '@/modules/profile/country-codes';
 import { updateDeliveryCountry } from '../delivery-country-actions';
 
 export function IdentityStep({ profile, onSave, onUploadAvatar, isPending }: {

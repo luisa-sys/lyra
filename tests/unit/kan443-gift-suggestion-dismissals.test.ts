@@ -47,6 +47,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before the imports they intercept (jest hoists jest.mock).
@@ -64,11 +65,11 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: () => Promise.resolve({ data: { user: mockUser } }),
@@ -114,7 +115,7 @@ import {
   withoutDismissedRecommendations,
   withoutDismissedV2,
   MAX_SUGGESTION_KEY_LENGTH,
-} from '@/lib/recommend/dismissals';
+} from '@/modules/recommendations/recommend/dismissals';
 import { dismissGiftSuggestion, restoreGiftSuggestion } from '@/app/dashboard/profile/actions';
 
 beforeEach(() => {
@@ -299,9 +300,18 @@ describe('dismissGiftSuggestion', () => {
   });
 
   test('a database error is surfaced, not swallowed', async () => {
+    // BUGS-87 (founder-approved 2026-08-09): this asserted the RAW Postgres
+    // string reached the caller — and `gift-extras-section.tsx` renders it
+    // verbatim in a role="alert", so it reached the MEMBER. The test's real
+    // intent is "the failure is surfaced, not swallowed"; that is preserved,
+    // and strengthened by asserting the raw text is now absent.
     mockUpsertError = { message: 'relation does not exist' };
     const result = await dismissGiftSuggestion('books_reading:something to read');
-    expect(result).toEqual({ success: false, error: 'relation does not exist' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe('Something went wrong saving that. Please try again.');
+      expect(result.error).not.toMatch(/relation does not exist/);
+    }
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -356,16 +366,6 @@ describe('restoreGiftSuggestion', () => {
 //    first, and the stripper is itself tested below.
 // ===========================================================================
 const ROOT = path.resolve(__dirname, '../..');
-
-/** Remove /* … *​/ blocks (which is also how JSX `{/* … *​/}` is written) and
- *  trailing `//` line comments, without eating `https://` inside a string. */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split('\n')
-    .map((line) => line.replace(/(^|[^:'"`\\])\/\/.*$/, '$1'))
-    .join('\n');
-}
 
 describe('the comment stripper used below actually strips', () => {
   test('removes a trailing line comment', () => {

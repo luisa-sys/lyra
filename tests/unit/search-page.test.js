@@ -31,9 +31,11 @@ describe('KAN-136: Search page exists and has correct structure', () => {
   });
 
   test('page queries Supabase for published profiles', () => {
-    expect(content).toContain("is_published");
-    expect(content).toContain("true");
-    expect(content).toContain(".from('profiles')");
+    // SEC-104: reads moved from the `profiles` table to the `public_profiles`
+    // view, which carries `is_published = true AND is_suspended = false` in its
+    // body and therefore binds the service-role client (RLS does not).
+    expect(content).toContain(".from('public_profiles')");
+    expect(content).not.toContain(".from('profiles')");
   });
 
   test('search filters by name, headline, city, slug', () => {

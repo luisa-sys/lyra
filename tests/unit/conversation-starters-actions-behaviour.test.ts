@@ -86,15 +86,15 @@ function makeClient() {
 }
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => makeClient()),
 }));
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
 // Moderation is a separate concern with its own tests; allow everything so the
 // sanitising and capping are what these cases actually exercise.
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: jest.fn(async () => ({ ok: true })),
 }));
 

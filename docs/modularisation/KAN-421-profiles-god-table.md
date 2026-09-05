@@ -186,6 +186,94 @@ No exploitation was attempted; the finding rests entirely on schema, policy, gra
 
 Raised as **SEC-112** (labelled `modularisation`), not fixed here — this run is scoping-only. The obvious fix is to add `is_published` to `prevent_beta_self_elevation`'s protected set (or a sibling trigger), which both closes the bypass and makes `profile` the enforced sole user-facing writer.
 
+### 7.1 Resolved 2026-08-14 — and the "obvious fix" above was not sufficient
+
+**SEC-112 is fixed** (`supabase/migrations/20260814150000_sec112_block_is_published_self_set.sql`,
+trigger `profiles_block_is_published_self_set`; live per-environment assertion as
+**INV-9** in `security_invariants_report()`). Three corrections to the section
+above, kept rather than edited away because each was load-bearing:
+
+1. **The sibling-trigger fix alone would have broken publishing everywhere.**
+   `publishProfile()` obtained its client from `createClient()` — the **anon key
+   carrying the end user's session JWT** — so `auth.uid()` was the user, and the
+   legitimate publish and the PostgREST attack were **the same credential making
+   the same call**. A trigger keyed on `auth.uid() IS NOT NULL` cannot separate
+   them; it refuses both. That is the BUGS-60 over-revoking shape. The fix
+   therefore had two halves: move the `is_published` write to
+   `createServiceRoleClient()` (scoped by the server-validated user id, gate
+   still immediately in front of it), *then* add the trigger.
+
+   Evaluating the age gate **inside** the database — which would have let the
+   user credential keep the write — is not available: the gate reads
+   `global_feature_switches` filtered by `getDeployEnv()`, and `beta` and `prod`
+   are two environments sharing **one** Supabase project with two different
+   switch rows, so a trigger cannot know which is asking. Passing the
+   environment into an RPC moves the lie to the caller.
+
+2. **"All 41 columns" was stale.** Production's `profiles` has **38** columns
+   (dev has 42 — the four KAN-153 columns that never reached prod, SEC-107).
+   `authenticated` holds UPDATE on all 38. The ratio and the argument are
+   unaffected.
+
+3. **The column-level revoke that SEC-27 uses as "defence in depth" is inert,
+   so this migration deliberately ships none.** `authenticated` holds UPDATE at
+   **table** level (`relacl` = `{…anon=arwdDxtm…,authenticated=arwdDxtm…}`), and
+   a column-level `REVOKE` cannot subtract from a table-level grant — Postgres
+   warns and carries on. Measured on prod 2026-08-14: `pg_attribute.attacl` is
+   **NULL for every one of the 38 columns**, i.e. no column ACL has ever existed,
+   and reproduced on dev with a scratch table. So
+   `20260622170000_block_admin_suspended_self_set.sql`'s final line has done
+   nothing since 2026-06-22 and only its **trigger** is enforcing. Narrowing the
+   table grant to an explicit column list is the real second layer and is
+   tracked as **SEC-147**. Note this also means §5's proposal to "narrow the
+   column grant" is a table-grant rewrite, not a column revoke.
+
+The `is_published` row in §4's table therefore keeps two writers as recommended,
+but both are now on the **service-role** client: `publishProfile()` (user
+intent, age-gated in application code) and the admin unpublish. No user-context
+caller can write the column at all.
+
+### 7.2 Deployment state, 2026-08-16 — and why the ordering is INVERTED
+
+⚠️ **"Fixed" above means the code and the migration exist. It does not mean the
+trigger is running everywhere, and those are different claims** — which is the
+whole reason INV-9 is a live per-environment assertion rather than a repo test.
+
+| environment | service-role code live | trigger applied | proven |
+|---|---|---|---|
+| **dev** | ✅ | ✅ | ✅ |
+| **staging** | ✅ | ✅ | ✅ |
+| **production** | ⏸ deploy parked awaiting the SEC-106 `Production` review | ❌ **deliberately not applied** | — |
+
+Proven on dev and staging means measured on the live database, both directions,
+not inferred from the migration having run:
+
+- an end-user JWT updating its **own** row is refused **42501**;
+- the **service-role** path is **allowed** — as important as the first, because
+  refusing it is the BUGS-60 shape;
+- INV-9 goes **0 → 1 finding** when the trigger is `DISABLE`d (disabled rather
+  than dropped: `DISABLE TRIGGER` leaves the row in `pg_trigger`, so an
+  existence-only check would sail past it).
+
+Each probe flipped the value (`is_published = not is_published`) rather than
+rewriting the same one — a no-op update would masquerade as a block — and each
+ended in a deliberate `raise` so the whole transaction rolled back and nothing
+persisted.
+
+**Production is last on purpose, and this is the opposite of the usual rule.**
+This migration must land **after** its code in each environment, because before
+SEC-112 `publishProfile()` wrote `is_published` on a client carrying the end
+user's JWT — so the trigger would refuse the *real publish flow*, not just the
+bypass. Beta and production **share one Supabase project**; beta receives the
+service-role code at the `staging → beta` promote, but `checklyra.com` does not
+until `beta → main` deploys. Applying the trigger in that window would break
+publishing for real users — 27 of 28 production profiles are published.
+
+Note the contrast with SEC-46 Phase C, in flight the same day: that migration is
+additive and nullable, so it correctly went to all three databases **ahead** of
+its code. Two migrations in flight with opposite requirements is exactly where
+"apply the migrations" as a single instruction goes wrong.
+
 ---
 
 ## 8. Option (B) costed — the satellite-table split

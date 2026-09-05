@@ -21,7 +21,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/features/entitlements', () => ({
+jest.mock('@/modules/features/entitlements', () => ({
   getMyFeatureEntitlements: jest.fn(async () => ({ discovery: true })),
 }));
 
@@ -38,7 +38,7 @@ let mockProfileRow: {
 };
 let mockUserId: string | null = 'test-user-id';
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: {
       getUser: jest.fn().mockImplementation(() =>
@@ -68,8 +68,8 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 const mockRateLimit = jest.fn();
-jest.mock('@/lib/rate-limit', () => {
-  const actual = jest.requireActual('@/lib/rate-limit');
+jest.mock('@/modules/guards/rate-limit', () => {
+  const actual = jest.requireActual('@/modules/guards/rate-limit');
   return {
     ...actual,
     rateLimit: (key: string, config: { limit: number; windowSeconds: number }) =>

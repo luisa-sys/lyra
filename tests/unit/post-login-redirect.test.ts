@@ -16,7 +16,7 @@ const mockBetaRedirectUrl = jest.fn((opts?: unknown) => {
 });
 const mockIsProdFamily = jest.fn(() => false);
 
-jest.mock('@/lib/beta-access/flow', () => ({
+jest.mock('@/modules/access/beta-access/flow', () => ({
   // The 1st arg still flows to mockResolveBetaAccess (existing assertions
   // unchanged); the 2nd (carriedCode) is recorded separately for KAN-337.
   resolveBetaAccess: (u: unknown, o: unknown) => {
@@ -36,7 +36,7 @@ jest.mock('next/headers', () => ({
   }),
 }));
 
-import { resolvePostLoginRedirect } from '@/lib/auth/post-login-redirect';
+import { resolvePostLoginRedirect } from '@/modules/auth/post-login-redirect';
 
 // Minimal stand-in for the Supabase server client — only auth.getUser is used.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -33,17 +33,17 @@
  */
 import { uploadProfileFile } from '@/app/dashboard/profile/files-actions';
 import { uploadAvatar } from '@/app/dashboard/profile/actions';
-import { getMyFeatureEntitlements } from '@/lib/features/entitlements';
+import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
-jest.mock('@/lib/profile-rate-limit', () => ({
+jest.mock('@/modules/guards/profile-rate-limit', () => ({
   checkProfileWriteRateLimit: jest.fn(async () => ({ allowed: true })),
 }));
 
 const storageFrom = jest.fn(() => ({ upload: jest.fn() }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } } })) },
     from: jest.fn(() => ({
@@ -57,7 +57,7 @@ jest.mock('@/lib/supabase-server', () => ({
   })),
 }));
 
-jest.mock('@/lib/features/entitlements', () => ({
+jest.mock('@/modules/features/entitlements', () => ({
   getMyFeatureEntitlements: jest.fn(),
 }));
 

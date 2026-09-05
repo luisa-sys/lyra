@@ -43,7 +43,7 @@ The discriminator is now measured, not assumed: `internalUses` counts references
 symbol elsewhere in its own file (`kan422-dead-exports.py::internal_uses`).
 
 **Correction 2 — the two files the ticket names for deletion must NOT be deleted.**
-`src/lib/recommender/inputs.ts` and `src/lib/recommender/events.ts` are the scaffolding
+`src/modules/recommendations/recommender/inputs.ts` and `src/modules/recommendations/recommender/events.ts` are the scaffolding
 for **KAN-198** (Rec-Engine 01 — recommender input audit) and **KAN-202** (Rec-Engine 05
 — feedback/learning loop). Both tickets are **In Progress today**. They are unconsumed
 because their consumers are not built yet, which is exactly the KEEP AS CONTRACT case.
@@ -101,7 +101,7 @@ cleanup items (§4).
 | # | File | Symbols | LOC | Tests to delete with it | Evidence |
 |---|---|---|---|---|---|
 | D1 | `src/app/_marketing/sections.tsx` | `Hero`, `ProfilePreview`, `HowItWorks`, `Sections`, `UseCases`, `WhatLyraIsNot`, `AboutLyra`, `ParentTeacherCallout`, `WishKnowFindFirstHand`, `CTA` | **376** | *none* | Only `AboutTrio` is imported (`src/app/(legal)/about/page.tsx:4`). The homepage inlines its own markup. Every other name's remaining repo hits are comments or unrelated identifiers. **Keep the file, keep `AboutTrio`.** |
-| D2 | `src/app/dashboard/share-profile.tsx` | `default` | **81** | *none* | KAN-154-B "Share your invite" client card. No importer; the only repo reference is a comment in `src/lib/invite-text.ts:7`. |
+| D2 | `src/app/dashboard/share-profile.tsx` | `default` | **81** | *none* | KAN-154-B "Share your invite" client card. No importer; the only repo reference is a comment in `src/modules/dashboard/invite-text.ts:7`. |
 | D3 | `src/lib/convene/google/calendar.ts` | `getFreeBusy` | **29** | *none* | Superseded by `src/lib/convene/calendar/google.ts::googleCalendarAdapter.getFreeBusy`, which is the one `adapterFor('google')` returns and `organise/actions.ts:188` calls. |
 | D4 | `src/lib/convene/google/oauth.ts` | `exchangeCodeForTokens` | 23 | `tests/unit/convene/google-oauth.test.ts` (**partial — see note**) | The Google callback route reimplemented this inline as `exchangeCodeForTokensVerbose` (`src/app/api/convene/oauth/google/callback/route.ts:61`). Sibling exports `buildAuthorizeUrl` + `refreshAccessToken` in the same file **are live** — so this test file covers live code and **cannot be deleted**, only the `exchangeCodeForTokens` describe-block. |
 | D5 | `src/lib/convene/invites/repository.ts` | `markInviteSent`, `markInviteFailed` | 21 | `tests/unit/…/invites-actions.test.ts`, `rsvp-submit-validation.test.ts` (**partial**) | No caller in any of the three repos; the dispatcher writes the same columns inline. Both test files also cover live code. |
@@ -117,9 +117,9 @@ files rather than deleting them, which is a *narrower* ask than the ticket antic
 | Symbols | Reason | Reference |
 |---|---|---|
 | `_internal` × 5 (`convene/invites/dispatch.ts`, `email.ts`, `twilio.ts`, `recommend/convene/score-attendee.ts`, `score-venue.ts`), `__resetCfAccessJwksCacheForTests`, `_clearFxCacheForTests`, `MERCHANT_RULES_INTERNAL` | Deliberate, named test seams. Their naming convention already declares the intent. | — |
-| `src/lib/recommender/inputs.ts` (4 symbols, 55 LOC) | **KAN-198 In Progress** — recommender input coercion; consumers not built yet. | KAN-198 |
-| `src/lib/recommender/events.ts` (3 symbols, 36 LOC) | **KAN-202 In Progress** — feedback/learning loop; `recommendation_events` consumers not built yet. | KAN-202 |
-| `filterCandidatesByEligibility` (60 LOC) + `src/lib/affiliate/eligibility.ts` (3 symbols, 35 LOC) + `affiliate/types.ts` `parseSubId`/`isCountryCode` | The V2 pipeline comment says the eligibility filter is "built into the candidate sourcing buyer-country filter". **That is true today and only today**: Tier 1 (curated catalogue) does check `is_active` + `buyer_countries`, and Tiers 2–3 are stubbed (`candidate-sourcing.ts:152` — `TODO(KAN-184)`). The filter's own docblock explains it exists precisely to cover Tier 2/3. **It becomes load-bearing the moment KAN-184 lands `SOVRN_API_KEY`.** | KAN-190; **blocks KAN-184** |
+| `src/modules/recommendations/recommender/inputs.ts` (4 symbols, 55 LOC) | **KAN-198 In Progress** — recommender input coercion; consumers not built yet. | KAN-198 |
+| `src/modules/recommendations/recommender/events.ts` (3 symbols, 36 LOC) | **KAN-202 In Progress** — feedback/learning loop; `recommendation_events` consumers not built yet. | KAN-202 |
+| `filterCandidatesByEligibility` (60 LOC) + `src/modules/affiliate/eligibility.ts` (3 symbols, 35 LOC) + `affiliate/types.ts` `parseSubId`/`isCountryCode` | The V2 pipeline comment says the eligibility filter is "built into the candidate sourcing buyer-country filter". **That is true today and only today**: Tier 1 (curated catalogue) does check `is_active` + `buyer_countries`, and Tiers 2–3 are stubbed (`candidate-sourcing.ts:152` — `TODO(KAN-184)`). The filter's own docblock explains it exists precisely to cover Tier 2/3. **It becomes load-bearing the moment KAN-184 lands `SOVRN_API_KEY`.** | KAN-190; **blocks KAN-184** |
 | `microsoftCalendarAdapter` (102 LOC) | Phase-7 scaffolding. `calendar/index.ts` registers `google` only, and the connections UI states "More providers coming in Phase 7 (Microsoft, Apple, CalDAV)" — so no user can connect Outlook. Not a live gap. | — |
 | `verifyAccessToken` (36 LOC) | Its docblock: *"AS-side self-check verifier (the load-bearing verification is the MCP resource server's)"*. Intentionally unconsumed by design. | KAN-88 |
 | `approveBetaUser` (44 LOC) | `beta-queue/page.tsx` docblock: *"The single-row `approveBetaUser` action is retained — it remains a valid one-off approve path and is covered by its unit test"*. | KAN-277 → KAN-311 |
@@ -133,7 +133,7 @@ files rather than deleting them, which is a *narrower* ask than the ticket antic
 
 Live code reached from inside its own file, exported solely for test access. **Not
 dead; do not delete.** Full list in the JSON (`bucket == "OVER-EXPORTED"`). Largest
-concentrations: `src/lib/content-moderation.ts` (8), `dashboard/settings/discoverability-helpers.ts` (6),
+concentrations: `src/modules/contracts/content-moderation.ts` (8), `dashboard/settings/discoverability-helpers.ts` (6),
 `dashboard/profile/visibility.ts` (5), `lib/oauth/jwt.ts` (5), `lib/oauth/refresh.ts` (5).
 
 **Recommended disposition — none, for now.** Narrowing these is a per-module decision to

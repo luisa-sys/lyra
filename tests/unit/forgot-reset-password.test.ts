@@ -39,7 +39,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // env.siteUrl() is used to construct redirectTo for the recovery email.
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     siteUrl: () => 'https://dev.checklyra.com',
   },
@@ -57,7 +57,7 @@ const mockGetUser = jest.fn();
 const mockUpdateUser = jest.fn().mockResolvedValue({ error: null });
 const mockSignOut = jest.fn().mockResolvedValue(undefined);
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       resetPasswordForEmail: (

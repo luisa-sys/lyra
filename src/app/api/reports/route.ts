@@ -25,8 +25,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseServerClient } from '@/lib/supabase-server';
-import { getAdminServiceClient } from '@/lib/admin';
+import { createClient as createSupabaseServerClient } from '@/modules/platform/supabase-server';
+import { getAdminServiceClient } from '@/modules/admin/admin';
 
 const VALID_REASONS = ['spam', 'harassment', 'impersonation', 'inappropriate', 'other'] as const;
 type Reason = typeof VALID_REASONS[number];

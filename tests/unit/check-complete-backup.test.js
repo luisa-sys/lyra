@@ -29,8 +29,8 @@ describe('check-complete-backup.sh', () => {
       expect(result.status).toBe(0);
     });
 
-    test('manifest reports public + auth + storage schemas', () => {
-      expect(result.stdout).toMatch(/✅ manifest:.*public,auth,storage/);
+    test('manifest reports public + auth + storage + supabase_migrations schemas', () => {
+      expect(result.stdout).toMatch(/✅ manifest:.*public,auth,storage,supabase_migrations/);
     });
 
     test('dump reported as a valid PGDMP archive', () => {

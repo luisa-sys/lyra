@@ -147,7 +147,7 @@ describe('KAN-143 — actions.ts wiring', () => {
   test('imports coerceVisibility from the sibling module (not inlined in the use-server file)', () => {
     // Per BUGS-12: 'use server' files can only export async functions, so
     // constants and helpers must live in a sibling .ts module.
-    expect(content).toMatch(/from\s+['"]\.\/visibility['"]/);
+    expect(content).toMatch(/from\s+['"]@\/modules\/profile\/visibility['"]/);
     expect(content).toContain('coerceVisibility');
   });
 

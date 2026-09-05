@@ -7,7 +7,7 @@ import {
   scrubSentryEvent,
   scrubSentryBreadcrumb,
   scrubUrl,
-} from '@/lib/sentry-scrub';
+} from '@/modules/observability/sentry-scrub';
 
 const SENSITIVE_KEYS = [
   'code',

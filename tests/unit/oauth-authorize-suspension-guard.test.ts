@@ -35,8 +35,8 @@
  *     text scan could not have caught.
  */
 import { redirect } from 'next/navigation';
-import { getAccountStanding } from '@/lib/account-status';
-import { validateAuthorizeRequest } from '@/lib/oauth/authorize';
+import { getAccountStanding } from '@/modules/access/account-status';
+import { validateAuthorizeRequest } from '@/modules/oauth-as/lib/authorize';
 
 jest.mock('next/navigation', () => ({
   redirect: jest.fn((to: string) => {
@@ -49,23 +49,23 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: 'user-1' } } })) },
   })),
 }));
 
-jest.mock('@/lib/account-status', () => ({
+jest.mock('@/modules/access/account-status', () => ({
   getAccountStanding: jest.fn(),
 }));
 
-jest.mock('@/lib/oauth/authorize', () => ({
+jest.mock('@/modules/oauth-as/lib/authorize', () => ({
   validateAuthorizeRequest: jest.fn(),
   buildErrorRedirect: jest.fn(() => '/oauth/error'),
 }));
 
-jest.mock('@/lib/oauth/consents', () => ({ getConsent: jest.fn(async () => null) }));
-jest.mock('@/lib/oauth/client-trust', () => ({
+jest.mock('@/modules/oauth-as/lib/consents', () => ({ getConsent: jest.fn(async () => null) }));
+jest.mock('@/modules/oauth-as/lib/client-trust', () => ({
   clientTrust: jest.fn(() => ({ level: 'unknown' })),
   redirectHost: jest.fn(() => 'example.test'),
 }));

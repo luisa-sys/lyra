@@ -14,7 +14,7 @@ import {
   extensionForMime,
   ALLOWED_MIMES,
   type AllowedMime,
-} from '@/lib/file-magic-bytes';
+} from '@/modules/guards/file-magic-bytes';
 
 /** Build a Uint8Array with a known prefix and trailing zeros. */
 function bufWithPrefix(prefix: number[], totalLen = 32): Uint8Array {

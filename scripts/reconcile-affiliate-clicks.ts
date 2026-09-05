@@ -27,8 +27,8 @@
 import {
   buildReconciliationUpdates,
   type SovrnReportRow,
-} from '../src/lib/affiliate/reporting';
-import { convertToGbp, prefetchRatesToGbp } from '../src/lib/affiliate/fx';
+} from '../src/modules/affiliate/reporting';
+import { convertToGbp, prefetchRatesToGbp } from '../src/modules/affiliate/fx';
 
 const SOVRN_REPORT_API = 'https://api.sovrn.com/reports/transactions';
 

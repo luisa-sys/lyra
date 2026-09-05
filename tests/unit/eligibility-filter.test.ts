@@ -10,8 +10,8 @@
 import {
   filterCandidatesByEligibility,
   canShipTo,
-} from '@/lib/recommender/v2/eligibility-filter';
-import type { ProductCandidate, ConceptInput } from '@/lib/recommender/v2/types';
+} from '@/modules/recommendations/recommender/v2/eligibility-filter';
+import type { ProductCandidate, ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 
 function concept(): ConceptInput {
   return {

@@ -13,8 +13,8 @@ import {
   buildReconciliationUpdates,
   parseClickIdFromSubId,
   type SovrnReportRow,
-} from '@/lib/affiliate/reporting';
-import type { AffiliateClickRow } from '@/lib/affiliate/types';
+} from '@/modules/affiliate/reporting';
+import type { AffiliateClickRow } from '@/modules/affiliate/types';
 
 function click(overrides: Partial<AffiliateClickRow> = {}): AffiliateClickRow {
   return {

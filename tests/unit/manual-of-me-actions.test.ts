@@ -24,7 +24,7 @@ const mockUpsertCapture = jest.fn();
 const mockGetUser = jest.fn();
 const mockProfileSelectSingle = jest.fn();
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockImplementation(async () => ({
     auth: {
       getUser: mockGetUser,
@@ -58,7 +58,7 @@ import {
   MANUAL_OF_ME_MAX_LENGTHS,
   isManualOfMeField,
   isManualOfMeEmpty,
-} from '@/app/dashboard/profile/manual-of-me-fields';
+} from '@/modules/profile/manual-of-me-fields';
 
 beforeEach(() => {
   mockUpsertCapture.mockClear();

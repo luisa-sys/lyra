@@ -14,7 +14,7 @@
  */
 
 import { type SupabaseClient } from '@supabase/supabase-js';
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { sendInviteEmail, type SendResult } from './email';
 import { sendTwilioMessage, type SendResult as TwilioSendResult } from './twilio';
 import { buildICS } from './ics';
@@ -24,8 +24,8 @@ import {
   renderInviteHtml,
 } from './templates';
 import { renderSmsBody } from './sms-templates';
-import { isFeatureEnabledByUserId } from '@/lib/features/entitlements-service';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { isFeatureEnabledByUserId } from '@/modules/features/entitlements-service';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 
 const SITE_URL = process.env.LYRA_SITE_URL ?? 'https://checklyra.com';
 const DEFAULT_BATCH_SIZE = 25;

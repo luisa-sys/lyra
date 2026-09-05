@@ -219,19 +219,19 @@ describe('KAN-272 E: Turnstile helper degrades gracefully', () => {
     jest.resetModules();
     delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     delete process.env.TURNSTILE_SECRET_KEY;
-    let mod = require('../../src/lib/turnstile');
+    let mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(false);
 
     jest.resetModules();
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'site';
     delete process.env.TURNSTILE_SECRET_KEY;
-    mod = require('../../src/lib/turnstile');
+    mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(false);
 
     jest.resetModules();
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'site';
     process.env.TURNSTILE_SECRET_KEY = 'secret';
-    mod = require('../../src/lib/turnstile');
+    mod = require('../../src/modules/guards/turnstile');
     expect(mod.isTurnstileEnabled()).toBe(true);
   });
 
@@ -239,7 +239,7 @@ describe('KAN-272 E: Turnstile helper degrades gracefully', () => {
     jest.resetModules();
     delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
     delete process.env.TURNSTILE_SECRET_KEY;
-    const mod = require('../../src/lib/turnstile');
+    const mod = require('../../src/modules/guards/turnstile');
     const res = await mod.verifyTurnstile(null);
     expect(res.ok).toBe(true);
     expect(res.skipped).toBe(true);

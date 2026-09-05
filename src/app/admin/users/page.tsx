@@ -10,8 +10,8 @@
  */
 
 import Link from 'next/link';
-import { getCurrentAdmin, getAdminServiceClient } from '@/lib/admin';
-import { createClient } from '@/lib/supabase-server';
+import { getCurrentAdmin, getAdminServiceClient } from '@/modules/admin/admin';
+import { createClient } from '@/modules/platform/supabase-server';
 import BulkBar, { type BulkUserRow } from './BulkBar';
 import type { UserFilter } from './users-actions-shared';
 

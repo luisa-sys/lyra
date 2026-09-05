@@ -56,13 +56,13 @@ import {
   type AutoSaveStatus,
   type GiftSuggestionView,
 } from './sections';
-import type { ManualOfMe } from './manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import {
   FAVOURITE_CATEGORIES,
   FAVOURITE_CATEGORY_OPTIONS,
   CUSTOM_FAVOURITE_CATEGORY,
   favouriteLabelForItem,
-} from './favourites';
+} from '@/modules/profile/favourites';
 
 type SectionKind = 'basic' | 'affiliations' | 'bio' | 'manual' | 'items' | 'starters' | 'links';
 

@@ -22,10 +22,28 @@ one that is *edited* and *reviewed*, and every other surface is a mirror of it.
 | **Work / tickets** | **Jira** | — | Jira is the source of truth for *what* each ticket means and its status. Never close a ticket without completing the work. |
 | **Code / deploy state** | **git + CI** | — | The live state of code and what is deployed is `git`/CI, never a doc. Docs describe intent; `git` describes reality. |
 | **System-documentation index** | **Confluence "Lyra — System Documentation"** (TWC/19922947) | repo `CLAUDE.md` pointer | The wiki index is the navigational source of truth read first before architecture/ops/security work (KAN-360). |
+| **Design-change process** (KAN-441) | **the `lyra-design-system` repo's BUILD-LOOP.md** | repo `docs/DESIGN_CHANGE_WORKFLOW.md` (this repo) | The process is *executed* against the design repo — the state manifest, the cards and the gate runner all live there, so the spec is edited and reviewed beside the code that enforces it. The repo mirror exists so the process is readable from the app repo, in CI and offline. **If they differ, BUILD-LOOP.md wins and this mirror is regenerated.** |
 
 **No document may contradict this table.** If a repo doc or a wiki page states a
 different authority for its class, that statement is the bug — fix it to point
 here.
+
+> **Open — Luisa decides (KAN-441).** The design-change row above records what is
+> true today: the canonical spec is in a *second git repository*. Be precise
+> about what is new here. **`git + CI` is already a canonical surface in this
+> table** — it is what the *Code / deploy state* row names — so the novelty is
+> not that truth lives in git. It is that this canonical surface is a
+> **different repository from the one the table is written in**, which is exactly
+> why this repo's CI cannot read it. That is what makes the row a seventh
+> document class alongside the six above rather than a variation on one of them.
+>
+> The alternative is to force it into the **Ops / runbook narrative** class, with
+> a founder-owned Confluence page as canonical — which would make BUILD-LOOP.md
+> a *second* mirror, i.e. three
+> surfaces for one process. That is the same "third source of truth" failure the
+> modularisation plan already flags for design tokens (§E-3, KAN-427). The row
+> stands as written until Luisa chooses otherwise. Related and also open: whether
+> `lyra-design-system` folds into this monorepo at all (**KAN-427**, **KAN-457**).
 
 ## Mirror manifest
 
@@ -50,6 +68,7 @@ Confluence API access in CI and is tracked as a follow-up leg on KAN-363 — see
 | `docs/DISASTER_RECOVERY.md` | wiki | Disaster Recovery & Backup/Restore Runbook (27131914) | Backup layers, restore/recovery test plan, compromise recovery (SEC-5/SEC-23). |
 | `docs/OPS_ROUTINES_CONTROL_ROOM.md` | wiki | Ops Routines Control Room (34275370) | Routine index, heartbeat contract, one-concern-one-owner map (KAN-362). |
 | `docs/PROJECT_INSTRUCTIONS.md` | Claude Project `lyra.md` | — | Lyra Project knowledge instructions Claude reads each chat. |
+| `docs/DESIGN_CHANGE_WORKFLOW.md` | lyra-design-system repo, BUILD-LOOP.md | — | Design-change loop: the two Claude Design projects, the ticket state machine, gates G0–G5 (KAN-441). |
 | `docs/compliance/DPIA.md` | repo | (retires Confluence drafts 27000875 / 27033667) | Data Protection Impact Assessment (SEC-70). |
 | `docs/compliance/ROPA.md` | repo | — | Record of Processing Activities (Art. 30). |
 | `docs/compliance/SUBPROCESSORS.md` | repo | — | Sub-processor register + DPAs/TRAs. |

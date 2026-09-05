@@ -10,7 +10,7 @@
 
 const createClientSpy = jest.fn((..._args: unknown[]) => ({ __client: true }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'https://svc.supabase.co',
     supabaseServiceRoleKey: () => 'service-role-key',
@@ -21,7 +21,7 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: (...args: unknown[]) => createClientSpy(...args),
 }));
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 
 describe('createServiceRoleClient (KAN-352 hardened factory)', () => {
   beforeEach(() => {

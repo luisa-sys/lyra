@@ -43,7 +43,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -361,7 +361,7 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('WizardSchool type declares affiliation_type', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.types),
+      resolve(ROOT, SRC.profileTypes),
       'utf-8',
     );
     // Type now carries affiliation_type — KAN-220 schools/orgs/communities split

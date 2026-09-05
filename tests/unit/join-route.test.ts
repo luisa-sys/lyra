@@ -6,7 +6,7 @@
  * wrong code just lands the visitor on /signup with no cookie and no banner.
  */
 let mockInviteCode = '';
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: { inviteCode: () => mockInviteCode },
 }));
 

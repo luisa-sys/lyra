@@ -9,10 +9,10 @@ const mockGetMyEntitlements = jest.fn();
 const mockIsGloballyEnabled = jest.fn();
 
 jest.mock('@/lib/convene/flags', () => ({ isConveneEnabled: () => mockIsConveneEnabled() }));
-jest.mock('@/lib/features/entitlements', () => ({
+jest.mock('@/modules/features/entitlements', () => ({
   getMyFeatureEntitlements: () => mockGetMyEntitlements(),
 }));
-jest.mock('@/lib/features/global-switches-service', () => ({
+jest.mock('@/modules/features/global-switches-service', () => ({
   isFeatureGloballyEnabled: (...a: unknown[]) => mockIsGloballyEnabled(...a),
 }));
 

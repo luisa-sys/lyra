@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { preflightUpload } from '@/lib/file-magic-bytes';
+import { preflightUpload } from '@/modules/guards/file-magic-bytes';
 import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');

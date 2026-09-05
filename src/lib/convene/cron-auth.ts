@@ -13,7 +13,7 @@
  * input (unauthenticated callers simply get `false`).
  *
  * Mirrors the existing constant-time patterns in `src/lib/oauth/pkce.ts` and
- * `src/lib/age/didit.ts`.
+ * `src/modules/age/didit.ts`.
  */
 import { timingSafeEqual } from 'crypto';
 

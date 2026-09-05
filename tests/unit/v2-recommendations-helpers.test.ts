@@ -8,7 +8,7 @@
 import {
   formatPriceRange,
   merchantLabel,
-} from '@/app/[slug]/v2-recommendations-helpers';
+} from '@/modules/public-profile/v2-recommendations-helpers';
 
 describe('KAN-191 formatPriceRange — GBP', () => {
   test('range with distinct min and max → "£X–£Y"', () => {

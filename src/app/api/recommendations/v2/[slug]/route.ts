@@ -39,14 +39,14 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { getRecommendations } from '@/lib/recommend';
-import { buildV2Recommendations } from '@/lib/recommender/v2/pipeline';
-import type { ConceptInput } from '@/lib/recommender/v2/types';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { getRecommendations } from '@/modules/recommendations/recommend';
+import { buildV2Recommendations } from '@/modules/recommendations/recommender/v2/pipeline';
+import type { ConceptInput } from '@/modules/recommendations/recommender/v2/types';
 import {
   normaliseDeliveryCountry,
   isIsoAlpha2,
-} from '@/lib/affiliate/country-codes';
+} from '@/modules/profile/country-codes';
 
 interface ProfileRow {
   id: string;
@@ -93,10 +93,13 @@ export async function GET(
   const supabase = getServiceClient();
 
   const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+    // SEC-104: the `public_profiles` VIEW filters published + not-suspended in
+    // its body, so this service-role read is constrained by the query. The
+    // `!profile.is_published` check below is now belt-and-braces — an
+    // unpublished profile simply does not come back, and `!profile` catches it.
+    .from('public_profiles')
     .select('id, display_name, bio_short, headline, is_published, delivery_country_code')
     .eq('slug', slug)
-    .eq('is_suspended', false) // SEC-19/F-13: suspended profiles must not return recommendations
     .maybeSingle<ProfileRow>();
 
   if (profileError) {

@@ -10,7 +10,7 @@ import {
   generateClientId,
   generateClientSecret,
   hashClientSecret,
-} from '@/lib/oauth/clients';
+} from '@/modules/oauth-as/lib/clients';
 
 describe('validateRegisterInput (KAN-88 P2)', () => {
   const minimal = {

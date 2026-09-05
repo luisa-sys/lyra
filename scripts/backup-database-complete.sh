@@ -42,7 +42,16 @@ TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 # Schemas that together make a restorable platform. Internal/replication
 # schemas (pg_catalog, information_schema, pgbouncer, realtime, vault internals)
 # are deliberately excluded — they are recreated by the target Postgres/Supabase.
-SCHEMAS=(public auth storage)
+# BUGS-91 (2026-08-09): `supabase_migrations` added. This script exists because
+# public-only dumps "CANNOT reconstruct a working platform" (see the header) —
+# and it had the same shape of hole it was written to fix. It captured auth and
+# storage but not the migration LINEAGE, so a restore produced a database with
+# no migration history: `supabase db push` afterwards treats every migration as
+# unapplied and replays the whole lineage against restored data.
+#
+# On production that was 75 rows / 133 KB of recorded `statements` held nowhere
+# else. Verified 2026-08-09 against both backup paths.
+SCHEMAS=(public auth storage supabase_migrations)
 
 ROLES_FILE="${OUTPUT_DIR}/roles_${TIMESTAMP}.sql"
 DUMP_FILE="${OUTPUT_DIR}/lyra_complete_${TIMESTAMP}.dump"

@@ -39,11 +39,26 @@ describe('Account banner on /oauth/authorize page (KAN-88)', () => {
     expect(src).toMatch(/switchAccountAndContinue\(authorizePathWithQuery\)/);
   });
 
-  test('current authorize URL is rebuilt with all params for the preserved next', () => {
-    expect(src).toMatch(/currentAuthorizeUrl\.searchParams\.set\(['"]client_id['"]/);
-    expect(src).toMatch(/currentAuthorizeUrl\.searchParams\.set\(['"]redirect_uri['"]/);
-    expect(src).toMatch(/currentAuthorizeUrl\.searchParams\.set\(['"]code_challenge['"]/);
-    expect(src).toMatch(/currentAuthorizeUrl\.searchParams\.set\(['"]code_challenge_method['"]/);
+  test('the preserved next is built by the shared builder, not a fourth copy', () => {
+    // KAN-415 D7 part 3. This previously asserted four literal
+    // `currentAuthorizeUrl.searchParams.set('…')` lines. The page built that URL
+    // twice and the action a third time — three hand-written copies of a FROZEN
+    // contract — so the builder was extracted and all three now call it.
+    //
+    // The four scans could not survive that and could not have caught the
+    // divergence either: each only proved a substring was present, and all four
+    // pass just as happily against a comment. What replaces them is stronger,
+    // not weaker — `tests/unit/oauth/consent-flow.test.ts` pins the emitted
+    // path VERBATIM including parameter order, asserts state is omitted rather
+    // than emitted empty, and asserts the page's field shape and the action's
+    // produce byte-identical output. Mutation-proven: reordering two params
+    // reddens it. All this file still needs to prove is that the page has not
+    // grown a fourth copy.
+    expect(src).toMatch(/buildAuthorizePath\(/);
+    expect(src).toMatch(
+      /import\s+\{[^}]*buildAuthorizePath[^}]*\}\s+from\s+['"]@\/modules\/oauth-as\/consent-flow['"]/
+    );
+    expect(src).not.toMatch(/searchParams\.set\(['"]code_challenge['"]/);
   });
 
   test('imports switchAccountAndContinue from ./actions', () => {
@@ -52,21 +67,33 @@ describe('Account banner on /oauth/authorize page (KAN-88)', () => {
 });
 
 describe('switchAccountAndContinue server action (KAN-88)', () => {
-  const src = fs.readFileSync(path.join(ROOT, SRC.authorizeActions), 'utf8');
+  // KAN-415 D7 part 3 split this in two: the `'use server'` action the form
+  // binds to still lives in actions.ts, and the body moved to the oauth-as
+  // module where it can be executed by a test instead of read as text.
+  const actionSrc = fs.readFileSync(path.join(ROOT, SRC.authorizeActions), 'utf8');
+  const flowSrc = fs.readFileSync(path.join(ROOT, SRC.consentFlow), 'utf8');
 
   test('is an exported async function (use-server safe)', () => {
-    expect(src).toMatch(/export async function switchAccountAndContinue/);
+    // Still the action's own property, and still worth asserting on the action
+    // file: a 'use server' file that exports a non-async member is rejected at
+    // action-INVOCATION time, so it ships green and 500s the first submission.
+    expect(actionSrc).toMatch(/export async function switchAccountAndContinue/);
+  });
+
+  test('the action delegates rather than reimplementing', () => {
+    expect(actionSrc).toMatch(/@\/modules\/oauth-as\/consent-flow/);
+    expect(actionSrc).not.toMatch(/auth\.signOut\(\)/);
   });
 
   test('signs out the Supabase session', () => {
-    expect(src).toMatch(/sb\.auth\.signOut\(\)/);
+    expect(flowSrc).toMatch(/sb\.auth\.signOut\(\)/);
   });
 
   test('redirects to /login with the authorize URL as ?next=…', () => {
-    expect(src).toMatch(/`\/login\?next=\$\{encodeURIComponent\(safeNext\)\}`/);
+    expect(flowSrc).toMatch(/`\/login\?next=\$\{encodeURIComponent\(safeNext\)\}`/);
   });
 
   test('open-redirect guarded: only /oauth/authorize? targets accepted', () => {
-    expect(src).toMatch(/authorizePathWithQuery\.startsWith\(['"]\/oauth\/authorize\?['"]\)/);
+    expect(flowSrc).toMatch(/authorizePathWithQuery\.startsWith\(['"]\/oauth\/authorize\?['"]\)/);
   });
 });

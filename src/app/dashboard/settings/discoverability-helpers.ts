@@ -137,7 +137,7 @@ export function hashPhoneInput(input: string): string | null {
 /**
  * Generic shape for the rate-limit store. Injected so tests can swap in a
  * deterministic fake; production uses the in-memory store from
- * src/lib/rate-limit.ts.
+ * src/modules/guards/rate-limit.ts.
  */
 export interface RateLimitGate {
   (key: string, config: { limit: number; windowSeconds: number }):

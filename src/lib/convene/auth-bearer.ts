@@ -9,7 +9,7 @@
  * cookie session) auth — currently just the queue-drain endpoint, but
  * we'll grow more admin tools later (resend-failed-invites, etc.).
  */
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { createHash } from 'crypto';
 
 export interface BearerAuthResult {

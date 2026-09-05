@@ -97,7 +97,7 @@ This is **not** later drift. `tribes`/`tribe_members`/`consent_log` ship in the 
 
 **Three scope corrections I am carrying forward, because they change what the ticket should say:**
 1. The missing guard does **not** enable privilege escalation. The sibling guard only blocks *self*-targeting, so admin A can already suspend admin B through the sanctioned UI. The only capability added is **self**-targeting. Do not write this up as cross-admin escalation.
-2. The lockout side effect is **dev/staging only**. On prod, `middleware.ts:156` returns before the suspension gate when `ADMIN_HOST_ENFORCED`/CF Access are set, and `getCurrentAdmin` (`src/lib/admin.ts:85-91`) never selects `is_suspended`.
+2. The lockout side effect is **dev/staging only**. On prod, `middleware.ts:156` returns before the suspension gate when `ADMIN_HOST_ENFORCED`/CF Access are set, and `getCurrentAdmin` (`src/modules/admin/admin.ts:85-91`) never selects `is_suspended`.
 3. The DB backstop cannot help. `supabase/migrations/20260622170000_block_admin_suspended_self_set.sql:32` opens `if auth.uid() is null then return new;` and its own header says service-role callers bypass by design. It is an anti-self-*unsuspend* trigger.
 
 ---

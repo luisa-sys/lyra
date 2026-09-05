@@ -1,7 +1,7 @@
 /**
  * KAN-143 — Per-item visibility filter unit tests.
  *
- * Covers the pure helpers in src/app/dashboard/profile/visibility.ts that
+ * Covers the pure helpers in the profile module's visibility.ts that
  * decide whether a profile_item is visible to a given viewer. These functions
  * are the single source of truth for visibility in application code — RLS
  * gives us defence in depth, but the page-level filter is what the public
@@ -22,7 +22,7 @@ import {
   coerceVisibility,
   isItemVisibleToViewer,
   filterItemsByVisibility,
-} from '@/app/dashboard/profile/visibility';
+} from '@/modules/profile/visibility';
 
 describe('VISIBILITY_LEVELS constant', () => {
   test('contains exactly the three documented levels', () => {

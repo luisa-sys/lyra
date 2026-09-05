@@ -12,7 +12,7 @@
  *    20260803170000_kan443_gift_redesign.sql has not run yet fails the WHOLE
  *    request with PGRST204, EVEN WHEN THE VALUE IS NULL. Code reaches an
  *    environment before its migration does. `npm run type-check` cannot see
- *    this: src/lib/supabase-server.ts builds an UNTYPED client. So the tests
+ *    this: src/modules/platform/supabase-server.ts builds an UNTYPED client. So the tests
  *    below assert on the payload KEYS, not on the values.
  *
  * The mock dispatches by table and captures the UPDATE payload specifically, so
@@ -44,12 +44,12 @@ jest.mock('next/cache', () => ({
 // The factory RETURNS the spy's result rather than a fixed `{ ok: true }`. A
 // factory that swallowed it would make the "blocked hint" case below unable to
 // fail — the vacuous-guard shape this repo keeps finding.
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (_supabase: unknown, args: { text: string; field: string }) =>
     mockModerate(args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),
@@ -75,10 +75,11 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 import { updateProfileFields } from '@/app/dashboard/profile/actions';
-import { giftVoucherHintPayload } from '@/app/dashboard/profile/profile-fields';
+import { giftVoucherHintPayload } from '@/modules/profile/profile-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
@@ -221,11 +222,6 @@ describe('updateProfileFields — the voucher hint is treated as public text', (
 // exactly that wiring; comments are stripped so none can satisfy them (KAN-459).
 describe('KAN-443: the gift surfaces are wired to the guarded helpers', () => {
   const ROOT = resolve(__dirname, '../..');
-  const stripComments = (src: string): string =>
-    src
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const read = (rel: string) => stripComments(readFileSync(resolve(ROOT, rel), 'utf-8'));
 
   const section = read(`${SRC.profile}/sections/gift-extras-section.tsx`);

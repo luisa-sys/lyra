@@ -1,0 +1,119 @@
+{
+  "_why": [
+    "CTL-051. Cross-module edges that violate the dependency policy",
+    "modules.json declares \u2014 the layer rule, `mustNot`, and `mayDependOn` \u2014",
+    "as they stood when each rule landed. Grandfathered so the control could",
+    "ship green.",
+    "",
+    "SHRINK-ONLY, BOTH WAYS. A new violation fails; a baselined one that has",
+    "been FIXED also fails, so this cannot become a place to record drift.",
+    "Regenerate with --write-baseline in the same commit that fixes one.",
+    "",
+    "`kinds` is part of the ratchet. A key listed here is not a blanket",
+    "permit: if a baselined edge starts violating for an ADDITIONAL reason,",
+    "that fails too. Without it, adding a rule would have arrived",
+    "pre-suppressed on every edge already listed.",
+    "",
+    "`pending-decision` means the manifest itself records the architecture",
+    "question as open (mayDependOnCandidatesPendingDecision), as against",
+    "`undeclared-dep`, which is a dependency nobody declared at all."
+  ],
+  "ticket": "KAN-415",
+  "violations": {
+    "access -> admin": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "upward"
+      ],
+      "detail": "UPWARD edge L2 -> L4 (forbidden absolutely); `admin` is in `access`.mustNot; `admin` is only a PENDING candidate in `access`.mayDependOn | e.g. src/modules/access/access-model/access-transitions.ts -> src/modules/admin/admin.ts"
+    },
+    "account -> admin": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "upward"
+      ],
+      "detail": "UPWARD edge L3 -> L4 (forbidden absolutely); `admin` is in `account`.mustNot; `admin` is only a PENDING candidate in `account`.mayDependOn | e.g. src/app/dashboard/settings/actions.ts -> src/modules/admin/admin.ts"
+    },
+    "account -> convene": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `convene` is in `account`.mustNot; `convene` is only a PENDING candidate in `account`.mayDependOn | e.g. src/app/api/retention/cron/sweep/route.ts -> src/lib/convene/cron-auth.ts"
+    },
+    "age -> auth": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "upward"
+      ],
+      "detail": "UPWARD edge L2 -> L3 (forbidden absolutely); `auth` is in `age`.mustNot; `auth` is only a PENDING candidate in `age`.mayDependOn | e.g. src/app/confirm-age/actions.ts -> src/modules/auth/post-login-redirect.ts"
+    },
+    "age -> features": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L2 edge not in declaredSameLayer; `features` is in `age`.mustNot; `features` is only a PENDING candidate in `age`.mayDependOn | e.g. src/modules/age/provider-gate.ts -> src/modules/features/global-switches-service.ts"
+    },
+    "dashboard -> auth": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `auth` is in `dashboard`.mustNot; `auth` is only a PENDING candidate in `dashboard`.mayDependOn | e.g. src/app/dashboard/page.tsx -> src/app/(auth)/actions.ts"
+    },
+    "dashboard -> convene": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `convene` is in `dashboard`.mustNot; `convene` is only a PENDING candidate in `dashboard`.mayDependOn | e.g. src/app/dashboard/page.tsx -> src/lib/convene/flags-user.ts"
+    },
+    "profile -> convene": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `convene` is in `profile`.mustNot; `convene` is only a PENDING candidate in `profile`.mayDependOn | e.g. src/app/dashboard/profile/page.tsx -> src/lib/convene/flags-user.ts"
+    },
+    "profile -> recommendations": {
+      "kinds": [
+        "must-not",
+        "same-layer",
+        "undeclared-dep"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `recommendations` is in `profile`.mustNot; `recommendations` is not in `profile`.mayDependOn | e.g. src/app/dashboard/profile/actions.ts -> src/modules/recommendations/recommend/dismissals.ts"
+    },
+    "public-profile -> profile": {
+      "kinds": [
+        "must-not",
+        "pending-decision",
+        "same-layer"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `profile` is in `public-profile`.mustNot; `profile` is only a PENDING candidate in `public-profile`.mayDependOn | e.g. src/app/[slug]/page.tsx -> src/modules/profile/country-codes.ts"
+    },
+    "recommendations -> profile": {
+      "kinds": [
+        "must-not",
+        "same-layer",
+        "undeclared-dep"
+      ],
+      "detail": "same-layer L3 edge not in declaredSameLayer; `profile` is in `recommendations`.mustNot; `profile` is not in `recommendations`.mayDependOn | e.g. src/app/api/recommendations/v2/[slug]/route.ts -> src/modules/profile/country-codes.ts"
+    },
+    "trust-safety -> admin": {
+      "kinds": [
+        "pending-decision",
+        "upward"
+      ],
+      "detail": "UPWARD edge L3 -> L4 (forbidden absolutely); `admin` is only a PENDING candidate in `trust-safety`.mayDependOn | e.g. src/modules/trust-safety/report-actions.ts -> src/modules/admin/admin.ts"
+    }
+  }
+}

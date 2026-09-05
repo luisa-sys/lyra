@@ -9,7 +9,7 @@ let mockUserId: string | null = 'u1';
 let updateError: unknown = null;
 const captured = { updates: [] as Record<string, unknown>[] };
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: mockUserId ? { id: mockUserId } : null } })) },
     from: jest.fn(() => ({

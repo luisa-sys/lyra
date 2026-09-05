@@ -28,7 +28,19 @@ describe('KAN-342 gift visibility is not gated by paid_gift_links', () => {
     const svc = read(SRC.entitlementsService);
     expect(svc).toMatch(/isPaidLinksAllowedForRecipient/);
     // The v2 pipeline always runs; the entitlement only decides monetisation.
-    const pipeline = read(SRC.pipeline);
+    // ⚠️ SRC.pipeline USED to mean the recommender pipeline. It now means the
+    // ACCESS pipeline: the generator derives key names by widening leftwards
+    // until unique, so when KAN-415 moved the recommender's v2 pipeline out of
+    // the old library tree, the collision set changed and the bare name was
+    // reassigned to a different file. This assertion silently changed subject,
+    // and caught it only because it looks for a specific symbol. Named
+    // explicitly now.
+    //
+    // The old path is described rather than spelled: the KAN-428 stale-refs
+    // sweep greps for moved paths across the estate and cannot tell a live
+    // reference that must be updated from prose explaining that the path moved.
+    // Writing it out failed the gate on the very comment documenting the fix.
+    const pipeline = read(SRC.v2Pipeline);
     expect(pipeline).toMatch(/isPaidLinksAllowedForRecipient/);
     expect(pipeline).toMatch(/monetised/);
   });

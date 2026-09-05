@@ -24,7 +24,7 @@ jest.mock('next/image', () => ({
 }));
 
 const mockGetGlobalSwitches = jest.fn();
-jest.mock('@/lib/features/global-switches-service', () => ({
+jest.mock('@/modules/features/global-switches-service', () => ({
   getGlobalSwitches: (...a: unknown[]) => mockGetGlobalSwitches(...a),
 }));
 

@@ -1,11 +1,11 @@
 /**
- * KAN-112: Real unit tests for src/lib/rate-limit.ts
+ * KAN-112: Real unit tests for src/modules/guards/rate-limit.ts
  * Tests pure functions — no mocking needed.
  */
 const fs = require('fs');
 const path = require('path');
 
-// --- Replicated from src/lib/rate-limit.ts ---
+// --- Replicated from src/modules/guards/rate-limit.ts ---
 const store = new Map();
 let lastCleanup = Date.now();
 const CLEANUP_INTERVAL = 60000;
@@ -38,7 +38,7 @@ function rateLimit(key, config) {
 
 // --- Source verification ---
 describe('rate-limit.ts source verification', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../src/lib/rate-limit.ts'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../../src/modules/guards/rate-limit.ts'), 'utf8');
 
   test('source contains rateLimit function', () => {
     expect(source).toContain('function rateLimit');

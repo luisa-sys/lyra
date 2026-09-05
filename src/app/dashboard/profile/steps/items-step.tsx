@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Field, SaveButton, type WizardItem } from './types';
 
 // KAN-143 — UI-visible visibility levels. Keep in sync with
-// src/app/dashboard/profile/visibility.ts (VISIBILITY_LEVELS).
+// the profile module's visibility.ts (VISIBILITY_LEVELS).
 //
 // KAN-234: extended with a 4th "inherit" option (value=''). When chosen,
 // the server writes NULL to profile_items.visibility, and the item's

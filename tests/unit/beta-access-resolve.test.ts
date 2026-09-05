@@ -15,7 +15,7 @@ const updateSpy = jest.fn();
 const getUserByIdSpy = jest.fn();
 const mockSendBetaQueueNotice = jest.fn();
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'https://x.supabase.co',
     supabaseServiceRoleKey: () => 'svc-key',
@@ -23,7 +23,7 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
-jest.mock('@/lib/beta-access/email', () => ({
+jest.mock('@/modules/access/beta-access/email', () => ({
   sendBetaQueueNotice: (...args: unknown[]) => mockSendBetaQueueNotice(...args),
 }));
 
@@ -56,7 +56,7 @@ jest.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-import { resolveBetaAccess } from '@/lib/beta-access/flow';
+import { resolveBetaAccess } from '@/modules/access/beta-access/flow';
 
 beforeEach(() => {
   jest.clearAllMocks();

@@ -10,9 +10,9 @@ import {
   buildErrorRedirect,
   buildSuccessRedirect,
   validateAuthorizeRequest,
-} from '@/lib/oauth/authorize';
+} from '@/modules/oauth-as/lib/authorize';
 
-jest.mock('@/lib/oauth/clients', () => {
+jest.mock('@/modules/oauth-as/lib/clients', () => {
   return {
     getOauthClient: jest.fn(async (clientId: string) => {
       if (clientId === 'lyra_oauth_known') {

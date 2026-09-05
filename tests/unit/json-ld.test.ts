@@ -3,7 +3,7 @@
  * of a <script type="application/ld+json"> block, so user-controlled profile
  * fields cannot inject markup even though JSON.stringify alone does not escape `<`.
  */
-import { jsonLdSafe } from '@/lib/json-ld';
+import { jsonLdSafe } from '@/modules/guards/json-ld';
 
 describe('jsonLdSafe (SEC-08)', () => {
   test('neutralises a </script> breakout attempt in a string value', () => {

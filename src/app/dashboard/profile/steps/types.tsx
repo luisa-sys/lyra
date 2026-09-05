@@ -1,97 +1,27 @@
-export interface WizardProfile {
-  id: string;
-  display_name: string;
-  slug: string;
-  headline: string | null;
-  bio_short: string | null;
-  city: string | null;
-  region: string | null;
-  // KAN-339: postcode_prefix removed (postcode no longer collected/stored).
-  country: string | null;
-  // KAN-186: ISO-3166 alpha-2 country where gifts for this profile should
-  // ship. Separate from `country` (which is freeform display text). NULL
-  // means "unknown — fall back to buyer country at recommendation time".
-  delivery_country_code: string | null;
-  is_published: boolean;
-  avatar_url: string | null;
-  // KAN-443: optional one-liner for people who would rather choose their own
-  // gift. OPTIONAL on the type as well as nullable in the DB — the row is read
-  // with select('*'), so an environment that has not yet run
-  // 20260803170000_kan443_gift_redesign.sql simply returns no such key.
-  gift_voucher_hint?: string | null;
-  // KAN-234 / KAN-221: hybrid visibility. Per-section default ({} when
-  // unset) that items inherit when their own `visibility` is NULL.
-  // Keys live in `section-visibility.ts → CONTROLLABLE_SECTION_KEYS`.
-  section_visibility: Record<string, string> | null;
-}
-
-export interface WizardItem {
-  id: string;
-  category: string;
-  title: string;
-  description: string | null;
-  url: string | null;
-  // KAN-234 / KAN-221: nullable to allow "inherit from section default".
-  // Older rows from before KAN-221 always had an explicit value; new items
-  // default to NULL when the form chooses "Use section default".
-  visibility: string | null;
-  // KAN-444: the member's own heading for a custom favourites group. Only
-  // meaningful for category 'favourite_custom'; optional because every other
-  // caller (and every row written before the column existed) simply omits it.
-  group_label?: string | null;
-}
-
-export interface WizardSchool {
-  id: string;
-  school_name: string;
-  school_location: string | null;
-  relationship: string;
-  // KAN-220: one of school|organisation|community. Backward-compatible
-  // default — older rows from before migration 20260517010000 have this
-  // column with the default value 'school'.
-  affiliation_type: string;
-  // KAN-263 / KAN-267: affiliations are hidden on the public profile unless
-  // the owner opts the row in. `description` is an optional short note
-  // ("Class of 2008"). Older rows default to false / null.
-  show_on_profile: boolean;
-  description: string | null;
-}
-
-export interface WizardLink {
-  id: string;
-  title: string;
-  url: string;
-  link_type: string;
-  description: string | null;
-}
-
-// KAN-142: profile_files row, shaped for the wizard FilesStep.
-export interface WizardFile {
-  id: string;
-  storage_path: string;
-  file_name: string;
-  mime_type: string;
-  size_bytes: number;
-  visibility: string;
-}
-
-// KAN-181: conversation starters — both the curated prompt library
-// and the user's answers (joined to the prompt for display).
-export interface ConversationPrompt {
-  id: string;
-  prompt: string;
-  sort_order: number;
-}
-
-export interface ConversationAnswer {
-  id: string;
-  // KAN-445: null when the member wrote the question themselves.
-  prompt_id: string | null;
-  answer: string;
-  prompt: string; // the seeded prompt joined for display, or the member's own
-  /** The member's own question text; null for a seeded prompt. */
-  custom_prompt: string | null;
-}
+/**
+ * Profile wizard UI primitives — KAN-415 D8.
+ *
+ * ⚠️ THE DOMAIN MODEL IS NO LONGER HERE. The seven `Wizard*` /
+ * `Conversation*` interfaces moved to `@/modules/profile/types`, because the
+ * *public* profile's shape must not be owned by the *editor's* wizard (the D-4
+ * privacy finding). They are re-exported below so the 14 existing imports in
+ * this tree keep working — D8 moves the boundary, it does not rewrite the
+ * wizard. **New code should import them from the module directly.**
+ *
+ * What stays is the two presentational components, which belong to the editor
+ * and nowhere else. They carry design tokens and are founder-owned surface
+ * under KAN-411 (`uiApprovalGated: always`), so they must not drift into a
+ * domain module that other code is meant to depend on freely.
+ */
+export type {
+  WizardProfile,
+  WizardItem,
+  WizardSchool,
+  WizardLink,
+  WizardFile,
+  ConversationPrompt,
+  ConversationAnswer,
+} from '@/modules/profile/types';
 
 export function Field({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;

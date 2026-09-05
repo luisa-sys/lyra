@@ -30,7 +30,7 @@ jest.mock('next/navigation', () => ({
 const mockGetUser = jest.fn();
 const mockMaybeSingle = jest.fn();
 const mockInsert = jest.fn();
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: (...a: unknown[]) => mockGetUser(...a) },
     from: (table: string) => {
@@ -46,24 +46,24 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 // generateApiKey's module imports getAdminServiceClient (unused here).
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({}),
 }));
 
 // ── OAuth libs used by submitConsent. ──
 const mockGetOauthClient = jest.fn();
-jest.mock('@/lib/oauth/clients', () => ({
+jest.mock('@/modules/oauth-as/lib/clients', () => ({
   getOauthClient: (...a: unknown[]) => mockGetOauthClient(...a),
 }));
 const mockRecordConsent = jest.fn();
-jest.mock('@/lib/oauth/consents', () => ({
+jest.mock('@/modules/oauth-as/lib/consents', () => ({
   recordConsent: (...a: unknown[]) => mockRecordConsent(...a),
 }));
 const mockIssueAuthCode = jest.fn();
-jest.mock('@/lib/oauth/codes', () => ({
+jest.mock('@/modules/oauth-as/lib/codes', () => ({
   issueAuthCode: (...a: unknown[]) => mockIssueAuthCode(...a),
 }));
-jest.mock('@/lib/oauth/authorize', () => ({
+jest.mock('@/modules/oauth-as/lib/authorize', () => ({
   buildErrorRedirect: (uri: string, code: string) => `${uri}?error=${code}`,
   buildSuccessRedirect: (uri: string, code: string) => `${uri}?code=${code}`,
 }));
@@ -78,6 +78,7 @@ const VALID_CONSENT_INPUT = {
   state: 'xyz',
   code_challenge: 'abc123',
   code_challenge_method: 'S256' as const,
+  resource: 'https://mcp-dev.checklyra.com/mcp',
   decision: 'allow' as const,
 };
 

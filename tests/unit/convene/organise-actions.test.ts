@@ -34,7 +34,7 @@ function rlsChain(table: string) {
   return chain;
 }
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => ({
     auth: { getUser: jest.fn(async () => ({ data: { user: mockUserId ? { id: mockUserId } : null } })) },
     from: jest.fn((t: string) => rlsChain(t)),
@@ -58,7 +58,7 @@ jest.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'http://localhost',
     supabaseServiceRoleKey: () => 'service-role',
@@ -67,7 +67,7 @@ jest.mock('@/lib/env', () => ({
 }));
 
 const mockModerate = jest.fn();
-jest.mock('@/lib/moderation-audit', () => ({
+jest.mock('@/modules/audit/moderation-audit', () => ({
   moderateAndAudit: (...args: unknown[]) => mockModerate(...args),
 }));
 

@@ -3,7 +3,7 @@
  *
  * Live in-app view for the operator:
  *   - Activity metrics over 1h / 24h / 7d via the existing get_metrics_for_window
- *     RPC (src/lib/metrics.ts).
+ *     RPC (src/modules/observability/metrics.ts).
  *   - Operational counts (lifecycle stages, suspended, pending reports, recent
  *     flags, admins) via the service-role client.
  *   - External-tools panel: Sentry / UptimeRobot configured status + a link out.
@@ -13,8 +13,8 @@
  */
 
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/lib/admin';
-import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/lib/metrics';
+import { getAdminServiceClient } from '@/modules/admin/admin';
+import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/modules/observability/metrics';
 import { getMonitoringIntegrations } from './integration-status';
 
 export const dynamic = 'force-dynamic';

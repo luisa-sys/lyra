@@ -19,8 +19,8 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({ rpc: (...args: unknown[]) => mockRpc(...args) })),
 }));
 
-import { sharedRateLimit, clientIpFromHeaders } from '@/lib/rate-limit-shared';
-import { RATE_LIMITS } from '@/lib/rate-limit';
+import { sharedRateLimit, clientIpFromHeaders } from '@/modules/guards/rate-limit-shared';
+import { RATE_LIMITS } from '@/modules/guards/rate-limit';
 import { POST as TOKEN_POST } from '@/app/oauth/token/route';
 import { POST as REVOKE_POST } from '@/app/oauth/revoke/route';
 

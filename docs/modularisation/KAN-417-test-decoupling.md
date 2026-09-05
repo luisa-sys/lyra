@@ -59,7 +59,7 @@ Classification rules (encoded in the script, deterministic): `tests/scripts/**` 
 export const SRC = {
   profileActions:   'src/app/dashboard/profile/actions.ts',
   filesActions:     'src/app/dashboard/profile/files-actions.ts',
-  supabaseServer:   'src/lib/supabase-server.ts',
+  supabaseServer:   'src/modules/platform/supabase-server.ts',
   // ... one symbolic name per file referenced by any (c)/(d) test
 } as const;
 ```
@@ -76,7 +76,7 @@ Measured: **133 `jest.mock()` calls across 53 files** (full per-file list in the
 
 | Target kind | Count | Move risk | Plan |
 |---|---|---|---|
-| `@/…` alias (e.g. `@/lib/supabase-server` ×28, `@/lib/env` ×14, `@/lib/admin` ×7) | **90** | re-points **automatically** if `jest.config.js` `moduleNameMapper` is updated in lockstep with `tsconfig` paths on every extraction | one config edit per new module alias — add to KAN-428 extraction DoD |
+| `@/…` alias (e.g. `@/lib/supabase-server` ×28, `@/lib/env` ×14, `@/modules/admin/admin` ×7) | **90** | re-points **automatically** if `jest.config.js` `moduleNameMapper` is updated in lockstep with `tsconfig` paths on every extraction | one config edit per new module alias — add to KAN-428 extraction DoD |
 | npm packages (`next/cache` ×18, `@supabase/supabase-js` ×10, …) | 43 | none — package names don't move | none |
 | relative paths | **0** | — | nothing to fix; keep it that way (lint rule candidate) |
 
@@ -105,7 +105,7 @@ Measured: **133 `jest.mock()` calls across 53 files** (full per-file list in the
 |---|---|---|
 | `playwright.config.ts` | `testDir: './tests/e2e'`; `AUTHED_MATCH`/`SOAK_MATCH`/`SIGNUP_MATCH` regex **spec filenames**; `require.resolve('./tests/e2e/global-setup')` | couples only to `tests/e2e/**` — **inert to any `src/` move**. Constraint to record in KAN-428: the three spec filenames are CI wiring; renaming a spec silently empties its Playwright project. Add a guard asserting each MATCH pattern matches exactly one existing file. |
 | `tests/e2e/global-setup.ts` | imports `./support/*` + node builtins only | inert to `src/` moves; no fix needed |
-| `support/mint-session.ts`, `seed-user.ts`, `soak-user.ts`, `supabase-admin.ts` | import each other + `@supabase/supabase-js`; `src/` appears **in comments only** | inert to `src/` moves. **Semantic coupling:** `seed-user.ts` mirrors the state model of `src/lib/dashboard/resolve-widgets.ts` — a module move keeps it green, but a state-model change must update it. Record as a KAN-429 ownership line (dashboard module owns this helper's fidelity), not a path fix. |
+| `support/mint-session.ts`, `seed-user.ts`, `soak-user.ts`, `supabase-admin.ts` | import each other + `@supabase/supabase-js`; `src/` appears **in comments only** | inert to `src/` moves. **Semantic coupling:** `seed-user.ts` mirrors the state model of `src/modules/dashboard/resolve-widgets.ts` — a module move keeps it green, but a state-model change must update it. Record as a KAN-429 ownership line (dashboard module owns this helper's fidelity), not a path fix. |
 | `signup-e2e` gate `.github/signup-surface.paths` | 100% path globs | **out of this spike's scope — owned by KAN-419** (module-terms rewrite). Consistency requirement stands: the spec itself is URL-coupled and untouched; only the *trigger* file moves with KAN-419's spec. Nothing in this plan reduces signup coverage. |
 
 ## 6. Worked proof-of-concept conversion (evidence for §8)

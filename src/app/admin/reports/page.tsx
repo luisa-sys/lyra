@@ -8,7 +8,7 @@
  */
 
 import Link from 'next/link';
-import { getAdminServiceClient } from '@/lib/admin';
+import { getAdminServiceClient } from '@/modules/admin/admin';
 
 export const dynamic = 'force-dynamic';
 

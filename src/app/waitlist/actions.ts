@@ -1,11 +1,11 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createServiceRoleClient } from '@/lib/supabase-service';
-import { createClient } from '@/lib/supabase-server';
-import { env } from '@/lib/env';
-import { computeAccessTransition } from '@/lib/access-model';
-import { getAccountStanding, shouldRefuseIssuance } from '@/lib/account-status';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { createClient } from '@/modules/platform/supabase-server';
+import { env } from '@/modules/platform/env';
+import { computeAccessTransition } from '@/modules/access/access-model';
+import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 
 /**
  * KAN-336 — redeem a skip-the-waitlist code from the /waitlist page.

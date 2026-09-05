@@ -29,7 +29,7 @@ import {
   getEffectiveItemVisibility,
   isItemVisibleUnderHybridModel,
   type SectionVisibility,
-} from '@/app/dashboard/profile/section-visibility';
+} from '@/modules/profile/section-visibility';
 
 describe('KAN-221: CONTROLLABLE_SECTION_KEYS + ITEM_CATEGORY_TO_SECTION', () => {
   test('every controllable section key has at least one item category mapped to it', () => {
@@ -230,7 +230,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({

@@ -50,7 +50,7 @@ describe('KAN-135: Upload action exists with validation', () => {
 });
 
 describe('KAN-135: WizardProfile includes avatar_url', () => {
-  const typesPath = path.join(root, SRC.types);
+  const typesPath = path.join(root, SRC.profileTypes);
   let content;
 
   beforeAll(() => {

@@ -12,11 +12,11 @@ import path from 'path';
 const ROOT = path.join(__dirname, '..', '..', '..');
 
 // Mock the DB-touching modules.
-jest.mock('@/lib/oauth/refresh', () => ({
+jest.mock('@/modules/oauth-as/lib/refresh', () => ({
   getRefreshToken: jest.fn(async () => null),
   revokeFamily: jest.fn(async () => undefined),
 }));
-jest.mock('@/lib/oauth/access-tokens', () => ({
+jest.mock('@/modules/oauth-as/lib/access-tokens', () => ({
   getAccessTokenJti: jest.fn(async () => null),
   revokeAccessTokenJti: jest.fn(async () => undefined),
 }));

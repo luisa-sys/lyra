@@ -2,8 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { createServiceRoleClient } from "@/lib/supabase-service";
-import { isProdDeploy } from "@/lib/beta-access/flow";
+import { createServiceRoleClient } from "@/modules/platform/supabase-service";
+import { isProdDeploy } from "@/modules/access/beta-access/flow";
 
 /**
  * "See example profiles" gallery.
@@ -52,12 +52,10 @@ async function getExampleProfiles(): Promise<ExampleProfile[]> {
   try {
     const supabase = getSupabase();
     const { data } = await supabase
-      .from("profiles")
+      // SEC-104: the view carries the published + not-suspended predicate, so a
+      // service-role read (which bypasses RLS) is still constrained.
+      .from("public_profiles")
       .select("id, display_name, slug, headline, city, country, avatar_url")
-      .eq("is_published", true)
-      // SEC-100: service-role read, so RLS does not apply. Defence in depth —
-      // see the equivalent note in src/app/page.tsx.
-      .eq("is_suspended", false)
       .eq("is_homepage_example", true)
       .order("homepage_example_order", { ascending: true })
       .limit(60);

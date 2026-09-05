@@ -22,10 +22,10 @@ jest.mock('next/headers', () => ({
   }),
 }));
 
-// Mock @/lib/env — `mockInviteCode` is mutated per-test to toggle the
+// Mock @/modules/platform/env — `mockInviteCode` is mutated per-test to toggle the
 // KAN-258 invite-only gate (empty string = gate off).
 let mockInviteCode = '';
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     siteUrl: () => 'https://dev.checklyra.com',
     inviteCode: () => mockInviteCode,
@@ -37,7 +37,7 @@ const mockSignInWithOtp = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignInWithOAuth = jest.fn();
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       signInWithOtp: (...args: unknown[]) => mockSignInWithOtp(...args),
@@ -48,7 +48,10 @@ jest.mock('@/lib/supabase-server', () => ({
 }));
 
 // Import the actual server actions
-import { signUp, signIn, signOut, signInWithGoogle } from '@/app/(auth)/actions';
+import { signUp, signIn, signInWithGoogle } from '@/app/(auth)/actions';
+// KAN-415 moved `signOut` to the app root so /dashboard could stop importing
+// across route segments. Same function, same behaviour — only the home changed.
+import { signOut } from '@/app/session-actions';
 
 function makeFormData(data: Record<string, string>): FormData {
   const fd = new FormData();

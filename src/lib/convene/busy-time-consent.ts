@@ -21,7 +21,7 @@
  * defence-in-depth BEFORE any shared-availability WEB surface ships.
  */
 
-import { createServiceRoleClient } from '@/lib/supabase-service';
+import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 
 /** Thrown when the viewer is not permitted to read the target's busy-times. */
 export class BusyTimeConsentError extends Error {

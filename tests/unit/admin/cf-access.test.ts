@@ -1,5 +1,5 @@
 /**
- * SEC-34 — app-layer Cloudflare Access verification (`src/lib/cf-access.ts`).
+ * SEC-34 — app-layer Cloudflare Access verification (`src/modules/guards/cf-access.ts`).
  *
  * Only the remote JWKS fetch is mocked: we swap `createRemoteJWKSet` for a local
  * key set built from an ephemeral RSA keypair, so the real jose signature /
@@ -24,7 +24,7 @@ import {
   cfAccessEnabled,
   verifyCfAccessToken,
   __resetCfAccessJwksCacheForTests,
-} from '@/lib/cf-access';
+} from '@/modules/guards/cf-access';
 
 const TEAM = 'lyra-test';
 const ISS = `https://${TEAM}.cloudflareaccess.com`;

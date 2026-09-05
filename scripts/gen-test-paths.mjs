@@ -68,7 +68,10 @@ const OUT_JSON = join(ROOT, 'tests/support/source-paths.json');
 // Repo roots a test may legitimately reference by path, encoded in the regex
 // below. `tests/` itself is deliberately absent: a test referencing another
 // test is test-estate coupling, which KAN-429 owns, not this manifest.
-const LITERAL_RE = /'((?:src|supabase|scripts|public|\.github)\/[A-Za-z0-9_./[\]()@-]+)'/g;
+// `design/` added 2026-08-08 (KAN-457): design/BASELINE.json is the app-side
+// design re-baseline pointer CTL-040 gates on, and a root the manifest cannot
+// name is a root whose tests must hard-code it.
+const LITERAL_RE = /'((?:src|supabase|scripts|public|design|\.github)\/[A-Za-z0-9_./[\]()@-]+)'/g;
 
 function trackedTestFiles() {
   const out = execFileSync('git', ['-C', ROOT, 'ls-files', 'tests'], {

@@ -19,13 +19,13 @@ let recentCount: number;
 const insertSpy = jest.fn();
 let insertResult: { data: { id: string; status: string } | null; error: { message: string } | null };
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: async () => ({
     auth: { getUser: (...a: unknown[]) => mockGetUser(...a) },
   }),
 }));
 
-jest.mock('@/lib/admin', () => ({
+jest.mock('@/modules/admin/admin', () => ({
   getAdminServiceClient: () => ({
     from: (table: string) => {
       if (table === 'profiles') {

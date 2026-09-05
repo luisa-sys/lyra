@@ -19,7 +19,7 @@ import {
   AGE_DECLARATION_FIELD,
   AGE_DECLARATION_COOKIE,
   AGE_DECLARATION_REQUIRED_MESSAGE,
-} from '@/lib/age/self-declaration';
+} from '@/modules/age/self-declaration';
 
 const root = path.join(__dirname, '../..');
 
@@ -123,12 +123,18 @@ describe('the declaration is not user-writable', () => {
 // default OFF). The self-declaration above remains the always-on baseline; the
 // provider gate only enforces where an admin has turned the switch ON.
 describe('the provider age gate is re-introduced as an opt-in switch (KAN-408)', () => {
-  it('both publish paths consult the (switch-gated) provider age check', () => {
+  it('the single publish path consults the (switch-gated) provider age check', () => {
+    // KAN-415 D-6: was `>= 2` occurrences, because `is_published` being
+    // allow-listed made updateProfileFields a second publish path needing its
+    // own copy of this gate. Removing it from the allowlist left one path, one
+    // gate — and two copies of a gate is one copy away from a hole, since
+    // whichever a future fix missed would be the way through.
     const actions = fs.readFileSync(
       path.join(root, SRC.profileActions),
       'utf8',
     );
-    expect((actions.match(/isProviderAgeCheckActive\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect((actions.match(/is_published:\s*true/g) || []).length).toBe(1);
+    expect((actions.match(/isProviderAgeCheckActive\(\)/g) || []).length).toBeGreaterThanOrEqual(1);
     expect(actions).toContain('AGE_GATE_BLOCK_MESSAGE');
   });
 

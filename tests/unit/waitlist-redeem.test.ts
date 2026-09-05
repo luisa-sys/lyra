@@ -17,7 +17,7 @@ let mockGrantError: { message: string } | null = null;
 const updateSpy = jest.fn();
 const eqSpy = jest.fn();
 
-jest.mock('@/lib/env', () => ({
+jest.mock('@/modules/platform/env', () => ({
   env: {
     supabaseUrl: () => 'https://x.supabase.co',
     supabaseServiceRoleKey: () => 'svc-key',
@@ -25,7 +25,7 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: () =>
     Promise.resolve({
       auth: { getUser: () => Promise.resolve({ data: { user: mockUser } }) },

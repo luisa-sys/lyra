@@ -6,7 +6,7 @@
  * flow. Gated behind isConveneEnabled().
  */
 
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@/modules/platform/supabase-server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';

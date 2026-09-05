@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { SaveButton } from './types';
-import type { ManualOfMe } from '../manual-of-me-fields';
-import { MANUAL_OF_ME_MAX_LENGTHS } from '../manual-of-me-fields';
+import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
+import { MANUAL_OF_ME_MAX_LENGTHS } from '@/modules/profile/manual-of-me-fields';
 
 /**
  * KAN-154 — Wizard step for the "Manual of Me" profile section.

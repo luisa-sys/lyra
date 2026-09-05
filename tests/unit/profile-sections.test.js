@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { SRC } = require('../support/source-paths.json');
+const { stripComments } = require('../support/strip-comments');
 
 const root = path.join(__dirname, '../..');
 
@@ -112,7 +113,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   const profilePath = path.join(root, SRC.slugPage);
   // Built from the manifest's profile-directory entry rather than a raw repo
   // path, so this adds no new path coupling to the KAN-414 F4 ratchet.
-  const favouritesPath = path.join(root, SRC.profile, 'favourites.ts');
+  const favouritesPath = path.join(root, SRC.favourites);
   let pageContent;
   let content;
 
@@ -121,19 +122,13 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // above the real heading, so the entire favourites grid could be disabled
   // and the heading renamed with this suite still fully green. The prose
   // documenting a fix is what conceals its removal — same shape as SEC-100.
-  const stripComments = (source) =>
-    source
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ') // JSX {/* ... */}
-      .replace(/\/\*[\s\S]*?\*\//g, ' ') //           block /* ... */
-      .replace(/(^|[^:])\/\/.*$/gm, '$1'); //         line   // ...
-
   beforeAll(() => {
     pageContent = stripComments(fs.readFileSync(profilePath, 'utf8'));
     content = pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'));
   });
 
   test('public page renders favourites through the shared groups module (KAN-444)', () => {
-    expect(pageContent).toContain("from '@/app/dashboard/profile/favourites'");
+    expect(pageContent).toContain("from '@/modules/profile/favourites'");
     expect(pageContent).toContain('groupFavourites(typedItems)');
   });
 

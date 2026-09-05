@@ -102,14 +102,21 @@ describe('next.config.ts rewrite for /.well-known/oauth-authorization-server (KA
 
 describe('oauth config (KAN-88)', () => {
   test('TTLs match documented values', async () => {
-    const { oauthConfig } = await import('@/lib/oauth/config');
+    const { oauthConfig } = await import('@/modules/oauth-as/lib/config');
     expect(oauthConfig.authorizationCodeTtlSeconds).toBe(600); // 10 min
-    expect(oauthConfig.accessTokenTtlSeconds).toBe(3600); // 1h
+    // ⚠️ CHANGED under SEC-46 Phase C, founder-approved 2026-08-16: 3600 -> 900.
+    // This assertion was correct about the old documented value. The TTL is the
+    // window between a token leaking and it expiring on its own, and until
+    // SEC-46 Phase A that expiry was the ONLY thing that ever ended a token's
+    // life — revocation was enabled on no resource server. This stays an exact
+    // assertion rather than a range: the number is a security parameter, and a
+    // loosened matcher would let it drift back without anyone deciding to.
+    expect(oauthConfig.accessTokenTtlSeconds).toBe(900); // 15 min
     expect(oauthConfig.refreshTokenTtlSeconds).toBe(30 * 24 * 60 * 60); // 30d
   });
 
   test('wwwAuthenticateHeader builds the right shape', async () => {
-    const { wwwAuthenticateHeader, oauthConfig } = await import('@/lib/oauth/config');
+    const { wwwAuthenticateHeader, oauthConfig } = await import('@/modules/oauth-as/lib/config');
     const plain = wwwAuthenticateHeader();
     expect(plain).toMatch(/^Bearer realm="/);
     expect(plain).toContain(oauthConfig.issuer());

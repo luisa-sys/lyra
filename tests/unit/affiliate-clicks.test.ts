@@ -13,7 +13,7 @@ import {
   type AffiliateClickRow,
   type AffiliateProvider,
   type AffiliateClickSource,
-} from '@/lib/affiliate/types';
+} from '@/modules/affiliate/types';
 
 describe('KAN-189 affiliate clicks — buildSubId', () => {
   const uuid = '550e8400-e29b-41d4-a716-446655440000';

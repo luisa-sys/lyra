@@ -1,5 +1,5 @@
 {
-  "$comment": "KAN-414 F8 \u2014 the frozen set of DIRECT `process.env` reads under src/, as measured 2026-07-29. Enforced by scripts/check-env-access.py in pr-checks.yml (CTL-037). SHRINK-ONLY: a new file, or a new variable in an already-listed file, fails the build; so does a listed file or variable that has stopped being read, because a baseline that only grows is a suppression list rather than a ratchet. Migrate a file by routing its configuration through src/lib/env.ts and deleting its entry here in the SAME PR. src/lib/env.ts itself is exempt by design \u2014 reading process.env is its job.",
+  "$comment": "KAN-414 F8 \u2014 the frozen set of DIRECT `process.env` reads under src/, as measured 2026-07-29. Enforced by scripts/check-env-access.py in pr-checks.yml (CTL-037). SHRINK-ONLY: a new file, or a new variable in an already-listed file, fails the build; so does a listed file or variable that has stopped being read, because a baseline that only grows is a suppression list rather than a ratchet. Migrate a file by routing its configuration through src/modules/platform/env.ts and deleting its entry here in the SAME PR. src/modules/platform/env.ts itself is exempt by design \u2014 reading process.env is its job.",
   "measured_at": "2026-07-29",
   "allowed": {
     "src/app/(auth)/signup/page.tsx": [
@@ -63,21 +63,21 @@
       "NEXT_PUBLIC_VERCEL_ENV",
       "NODE_ENV"
     ],
-    "src/lib/affiliate/link-service.ts": [
+    "src/modules/affiliate/link-service.ts": [
       "SOVRN_API_KEY"
     ],
-    "src/lib/age/didit.ts": [
+    "src/modules/age/didit.ts": [
       "DIDIT_API_BASE",
       "DIDIT_API_KEY",
       "DIDIT_WEBHOOK_SECRET",
       "DIDIT_WORKFLOW_ID"
     ],
-    "src/lib/beta-access/email.ts": [
+    "src/modules/access/beta-access/email.ts": [
       "LYRA_BETA_FROM_EMAIL",
       "LYRA_BETA_NOTIFY_EMAIL",
       "RESEND_API_KEY"
     ],
-    "src/lib/cf-access.ts": [
+    "src/modules/guards/cf-access.ts": [
       "CF_ACCESS_AUD",
       "CF_ACCESS_TEAM_DOMAIN"
     ],
@@ -102,40 +102,40 @@
       "TWILIO_SMS_FROM",
       "TWILIO_WHATSAPP_FROM"
     ],
-    "src/lib/features/entitlements-service.ts": [
+    "src/modules/features/entitlements-service.ts": [
       "PAID_LINKS_COMPLIANCE_READY"
     ],
-    "src/lib/geo/places-city.ts": [
+    "src/modules/profile/geo/places-city.ts": [
       "GOOGLE_PLACES_API_KEY"
     ],
-    "src/lib/invite-text.ts": [
+    "src/modules/dashboard/invite-text.ts": [
       "NEXT_PUBLIC_SITE_URL"
     ],
-    "src/lib/oauth/config.ts": [
+    "src/modules/oauth-as/lib/config.ts": [
       "LYRA_SITE_URL",
       "NEXT_PUBLIC_SITE_URL",
       "VERCEL_URL"
     ],
-    "src/lib/oauth/jwt.ts": [
+    "src/modules/oauth-as/lib/jwt.ts": [
       "OAUTH_JWT_KID",
       "OAUTH_JWT_PRIVATE_KEY_B64",
       "OAUTH_JWT_PUBLIC_KEY_B64",
       "OAUTH_JWT_SIGNING_SECRET"
     ],
-    "src/lib/recommender/v2/candidate-sourcing.ts": [
+    "src/modules/recommendations/recommender/v2/candidate-sourcing.ts": [
       "ANTHROPIC_API_KEY",
       "SOVRN_API_KEY"
     ],
-    "src/lib/retention/affiliate-clicks.ts": [
+    "src/modules/account/retention/affiliate-clicks.ts": [
       "RETENTION_AFFILIATE_CLICKS_MONTHS"
     ],
-    "src/lib/retention/flags.ts": [
+    "src/modules/account/retention/flags.ts": [
       "RETENTION_ENABLED"
     ],
-    "src/lib/retention/gatherings.ts": [
+    "src/modules/account/retention/gatherings.ts": [
       "RETENTION_GATHERINGS_MONTHS"
     ],
-    "src/lib/turnstile.ts": [
+    "src/modules/guards/turnstile.ts": [
       "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
       "TURNSTILE_SECRET_KEY"
     ],

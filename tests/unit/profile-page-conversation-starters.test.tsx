@@ -82,7 +82,7 @@ function makeClient() {
   };
 }
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn(async () => makeClient()),
 }));
 

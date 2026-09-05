@@ -16,7 +16,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { MANUAL_OF_ME_FIELDS } from '@/app/dashboard/profile/manual-of-me-fields';
+import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
 import { SRC } from '../support/source-paths';
 
 /** Pull the `.select(...)` argument attached to the profile_manual_of_me query. */

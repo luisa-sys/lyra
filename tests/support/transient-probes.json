@@ -1,0 +1,27 @@
+{
+  "$comment": [
+    "The naming convention for TRANSIENT PROBE test files, in one place.",
+    "",
+    "Several guard suites prove their subject by writing a probe file into",
+    "tests/unit/, running the checker against it, and deleting it. Jest runs",
+    "suites in PARALLEL, so any other suite that enumerates test files via",
+    "`jest --listTests` can observe a probe that is gone by the time it reads",
+    "it — an ENOENT with nothing to do with what that suite asserts.",
+    "",
+    "This already happened once and 'failed five unrelated PRs in a row'",
+    "(tests/unit/test-meta-integrity.test.js). It was fixed there and then",
+    "reproduced verbatim in the KAN-415 test-floor guard, because the pattern",
+    "was a private const rather than a shared fact. Hence this file: three",
+    "readers, one definition, and CTL-043's lesson applied locally — the fix",
+    "for a copy that drifts is to stop having copies.",
+    "",
+    "Readers must ALSO tolerate an ENOENT on read. The exclusion closes the",
+    "common case; the read guard closes the window between listing and reading."
+  ],
+  "pattern": "^__.*_probe__.*\\.test\\.(js|ts)$",
+  "readers": [
+    "tests/unit/test-meta-integrity.test.js",
+    "tests/unit/test-regression-guard.test.js",
+    "scripts/gen-test-floor.mjs"
+  ]
+}

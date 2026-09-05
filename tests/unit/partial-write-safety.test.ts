@@ -41,8 +41,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
-import { MANUAL_OF_ME_FIELDS } from '@/app/dashboard/profile/manual-of-me-fields';
-import { ALLOWED_PROFILE_FIELDS } from '@/app/dashboard/profile/profile-fields';
+import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
+import { ALLOWED_PROFILE_FIELDS } from '@/modules/profile/profile-fields';
 import { SRC } from '../support/source-paths';
 
 const REPO_ROOT = resolve(__dirname, '../..');
@@ -324,7 +324,7 @@ jest.mock('next/cache', () => ({
 const mockUpdateCapture = jest.fn();
 const mockEqResolve = jest.fn().mockResolvedValue({ error: null });
 
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/modules/platform/supabase-server', () => ({
   createClient: jest.fn().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),

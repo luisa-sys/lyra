@@ -12,7 +12,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { buildCspReportOnly } from '@/lib/security-headers';
+import { buildCspReportOnly } from '@/modules/guards/security-headers';
 
 const NEXT_CONFIG = readFileSync(resolve(__dirname, '../../next.config.ts'), 'utf-8');
 

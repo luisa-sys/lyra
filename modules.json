@@ -21,12 +21,12 @@
     "platform": {
       "layer": 0,
       "paths": [
-        "src/lib/supabase-browser.ts",
-        "src/lib/supabase-server.ts",
-        "src/lib/supabase-service.ts",
-        "src/lib/env.ts",
-        "src/lib/deploy-env.ts",
-        "src/lib/cookie-domain.ts"
+        "src/modules/platform/supabase-browser.ts",
+        "src/modules/platform/supabase-server.ts",
+        "src/modules/platform/supabase-service.ts",
+        "src/modules/platform/env.ts",
+        "src/modules/platform/deploy-env.ts",
+        "src/modules/platform/cookie-domain.ts"
       ],
       "owns": {
         "files": 6,
@@ -37,7 +37,7 @@
       "publicApi": [
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-server.ts",
+          "file": "src/modules/platform/supabase-server.ts",
           "importingFiles": 46,
           "consumingModules": [
             "access",
@@ -58,7 +58,7 @@
         },
         {
           "symbol": "createServiceRoleClient",
-          "file": "src/lib/supabase-service.ts",
+          "file": "src/modules/platform/supabase-service.ts",
           "importingFiles": 39,
           "consumingModules": [
             "access",
@@ -79,7 +79,7 @@
         },
         {
           "symbol": "env",
-          "file": "src/lib/env.ts",
+          "file": "src/modules/platform/env.ts",
           "importingFiles": 14,
           "consumingModules": [
             "access",
@@ -93,7 +93,7 @@
         },
         {
           "symbol": "getDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 4,
           "consumingModules": [
             "admin",
@@ -104,7 +104,7 @@
         },
         {
           "symbol": "manageableEnvironments",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -113,7 +113,7 @@
         },
         {
           "symbol": "type:DeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -123,7 +123,7 @@
         },
         {
           "symbol": "isDeployEnv",
-          "file": "src/lib/deploy-env.ts",
+          "file": "src/modules/platform/deploy-env.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -132,7 +132,7 @@
         },
         {
           "symbol": "createClient",
-          "file": "src/lib/supabase-browser.ts",
+          "file": "src/modules/platform/supabase-browser.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -141,7 +141,7 @@
         },
         {
           "symbol": "withParentCookieDomain",
-          "file": "src/lib/cookie-domain.ts",
+          "file": "src/modules/platform/cookie-domain.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -149,7 +149,77 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/platform/cookie-domain.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/platform/deploy-env.ts",
+          "consumedBy": [
+            "admin",
+            "features",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/platform/env.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "age",
+            "auth",
+            "guards",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-browser.ts",
+          "consumedBy": [
+            "convene"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-server.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "age",
+            "auth",
+            "convene",
+            "dashboard",
+            "features",
+            "oauth-as",
+            "observability",
+            "profile",
+            "public-profile",
+            "trust-safety"
+          ]
+        },
+        {
+          "file": "src/modules/platform/supabase-service.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "admin",
+            "affiliate",
+            "age",
+            "convene",
+            "features",
+            "guards",
+            "marketing-legal",
+            "oauth-as",
+            "observability",
+            "public-profile",
+            "recommendations"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -210,16 +280,15 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "contracts": {
       "layer": 0,
       "paths": [
-        "src/lib/content-moderation.ts",
-        "src/lib/moderation-policy.ts"
+        "src/modules/contracts/"
       ],
       "owns": {
-        "files": 2,
+        "files": 3,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -227,7 +296,7 @@
       "publicApi": [
         {
           "symbol": "checkModeration",
-          "file": "src/lib/moderation-policy.ts",
+          "file": "src/modules/contracts/moderation-policy.ts",
           "importingFiles": 2,
           "consumingModules": [
             "audit",
@@ -237,7 +306,7 @@
         },
         {
           "symbol": "moderateContent",
-          "file": "src/lib/content-moderation.ts",
+          "file": "src/modules/contracts/content-moderation.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -246,7 +315,7 @@
         },
         {
           "symbol": "type:FieldType",
-          "file": "src/lib/content-moderation.ts",
+          "file": "src/modules/contracts/content-moderation.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -255,7 +324,7 @@
         },
         {
           "symbol": "type:CheckResult",
-          "file": "src/lib/moderation-policy.ts",
+          "file": "src/modules/contracts/moderation-policy.ts",
           "importingFiles": 1,
           "consumingModules": [
             "audit"
@@ -263,7 +332,21 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/contracts/content-moderation.ts",
+          "consumedBy": [
+            "audit"
+          ]
+        },
+        {
+          "file": "src/modules/contracts/moderation-policy.ts",
+          "consumedBy": [
+            "audit",
+            "convene"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -327,23 +410,24 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "guards": {
       "layer": 1,
       "paths": [
-        "src/lib/rate-limit.ts",
-        "src/lib/rate-limit-shared.ts",
-        "src/lib/profile-rate-limit.ts",
-        "src/lib/turnstile.ts",
-        "src/lib/sanitise.ts",
-        "src/lib/file-magic-bytes.ts",
-        "src/lib/security-headers.ts",
-        "src/lib/cf-access.ts",
-        "src/lib/json-ld.ts"
+        "src/modules/guards/rate-limit.ts",
+        "src/modules/guards/rate-limit-shared.ts",
+        "src/modules/guards/profile-rate-limit.ts",
+        "src/modules/guards/turnstile.ts",
+        "src/modules/guards/sanitise.ts",
+        "src/modules/guards/file-magic-bytes.ts",
+        "src/modules/guards/security-headers.ts",
+        "src/modules/guards/cf-access.ts",
+        "src/modules/guards/json-ld.ts",
+        "src/modules/guards/client-ip.ts"
       ],
       "owns": {
-        "files": 9,
+        "files": 10,
         "tables": [],
         "rpcs": [
           "rate_limit_hit"
@@ -353,7 +437,7 @@
       "publicApi": [
         {
           "symbol": "sanitiseText",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 6,
           "consumingModules": [
             "convene",
@@ -364,7 +448,7 @@
         },
         {
           "symbol": "type:ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -373,7 +457,7 @@
         },
         {
           "symbol": "checkProfileWriteRateLimit",
-          "file": "src/lib/profile-rate-limit.ts",
+          "file": "src/modules/guards/profile-rate-limit.ts",
           "importingFiles": 5,
           "consumingModules": [
             "profile"
@@ -382,7 +466,7 @@
         },
         {
           "symbol": "RATE_LIMITS",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 4,
           "consumingModules": [
             "access",
@@ -392,7 +476,7 @@
         },
         {
           "symbol": "rateLimit",
-          "file": "src/lib/rate-limit.ts",
+          "file": "src/modules/guards/rate-limit.ts",
           "importingFiles": 3,
           "consumingModules": [
             "access",
@@ -403,7 +487,7 @@
         },
         {
           "symbol": "clientIpFromHeaders",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -412,7 +496,7 @@
         },
         {
           "symbol": "sharedRateLimit",
-          "file": "src/lib/rate-limit-shared.ts",
+          "file": "src/modules/guards/rate-limit-shared.ts",
           "importingFiles": 3,
           "consumingModules": [
             "oauth-as"
@@ -421,7 +505,7 @@
         },
         {
           "symbol": "jsonLdSafe",
-          "file": "src/lib/json-ld.ts",
+          "file": "src/modules/guards/json-ld.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal",
@@ -431,7 +515,7 @@
         },
         {
           "symbol": "preflightUpload",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 2,
           "consumingModules": [
             "profile"
@@ -440,7 +524,7 @@
         },
         {
           "symbol": "verifyTurnstile",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -449,7 +533,7 @@
         },
         {
           "symbol": "turnstileSiteKey",
-          "file": "src/lib/turnstile.ts",
+          "file": "src/modules/guards/turnstile.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -458,7 +542,7 @@
         },
         {
           "symbol": "sanitiseUrl",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -467,7 +551,7 @@
         },
         {
           "symbol": "ALLOWED_MIMES",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -476,7 +560,7 @@
         },
         {
           "symbol": "extensionForMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -485,7 +569,7 @@
         },
         {
           "symbol": "type:AllowedMime",
-          "file": "src/lib/file-magic-bytes.ts",
+          "file": "src/modules/guards/file-magic-bytes.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -494,7 +578,7 @@
         },
         {
           "symbol": "ActionResult",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "account"
@@ -503,7 +587,7 @@
         },
         {
           "symbol": "sanitiseSearchTerm",
-          "file": "src/lib/sanitise.ts",
+          "file": "src/modules/guards/sanitise.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -512,7 +596,7 @@
         },
         {
           "symbol": "cfAccessEnabled",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -521,7 +605,7 @@
         },
         {
           "symbol": "verifyCfAccessToken",
-          "file": "src/lib/cf-access.ts",
+          "file": "src/modules/guards/cf-access.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -530,15 +614,94 @@
         },
         {
           "symbol": "buildCspReportOnly",
-          "file": "src/lib/security-headers.ts",
+          "file": "src/modules/guards/security-headers.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
           ],
           "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/guards/client-ip.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "access"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/guards/cf-access.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/client-ip.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/file-magic-bytes.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/json-ld.ts",
+          "consumedBy": [
+            "marketing-legal",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/profile-rate-limit.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit-shared.ts",
+          "consumedBy": [
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/rate-limit.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/guards/sanitise.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "marketing-legal",
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/guards/security-headers.ts",
+          "consumedBy": [
+            "access"
+          ]
+        },
+        {
+          "file": "src/modules/guards/turnstile.ts",
+          "consumedBy": [
+            "marketing-legal"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -601,18 +764,19 @@
         "testFiles": 3,
         "testBlocks": 59
       },
-      "enforced": false
+      "enforced": true
     },
     "observability": {
       "layer": 1,
       "paths": [
-        "src/lib/metrics.ts",
-        "src/lib/sentry-scrub.ts",
+        "src/modules/observability/metrics.ts",
+        "src/modules/observability/readiness.ts",
+        "src/modules/observability/sentry-scrub.ts",
         "src/app/api/health/",
         "src/app/status/"
       ],
       "owns": {
-        "files": 4,
+        "files": 6,
         "tables": [],
         "rpcs": [
           "get_metrics_for_window"
@@ -622,7 +786,7 @@
       "publicApi": [
         {
           "symbol": "getAnomalyWindowAdmin",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -631,7 +795,7 @@
         },
         {
           "symbol": "type:AnomalyWindowKey",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -640,7 +804,7 @@
         },
         {
           "symbol": "type:MetricsSnapshot",
-          "file": "src/lib/metrics.ts",
+          "file": "src/modules/observability/metrics.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -648,7 +812,14 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/observability/metrics.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -707,7 +878,7 @@
         "testFiles": 1,
         "testBlocks": 3
       },
-      "enforced": false
+      "enforced": true
     },
     "ui-kit": {
       "layer": 1,
@@ -731,7 +902,14 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/components/AffiliateBadge.tsx",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -794,12 +972,12 @@
         "testFiles": 1,
         "testBlocks": 9
       },
-      "enforced": false
+      "enforced": true
     },
     "audit": {
       "layer": 1,
       "paths": [
-        "src/lib/moderation-audit.ts"
+        "src/modules/audit/"
       ],
       "owns": {
         "files": 1,
@@ -813,7 +991,7 @@
       "publicApi": [
         {
           "symbol": "moderateAndAudit",
-          "file": "src/lib/moderation-audit.ts",
+          "file": "src/modules/audit/moderation-audit.ts",
           "importingFiles": 4,
           "consumingModules": [
             "convene",
@@ -824,19 +1002,28 @@
       ],
       "declaredApi": [
         {
+          "file": "src/modules/audit/moderation-audit.ts",
+          "consumedBy": [
+            "convene",
+            "profile"
+          ]
+        }
+      ],
+      "plannedApi": [
+        {
           "symbol": "recordModerationFlag",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         },
         {
           "symbol": "logModerationAction",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         },
         {
           "symbol": "auditedMutation",
           "status": "declared",
-          "todayImplementedBy": "moderateAndAudit() in src/lib/moderation-audit.ts"
+          "todayImplementedBy": "moderateAndAudit() in src/modules/audit/moderation-audit.ts"
         }
       ],
       "mayDependOn": [
@@ -905,21 +1092,19 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "access": {
       "layer": 2,
       "paths": [
-        "src/lib/beta-access/",
-        "src/lib/account-status.ts",
-        "src/lib/access-model/",
         "src/app/waitlist/",
         "src/app/suspended/",
         "src/app/join/",
-        "src/middleware.ts"
+        "src/middleware.ts",
+        "src/modules/access/"
       ],
       "owns": {
-        "files": 12,
+        "files": 28,
         "tables": [],
         "rpcs": [],
         "profilesColumns": [
@@ -936,7 +1121,7 @@
       "publicApi": [
         {
           "symbol": "getAccountStanding",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 5,
           "consumingModules": [
             "account",
@@ -947,7 +1132,7 @@
         },
         {
           "symbol": "shouldRefuseIssuance",
-          "file": "src/lib/account-status.ts",
+          "file": "src/modules/access/account-status.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -958,7 +1143,7 @@
         },
         {
           "symbol": "INVITE_COOKIE",
-          "file": "src/lib/beta-access/invite-cookie.ts",
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
           "importingFiles": 3,
           "consumingModules": [
             "auth"
@@ -967,7 +1152,7 @@
         },
         {
           "symbol": "isProdFamily",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -976,7 +1161,7 @@
         },
         {
           "symbol": "sendBetaApprovedEmail",
-          "file": "src/lib/beta-access/email.ts",
+          "file": "src/modules/access/beta-access/email.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -985,7 +1170,7 @@
         },
         {
           "symbol": "isProdDeploy",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 2,
           "consumingModules": [
             "marketing-legal"
@@ -994,7 +1179,7 @@
         },
         {
           "symbol": "computeAccessTransition",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1003,7 +1188,7 @@
         },
         {
           "symbol": "AccessAction",
-          "file": "src/lib/access-model/index.ts",
+          "file": "src/modules/access/access-model/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1012,7 +1197,7 @@
         },
         {
           "symbol": "betaInviteLink",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1021,7 +1206,7 @@
         },
         {
           "symbol": "publicSignupUrl",
-          "file": "src/lib/beta-access/invite-link.ts",
+          "file": "src/modules/access/beta-access/invite-link.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1030,7 +1215,7 @@
         },
         {
           "symbol": "betaRedirectUrl",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1039,7 +1224,7 @@
         },
         {
           "symbol": "resolveBetaAccess",
-          "file": "src/lib/beta-access/flow.ts",
+          "file": "src/modules/access/beta-access/flow.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1047,7 +1232,47 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/access/access-model/index.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/account-status.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "oauth-as"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/email.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/flow.ts",
+          "consumedBy": [
+            "auth",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-cookie.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/access/beta-access/invite-link.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        }
+      ],
       "mayDependOn": [
         "guards",
         "platform"
@@ -1122,7 +1347,7 @@
     "features": {
       "layer": 2,
       "paths": [
-        "src/lib/features/"
+        "src/modules/features/"
       ],
       "owns": {
         "files": 5,
@@ -1136,7 +1361,7 @@
       "publicApi": [
         {
           "symbol": "getMyFeatureEntitlements",
-          "file": "src/lib/features/entitlements.ts",
+          "file": "src/modules/features/entitlements.ts",
           "importingFiles": 4,
           "consumingModules": [
             "account",
@@ -1147,7 +1372,7 @@
         },
         {
           "symbol": "isFeatureGloballyEnabled",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 3,
           "consumingModules": [
             "account",
@@ -1158,7 +1383,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_CONFIG",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1167,7 +1392,7 @@
         },
         {
           "symbol": "GLOBAL_FEATURE_KEYS",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin"
@@ -1176,7 +1401,7 @@
         },
         {
           "symbol": "getGlobalSwitches",
-          "file": "src/lib/features/global-switches-service.ts",
+          "file": "src/modules/features/global-switches-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "admin",
@@ -1186,7 +1411,7 @@
         },
         {
           "symbol": "isPaidLinksAllowedForRecipient",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 2,
           "consumingModules": [
             "affiliate",
@@ -1196,7 +1421,7 @@
         },
         {
           "symbol": "isGlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1205,7 +1430,7 @@
         },
         {
           "symbol": "resolveGlobalSwitches",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1214,7 +1439,7 @@
         },
         {
           "symbol": "type:GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1223,7 +1448,7 @@
         },
         {
           "symbol": "getProfileEntitlements",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1232,7 +1457,7 @@
         },
         {
           "symbol": "FEATURE_CONFIG",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1241,7 +1466,7 @@
         },
         {
           "symbol": "GA_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1250,7 +1475,7 @@
         },
         {
           "symbol": "TEST_FEATURE_KEYS",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1259,7 +1484,7 @@
         },
         {
           "symbol": "type:FeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1268,7 +1493,7 @@
         },
         {
           "symbol": "isFeatureKey",
-          "file": "src/lib/features/registry.ts",
+          "file": "src/modules/features/registry.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -1277,7 +1502,7 @@
         },
         {
           "symbol": "GlobalFeatureKey",
-          "file": "src/lib/features/global-features.ts",
+          "file": "src/modules/features/global-features.ts",
           "importingFiles": 1,
           "consumingModules": [
             "marketing-legal"
@@ -1286,7 +1511,7 @@
         },
         {
           "symbol": "isFeatureEnabledByUserId",
-          "file": "src/lib/features/entitlements-service.ts",
+          "file": "src/modules/features/entitlements-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "convene"
@@ -1294,7 +1519,48 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/features/entitlements-service.ts",
+          "consumedBy": [
+            "admin",
+            "affiliate",
+            "convene",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/features/entitlements.ts",
+          "consumedBy": [
+            "account",
+            "convene",
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-features.ts",
+          "consumedBy": [
+            "admin",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/global-switches-service.ts",
+          "consumedBy": [
+            "account",
+            "admin",
+            "age",
+            "convene",
+            "marketing-legal"
+          ]
+        },
+        {
+          "file": "src/modules/features/registry.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -1355,12 +1621,12 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "age": {
       "layer": 2,
       "paths": [
-        "src/lib/age/",
+        "src/modules/age/",
         "src/app/verify-age/",
         "src/app/confirm-age/",
         "src/app/api/age/"
@@ -1380,7 +1646,7 @@
       "publicApi": [
         {
           "symbol": "AGE_DECLARATION_COOKIE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1389,7 +1655,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_FIELD",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 2,
           "consumingModules": [
             "auth"
@@ -1398,7 +1664,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_COOKIE_MAX_AGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1407,7 +1673,7 @@
         },
         {
           "symbol": "AGE_DECLARATION_REQUIRED_MESSAGE",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1416,7 +1682,7 @@
         },
         {
           "symbol": "isAgeDeclared",
-          "file": "src/lib/age/self-declaration.ts",
+          "file": "src/modules/age/self-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1425,7 +1691,7 @@
         },
         {
           "symbol": "AGE_GATE_BLOCK_MESSAGE",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1434,7 +1700,7 @@
         },
         {
           "symbol": "isProviderAgeCheckActive",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1443,7 +1709,7 @@
         },
         {
           "symbol": "passedProviderAgeCheck",
-          "file": "src/lib/age/provider-gate.ts",
+          "file": "src/modules/age/provider-gate.ts",
           "importingFiles": 1,
           "consumingModules": [
             "profile"
@@ -1452,7 +1718,7 @@
         },
         {
           "symbol": "hasDeclaredAge",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1461,7 +1727,7 @@
         },
         {
           "symbol": "recordAgeDeclaration",
-          "file": "src/lib/age/record-declaration.ts",
+          "file": "src/modules/age/record-declaration.ts",
           "importingFiles": 1,
           "consumingModules": [
             "auth"
@@ -1469,7 +1735,26 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/age/provider-gate.ts",
+          "consumedBy": [
+            "profile"
+          ]
+        },
+        {
+          "file": "src/modules/age/record-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        },
+        {
+          "file": "src/modules/age/self-declaration.ts",
+          "consumedBy": [
+            "auth"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -1541,7 +1826,7 @@
     "oauth-as": {
       "layer": 3,
       "paths": [
-        "src/lib/oauth/",
+        "src/modules/oauth-as/",
         "src/app/oauth/",
         "src/app/api/well-known/"
       ],
@@ -1622,17 +1907,18 @@
         "testFiles": 4,
         "testBlocks": 41
       },
-      "enforced": false
+      "enforced": true
     },
     "auth": {
       "layer": 3,
       "paths": [
         "src/app/(auth)/",
         "src/app/auth/",
-        "src/lib/auth/"
+        "src/app/session-actions.ts",
+        "src/modules/auth/"
       ],
       "owns": {
-        "files": 11,
+        "files": 12,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -1640,7 +1926,7 @@
       "publicApi": [
         {
           "symbol": "resolvePostLoginRedirect",
-          "file": "src/lib/auth/post-login-redirect.ts",
+          "file": "src/modules/auth/post-login-redirect.ts",
           "importingFiles": 1,
           "consumingModules": [
             "age"
@@ -1649,7 +1935,7 @@
         },
         {
           "symbol": "signOut",
-          "file": "src/app/(auth)/actions.ts",
+          "file": "src/app/session-actions.ts",
           "importingFiles": 1,
           "consumingModules": [
             "dashboard"
@@ -1657,7 +1943,20 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/app/session-actions.ts",
+          "consumedBy": [
+            "dashboard"
+          ]
+        },
+        {
+          "file": "src/modules/auth/post-login-redirect.ts",
+          "consumedBy": [
+            "age"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "age",
@@ -1719,16 +2018,16 @@
         "testFiles": 5,
         "testBlocks": 51
       },
-      "enforced": false
+      "enforced": true
     },
     "profile": {
       "layer": 3,
       "paths": [
         "src/app/dashboard/profile/",
-        "src/lib/geo/"
+        "src/modules/profile/"
       ],
       "owns": {
-        "files": 35,
+        "files": 45,
         "tables": [
           "conversation_starter_prompts",
           "external_links",
@@ -1759,7 +2058,7 @@
       "publicApi": [
         {
           "symbol": "coerceSectionVisibility",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1768,7 +2067,7 @@
         },
         {
           "symbol": "isItemVisibleUnderHybridModel",
-          "file": "src/app/dashboard/profile/section-visibility.ts",
+          "file": "src/modules/profile/section-visibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1777,7 +2076,7 @@
         },
         {
           "symbol": "isManualOfMeEmpty",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -1786,15 +2085,81 @@
         },
         {
           "symbol": "type:ManualOfMe",
-          "file": "src/app/dashboard/profile/manual-of-me-fields.ts",
+          "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
           ],
           "typeOnly": true
+        },
+        {
+          "symbol": "normaliseDeliveryCountry",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 3,
+          "consumingModules": [
+            "profile",
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "isIsoAlpha2",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "public-profile",
+            "recommendations"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
+          "file": "src/modules/profile/country-codes.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "profile"
+          ],
+          "typeOnly": false
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/profile/favourites.ts",
+          "importingFiles": 5,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/profile/country-codes.ts",
+          "consumedBy": [
+            "public-profile",
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/profile/favourites.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/manual-of-me-fields.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/section-visibility.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "age",
         "audit",
@@ -1871,7 +2236,8 @@
       "layer": 3,
       "paths": [
         "src/app/[slug]/",
-        "src/app/search/"
+        "src/app/search/",
+        "src/modules/public-profile/"
       ],
       "owns": {
         "files": 8,
@@ -1911,7 +2277,8 @@
         "uiApprovalGated": "always",
         "uiApprovalPaths": [
           "src/app/[slug]/**",
-          "src/app/search/**"
+          "src/app/search/**",
+          "src/modules/public-profile/**"
         ],
         "mcpLockstep": "tools",
         "migrationEnvs": [
@@ -1924,7 +2291,7 @@
         "blastRadius": "high (privacy)",
         "edgeSafe": false,
         "frozenContracts": [
-          ".eq('is_published',true).eq('is_suspended',false) must stay ONE tested unit (SEC-44)",
+          "public reads go through the public_profiles VIEW, never the profiles base table (SEC-104; enforced by CTL-028). Supersedes the SEC-44 requirement that .eq('is_published',true).eq('is_suspended',false) stay one tested unit \u2014 that pair no longer appears in this module's files at all, because the predicates moved into the view body, where they apply even to service_role",
           "SEC-82 cache headers preserved"
         ],
         "extraGates": [
@@ -1960,8 +2327,7 @@
         "src/app/dashboard/share-beta.tsx",
         "src/app/dashboard/share-profile.tsx",
         "src/app/dashboard/widgets/",
-        "src/lib/dashboard/",
-        "src/lib/invite-text.ts"
+        "src/modules/dashboard/"
       ],
       "owns": {
         "files": 9,
@@ -2044,8 +2410,8 @@
       "layer": 3,
       "paths": [
         "src/app/dashboard/settings/",
-        "src/lib/retention/",
-        "src/app/api/retention/"
+        "src/app/api/retention/",
+        "src/modules/account/"
       ],
       "owns": {
         "files": 11,
@@ -2184,7 +2550,21 @@
           "typeOnly": false
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/lib/convene/cron-auth.ts",
+          "consumedBy": [
+            "account"
+          ]
+        },
+        {
+          "file": "src/lib/convene/flags-user.ts",
+          "consumedBy": [
+            "dashboard",
+            "profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "audit",
@@ -2250,17 +2630,25 @@
         "testFiles": 11,
         "testBlocks": 164
       },
-      "enforced": false
+      "enforced": false,
+      "modularisationStatus": {
+        "state": "BLOCKED",
+        "decidedOn": "2026-08-09",
+        "decidedBy": "Luisa",
+        "jira": "KAN-470",
+        "unblockCondition": "Convene is turned back on (CONVENE_ENABLED=true). Nothing else unblocks it.",
+        "reason": "Convene is dark - every src/app/api/convene route 404s behind CONVENE_ENABLED, which is not true on any environment. Extracting 55 files / ~7000 LOC of unexecuted code carries the full risk of a large refactor with none of the payoff, and because the feature is off there is no E2E or soak coverage that would catch a mistake.",
+        "doc": "docs/modularisation/CONVENE-DEFERRED.md"
+      }
     },
     "recommendations": {
       "layer": 3,
       "paths": [
-        "src/lib/recommend/",
-        "src/lib/recommender/",
-        "src/app/api/recommendations/"
+        "src/app/api/recommendations/",
+        "src/modules/recommendations/"
       ],
       "owns": {
-        "files": 17,
+        "files": 18,
         "tables": [
           "recommender_catalogue"
         ],
@@ -2274,7 +2662,7 @@
       "publicApi": [
         {
           "symbol": "V2Recommendation",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 2,
           "consumingModules": [
             "public-profile"
@@ -2283,7 +2671,7 @@
         },
         {
           "symbol": "getRecommendations",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2292,7 +2680,7 @@
         },
         {
           "symbol": "buildV2Recommendations",
-          "file": "src/lib/recommender/v2/pipeline.ts",
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2301,7 +2689,7 @@
         },
         {
           "symbol": "ConceptInput",
-          "file": "src/lib/recommender/v2/types.ts",
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
@@ -2310,15 +2698,53 @@
         },
         {
           "symbol": "RecommendationResult",
-          "file": "src/lib/recommend/index.ts",
+          "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
           "consumingModules": [
             "public-profile"
           ],
           "typeOnly": true
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "importingFiles": 4,
+          "consumingModules": [
+            "profile",
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/recommendations/recommend/dismissals.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommend/index.ts",
+          "consumedBy": [
+            "profile",
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/recommendations/recommender/v2/types.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        }
+      ],
       "mayDependOn": [
         "affiliate",
         "features",
@@ -2382,10 +2808,10 @@
     "affiliate": {
       "layer": 3,
       "paths": [
-        "src/lib/affiliate/"
+        "src/modules/affiliate/"
       ],
       "owns": {
-        "files": 8,
+        "files": 7,
         "tables": [
           "affiliate_clicks",
           "affiliate_merchant_eligibility"
@@ -2399,29 +2825,8 @@
       },
       "publicApi": [
         {
-          "symbol": "normaliseDeliveryCountry",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 3,
-          "consumingModules": [
-            "profile",
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "isIsoAlpha2",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 2,
-          "consumingModules": [
-            "public-profile",
-            "recommendations"
-          ],
-          "typeOnly": false
-        },
-        {
           "symbol": "rollupByDailyMerchant",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2430,7 +2835,7 @@
         },
         {
           "symbol": "splitByProvider",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2439,7 +2844,7 @@
         },
         {
           "symbol": "splitBySource",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2448,7 +2853,7 @@
         },
         {
           "symbol": "type:DailyMerchantRollup",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2457,7 +2862,7 @@
         },
         {
           "symbol": "type:ProviderSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2466,7 +2871,7 @@
         },
         {
           "symbol": "type:SourceSplit",
-          "file": "src/lib/affiliate/reporting.ts",
+          "file": "src/modules/affiliate/reporting.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2475,7 +2880,7 @@
         },
         {
           "symbol": "AffiliateClickRow",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "admin"
@@ -2483,17 +2888,8 @@
           "typeOnly": true
         },
         {
-          "symbol": "SUPPORTED_DELIVERY_COUNTRIES",
-          "file": "src/lib/affiliate/country-codes.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "profile"
-          ],
-          "typeOnly": false
-        },
-        {
           "symbol": "eligibleMerchantsForCountry",
-          "file": "src/lib/affiliate/eligibility.ts",
+          "file": "src/modules/affiliate/eligibility.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2502,7 +2898,7 @@
         },
         {
           "symbol": "getAffiliateLink",
-          "file": "src/lib/affiliate/link-service.ts",
+          "file": "src/modules/affiliate/link-service.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2511,7 +2907,7 @@
         },
         {
           "symbol": "AffiliateProvider",
-          "file": "src/lib/affiliate/types.ts",
+          "file": "src/modules/affiliate/types.ts",
           "importingFiles": 1,
           "consumingModules": [
             "recommendations"
@@ -2519,7 +2915,33 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/affiliate/eligibility.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/link-service.ts",
+          "consumedBy": [
+            "recommendations"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/reporting.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/affiliate/types.ts",
+          "consumedBy": [
+            "admin",
+            "recommendations"
+          ]
+        }
+      ],
       "mayDependOn": [
         "features",
         "platform"
@@ -2580,15 +3002,16 @@
         "testFiles": 0,
         "testBlocks": 0
       },
-      "enforced": false
+      "enforced": true
     },
     "trust-safety": {
       "layer": 3,
       "paths": [
-        "src/app/api/reports/"
+        "src/app/api/reports/",
+        "src/modules/trust-safety/"
       ],
       "owns": {
-        "files": 1,
+        "files": 3,
         "tables": [
           "reports"
         ],
@@ -2597,8 +3020,42 @@
         ],
         "profilesColumns": []
       },
-      "publicApi": [],
-      "declaredApi": [],
+      "publicApi": [
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        },
+        {
+          "symbol": "(file-level; symbol not derived)",
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "importingFiles": 2,
+          "consumingModules": [
+            "admin"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+        }
+      ],
+      "declaredApi": [
+        {
+          "file": "src/modules/trust-safety/report-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        },
+        {
+          "file": "src/modules/trust-safety/user-actions.ts",
+          "consumedBy": [
+            "admin"
+          ]
+        }
+      ],
       "mayDependOn": [
         "platform"
       ],
@@ -2608,7 +3065,6 @@
       ],
       "mustNot": [
         "account",
-        "admin",
         "affiliate",
         "auth",
         "convene",
@@ -2667,7 +3123,6 @@
         "src/app/_marketing/",
         "src/app/examples/",
         "src/app/how-we-check-your-age/",
-        "src/lib/compliance/",
         "src/app/page.tsx",
         "src/app/layout.tsx",
         "src/app/error.tsx",
@@ -2679,7 +3134,8 @@
         "src/app/consent-state.ts",
         "src/app/consented-analytics.tsx",
         "src/app/install-prompt.tsx",
-        "src/app/service-worker-register.tsx"
+        "src/app/service-worker-register.tsx",
+        "src/modules/marketing-legal/"
       ],
       "owns": {
         "files": 29,
@@ -2764,7 +3220,7 @@
       "layer": 4,
       "paths": [
         "src/app/admin/",
-        "src/lib/admin.ts"
+        "src/modules/admin/"
       ],
       "owns": {
         "files": 21,
@@ -2778,7 +3234,7 @@
       "publicApi": [
         {
           "symbol": "getAdminServiceClient",
-          "file": "src/lib/admin.ts",
+          "file": "src/modules/admin/admin.ts",
           "importingFiles": 2,
           "consumingModules": [
             "account",
@@ -2788,7 +3244,7 @@
         },
         {
           "symbol": "ModerationAction",
-          "file": "src/lib/admin.ts",
+          "file": "src/modules/admin/admin.ts",
           "importingFiles": 1,
           "consumingModules": [
             "access"
@@ -2796,13 +3252,23 @@
           "typeOnly": true
         }
       ],
-      "declaredApi": [],
+      "declaredApi": [
+        {
+          "file": "src/modules/admin/admin.ts",
+          "consumedBy": [
+            "access",
+            "account",
+            "trust-safety"
+          ]
+        }
+      ],
       "mayDependOn": [
         "access",
         "affiliate",
         "features",
         "observability",
-        "platform"
+        "platform",
+        "trust-safety"
       ],
       "declaredSameLayer": [],
       "mayDependOnCandidatesPendingDecision": [],
@@ -2852,7 +3318,7 @@
     }
   },
   "serviceRoleClient": {
-    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time; the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh. Any module NOT listed here must not gain the import without security review.",
+    "$comment": "KAN-416 \u00a74 security output: createServiceRoleClient bypasses RLS. Measured importers by module at derivation time. \u26a0\ufe0f CORRECTED 2026-08-14 \u2014 this field previously read 'the KAN-415 target restricts it to src/modules/*/data/** via check-service-role-client.sh'. That asserted a control THAT DOES NOT EXIST. check-service-role-client.sh enforces KAN-352 only: it forbids calling env.supabaseServiceRoleKey() outside the single factory src/modules/platform/supabase-service.ts. It imposes NO path restriction on the callers that IMPORT createServiceRoleClient \u2014 measured 2026-08-14 at 39 import sites, none of them under any src/modules/*/data/ directory, because no such directory exists anywhere in the tree. An auditor reading this field would have concluded KAN-415 criterion 3 was guarded. It is not: the data-layer convention is unbuilt and is tracked as remaining work on KAN-415. Any module NOT listed here must not gain the import without review.",
     "measuredImporters": {
       "convene": [
         "src/app/api/convene/cron/token-health/route.ts",
@@ -2871,16 +3337,16 @@
         "src/lib/convene/vault.ts"
       ],
       "oauth-as": [
-        "src/lib/oauth/access-tokens.ts",
-        "src/lib/oauth/clients.ts",
-        "src/lib/oauth/codes.ts",
-        "src/lib/oauth/consents.ts",
-        "src/lib/oauth/refresh.ts"
+        "src/modules/oauth-as/lib/access-tokens.ts",
+        "src/modules/oauth-as/lib/clients.ts",
+        "src/modules/oauth-as/lib/codes.ts",
+        "src/modules/oauth-as/lib/consents.ts",
+        "src/modules/oauth-as/lib/refresh.ts"
       ],
       "recommendations": [
         "src/app/api/recommendations/[slug]/route.ts",
         "src/app/api/recommendations/v2/[slug]/route.ts",
-        "src/lib/recommender/v2/candidate-sourcing.ts"
+        "src/modules/recommendations/recommender/v2/candidate-sourcing.ts"
       ],
       "marketing-legal": [
         "src/app/examples/page.tsx",
@@ -2893,31 +3359,31 @@
       ],
       "access": [
         "src/app/waitlist/actions.ts",
-        "src/lib/beta-access/flow.ts"
+        "src/modules/access/beta-access/flow.ts"
       ],
       "age": [
-        "src/lib/age/age-service.ts",
-        "src/lib/age/record-declaration.ts"
+        "src/modules/age/age-service.ts",
+        "src/modules/age/record-declaration.ts"
       ],
       "features": [
-        "src/lib/features/entitlements-service.ts",
-        "src/lib/features/global-switches-service.ts"
+        "src/modules/features/entitlements-service.ts",
+        "src/modules/features/global-switches-service.ts"
       ],
       "account": [
-        "src/lib/retention/affiliate-clicks.ts",
-        "src/lib/retention/gatherings.ts"
+        "src/modules/account/retention/affiliate-clicks.ts",
+        "src/modules/account/retention/gatherings.ts"
       ],
       "admin": [
-        "src/lib/admin.ts"
+        "src/modules/admin/admin.ts"
       ],
       "affiliate": [
-        "src/lib/affiliate/link-service.ts"
+        "src/modules/affiliate/link-service.ts"
       ],
       "observability": [
-        "src/lib/metrics.ts"
+        "src/modules/observability/metrics.ts"
       ],
       "guards": [
-        "src/lib/rate-limit-shared.ts"
+        "src/modules/guards/rate-limit-shared.ts"
       ]
     },
     "totalFiles": 39
@@ -3040,5 +3506,19 @@
       "owns": "enforcement machinery (dependency-cruiser config, allowlist, gates)",
       "allowlistSeed": "docs/modularisation/KAN-416-boundaries-allowlist.seed.json"
     }
+  },
+  "unownedByDesign": {
+    "$comment": "Tracked files under src/ that legitimately belong to no module. A literal list, never globs \u2014 a pattern would silently adopt whatever lands beside these, which is the drift tests/unit/modules-manifest-integrity.test.js (CTL-041) exists to catch. Adding an entry should require an argument.",
+    "paths": {
+      "src/app/favicon.ico": "asset",
+      "src/app/globals.css": "founder-owned design surface, not module code (KAN-411)",
+      "src/types/database/dev.ts": "generated schema snapshot; cross-cutting by construction, drift guarded by CTL-036",
+      "src/types/database/staging.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/prod.ts": "generated schema snapshot; see dev.ts",
+      "src/types/database/index.ts": "selects which generated snapshot the app compiles against"
+    }
+  },
+  "$schemaNotes": {
+    "enforced": "TRUE means this module currently has ZERO baselined exceptions - no entry in modules-layering-baseline.json and none in supabase/table-ownership-baseline.json. It is a DERIVED fact, checked two-way by tests/unit/modules-manifest-integrity.test.js (CTL-041): claiming true while carrying an exception fails, and so does claiming false while clean. Do not hand-edit it to make a build pass - fix or baseline the exception, then set this to match. \u26a0\ufe0f It does NOT mean 'boundary checks apply to this module'. Plan section 4.5 proposed that depcruise skip unenforced modules; that skip was NEVER BUILT, and CTL-051/053/054/055 all apply to every module unconditionally. The field previously read false on all 21, which asserted the opposite of the truth - a manifest claiming a live control is off is the same hazard as a stale comment claiming it."
   }
 }

@@ -64,6 +64,7 @@ the KAN-419 register; the section reference points at the evidence.
 | `tests/**` | The module's tests. A test left behind is a test that no longer covers the module it names. | §1 D, KAN-417 |
 | `.github/workflows/*.yml` | 30 `bash scripts/X` literals + Actions `paths:` filters + one anchored `grep -E` on changed paths in `pr-checks.yml`. | §1 D |
 | `tsconfig.json`, `jest.config.js`, `package.json`, `eslint.config.mjs`, `playwright.config.ts` | TS path mapping, `collectCoverageFrom`, `--testPathPatterns`, flat-config globs, `testDir` / `testMatch` / `testIgnore`. | §1 D |
+| `design/BASELINE.json` | The app-side record of which Claude Design commit the UI was last reconciled against. Moving a design-bearing file breaks a pointer held in a **different, private repo** — so CTL-040 requires `baseline_ref` to change in the same PR. This is the checkable half of the §2.2 design attestation; see the note there for what it deliberately does **not** prove. | §2.2, KAN-457 |
 
 ### 2.2 Human-attested — CI can never check these
 
@@ -72,9 +73,40 @@ ever find them.** A ticked box is a weaker control than a machine check, and
 this document is not going to pretend otherwise — it is simply the only control
 available for these two.
 
+> **⚠️ Updated 2026-08-08 (KAN-457) — the design attestation is now half
+> machine-checked.** The sentence above was true and remains true about the
+> *design system's contents*. But it was hiding something: an attestation a
+> developer satisfies by **typing `done`** is indistinguishable from no control
+> at all. That is the comment-satisfied-assertion defect (CTL-039) one layer up
+> — a gate that passes for a reason unrelated to what it claims.
+>
+> **CTL-040** (`scripts/check-design-baseline.py`) closes the checkable half.
+> When a PR **moves** a design-bearing file — `src/app/globals.css`,
+> `src/components/**`, or any `src/app/**/*.tsx` — `design/BASELINE.json`'s
+> `baseline_ref` must change **in the same PR**. The claim then rests on a diff
+> instead of a promise.
+>
+> **What it still cannot do**, stated plainly rather than left to be assumed:
+> it cannot prove the design system was actually re-pointed and regenerated,
+> because CI still cannot read that repo. It proves someone opened it, took its
+> head commit, and recorded it here. That raises the cost of a false
+> attestation from *type a word* to *go and look* — the most any in-repo check
+> can do across a boundary it cannot cross. The `EXTRACTION-DOD-DESIGN-SYSTEM:`
+> line below therefore **still stands**; CTL-040 backs it, it does not replace
+> it.
+>
+> It fires on **relocation only** (`D`/`R`), never a plain edit: an edit leaves
+> the generator's pointer resolving. Widening it would make every extraction PR
+> demand a meaningless re-baseline and train people to reach for the escape
+> hatch by reflex, which is how a gate becomes noise and then gets ignored.
+>
+> Escape hatch: `Design-Baseline-Ok: <JIRA-KEY> <reason>` — **both** a key and
+> a reason are required, and a bare key does not suppress (pinned by a test,
+> because that bypass would degrade the gate back into the prose it replaced).
+
 | Coupling | What breaks | PR-body line |
 |---|---|---|
-| `~/lyra-design-system/build.py` — on Luisa's machine, in no git repo. Generates 21 `@dsCard` previews and reads `src/app/globals.css` for design tokens. | When `ui-kit` extraction moves `globals.css`, the generator's source pointer breaks — loudly, but on her machine, hours later, and nothing warns the agent that moved the file. (The token *duplication* question — `globals.css` vs `build.py` vs the published Design project, with no drift detection between them — is **KAN-427**, not this document.) | `EXTRACTION-DOD-DESIGN-SYSTEM:` |
+| `~/lyra-design-system/build.py` — ⚠️ **Corrected 2026-08-04:** no longer "in no git repo". The design system is now versioned at `github.com/luisa-sys/lyra-design-system` (KAN-441) — but that is a **different repo, which this repo's CI still cannot read**, so the attestation stands and only its *reason* changes. Generates 21 `@dsCard` previews and reads `src/app/globals.css` for design tokens. See `docs/DESIGN_CHANGE_WORKFLOW.md`. | When `ui-kit` extraction moves `globals.css`, the generator's source pointer breaks — loudly, but on her machine, hours later, and nothing warns the agent that moved the file. (The token *duplication* question — `globals.css` vs `build.py` vs the published Design project, with no drift detection between them — is **KAN-427**, not this document.) | `EXTRACTION-DOD-DESIGN-SYSTEM:` |
 | The claude.ai **routine prompts** — routine config, not git. | The Staging Soak and Backlog Autopilot prompts name `scripts/staging-soak.sh` and protected-surface path lists **verbatim**. `check-ui-copy-ownership.sh` says in its own header that its list is "mirrored 1:1 from the autopilot's protected-surface list so the guard and the robot agree" — so the repo-side guard and the out-of-repo prompt are a manually-maintained duplicate pair, and CI can only see one half. | `EXTRACTION-DOD-ROUTINE-PROMPTS:` |
 
 ### 2.3 Coverage — state it or record the gap

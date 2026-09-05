@@ -45,7 +45,19 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-WAIVER_FILES = [Path("supabase/security-invariants-waivers.json")]
+# path -> the fields that IDENTIFY what a waiver in that file waives. The
+# hygiene rules (ticket, owner, reason, exactly-one-of expires/review_by) are
+# common to every file; only the identity differs, because "which finding is
+# this?" means a different tuple per domain.
+#
+# Kept as data rather than one shared tuple: SEC-105 added the audit file, and a
+# single REQUIRED_FIELDS list would have forced an npm advisory to carry `env`,
+# `invariant` and `object` — three fields it has no meaning for. A required
+# field nobody can fill honestly gets filled dishonestly.
+WAIVER_FILES = {
+    Path("supabase/security-invariants-waivers.json"): ("env", "invariant", "object"),
+    Path("security/npm-audit-waivers.json"): ("advisory", "package", "severity"),
+}
 
 # Directories that legitimately CONTAIN the marker strings because they define
 # or document the mechanism, rather than using it.
@@ -65,7 +77,8 @@ JIRA_KEY_RE = re.compile(r"\b(KAN|SEC|BUGS)-\d+\b", re.IGNORECASE)
 # A documentation line showing the marker's shape, not using it.
 PLACEHOLDER_RE = re.compile(r"<reason>|<[a-z]+>|allow-list|escape hatch|mechanism", re.IGNORECASE)
 
-REQUIRED_FIELDS = ("env", "invariant", "object", "ticket", "owner", "reason")
+# Common to every waiver file, whatever it waives.
+COMMON_FIELDS = ("ticket", "owner", "reason")
 MAX_WAIVER_MONTHS = 12
 MIN_REASON_CHARS = 40
 
@@ -77,7 +90,9 @@ def parse_date(value: str) -> date | None:
         return None
 
 
-def check_waiver_file(data: dict, path: str, today: date) -> list[str]:
+def check_waiver_file(
+    data: dict, path: str, today: date, identity: tuple[str, ...] = ("env", "invariant", "object")
+) -> list[str]:
     problems: list[str] = []
     waivers = data.get("waivers")
 
@@ -85,9 +100,10 @@ def check_waiver_file(data: dict, path: str, today: date) -> list[str]:
         return [f"::error file={path}::missing a top-level 'waivers' array."]
 
     for index, waiver in enumerate(waivers):
-        label = f"{path} waiver[{index}] ({waiver.get('invariant', '?')} on {waiver.get('object', '?')})"
+        named = " on ".join(str(waiver.get(f, "?")) for f in identity)
+        label = f"{path} waiver[{index}] ({named})"
 
-        for field in REQUIRED_FIELDS:
+        for field in (*identity, *COMMON_FIELDS):
             if not waiver.get(field):
                 problems.append(f"::error file={path}::{label}: missing required field '{field}'.")
 
@@ -224,6 +240,49 @@ def self_test() -> int:
     )
     cases.append(("missing waivers array fails", len(check_waiver_file({}, "f.json", today)) == 1))
 
+    # --- SEC-105: the npm-audit waiver file uses a different identity --------
+    # These prove the identity tuple is really per-file. Before SEC-105 the
+    # required-field list was a single shared tuple, so an npm advisory would
+    # have been forced to carry `env`, `invariant` and `object` — three fields
+    # it has no meaning for. A required field nobody can fill honestly gets
+    # filled dishonestly, and the waiver stops being a record of a decision.
+    AUDIT_ID = ("advisory", "package", "severity")
+    audit_good = {
+        "waivers": [
+            {
+                "advisory": "GHSA-mh99-v99m-4gvg",
+                "package": "brace-expansion",
+                "severity": "high",
+                "ticket": "SEC-94",
+                "owner": "founder",
+                "reason": "Dev-only lint dependency; the only patched release is a breaking named export that crashes npm run lint. Pinned via scoped overrides instead.",
+                "expires": "2026-11-30",
+            }
+        ]
+    }
+    cases.append(
+        ("an audit waiver passes under its OWN identity", check_waiver_file(audit_good, "a.json", today, AUDIT_ID) == [])
+    )
+    cases.append(
+        (
+            "...and FAILS under the invariants identity — the tuples are not interchangeable",
+            len(check_waiver_file(audit_good, "a.json", today)) >= 1,
+        )
+    )
+    audit_no_pkg = {"waivers": [{k: v for k, v in audit_good["waivers"][0].items() if k != "package"}]}
+    cases.append(
+        ("an audit waiver naming no package fails", len(check_waiver_file(audit_no_pkg, "a.json", today, AUDIT_ID)) >= 1)
+    )
+    # The hygiene rules must still apply — a per-file identity must not become a
+    # way to opt out of expiry.
+    audit_forever = {"waivers": [{**audit_good["waivers"][0], "expires": "2029-01-01"}]}
+    cases.append(
+        (
+            "an audit waiver still cannot outlive MAX_WAIVER_MONTHS",
+            len(check_waiver_file(audit_forever, "a.json", today, AUDIT_ID)) >= 1,
+        )
+    )
+
     failures = 0
     for label, ok in cases:
         print(f"  {'PASS' if ok else 'FAIL'}  {label}")
@@ -248,7 +307,7 @@ def main() -> int:
     problems: list[str] = []
     checked_waivers = 0
 
-    for path in WAIVER_FILES:
+    for path, identity in WAIVER_FILES.items():
         if not path.exists():
             problems.append(f"::error::expected waiver file {path} is missing.")
             continue
@@ -258,7 +317,7 @@ def main() -> int:
             problems.append(f"::error file={path}::not valid JSON: {exc}")
             continue
         checked_waivers += len(data.get("waivers", []))
-        problems.extend(check_waiver_file(data, str(path), today))
+        problems.extend(check_waiver_file(data, str(path), today, identity))
 
     problems.extend(scan_markers())
 

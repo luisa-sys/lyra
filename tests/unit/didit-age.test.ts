@@ -8,7 +8,7 @@ import {
   normaliseDecision,
   verifyWebhookSignature,
   CHALLENGE_AGE,
-} from '@/lib/age/didit';
+} from '@/modules/age/didit';
 
 describe('mapDecisionToAgeStatus (KAN-282)', () => {
   it('explicit decline → failed', () => {

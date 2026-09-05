@@ -6,7 +6,7 @@
  * to the user before they grant access.
  */
 
-import { clientTrust, redirectHost } from '@/lib/oauth/client-trust';
+import { clientTrust, redirectHost } from '@/modules/oauth-as/lib/client-trust';
 
 describe('clientTrust (SEC-76 web-oauth-7)', () => {
   test('a strict boolean true is the ONLY verified state', () => {

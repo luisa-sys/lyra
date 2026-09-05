@@ -10,11 +10,11 @@
  *  - empty-profile safety
  */
 
-import { getRecommendations, getProfileInsights, type ProfileInput } from '@/lib/recommend';
-import { buildPreferenceProfile } from '@/lib/recommend/preferences';
-import { scoreRecommendation } from '@/lib/recommend/score';
-import { RECOMMENDATION_POOL } from '@/lib/recommend/pool';
-import { extractKeywords, Counter } from '@/lib/recommend/keywords';
+import { getRecommendations, getProfileInsights, type ProfileInput } from '@/modules/recommendations/recommend';
+import { buildPreferenceProfile } from '@/modules/recommendations/recommend/preferences';
+import { scoreRecommendation } from '@/modules/recommendations/recommend/score';
+import { RECOMMENDATION_POOL } from '@/modules/recommendations/recommend/pool';
+import { extractKeywords, Counter } from '@/modules/recommendations/recommend/keywords';
 
 function profileWith(items: ProfileInput['items']): ProfileInput {
   return { bio: null, headline: null, items };

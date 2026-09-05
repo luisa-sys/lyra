@@ -43,11 +43,13 @@
 - Database schema changes (migration SQL required)
 - Impact on existing tests (will any break?)
 - **MCP surface delta** — explicitly list new/changed MCP tools (or note `none` with rationale). Cross-link to PR(s) in `lyra-mcp-server` if applicable. KAN-222 enforces this for user-facing features.
+- **Design surface delta (KAN-441)** — for any change to the look or wording of a user-facing page, name the design card and its deep link (`https://claude.ai/design/p/c179aa52-22a7-4dd2-bd9d-682f21d2a76c?file=<TICKET>.dc.html`), or note `none` with rationale. Design comes before code: the ticket reaches `DESIGN_APPROVED` before `DEV_IMPL`. See `docs/DESIGN_CHANGE_WORKFLOW.md`.
 
 ### 6. Acceptance Criteria
 - Specific, testable conditions that must be true when done
 - Include "all new tests pass in CI" as a standard criterion
 - Include "architecture doc updated" if section 5 identified changes
+- For a design-surface change, the close condition is **BASELINED, not merged** — live on all four environments *and* the Claude Design baseline updated to match (KAN-441 gate G2)
 
 ## Work Breakdown Rules
 

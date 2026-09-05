@@ -3,6 +3,7 @@
 
 import json
 import sys
+from html import escape
 from datetime import datetime, timezone
 
 
@@ -14,9 +15,38 @@ def main():
     try:
         with open(sys.argv[1], "r") as f:
             data = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError) as e:
-        # No valid audit data — output no-vuln payload
-        payload = {"has_vulnerabilities": False}
+    except (json.JSONDecodeError, FileNotFoundError, OSError) as e:
+        # SEC-136. This used to emit `{"has_vulnerabilities": False}` under the
+        # comment "No valid audit data — output no-vuln payload", which
+        # SUPPRESSED the alert email. Paired with the workflow's `except:
+        # print(0)`, both halves of the control turned "could not measure" into
+        # "nothing found": green tick, no email, nothing looked at.
+        #
+        # "Could not read the audit" and "the audit found nothing" are opposite
+        # facts. Alert on the first, loudly, and let the workflow fail —
+        # forbidden pattern #3 in the Workflow & Backup Integrity Policy is
+        # exactly this: the report must distinguish 0 from fetch-failed.
+        print(
+            f"::error::audit-to-email: cannot read {sys.argv[1]} — {type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        payload = {
+            "has_vulnerabilities": True,
+            "from": "Lyra Security <reports@checklyra.com>",
+            "to": ["luisa@santos-stephens.com"],
+            "subject": "[Lyra] SECURITY AUDIT COULD NOT RUN — result unknown",
+            "html": (
+                "<h2>The weekly security audit could not be read</h2>"
+                f"<p>Reading <code>{escape(str(sys.argv[1]))}</code> failed with "
+                f"<code>{escape(type(e).__name__)}: {escape(str(e))}</code>.</p>"
+                "<p><strong>This is not a clean result.</strong> The dependency tree was "
+                "not assessed, so the state of high/critical advisories is UNKNOWN. "
+                "Treat it as unaudited until a run succeeds.</p>"
+                "<p>Most likely cause: npm wrote a warning into the report. Check the "
+                "workflow log for the captured stderr, then re-run.</p>"
+                "<p>Context: SEC-136.</p>"
+            ),
+        }
         print(json.dumps(payload))
         return
 

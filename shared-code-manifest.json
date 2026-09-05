@@ -1,0 +1,57 @@
+{
+  "$comment": [
+    "KAN-418 — shared code that exists as a COPY in more than one repo.",
+    "",
+    "This is the deliberately-chosen alternative to publishing @lyra/contracts.",
+    "The ticket offered two routes: a private npm package consumed by all three",
+    "deployables, or a vendored copy plus a CI drift check. The package route was",
+    "declined on 2026-08-09 (Luisa: 'do the minimum work and minimise the supply",
+    "chain surface'), because it would create a new compromise path — whoever can",
+    "publish can execute in production on Vercel AND both Railway services — and",
+    "would put read tokens in four runtimes and a publish token in a fifth place.",
+    "",
+    "This costs zero tokens, zero registries and zero runtime dependencies. It",
+    "does NOT remove the duplication; it removes the SILENCE. Divergence becomes",
+    "a red build instead of a defect discovered months later.",
+    "",
+    "COMPARISON MODES",
+    "  exact       byte-identical. Use where the copies genuinely are.",
+    "  normalised  identical after stripping comments and normalising the",
+    "              NodeNext '.js' import extension. Needed because the MCP repos",
+    "              are 'type: module' + NodeNext and MUST write './x.js' where",
+    "              the web app writes './x' — a real, permanent, harmless",
+    "              difference. A byte comparison here would fail on day one and",
+    "              be switched off by the end of the week."
+  ],
+  "sources": {
+    "lyra-mcp-server": {
+      "repo": "luisa-sys/lyra-mcp-server",
+      "public": true,
+      "note": "Public, so CI reads it with the built-in GITHUB_TOKEN. No new secret."
+    }
+  },
+  "shared": [
+    {
+      "local": "src/modules/contracts/content-moderation.ts",
+      "source": "lyra-mcp-server",
+      "remote": "src/content-moderation.ts",
+      "mode": "exact",
+      "why": "The moderation wordlist and severity grading. Byte-identical across both repos as of 2026-08-09 (md5 b07eac8ed85ae3cc5669522f0afad395), and there is no reason for it ever not to be."
+    },
+    {
+      "local": "src/modules/contracts/moderation-policy.ts",
+      "source": "lyra-mcp-server",
+      "remote": "src/moderation-policy.ts",
+      "mode": "normalised",
+      "why": "The block/warn/none decision applied to a moderation result. The two copies differ ONLY in header comments and the NodeNext '.js' import extension - verified 2026-08-09, the logic is identical. This is the file that proves the point: it had already drifted textually, nobody knew, and nothing would have told us if the drift had been behavioural."
+    }
+  ],
+  "deferred": [
+    {
+      "local": "src/lib/recommend/convene/",
+      "source": "lyra-mcp-server",
+      "remote": "src/convene-recommend-scoring.ts",
+      "why": "The MCP copy's own header says it is a verbatim copy of lyra's convene scoring. NOT guarded, because convene is out of scope for the modularisation programme (KAN-470, BLOCKED) and is dark on every environment - CONVENE_ENABLED is not true anywhere, so nothing executes either copy. Add it here if convene is ever turned back on; that is listed in KAN-470's re-entry checklist."
+    }
+  ]
+}

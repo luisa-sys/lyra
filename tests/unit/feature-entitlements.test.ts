@@ -6,7 +6,7 @@ import {
   FEATURE_CONFIG,
   isFeatureKey,
   resolveEntitlements,
-} from '@/lib/features/registry';
+} from '@/modules/features/registry';
 
 
 describe('feature registry (KAN-309)', () => {

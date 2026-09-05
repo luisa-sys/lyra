@@ -7,18 +7,18 @@
  */
 
 // Mock the DB-touching modules — these tests exercise wire-shape only.
-jest.mock('@/lib/oauth/clients', () => ({
+jest.mock('@/modules/oauth-as/lib/clients', () => ({
   getOauthClient: jest.fn(async () => null),
   hashClientSecret: jest.fn((s: string) => `hash_${s}`),
 }));
-jest.mock('@/lib/oauth/codes', () => ({
+jest.mock('@/modules/oauth-as/lib/codes', () => ({
   getAuthCode: jest.fn(async () => null),
   markCodeUsed: jest.fn(async () => false),
 }));
-jest.mock('@/lib/oauth/access-tokens', () => ({
+jest.mock('@/modules/oauth-as/lib/access-tokens', () => ({
   issueAccessTokenJti: jest.fn(async () => undefined),
 }));
-jest.mock('@/lib/oauth/refresh', () => ({
+jest.mock('@/modules/oauth-as/lib/refresh', () => ({
   issueRefreshToken: jest.fn(async () => ({ token: 'lyra_refresh_x', familyId: 'fam' })),
   tryMarkRefreshUsed: jest.fn(async () => null),
   getRefreshToken: jest.fn(async () => null),

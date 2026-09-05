@@ -6,7 +6,7 @@
  * are visible and trust-damaging. These tests pin the contract.
  */
 
-import { buildInviteText } from '@/lib/invite-text';
+import { buildInviteText } from '@/modules/dashboard/invite-text';
 
 describe('KAN-154-B buildInviteText', () => {
   test('includes the inviter profile URL when provided', () => {

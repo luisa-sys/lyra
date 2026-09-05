@@ -106,11 +106,31 @@ describe('CTL-038 — test-reimplementation ratchet', () => {
 
   it('reports a NEW reimplementation as a failure', () => {
     // The control must be seen to fail. `git ls-files` cannot see an unstaged
-    // file (CLAUDE.md Phase-0 trap 1), so the fixture is staged, checked, then
-    // unstaged — otherwise this passes vacuously, which is the very defect
-    // CTL-038 exists to catch.
+    // file (CLAUDE.md Phase-0 trap 1), so the probe must be staged — but
+    // staging in the REAL index made this suite and CTL-039's collide on
+    // .git/index.lock under CI's worker count ("fatal: Unable to create
+    // '.git/index.lock': File exists"). Green locally, red on CI, at random.
+    //
+    // So it stages into a THROWAWAY index via GIT_INDEX_FILE, seeded from the
+    // real one, and passes the same variable to the control so its own
+    // `git ls-files` reads that index too. The real index is never touched, so
+    // there is nothing left to contend over — the class is removed, not
+    // retried around.
     const rel = 'tests/unit/__ctl038_probe__.test.js';
     const abs = resolve(ROOT, rel);
+    const idx = resolve(os.tmpdir(), `ctl038-index-${process.pid}`);
+    // `.git` is a DIRECTORY in a normal clone but a FILE in a git worktree,
+    // so resolve(ROOT, '.git/index') is ENOTDIR there. CLAUDE.md *mandates*
+    // worktrees for parallel sessions, so hardcoding the path meant this guard
+    // could not run for anyone following the house rule — green in CI, absent
+    // where the work actually happens. Ask git for the real git dir instead.
+    const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    fs.copyFileSync(resolve(ROOT, gitDir, 'index'), idx);
+    const withIndex = { ...process.env, GIT_INDEX_FILE: idx };
+
     fs.writeFileSync(
       abs,
       "const { SRC } = require('../support/source-paths.json');\n" +
@@ -121,17 +141,20 @@ describe('CTL-038 — test-reimplementation ratchet', () => {
         '});\n',
     );
     try {
-      execFileSync('git', ['add', '--intent-to-add', rel], { cwd: ROOT });
-      const r = run([]);
+      execFileSync('git', ['add', '--intent-to-add', rel], {
+        cwd: ROOT,
+        env: withIndex,
+      });
+      const r = run([], { env: withIndex });
       expect(r.status).toBe(1);
       expect(r.stdout).toContain('NEW:');
       expect(r.stdout).toContain('__ctl038_probe__');
     } finally {
-      spawnSync('git', ['rm', '-q', '--cached', '--force', rel], { cwd: ROOT });
       if (fs.existsSync(abs)) fs.unlinkSync(abs);
+      if (fs.existsSync(idx)) fs.unlinkSync(idx);
     }
 
-    // And the tree is clean again afterwards.
+    // And the REAL index was never modified, so the control is clean against it.
     expect(run([]).status).toBe(0);
   });
 });

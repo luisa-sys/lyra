@@ -7,7 +7,7 @@ import {
   TEST_FEATURE_KEYS,
   FEATURE_KEYS,
   FEATURE_CONFIG,
-} from '@/lib/features/registry';
+} from '@/modules/features/registry';
 
 describe('feature tiers', () => {
   it('GA = media_uploads + discovery; test = the opt-in set', () => {

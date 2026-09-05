@@ -135,6 +135,36 @@ expect_code "C1-sectxt"  "$SITE/.well-known/security.txt" "security.txt" 200 403
 # reachability check, not a latency-measurable page.
 expect_code "C1-join"    "$SITE/join"                     "join (invite) reachable" 200 301 302 307 308
 
+# ── C1 SEC-130: /sitemap.xml must be rendered PER REQUEST, not prerendered ────
+# If this route ever regresses to build-time prerendering, a SUSPENDED member's
+# slug stays in the sitemap until the next deploy while their profile page 404s
+# and /search drops them immediately — that is SEC-100. The unit test
+# (tests/unit/sitemap-suspension-behaviour.test.ts) can only pin the route
+# segment config; Jest does not run a Next build, so this is the probe that
+# observes the DEPLOYED behaviour.
+#
+# ⚠️ BUGS-103: this used to classify on Cache-Control and could never pass.
+# `sitemap.ts` is a Next metadata route, and Next's loader hardcodes that header
+# to a constant — identical in the fixed state and the defect state — so the old
+# assertion was both permanently red AND incapable of detecting SEC-100. The
+# full evidence, including the compiled artefact, is in the classifier's header.
+# Do not reintroduce a Cache-Control assertion here.
+#
+# The classification lives in its own script so it can be driven by
+# tests/scripts/classify-sitemap-freshness.test.js with synthetic headers. An
+# inline heredoc of shell inside this file is not reachable by any test, which
+# is how the previous version went four days red without a unit ever objecting.
+sm_raw=$(curl -s -o /dev/null -D - -w '\nHTTPCODE:%{http_code}\n' \
+  --max-time "$CURL_MAX_TIME" "${CURL_HDRS[@]}" "$SITE/sitemap.xml" 2>/dev/null)
+sm_code=$(printf '%s' "$sm_raw" | sed -n 's/^HTTPCODE:\(.*\)$/\1/p' | tail -1 | tr -d '\r')
+[ -z "$sm_code" ] && sm_code="000"
+if [ "$sm_code" != "200" ]; then
+  record UNVERIFIED "C1-sitemap-fresh" "sitemap.xml freshness — got $sm_code, cannot read headers (gated/unreachable)"
+else
+  sm_verdict=$(printf '%s' "$sm_raw" | "$(dirname "$0")/classify-sitemap-freshness.sh")
+  record "${sm_verdict%% *}" "C1-sitemap-fresh" "${sm_verdict#* }"
+fi
+
 # ── C1 release-conformance: /api/health JSON must match THIS env ──────────────
 # (the grey-cloud alias serves the SAME staging build, so siteUrl is still the
 # canonical https://stage.checklyra.com — the conformance check holds.)

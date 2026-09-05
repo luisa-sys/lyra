@@ -65,7 +65,11 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
     expect(executable(SRC.backupDatabaseComplete)).toBe(true);
     const s = read(SRC.backupDatabaseComplete);
     // The whole point: it must NOT be public-only like backup-database.sh.
-    expect(s).toMatch(/SCHEMAS=\(public auth storage\)/);
+    // BUGS-91: supabase_migrations added. This script exists because
+    // public-only dumps cannot reconstruct a working platform — and it had the
+    // same shape of hole it was written to fix, capturing auth and storage but
+    // not the migration lineage.
+    expect(s).toMatch(/SCHEMAS=\(public auth storage supabase_migrations\)/);
     expect(s).toContain('pg_dumpall --roles-only');
   });
 
@@ -104,6 +108,33 @@ describe('SEC-23 — DR/backup coverage hardening', () => {
   test('restore script resets the whole public schema, not a hardcoded table list', () => {
     const s = read(SRC.restoreDatabase);
     expect(s).toContain('DROP SCHEMA IF EXISTS public CASCADE');
+  });
+
+  /**
+   * BUGS-91 (2026-08-09). The dump was `--schema=public` only, so NO backup we
+   * had ever taken contained the migration lineage — 75 rows and 133 KB of
+   * recorded `statements` on production when this was found.
+   *
+   * That is not a completeness nicety. A restore from a public-only dump gives
+   * a database with no migration history, so `supabase db push` afterwards
+   * considers every migration unapplied and replays the whole lineage against
+   * the restored data. The backup that exists to prove DR could not, alone,
+   * produce a database anyone could safely continue to migrate.
+   *
+   * Both halves are asserted because they must move together: a dump that
+   * carries the schema and a restore that does not reset it would collide on
+   * the existing rows, and a "successful" restore would leave a database
+   * nobody can migrate. Backup and restore drifting apart is the failure mode.
+   */
+  test('backup captures the migration lineage, not just public', () => {
+    const s = read(SRC.scriptsBackupDatabase);
+    expect(s).toContain('--schema=public');
+    expect(s).toContain('--schema=supabase_migrations');
+  });
+
+  test('restore resets the migration lineage too, so the two stay symmetric', () => {
+    const s = read(SRC.restoreDatabase);
+    expect(s).toContain('DROP SCHEMA IF EXISTS supabase_migrations CASCADE');
   });
 
   test('disaster recovery doc exists with a clean-room compromise procedure', () => {

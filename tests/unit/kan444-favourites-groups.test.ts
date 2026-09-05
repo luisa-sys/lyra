@@ -50,6 +50,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 import {
   FAVOURITE_GROUPS,
@@ -61,7 +62,7 @@ import {
   favouriteLabelForItem,
   isFavouriteCategory,
   primaryCategory,
-} from '@/app/dashboard/profile/favourites';
+} from '@/modules/profile/favourites';
 
 const ROOT = resolve(__dirname, '../..');
 
@@ -72,10 +73,6 @@ const ROOT = resolve(__dirname, '../..');
  * and once in the comment explaining the query — so deleting the query left
  * the scan matching the comment.
  */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
 function readSource(relPath: string): string {
   return stripComments(readFileSync(resolve(ROOT, relPath), 'utf-8'));
 }
@@ -376,7 +373,7 @@ describe('KAN-444: add-your-own — a group the member names', () => {
 describe('KAN-444: both surfaces render from the shared grouping', () => {
   test('the public profile groups via groupFavourites and keeps no list of its own', () => {
     const page = readSource(SRC.slugPage);
-    expect(page).toContain("from '@/app/dashboard/profile/favourites'");
+    expect(page).toContain("from '@/modules/profile/favourites'");
     expect(page).toContain('groupFavourites(typedItems)');
     // The old per-surface table is gone; if a future change re-hardcodes the
     // categories here, the two surfaces can drift again.
@@ -387,7 +384,7 @@ describe('KAN-444: both surfaces render from the shared grouping', () => {
 
   test('the editor favourites section takes its categories and picker from the module', () => {
     const editor = readSource(SRC.editProfileForm);
-    expect(editor).toContain("from './favourites'");
+    expect(editor).toContain('@/modules/profile/favourites');
     expect(editor).toMatch(/id:\s*'favourites'[\s\S]{0,500}?categories:\s*FAVOURITE_CATEGORIES/);
     expect(editor).toMatch(/categoryOptions:\s*FAVOURITE_CATEGORY_OPTIONS/);
     expect(editor).toMatch(/groupLabelCategory:\s*CUSTOM_FAVOURITE_CATEGORY/);

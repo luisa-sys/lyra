@@ -3,7 +3,7 @@
  * and the fetch path (injected mock). The postcode is transient — never
  * persisted or logged; only the coarse city/region is returned.
  */
-import { extractCity, lookupCityFromPostcode } from '@/lib/geo/places-city';
+import { extractCity, lookupCityFromPostcode } from '@/modules/profile/geo/places-city';
 
 describe('KAN-341 extractCity', () => {
   it('prefers postal_town (UK) and includes the region', () => {

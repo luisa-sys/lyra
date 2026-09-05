@@ -168,6 +168,64 @@ def main() -> int:
             promote_deployment(token, team_id, uid)
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
+
+            # 409 is the case this script kept dying on (3/3 recent promotes).
+            # Vercel refuses to promote a deployment that is ALREADY the live
+            # production deployment. That happens whenever the rollback fires on
+            # a promote whose deploy never ran — e.g. it was sitting at
+            # `waiting` for the SEC-106 required reviewer, so production never
+            # moved off the pre-merge SHA in the first place.
+            #
+            # Rolling back to where production already is, is a NO-OP, and a
+            # no-op is not a failure. Reporting it as one produced a red
+            # "rollback failed" alert on a production that was never at risk —
+            # and taught everyone to distrust the rollback alert, which is the
+            # expensive part.
+            #
+            # This is verified, not assumed: we re-read the live deployment and
+            # only treat the 409 as benign when production genuinely already
+            # serves TARGET_SHA. Any other 409 is still a real failure.
+            if e.code == 409:
+                try:
+                    live_sha = parse_current_sha(
+                        list_production_deployments(token, project_id, team_id, limit=5)
+                    )
+                except urllib.error.HTTPError as verify_err:
+                    print(
+                        f"::error::Vercel returned 409 on promote and the follow-up "
+                        f"verification ALSO failed ({verify_err.code} {verify_err.reason}) "
+                        f"— cannot tell 'already rolled back' from 'rollback broken'."
+                    )
+                    print(body)
+                    return 1
+
+                if live_sha == target_sha:
+                    print(
+                        f"::notice::Vercel returned 409 because deployment {uid} is "
+                        f"already the live production deployment. Production serves "
+                        f"{target_sha[:8]} — the rollback target — so there is nothing "
+                        f"to undo. Treating as success."
+                    )
+                    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+                    if summary:
+                        with open(summary, "a") as fh:
+                            fh.write(
+                                "## ✅ Auto-Rollback: nothing to undo\n\n"
+                                f"Production already serves the rollback target "
+                                f"`{target_sha[:8]}`.\n\n"
+                                "Vercel returned 409 because the target deployment is "
+                                "already live — most commonly because the promote's "
+                                "deploy never ran (awaiting the required reviewer), so "
+                                "production never moved.\n"
+                            )
+                    return 0
+
+                print(
+                    f"::error::Vercel returned 409 on promote, but production serves "
+                    f"{(live_sha or 'unknown')[:8]}, NOT the rollback target "
+                    f"{target_sha[:8]}. This is a real rollback failure."
+                )
+
             print(f"::error::Vercel promote API call failed: {e.code} {e.reason}")
             print(body)
             return 1

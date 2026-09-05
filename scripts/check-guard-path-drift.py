@@ -469,7 +469,7 @@ REGISTRY: list[Artefact] = [
              "founder UI/copy approval gate (KAN-411)"),
     Artefact("scripts/check-service-role-client.sh", "literal",
              _fixed("scripts/check-service-role-client.sh",
-                    ["src/", "src/lib/supabase-service.ts"]),
+                    ["src/", "src/modules/platform/supabase-service.ts"]),
              "RLS-bypass containment (KAN-352)"),
     Artefact("stryker.config.mjs", "literal", ex_stryker,
              "mutation coverage of security modules"),
@@ -494,7 +494,7 @@ REGISTRY: list[Artefact] = [
              "silent-skip on drift: a moved worker file means the deploy never runs"),
     Artefact(".github/workflows/pr-checks.yml", "regex",
              _fixed(".github/workflows/pr-checks.yml",
-                    [r"^(src/app/|src/middleware|supabase/migrations/|\.github/workflows/"
+                    [r"^(src/app/|src/middleware|src/modules/|supabase/migrations/|\.github/workflows/"
                      r"|public/\.well-known/|scripts/)"]),
              "architecture-doc freshness check"),
     # --- build / test tooling ------------------------------------------------
@@ -683,37 +683,61 @@ def main() -> int:
 
 
 def self_test() -> int:
-    """Fixtures for the matcher semantics §7.3 says must not be got wrong."""
+    """Fixtures for the matcher semantics §7.3 says must not be got wrong.
+
+    ⚠️ THESE PATHS ARE SYNTHETIC AND MUST NOT BE UPDATED WHEN REAL FILES MOVE.
+    They are a hand-built corpus for exercising the seven matchers, not a
+    description of the repo. Several cases depend on the *shape* of this list
+    (e.g. "literal dir prefix" asserts that exactly two entries sit under one
+    prefix), so rewriting a path here silently changes what is asserted.
+
+    KAN-415 D1: a blanket `src/lib/* -> src/modules/platform/*` rewrite did
+    exactly that, dropping the prefix from two matches to one and turning
+    "literal dir prefix" red. The self-test caught it unaided.
+
+    So the corpus now lives under `src/__fixture__/`, a directory that does not
+    exist and never will. That is not cosmetic — it makes the instruction above
+    enforce itself instead of relying on being read. A find-and-replace for a
+    real path cannot touch these, they cannot be mistaken for a description of
+    the tree, and they no longer trip the extraction DoD guard's stale-reference
+    scan, which correctly reads a real-looking old path in a tracked file as
+    drift. A fixture that looks like production code will keep being maintained
+    as though it were.
+    """
     files = [
-        "src/app/page.tsx", "src/app/a/b/c.tsx", "src/lib/age/record.ts",
-        "src/lib/env.ts", "src/modules/x/env.ts", "tests/unit/a.ts",
-        "tests/unit/deep/b.ts", "tests/e2e/authed/journey.authed.spec.ts",
+        "src/__fixture__/app/page.tsx", "src/__fixture__/app/a/b/c.tsx",
+        "src/__fixture__/lib/age/record.ts", "src/__fixture__/lib/env.ts",
+        "src/__fixture__/other/env.ts", "tests/__fixture__/unit/a.ts",
+        "tests/__fixture__/unit/deep/b.ts",
+        "tests/__fixture__/e2e/authed/journey.authed.spec.ts",
     ]
     cases: list[tuple[str, bool]] = []
 
     # bash '*' crosses '/' — the false-DEAD trap.
     cases.append(("bash-case * crosses /",
-                  len(m_bash_case("src/app/*.tsx", files)) == 2))
+                  len(m_bash_case("src/__fixture__/app/*.tsx", files)) == 2))
     # trailing /** prefix rule.
     cases.append(("bash-case trailing /** prefix",
-                  m_bash_case("src/lib/age/**", files) == ["src/lib/age/record.ts"]))
+                  m_bash_case("src/__fixture__/lib/age/**", files)
+                  == ["src/__fixture__/lib/age/record.ts"]))
     # fnmatch would match only the top-level file — prove we are not fnmatch.
     cases.append(("bash-dbl-bracket * crosses /",
-                  len(m_bash_dbl_bracket("src/app/*.tsx", files)) == 2))
-    # CODEOWNERS leading-'/' anchoring: /src/lib/env.ts is one file, not any nested env.ts.
+                  len(m_bash_dbl_bracket("src/__fixture__/app/*.tsx", files)) == 2))
+    # CODEOWNERS leading-'/' anchoring: the rooted path is ONE file, not any nested env.ts.
     cases.append(("codeowners root anchoring",
-                  m_codeowners("/src/lib/env.ts", files) == ["src/lib/env.ts"]))
+                  m_codeowners("/src/__fixture__/lib/env.ts", files)
+                  == ["src/__fixture__/lib/env.ts"]))
     # glob '**' vs '*' depth. The contrast is the point: `**` reaches every
     # nested .ts under tests/ (3 of them, including the 3-deep e2e spec), while
     # `*` stays inside one segment and therefore reaches none, since no .ts sits
-    # directly in tests/.
-    cases.append(("glob ** spans depth", len(m_glob("tests/**/*.ts", files)) == 3))
-    cases.append(("glob * is one segment", len(m_glob("tests/*.ts", files)) == 0))
+    # directly in tests/__fixture__/.
+    cases.append(("glob ** spans depth", len(m_glob("tests/__fixture__/**/*.ts", files)) == 3))
+    cases.append(("glob * is one segment", len(m_glob("tests/__fixture__/*.ts", files)) == 0))
     # basename regex survives a directory move.
     cases.append(("basename-regex survives move",
                   len(m_basename_regex(r"journey\.authed\.spec\.ts", files)) == 1))
     # literal directory prefix.
-    cases.append(("literal dir prefix", len(m_literal("src/lib", files)) == 2))
+    cases.append(("literal dir prefix", len(m_literal("src/__fixture__/lib", files)) == 2))
     # hatch parsing: key required.
     cases.append(("hatch with key", _hatch("foo # guard-path-ok: KAN-419 because")[0] == "KAN-419"))
     cases.append(("hatch without key rejected", _hatch("foo # guard-path-ok: because")[0] is None))
