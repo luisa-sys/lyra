@@ -32,7 +32,8 @@
     "jose": "^5.10.0",
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -72,7 +73,7 @@
     },
     "js-yaml": "5.2.3",
     "fast-uri@^3.0.0": "3.1.7",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "ip-address": "^10.4.0",
     "@puppeteer/browsers": "^3.2.0"
   }
