@@ -407,3 +407,145 @@ jobs:
           echo "separate step, and a separate step is one that can be missed."
           echo ""
           echo "Context: SEC-137."
+
+  snapshot-regeneration:
+    name: Committed snapshots match a fresh generation (CTL-071, daily)
+    # SEC-151 — the dimensions the other two snapshot controls cannot see.
+    #
+    # On 2026-08-16 all three committed snapshots were simultaneously wrong
+    # about their own databases and BOTH existing controls were green:
+    # `prompt_id` typed non-null where every environment has it nullable, the
+    # `favourite_custom` enum member absent, and `public_profiles` carrying no
+    # Insert/Update despite being an auto-updatable view.
+    #
+    # CTL-036 diffs the three snapshots against EACH OTHER, so uniform
+    # staleness reads as zero drift. CTL-048 asks the databases but compares
+    # column SETS — a column with the wrong nullability is still in the set, an
+    # enum member is not a column, view updatability is not a column. Neither
+    # was defective. There was simply no control on those dimensions.
+    #
+    # WHY A WHOLE-FILE DIFF rather than three new assertions: those three are
+    # not a category, they are the three we happened to find. A control that
+    # enumerates dimensions catches only the ones somebody thought of, and the
+    # finding is precisely that nobody thought of these.
+    #
+    # WHY A SEPARATE JOB: same reason ledger-parity is separate. Each of these
+    # jobs prints a different remediation, and a finding that describes itself
+    # wrongly is how an operator learns to skim the annotations.
+    #
+    # WHY NOT ON pull_request: a PR cannot change what a database contains, so
+    # gating every PR on it would be an unsatisfiable required check. The
+    # comparison LOGIC is exercised on every PR via --self-test in
+    # pr-checks.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Self-test the checker
+        # Prove the comparison can still fail on each of the three dimensions
+        # before trusting anything this job says about live state.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-snapshot-regeneration.py --self-test
+
+      - name: Assert the credential is present
+        # NO SILENT SKIP (KAN-167). A missing token must fail loudly rather
+        # than quietly reduce coverage.
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is not set."
+            echo "::error::Refusing to run a check that would report clean without having"
+            echo "::error::regenerated a single snapshot."
+            exit 1
+          fi
+          echo "SUPABASE_ACCESS_TOKEN is present."
+
+      - name: Regenerate each snapshot and diff it against the committed file
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        # Deliberately NOT --generated-dir. That seam reads local files and
+        # exists only so the comparison can be proven without a CLI token; a
+        # control that can be handed its own answer can be made to agree with
+        # anything.
+        id: compare
+        run: |
+          set -euo pipefail
+          # `|| rc=$?` rather than `set +e`: keeps `set -euo pipefail` in force
+          # for every other line while still capturing a non-zero exit.
+          rc=0
+          python3 scripts/check-snapshot-regeneration.py || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Raise the finding
+        if: failure()
+        # ⚠️ BRANCH ON THE EXIT CODE, for the reason the ledger-parity handler
+        # above already learned the hard way: exit 2 ("could not generate") and
+        # exit 1 ("the snapshot is stale") need opposite responses, and a
+        # handler that prints the drift story on any non-zero sends the reader
+        # to regenerate a file that was never wrong.
+        env:
+          RC: ${{ steps.compare.outputs.rc }}
+        run: |
+          set -euo pipefail
+          case "${RC:-unknown}" in
+            2)
+              echo "::error::A snapshot could not be REGENERATED. This is not a drift finding."
+              echo ""
+              echo "The check failed closed: it could not produce a fresh snapshot for at"
+              echo "least one environment, so it refused to report agreement it had not"
+              echo "verified. Nothing here says a committed snapshot is wrong — only that"
+              echo "the question could not be asked."
+              echo ""
+              echo "Usual causes, in order of likelihood:"
+              echo "  * the npx install of the Supabase CLI failed (network, npm outage)"
+              echo "  * SUPABASE_ACCESS_TOKEN expired or was narrowed (SEC-139 tracks its"
+              echo "    2027-08-13 expiry)"
+              echo "  * a project ref in src/types/database/index.ts no longer resolves"
+              echo ""
+              echo "Do NOT regenerate anything on the strength of this failure."
+              echo "Context: SEC-151."
+              exit 0
+              ;;
+            1)
+              : # fall through to the drift text below
+              ;;
+            *)
+              echo "::error::The snapshot-regeneration check exited with an unexpected status: ${RC:-<none>}."
+              echo ""
+              echo "Exit 1 means a snapshot has drifted; exit 2 means one could not be"
+              echo "regenerated. Anything else means the step broke before it could"
+              echo "report. Read the step log directly; the guidance below does not apply."
+              echo ""
+              echo "Context: SEC-151."
+              exit 0
+              ;;
+          esac
+          echo "::error::A committed schema snapshot no longer matches its own database."
+          echo ""
+          echo "The annotations above give the environment and the first differing lines,"
+          echo "committed side and database side. Two causes, needing opposite responses:"
+          echo ""
+          echo "  1. THE SCHEMA CHANGED and the snapshot was not regenerated."
+          echo "     This is the finding. Fix:"
+          echo "         npm run gen:db-types -- --env <env>"
+          echo "     then commit the regenerated file. Note the app compiles against"
+          echo "     dev.ts, so a stale dev snapshot means TypeScript is asserting"
+          echo "     guarantees the database does not actually make — a null arriving at"
+          echo "     runtime that nothing in CI could see coming."
+          echo ""
+          echo "  2. THE GENERATOR CHANGED. gen-db-types.sh runs 'npx --yes supabase',"
+          echo "     which is unpinned, so a CLI release can alter formatting with no"
+          echo "     schema change at all. The tell is a diff that is purely cosmetic, or"
+          echo "     one that hits all three environments at once. Same fix, but say so"
+          echo "     in the commit message. Pinning the CLI is SEC-151's follow-up,"
+          echo "     precisely because this ambiguity exists."
+          echo ""
+          echo "What this catches that CTL-036 and CTL-048 cannot: nullability, enum"
+          echo "membership, view updatability — and any other dimension the generator"
+          echo "expresses that nobody has thought to enumerate."
+          echo ""
+          echo "Context: SEC-151."

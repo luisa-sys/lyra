@@ -566,6 +566,46 @@ columns were live on all three databases and absent from all three snapshots.
 | **CTL-036** (`check-schema-type-parity.py`, every PR) | the three snapshots **to each other** | all three stale the same way — no *relative* drift to find |
 | **CTL-048 full** (`promote-to-staging.yml`) | the databases to each other **and** each snapshot to its own database | nothing, but it only runs on a promote |
 | **CTL-048 `--snapshot-only`** (`db-invariants.yml`, daily 06:15 UTC) | each snapshot to **its own** database | cross-environment drift — deliberately, see below |
+| **CTL-071** (`check-snapshot-regeneration.py`, `db-invariants.yml`, daily) | each snapshot to a **fresh generation** of its own database, whole file | trailing whitespace at end of file, and nothing else |
+
+**Which dimensions each one can see — this is the part that was re-derived the
+hard way ([SEC-151](https://checklyra.atlassian.net/browse/SEC-151)):**
+
+| dimension | CTL-036 | CTL-048 | CTL-071 |
+|---|---|---|---|
+| a column exists / does not | ✅ relative only | ✅ | ✅ |
+| a column's **nullability** | ❌ | ❌ | ✅ |
+| **enum membership** | ✅ relative only | ❌ | ✅ |
+| **view updatability** (`Insert`/`Update` blocks) | ❌ | ❌ | ✅ |
+| anything else the generator expresses | ❌ | ❌ | ✅ |
+
+The `relative only` entries are the trap. CTL-036 compares the three snapshots
+**to each other**, so it sees a dimension perfectly well *when they disagree*
+and not at all when they are wrong in the same way — and they are usually wrong
+in the same way, because they are usually regenerated together or not at all.
+CTL-048 asks the databases, but through PostgREST's OpenAPI document, which
+advertises column **names**: a column with the wrong nullability is still in the
+set, an enum member is not a column, and view updatability is not a column.
+
+On 2026-08-16 all three snapshots were simultaneously wrong on the three middle
+rows and **both controls were green, correctly**. Neither was defective; there
+was simply no control on those dimensions.
+
+⚠️ **CTL-071 is a whole-file diff on purpose, and resist the urge to replace it
+with three targeted assertions.** Those three dimensions are not a category —
+they are the three that happened to be found. A control that enumerates
+dimensions catches only the ones somebody thought of, and the finding was
+precisely that nobody thought of these.
+
+⚠️ **A CTL-071 red has two causes needing opposite responses**, and the
+annotation says which it thinks it is. Either the schema changed and the
+snapshot was not regenerated (the finding — run
+`npm run gen:db-types -- --env <env>` and commit), or the **generator** changed:
+`gen-db-types.sh` runs `npx --yes supabase`, which is unpinned and absent from
+`package.json`, so a CLI release can alter formatting with no schema change at
+all. The tell for the second is a diff that is purely cosmetic, or one that hits
+all three environments at once. Same command either way, but say so in the
+commit message. Pinning the CLI is SEC-151's follow-up.
 
 > ⚠️ **The SEC-143 admin schema-contract step in this same workflow is currently
 > INERT, and its daily red is not a schema finding.** It reads
@@ -670,6 +710,52 @@ by a job in `.github/workflows/`. That is the case in this ticket's title —
 id** (the job carries no `name:`), so a one-character rename would leave SEC-98
 production change control gated by a check nothing reports.
 
+### Workflow lint — actionlint + zizmor (every PR) — SEC-106 / CTL-073
+
+`pr-checks.yml` runs `scripts/check-workflow-lint.py`, which drives two
+third-party linters over `.github/workflows/**` and compares their findings
+against the committed ratchet `.github/workflow-lint-baseline.json`.
+
+**It is a ratchet, not "zero findings".** At landing the 43 workflows carried
+**7 actionlint + 109 zizmor** findings. A gate that reddens dozens of files on
+day one is a gate someone turns off, so the past is grandfathered per
+`(tool, rule, file)` with a count. It fails **both ways**: a NEW key, or MORE
+findings under an existing key, is a regression — and a key that has been fixed
+but is still listed fails as **STALE**. Regenerate with
+`python3 scripts/check-workflow-lint.py --write-baseline` and read the diff.
+
+**What it covers, and what it does not.** SEC-106 §1 lists six false-green
+primitives. These tools cover exactly one — an `if:` guard referencing
+`secrets.*`, which actionlint rejects because the `secrets` context is not
+available in `jobs.<id>.steps.if`. `continue-on-error`, `|| true`, `set +e`, a
+multi-line `run:` with no `set -euo pipefail`, and a missing
+`defaults.run.shell` are covered by **neither tool and by nothing else**; the
+remaining three primitives belong to `check-workflow-integrity.sh`. The gap
+table lives in the script header so "wired in" is never read as "covered".
+
+⚠️ **It found a live defect on the day it was written.** All 7 actionlint
+findings are the same step-level `if: ${{ secrets.X != '' }}` in
+`absent-secrets-probe.yml` — which is CTL-068, the control asserting every
+deliberately-absent secret is still absent. That control therefore cannot be
+trusted to fire. Tracked as **SEC-165**; grandfathered in the baseline with the
+ticket named, not waved through.
+
+**Both linter versions are pinned** (`ACTIONLINT_VERSION`, `ZIZMOR_VERSION` in
+`pr-checks.yml`) and recorded in the baseline. This is the second control in the
+estate whose subject is a third-party feed, and SEC-105 is the lesson: a rule
+set that moves on its own schedule goes red overnight on an unchanged repo. A
+version bump must regenerate the baseline in the **same commit**; running a
+different version reports **UNVERIFIED (exit 2)**, never a silent comparison of
+one tool's findings against another tool's baseline. actionlint's
+shellcheck/pyflakes integration is disabled for the same reason — it would lint
+with whichever shellcheck happens to be installed, so the finding set would
+differ per machine. Shell-body linting of `run:` blocks is therefore a stated
+gap, not a covered case.
+
+**Silencing one finding** is `# zizmor: ignore[rule]` or `# actionlint-ok:` on
+the offending line, and is honoured **only when that line cites a Jira key with
+digits** — a bare ignore, or a placeholder like `SEC-xxx`, fails the gate.
+
 ### Staging testing program (KAN-176)
 
 Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E suite that runs inline in `deploy-staging.yml` (KAN-114).
@@ -724,6 +810,47 @@ When an alert fires:
 5. Roll back the deploy if a recent promotion looks responsible — see "Deployment Rollback" above.
 
 UptimeRobot setup, monitor list, and bootstrap procedure: [`docs/UPTIMEROBOT_SETUP.md`](./UPTIMEROBOT_SETUP.md).
+
+## Moderation — suspending a user (SEC-57)
+
+**Suspension is retroactive, and it is one-way.** Setting `profiles.is_suspended`
+from false to true fires the `profiles_revoke_credentials_on_suspend` trigger
+(migration `20260819210000_sec57_revoke_credentials_on_suspend.sql`), which for
+that user alone stamps:
+
+| table | column written | effect |
+|---|---|---|
+| `api_keys` | `revoked_at` | every `lyra_…` key stops authenticating at the MCP server immediately |
+| `oauth_access_tokens` | `revoked_at` | inert until SEC-46 leg 1 sets `OAUTH_REVOCATION_CHECK=1` on the resource servers; until then the live token dies at its ~1h TTL |
+| `oauth_refresh_tokens` | `used_at` | the refresh family is dead, so no new access token can be minted |
+| `oauth_consents` | `revoked_at` | the client must pass a fresh consent screen |
+
+It fires wherever the transition happens — the admin console bulk action, the
+admin-MCP `admin_suspend_user` tool, or SQL applied by hand — because the check
+lives on the column, not in the application paths. That is deliberate: this
+defect family (a guard added to one call site but not its siblings) has recurred
+eight times.
+
+**Unsuspending restores nothing.** The user must generate a new API key from
+Settings and re-authorise every OAuth client. Tell them that when you unsuspend
+them, or they will report working integrations as broken with no explanation.
+Re-minting is correctly gated — a still-suspended account cannot obtain a new
+credential (PR #448).
+
+Re-suspending an already-suspended user, or editing any other column on their
+profile, is a no-op and does not re-stamp the original revocation timestamps.
+
+**If the trigger errors, the suspension itself fails.** That is intended: a
+recorded suspension whose credentials are still live is the worse outcome. Do
+not add an exception handler to make the suspend "succeed anyway".
+
+Rollback (removes future revocation; does not un-revoke anything already
+revoked):
+
+```sql
+drop trigger if exists profiles_revoke_credentials_on_suspend on public.profiles;
+drop function if exists public.sec57_revoke_credentials_on_suspend();
+```
 
 ## Emergency Contacts
 
