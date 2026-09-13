@@ -50,6 +50,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 import {
   FAVOURITE_GROUPS,
@@ -72,10 +73,6 @@ const ROOT = resolve(__dirname, '../..');
  * and once in the comment explaining the query — so deleting the query left
  * the scan matching the comment.
  */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
 function readSource(relPath: string): string {
   return stripComments(readFileSync(resolve(ROOT, relPath), 'utf-8'));
 }
