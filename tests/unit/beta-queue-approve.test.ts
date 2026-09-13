@@ -48,6 +48,30 @@ describe('approveBetaUser (KAN-277)', () => {
     expect(mockEmail).not.toHaveBeenCalled();
   });
 
+  // SEC-118 / CTL-075 — net-new. The control discovered this writer; the
+  // ticket listed four and this is a fifth. Refusing it here matches
+  // `bulkUserAction`, which already filters the acting admin out of
+  // `promote_live`, so the two routes to one outcome now agree.
+  it('refuses an admin approving their OWN beta access, and mutates nothing', async () => {
+    mockGetCurrentAdmin.mockResolvedValue(ADMIN);
+    await expect(
+      approveBetaUser(fd({ profile_id: ADMIN.profileId, user_id: 'a' })),
+    ).rejects.toThrow('cannot approve your own');
+    expect(mockUpdateEq).not.toHaveBeenCalled();
+    expect(mockLog).not.toHaveBeenCalled();
+    expect(mockEmail).not.toHaveBeenCalled();
+  });
+
+  // The negative control. Without it, throwing on EVERY call would satisfy the
+  // case above — a guard that refuses everything is indistinguishable from a
+  // correct one unless the permitted case is pinned too.
+  it('still approves a DIFFERENT profile', async () => {
+    mockGetCurrentAdmin.mockResolvedValue(ADMIN);
+    await approveBetaUser(fd({ profile_id: 'not-the-admin', user_id: 'u1' }));
+    expect(mockUpdateEq).toHaveBeenCalled();
+    expect(mockLog).toHaveBeenCalled();
+  });
+
   it('rejects a missing target profile', async () => {
     mockGetCurrentAdmin.mockResolvedValue(ADMIN);
     await expect(approveBetaUser(fd({ profile_id: '', user_id: '' }))).rejects.toThrow(

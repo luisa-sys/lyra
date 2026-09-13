@@ -6,12 +6,12 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 143,
-    "blocks": 328
+    "files": 147,
+    "blocks": 341
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
-    "tests/scripts/absent-secret-probe.test.js": 3,
+    "tests/scripts/absent-secret-probe.test.js": 4,
     "tests/scripts/audit-summary.test.js": 4,
     "tests/scripts/check-action-pinning.test.js": 1,
     "tests/scripts/check-comment-only-assertions.test.js": 2,
@@ -31,6 +31,7 @@
     "tests/scripts/check-module-api.test.js": 2,
     "tests/scripts/check-module-layering.test.js": 4,
     "tests/scripts/check-module-table-ownership.test.js": 2,
+    "tests/scripts/check-pooled-eq-mock.test.js": 3,
     "tests/scripts/check-production-deploy-drift.test.js": 1,
     "tests/scripts/check-release-branch-push.test.js": 2,
     "tests/scripts/check-release-tagged.test.js": 4,
@@ -46,12 +47,14 @@
     "tests/scripts/check-test-reimplementation.test.js": 2,
     "tests/scripts/check-ui-copy-ownership.test.js": 2,
     "tests/scripts/check-workflow-integrity.test.js": 1,
+    "tests/scripts/check-workflow-lint.test.js": 3,
     "tests/scripts/daily-security-check.test.js": 1,
     "tests/scripts/decide-release-tag.test.js": 1,
     "tests/scripts/dependency-rules-cover-modules.test.js": 1,
     "tests/scripts/dependency-rules-severity.test.js": 1,
     "tests/scripts/doc-sync-healthcheck.test.js": 1,
     "tests/scripts/ledger-parity-messaging.test.js": 1,
+    "tests/scripts/mutation-testing-can-fail.test.js": 1,
     "tests/scripts/npm-audit-gate.test.js": 5,
     "tests/scripts/promote-concurrency.test.js": 3,
     "tests/scripts/qa-sweep-coverage.test.js": 1,
@@ -60,6 +63,7 @@
     "tests/scripts/routine-watchdog.test.js": 1,
     "tests/scripts/security-alert-email.test.js": 1,
     "tests/scripts/soak-classifier-coverage.test.js": 3,
+    "tests/scripts/source-path-identity.test.js": 5,
     "tests/scripts/source-paths-manifest.test.js": 5,
     "tests/scripts/ui-ownership-covers-modules.test.js": 2,
     "tests/scripts/weekly-health-regression.test.js": 1,
