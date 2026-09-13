@@ -74,6 +74,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          # zizmor `artipacked`: this job reads tracked files and calls the
+          # Actions API with GH_TOKEN from env. It runs no git command, so the
+          # checkout has no reason to leave credentials in .git/config. Set
+          # here rather than grandfathered into the CTL-073 baseline — that
+          # baseline may only shrink, and growing it for a job that genuinely
+          # does not need the credential is how a ratchet decays into the
+          # suppression list it replaced.
+          persist-credentials: false
 
       - name: Every workflow in .github/workflow-freshness.json succeeded inside its window
         env:
