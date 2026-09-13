@@ -6,8 +6,8 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 148,
-    "blocks": 342
+    "files": 149,
+    "blocks": 343
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -48,6 +48,7 @@
     "tests/scripts/check-ui-copy-ownership.test.js": 2,
     "tests/scripts/check-workflow-integrity.test.js": 1,
     "tests/scripts/check-workflow-lint.test.js": 3,
+    "tests/scripts/check-workflow-run-freshness.test.js": 1,
     "tests/scripts/daily-security-check.test.js": 1,
     "tests/scripts/decide-release-tag.test.js": 1,
     "tests/scripts/dependency-rules-cover-modules.test.js": 1,

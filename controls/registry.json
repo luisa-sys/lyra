@@ -1275,6 +1275,26 @@
       "added": "2026-08-17"
     },
     {
+      "id": "CTL-072",
+      "name": "Watched scheduled workflows have actually run, successfully, recently",
+      "defect_class": "enabled-but-silent-cron",
+      "implementation": "scripts/check-workflow-run-freshness.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/required-checks.yml"
+      ],
+      "self_test": "scripts/check-workflow-run-freshness.py",
+      "prevents": [
+        "SEC-106",
+        "SEC-79"
+      ],
+      "summary": "A cron is a REQUEST, not a fact. db-invariants.yml has declared a daily schedule since it was written and nothing in this repository had ever asserted that it fired. CTL-042 answers the adjacent question - is the workflow disabled_manually? - and is correctly green in every state where a workflow is enabled and silent: a schedule GitHub suspends after 60 days of repository inactivity, a cron that parses and never matches, a `schedule` trigger never registered on the default branch. The two are complements, and this is the half that can see the SEC-79 shape - a control nobody has heard from, reporting nothing, counted as green. THE JUDGEMENT THAT MATTERS: only conclusion == 'success' counts. GitHub's successful-status set is {success, skipped, neutral}, so a check keyed on 'a run exists' is satisfied by a job skipped because a `needs:` dependency failed - the needs:-skip trap SEC-106 s1 identifies as most of the promote-reports-success cluster. skipped, cancelled, neutral, failure, timed_out, action_required, startup_failure and an in-flight run are each named distinctly in the finding, so the reader is not sent after the wrong cause. Three-valued exit, the same contract as CTL-066: 0 measured-and-fresh, 1 measured-and-stale, 2 UNVERIFIED - and being unable to list runs is 2, never 'stale' and certainly never 'fresh'. Fail-closed is asserted from the PRECONDITION (the workflow list must come back non-empty) rather than inferred from a status code, per gotcha #30. Unlike CTL-066's --live arm this one needs only actions:read, which GITHUB_TOKEN can hold, so it reports a real measured answer from day one instead of a standing UNVERIFIED.",
+      "escape_hatch": "Remove or widen the entry in .github/workflow-freshness.json - which is a visible, reviewable diff, and is the point. Two-way: an entry naming a workflow file that no longer exists fails as STALE, so the config cannot only grow. STATED GAP: required-checks.yml is deliberately NOT watched despite SEC-106 s4f saying to point this at it, because it exits 2 UNVERIFIED on every run until BRANCH_PROTECTION_READ_TOKEN is provisioned and watching it would install a permanent red - catalogue failure mode 7, a red you have learned to expect is a control you have switched off. Add it the day the token lands; the test asserting its absence is the reminder.",
+      "self_test_detail": "27 cases in the script, floored at 24 by tests/scripts/check-workflow-run-freshness.test.js (a FLOOR, not an N/N assertion whose denominator moves with its numerator - BUGS-102). Eleven cover the freshness judgement itself, including all three of GitHub's successful-but-did-nothing conclusions, an in-flight run, an unknown future conclusion, an older success found behind a newer failure, and a success whose timestamp will not parse (which must NOT be counted - falling back to now would make every unusable record read as fresh). Two cover the two-way STALE ratchet, eight the config validation, three timestamp parsing. The jest suite additionally asserts WHERE the verdict is read, per SEC-140.",
+      "added": "2026-08-18"
+    },
+    {
       "id": "CTL-073",
       "name": "actionlint + zizmor over .github/workflows, as a two-way shrink-only ratchet",
       "defect_class": "a-control-that-reports-green-while-gating-nothing",
