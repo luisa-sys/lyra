@@ -332,7 +332,7 @@ The gates, in summary — this table is **not** the full set:
 
 | Gate | Fails when | Escape hatch |
 |---|---|---|
-| **KAN-411 `check-ui-copy-ownership.sh`** (`pr-checks.yml`) | a PR changes a founder-owned UI/copy path with no `UI-Change-Approved:` / `UI-Bugfix-Only:` trailer in range | none in CI — add the trailer, or add the path to the carve-out list in the script if it genuinely is not UI/copy |
+| **KAN-411 `check-ui-copy-ownership.sh`** (`pr-checks.yml`) | a PR changes a founder-owned UI/copy path with no `UI-Change-Approved:` / `UI-Bugfix-Only:` / `UI-No-Visual-Change:` trailer in range | none in CI — add the trailer, or add the path to the carve-out list in the script if it genuinely is not UI/copy |
 | **G0 version control** (`check-design-sync.py`, `lyra-design-system` repo) | the design source is not in git. **Blocking** — unsynced design work is work that can be lost outright, not merely drift | none — commit the design source |
 | **G1 design-first** (same) | a ticket enters `DEV_IMPL` without passing `DESIGN_APPROVED` | none — get the card approved |
 | **G2 no-close** (same) | a ticket goes `DONE` while not `BASELINED` | none |
@@ -1181,7 +1181,7 @@ These have caused real bugs. Read before making related changes:
 
     ⚠️ **The `--files` mode still fires on every workflow path**, because it has no diff to classify. That is the conservative answer, not an oversight — an undecidable file is never treated as exempt.
 
-34. **`Failed to fetch \`Inter\` from Google Fonts` means Google, not you — every build needs `fonts.gstatic.com`, and we have DECIDED to accept that (BUGS-105)**: `src/app/layout.tsx` uses `next/font/google`, which downloads the font files **at build time** and then self-hosts them. The self-hosting is the point of the API and it works — but the *build* has a hard dependency on `fonts.gstatic.com`, with no local fallback and no waiver mechanism.
+35. **`Failed to fetch \`Inter\` from Google Fonts` means Google, not you — every build needs `fonts.gstatic.com`, and we have DECIDED to accept that (BUGS-105)**: `src/app/layout.tsx` uses `next/font/google`, which downloads the font files **at build time** and then self-hosts them. The self-hosting is the point of the API and it works — but the *build* has a hard dependency on `fonts.gstatic.com`, with no local fallback and no waiver mechanism.
 
     When it fires you get eight URLs, three retries each, then:
 
@@ -1207,6 +1207,10 @@ These have caused real bugs. Read before making related changes:
     Self-hosting faithfully therefore means hand-writing 28 `@font-face` blocks plus those four override percentages into `globals.css` — replacing framework-generated output with hand-maintained constants, which is catalogue failure mode 8 wearing a different hat. Against a defect observed **once** and cleared by a re-run, that trade is not worth making.
 
     **If this starts recurring, reopen BUGS-105 — but reopen it as a design card, not a build fix.** The work is 7 committed files, 28 blocks and 4 override values copied verbatim, before/after `@font-face` sets diffed, and the rendered output actually compared. ⚠️ It must **not** ride a `UI-No-Visual-Change:` trailer: on the evidence above that trailer would be false, and the whole point of SEC-152 adding that trailer was to stop people asserting things they had not checked.
+
+36. **A column-level `REVOKE` cannot subtract from a table-level `GRANT` — SEC-27's own "defence in depth" line has been inert since 2026-06-22**: `supabase/migrations/20260622170000_block_admin_suspended_self_set.sql` ships `revoke update (is_admin, is_suspended) on public.profiles from authenticated, anon;` alongside its trigger, as a second layer. It does nothing. Postgres warns `no privileges could be revoked for column ...` and carries on, because `authenticated`/`anon` hold their UPDATE privilege at the **table** level (`pg_class.relacl`), and a column-level REVOKE has no table-level grant to narrow. Measured on prod 2026-08-14 (SEC-112): `pg_attribute.attacl` is **NULL for every one of the 38 columns** on `profiles`, confirming the table grant was never actually restricted by that line. Reproduced on a scratch table on dev: `grant update on t to authenticated;` then `revoke update (b) on t from authenticated;` leaves `attacl` NULL and `has_column_privilege('authenticated', t, 'b', 'UPDATE')` still `true`.
+
+    **The trigger is what protects the column; the revoke is decorative.** SEC-112 (`20260814150000_sec112_block_is_published_self_set.sql`) deliberately ships **no** column revoke for `is_published`, specifically to avoid planting the same false belief in a second layer that isn't there — see that migration's comment for the full derivation. The real fix — narrowing the table-level grant to an explicit column list — is a 38-column, per-environment-diverging change tracked separately as **SEC-147**, not something to bolt onto a trigger migration.
 
 ## Supabase Migration Rules
 
