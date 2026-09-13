@@ -13,6 +13,14 @@ import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { isConveneEnabled } from '@/lib/convene/flags';
 import { buildAuthorizeUrl } from '@/lib/convene/google/oauth';
 
+function logStep(step: string, extra?: Record<string, unknown>) {
+  // Single-line JSON so Vercel runtime logs are searchable — same shape as the
+  // callback route's logStep, minus the reqId (initiate has no request chain).
+  console.log(
+    JSON.stringify({ at: 'convene/oauth/google/initiate', step, ...extra })
+  );
+}
+
 export async function GET(req: NextRequest) {
   if (!isConveneEnabled()) {
     return NextResponse.json({ error: 'convene_disabled' }, { status: 404 });
@@ -35,10 +43,12 @@ export async function GET(req: NextRequest) {
     provider: 'google',
   });
   if (error) {
-    return NextResponse.json(
-      { error: 'state_persist_failed', detail: error.message },
-      { status: 500 }
-    );
+    // SEC-115: error.message can carry Supabase/PostgREST internal text — log it
+    // server-side (above) but return only the stable error code to the caller.
+    // Same contract SEC-76 settled on for the callback routes.
+    const msg = error.message;
+    logStep('state_persist_failed', { msg });
+    return NextResponse.json({ error: 'state_persist_failed' }, { status: 500 });
   }
 
   // Support both browser redirect (default) and JSON response (for MCP).
