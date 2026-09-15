@@ -15,6 +15,19 @@ const NEW_CATEGORIES = [
   'proud_of', 'life_hacks', 'questions', 'billboard',
 ];
 
+// KAN-469: the public profile no longer renders 'billboard' — the prompt it
+// existed for is now an ordinary conversation starter, so its answer appears
+// in the Q&A section with everything else.
+//
+// This is a SEPARATE list rather than a deletion from NEW_CATEGORIES, and the
+// distinction is the whole point: NEW_CATEGORIES also drives the items-step
+// label check above, which is still correct — the legacy wizard continues to
+// offer a Billboard label (retiring it is KAN-453). Removing the entry from
+// the shared list would have quietly weakened that assertion too, which is
+// the failure mode this repo keeps re-learning: a list edited to make one
+// caller green stops guarding its other callers without saying so.
+const PUBLIC_PAGE_CATEGORIES = NEW_CATEGORIES.filter((c) => c !== 'billboard');
+
 describe('KAN-137: Wizard supports new section categories', () => {
   const wizardPath = path.join(root, SRC.wizard);
   let wizardContent;
@@ -119,7 +132,7 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
     expect(pageContent).toContain('groupFavourites(typedItems)');
   });
 
-  test.each(NEW_CATEGORIES)('page renders category: %s', (cat) => {
+  test.each(PUBLIC_PAGE_CATEGORIES)('page renders category: %s', (cat) => {
     expect(content).toContain(`'${cat}'`);
   });
 
@@ -136,18 +149,14 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
     expect(content).toContain('A bit more about me');
   });
 
-  test('billboard has special large-quote rendering', () => {
-    expect(content).toContain("groupedItems['billboard']");
-    expect(content).toContain('giant billboard');
-  });
-
-  test('billboard renders with sage green background', () => {
-    const billboardSection = content.slice(
-      content.indexOf("groupedItems['billboard']"),
-      content.indexOf('Links */')
-    );
-    expect(billboardSection).toContain('bg-[var(--color-sage)]');
-  });
+  // KAN-469: two tests stood here — one asserting the standalone billboard
+  // block existed, one asserting its sage background. Both are gone with the
+  // block, and the guard that replaced them is the stronger direction:
+  // tests/unit/kan469-extras-section-removed.test.ts asserts the public page
+  // reaches `groupedItems['billboard']` NOWHERE, so it goes red if the block
+  // ever returns rather than red because it left. Sage-on-this-page coverage
+  // is unaffected — see the left-rule test immediately below, which is
+  // untouched. Founder-signed-off 2026-08-06.
 
   test('section headings use the sage left-rule (border-l-[3px])', () => {
     expect(content).toContain('border-l-[3px]');
