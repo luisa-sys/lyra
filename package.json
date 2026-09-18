@@ -24,7 +24,7 @@
     "qa:coverage": "python3 qa-sweep/coverage.py"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.71.0",
+    "@sentry/nextjs": "^10.74.0",
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.110.9",
     "@vercel/analytics": "^2.0.1",
