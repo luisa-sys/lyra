@@ -171,14 +171,12 @@ const SECTIONS: SectionDef[] = [
     kind: 'starters',
     description: 'Random things about you — answer any that take your fancy, or write your own.',
   },
-  {
-    id: 'extras',
-    label: 'A couple of extras',
-    icon: '✨',
-    kind: 'items',
-    categories: ['billboard', 'questions'],
-    description: "Your billboard message, and any other questions you'd love to be asked.",
-  },
+  // KAN-469: the 'extras' section is deliberately absent. It held two item
+  // categories that no longer need a section of their own — the prompt it
+  // existed for now lives in 'starters' above, written by hand rather than in
+  // code, and 'questions' items already surface in the same place on the
+  // public profile. Both categories stay valid in the schema; nothing was
+  // migrated or deleted.
   { id: 'links', label: 'Links', icon: '🔗', kind: 'links' },
 ];
 
