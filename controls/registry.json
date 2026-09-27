@@ -1275,6 +1275,26 @@
       "added": "2026-08-17"
     },
     {
+      "id": "CTL-072",
+      "name": "Watched scheduled workflows have actually run, successfully, recently",
+      "defect_class": "enabled-but-silent-cron",
+      "implementation": "scripts/check-workflow-run-freshness.py",
+      "kind": "scheduled",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml",
+        ".github/workflows/required-checks.yml"
+      ],
+      "self_test": "scripts/check-workflow-run-freshness.py",
+      "prevents": [
+        "SEC-106",
+        "SEC-79"
+      ],
+      "summary": "A cron is a REQUEST, not a fact. db-invariants.yml has declared a daily schedule since it was written and nothing in this repository had ever asserted that it fired. CTL-042 answers the adjacent question - is the workflow disabled_manually? - and is correctly green in every state where a workflow is enabled and silent: a schedule GitHub suspends after 60 days of repository inactivity, a cron that parses and never matches, a `schedule` trigger never registered on the default branch. The two are complements, and this is the half that can see the SEC-79 shape - a control nobody has heard from, reporting nothing, counted as green. THE JUDGEMENT THAT MATTERS: only conclusion == 'success' counts. GitHub's successful-status set is {success, skipped, neutral}, so a check keyed on 'a run exists' is satisfied by a job skipped because a `needs:` dependency failed - the needs:-skip trap SEC-106 s1 identifies as most of the promote-reports-success cluster. skipped, cancelled, neutral, failure, timed_out, action_required, startup_failure and an in-flight run are each named distinctly in the finding, so the reader is not sent after the wrong cause. Three-valued exit, the same contract as CTL-066: 0 measured-and-fresh, 1 measured-and-stale, 2 UNVERIFIED - and being unable to list runs is 2, never 'stale' and certainly never 'fresh'. Fail-closed is asserted from the PRECONDITION (the workflow list must come back non-empty) rather than inferred from a status code, per gotcha #30. Unlike CTL-066's --live arm this one needs only actions:read, which GITHUB_TOKEN can hold, so it reports a real measured answer from day one instead of a standing UNVERIFIED.",
+      "escape_hatch": "Remove or widen the entry in .github/workflow-freshness.json - which is a visible, reviewable diff, and is the point. Two-way: an entry naming a workflow file that no longer exists fails as STALE, so the config cannot only grow. STATED GAP: required-checks.yml is deliberately NOT watched despite SEC-106 s4f saying to point this at it, because it exits 2 UNVERIFIED on every run until BRANCH_PROTECTION_READ_TOKEN is provisioned and watching it would install a permanent red - catalogue failure mode 7, a red you have learned to expect is a control you have switched off. Add it the day the token lands; the test asserting its absence is the reminder.",
+      "self_test_detail": "27 cases in the script, floored at 24 by tests/scripts/check-workflow-run-freshness.test.js (a FLOOR, not an N/N assertion whose denominator moves with its numerator - BUGS-102). Eleven cover the freshness judgement itself, including all three of GitHub's successful-but-did-nothing conclusions, an in-flight run, an unknown future conclusion, an older success found behind a newer failure, and a success whose timestamp will not parse (which must NOT be counted - falling back to now would make every unusable record read as fresh). Two cover the two-way STALE ratchet, eight the config validation, three timestamp parsing. The jest suite additionally asserts WHERE the verdict is read, per SEC-140.",
+      "added": "2026-08-18"
+    },
+    {
       "id": "CTL-073",
       "name": "actionlint + zizmor over .github/workflows, as a two-way shrink-only ratchet",
       "defect_class": "a-control-that-reports-green-while-gating-nothing",
@@ -1344,6 +1364,22 @@
       "added": "2026-08-20"
     },
     {
+      "id": "CTL-077",
+      "name": "Source-scanning tests are a two-way ratchet",
+      "defect_class": "grep-test-debt-grows-unbounded-because-nothing-counts-it",
+      "summary": "KAN-356 finding web-tests-06: the suite mixes source-grep tests with behavioural ones and nothing distinguishes them or bounds how many exist. CTL-038 and CTL-039 attack two specific vacuous shapes - a test that reimplements its subject, and an assertion a comment can satisfy - but neither CLASSIFIES a test as grep-vs-behavioural, and neither stops the count rising. IT REUSES scripts/triage-source-text-tests.py RATHER THAN RESTATING IT: that KAN-414 F4 script already buckets every readFileSync-backed assertion, and it was TRIAGE - it printed a report and nothing invoked it, so the number could only grow. Two copies of a bucket regex would drift, and a control that reimplemented the classifier it polices would be the CTL-038 defect wearing the badge of the guard against it. WHAT IS COUNTED is the 'behavioural' bucket only: a source read where a positive, observable assertion was available instead. Structural buckets - absence, existence, migration, surface, ordering, copy-pin - are NOT counted, because proving a pattern is absent or what a migration says cannot be observed by a running program, so converting them produces a test that looks more modern and proves less; counting all 523 blocks would make the ratchet unpayable and therefore ignorable. KEYED PER FILE, NOT AS A TOTAL - an aggregate lets one file improve while another regresses and nets out green, the blindness CTL-055 carried before ESCALATED. TWO-WAY: a NEW file or a GROWN count fails, and a count now LOWER than baselined (or a baselined file gone from the tree) fails as STALE, so an improvement is locked in rather than left as headroom for the next regression. A list you may only add to is a suppression list. Landed at 143 files / 328 convertible blocks, which IS the triage script's own headline - the two agree because they are the same code. MUTATION-PROVEN EIGHT WAYS: adding a convertible scan to a real test file fires NEW; annotating a baselined file fires STALE; hiding the classifier and emptying the corpus each fail CLOSED at exit 2 rather than reporting a clean scan that never ran (gotcha #30 / SEC-79); inverting a self-test expectation reddens the self-test, proving its verdict is actually read (SEC-140, catalogue failure mode 9); repointing COUNTED_BUCKET at a structural bucket reddens 142 files; deleting the STALE half reddens 3 jest cases; and making the missing-baseline path return 0 reddens 3 more. ITS OWN FIXTURES ARE ASSEMBLED AT RUNTIME in a temp git repo, not committed, so the suite stays genuinely in scope of every sibling control with no exclusion and no annotation - the CTL-061 lesson, as CTL-064 and CTL-076 already do it. ONE HARNESS BUG IS RECORDED BECAUSE IT PASSED: the sandbox cases first invoked the REAL script with a sandbox cwd, and since the script derives its root from its own location, seven cases were quietly measuring develop instead of the fixture (catalogue failure mode 6). STATED GAP: this bounds the QUANTITY of source-text scanning and does not itself require a behavioural assertion alongside one on critical surfaces. That second half of KAN-356 criterion 6 is not built here, and neither are legs A, B and D of that ticket.",
+      "implementation": "scripts/check-source-scan-inventory.py",
+      "kind": "ci-gate",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-356"
+      ],
+      "escape_hatch": "// source-scan-ok: <JIRA-KEY> <reason> - per file, visible in the diff. Use it when a file's source reads are genuinely structural and the triage classifier has over-called them.",
+      "added": "2026-08-21"
+    },
+    {
       "id": "CTL-078",
       "name": "The weekly mutation job can actually fail",
       "defect_class": "threshold-that-cannot-fail",
@@ -1360,6 +1396,22 @@
       "self_test": "15 Jest cases, with a corpus FLOOR on the step list asserted BEFORE anything iterates it - a renamed job key would otherwise leave every assertion passing over an empty list (catalogue failure mode 4). Comments are STRIPPED before every source-text match, and that is load-bearing rather than defensive: the Summary run block's own comment explaining why there is no lossy fallback CONTAINS that very string, so the un-stripped scan fails on the prose documenting the fix - catalogue failure mode 2, hit inside the test written by someone applying the rule, and pinned as mutation M7. MUTATION-PROVEN 2026-08-21, seven mutations, each asserted to have applied before the run was trusted and each restore confirmed byte-exact with cmp: (M1) re-adding `continue-on-error: true` to the stryker step reddens 2 - the step assertion and the job-wide one, which exists because moving the invocation into a new step carrying the flag would leave the first green; (M2) restoring the lossy `|| echo` fallback reddens 1; (M3) dropping the unparseable-report `exit 1` reddens 1, which is why the assertion counts TWO exits rather than matching one - the two failure directions can be dropped independently; (M4) moving the cron off Sunday reddens 1 (CTL-042 checks a scheduled workflow is ACTIVE at GitHub and cannot see a cron edited in the file, the same end state from the other side); (M5) repointing a mutate pattern at the library prefix the KAN-415 modularisation programme retired reddens 1; (M6) emptying the mutate list reddens 2 AND drops the total from 15 to 14, the parameterised cases correctly deregistering; (M7) above.",
       "notes": "STATED GAP, recorded rather than hidden - the measured baseline KAN-356 step 7 needs cannot currently be taken, and this is the blocker on that ticket's step 6. Reproduced 2026-08-21 against develop b20e3d6: the 2-file scope on develop today instruments 187 mutants and reports 'Initial test run succeeded. Ran 529 tests'; the ticket's intended scope (src/modules/guards, access, age, auth) instruments 1661 mutants across 40 files and dies with 'One or more tests failed in the initial test run' -> ConfigError, non-zero exit, no report at all. The cause is NOT the extra files. Stryker's jest runner selects tests by the IMPORT graph, and a source-scanning test - one reading its subject with readFileSync - has no import edge to that subject, so at 2 files it is never selected. At 40 files it IS selected, and then reads Stryker's INSTRUMENTED copy where the literal it greps for no longer appears. Both observed failures were in tests/unit/age-self-declaration.test.ts asserting against src/app/(auth)/actions.ts - a file ALREADY in the mutate list on develop - which is what proves selection rather than scope is the variable. So the mutation surface cannot widen until the source-scanning tests over the modules being widened into are converted or exempted, which couples this directly to web-tests-06 and CTL-077's inventory.",
       "added": "2026-08-21"
+    },
+    {
+      "id": "CTL-079",
+      "name": "security-lockdown inventory agrees with itself and with its checklist",
+      "defect_class": "estate-inventory-drift",
+      "summary": "KAN-466: lyra-admin-mcp-server - a deployed Railway service holding the PROD Supabase service-role key, able to suspend users and override age status - appeared in no inventory in docs/ at all. Two independent things made that invisible. (1) The enumeration of lockdown services and the '7 services to verify (KAN-24)' count are written in two different places by hand and nothing compared them, so adding a service and forgetting the count, or the reverse, reads as complete. (2) A provider entry can claim coverage its checklist does not deliver: docs/CYBER_LOCKDOWN.md SS Railway named lyra-mcp-server as THE service while three exist, so the highest-privilege surface on the platform sat inside the inventory entry that was supposed to cover it and outside every checklist item. That is the SEC-79 presence-badge shape one level down - the badge is on the provider and the hole is inside it, which is exactly what a per-entry existence check would miss. The control parses the enumeration rather than restating it (a copy in the test is a copy that drifts), asserts the corpus is non-empty before iterating it (catalogue failure mode 4), requires a checklist section per enumerated provider, and requires SS Railway to name all three deployed services plus the admin-specific edge controls (admin-mcp.checklyra.com, ALLOW_CF_ACCESS_OFF) - so 'covered under Railway' is a claim the build can check. Mutation-proven in three directions: reverting SS Railway to one service, bumping the stated count without touching the enumeration, and dropping the repo name from the ARCHITECTURE.md heading each redden exactly one case.",
+      "implementation": "tests/unit/lockdown-inventory-consistency.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "KAN-466"
+      ],
+      "escape_hatch": "none - the inventory, its count and its checklist are three statements of one fact; if they disagree one of them is wrong. A service that genuinely needs no checklist belongs outside the inventory, recorded with its reason (the Claude Design / KAN-441 precedent in ARCHITECTURE.md).",
+      "added": "2026-08-16"
     }
   ]
 }
