@@ -51,10 +51,10 @@
     "dependency-cruiser": "^17.4.3",
     "eslint": "^9",
     "eslint-config-next": "^16.3.5",
-    "jest": "^30.5.0",
+    "jest": "^30.5.2",
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4.3.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.14",
     "typescript": "^5"
   },
   "overrides": {
