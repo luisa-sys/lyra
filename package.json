@@ -26,14 +26,14 @@
   "dependencies": {
     "@sentry/nextjs": "^10.74.0",
     "@supabase/ssr": "^0.12.6",
-    "@supabase/supabase-js": "^2.110.9",
+    "@supabase/supabase-js": "^2.117.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "sharp": "0.35.4"
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -73,7 +73,7 @@
     },
     "js-yaml": "5.2.3",
     "fast-uri@^3.0.0": "3.1.7",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "ip-address": "^10.4.0",
     "@puppeteer/browsers": "^3.2.0"
   }
