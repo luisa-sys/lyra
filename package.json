@@ -30,7 +30,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
-    "next": "16.3.5",
+    "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "sharp": "0.35.4"
@@ -61,7 +61,7 @@
     "postcss": "^8.5.18",
     "nanoid": "^3.3.17",
     "tmp": "^0.2.7",
-    "brace-expansion": "5.0.9",
+    "brace-expansion": "5.0.12",
     "@eslint/config-array": {
       "minimatch": "^10.2.5"
     },
