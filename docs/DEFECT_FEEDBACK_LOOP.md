@@ -157,8 +157,8 @@ exempt rather than as a gap.
 ## 4. The control registry
 
 [`controls/registry.json`](../controls/registry.json) is the durable memory of
-this loop — 26 controls across 14 defect classes, each naming the historical
-tickets it would have caught.
+this loop — each entry naming the historical tickets it would have caught.
+⚠️ **Corrected 2026-10-05 (KAN-359 second pass) — the registry outgrew this line and nobody updated it.** It read "26 controls across 14 defect classes" since this section was written on 2026-07-27 (commit `4683659e`, PR #594); the registry now holds **78 controls across 59 distinct `defect_class` values** (counted directly from `controls/registry.json`). It was already at **75 controls / 56 defect classes** as of the prior KAN-359 pass (PR #907, merged 2026-08-31, `git show b5ad0f83:controls/registry.json`) — that pass corrected two ticket-count rows in this same file (§1) without checking this sentence. Treat any count here as a snapshot, not a fact that holds — re-derive from the registry itself rather than trusting this line again.
 
 Each entry records: `id`, `name`, `defect_class`, `summary`, `implementation`,
 `kind` (`ci-gate` / `test` / `scheduled` / `policy`), `wired_in`, `prevents`,
