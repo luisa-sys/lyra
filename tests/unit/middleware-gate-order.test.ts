@@ -185,6 +185,30 @@ describe('gate ORDER — which gate wins when two apply at once', () => {
     expect(profileReads.some((r) => r.includes('user_status'))).toBe(false);
   });
 
+  test('SEC-121 — the admin-host early return CURRENTLY skips the suspension gate (documented gap)', async () => {
+    // This test records what the middleware does TODAY on the admin host
+    // while SEC-121's ordering fix waits on the exact-order assertion
+    // sign-off (see the SEC-121 note on AUTHED_ORDER in pipeline.ts). The
+    // request is a suspended user hitting /admin/users on admin.checklyra.com
+    // — on checklyra.com the same request bounces to /suspended, on the
+    // admin host the middleware lets it through because admin-host RETURNS
+    // before the suspension gate runs.
+    //
+    // A DELIBERATE red-when-fixed test — when Luisa signs off on moving
+    // `suspension` above `admin-host`, this expectation flips to
+    // `/suspended` (see the parallel SEC-121 test in admin.test.ts pinning
+    // the durable second layer). Kept because it records the state the
+    // reorder is meant to change, and because it forces the reorder PR to
+    // update this file (not silently landing).
+    process.env.ADMIN_HOST_ENFORCED = 'true';
+    mockSuspended = true;
+    const res = await middleware(req('/admin/users', { host: 'admin.checklyra.com' }));
+    expect(loc(res)).toBeNull();
+    // No suspension read either — the gate never ran. On checklyra.com this
+    // would be `['profiles:is_suspended']`.
+    expect(profileReads).toEqual([]);
+  });
+
   test('the PKCE code redirect beats the beta/tier gate', async () => {
     // Also rewritten: the original paired this against the rate limiter, which
     // never fires on '/', so the assertion was unobservable for the same reason

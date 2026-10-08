@@ -1,0 +1,19 @@
+{
+  "$comment": "SEC-106 §3 item 3 / §4c — CTL-072. Which scheduled workflows must have SUCCEEDED recently, and how recently. Read by scripts/check-workflow-run-freshness.py. Two-way: an entry naming a workflow file that no longer exists fails as STALE, so this is a ratchet and not a list that may only grow.",
+  "$why_success_only": "GitHub's successful-status set is {success, skipped, neutral}. Only `success` is counted here. A job skipped because a `needs:` dependency failed reports SKIPPED and would satisfy any check keyed on 'a run exists' — that trap is named in SEC-106 §1 and is most of the promote-reports-success cluster.",
+  "$why_not_required_checks_yml": "required-checks.yml is deliberately NOT watched yet, even though SEC-106 §4f says to point this at it. It exits 2 UNVERIFIED on every run until BRANCH_PROTECTION_READ_TOKEN is provisioned, so its runs conclude `failure` and a freshness watch on it would be red every day from the moment it landed. CLAUDE.md's catalogue calls that failure mode 7 — a red you have learned to expect is a control you have switched off — and it would devalue this file's other entries along with it. ADD IT the same day the token lands; that is the follow-up, not an omission.",
+  "watched": {
+    "db-invariants.yml": {
+      "max_age_hours": 36,
+      "reason": "SEC-106 §3 item 3 names this one by name. It is the live backstop for the migration-privilege rules (gotcha #26) — migrations reach a database via the Supabase MCP without passing through a PR, which is exactly how SEC-42 happened, so a daily sweep that quietly stopped firing would take the only detector of an out-of-band grant with it. 36h rather than 24h so a single missed cron or a GitHub Actions incident is not a red."
+    },
+    "health-check.yml": {
+      "max_age_hours": 36,
+      "reason": "The liveness owner under KAN-361's one-concern-one-owner rule, and half of the SEC-79 incident: it sat disabled_manually for over a month while the estate still reported green. CTL-042 now asserts it is not disabled; this asserts it actually fired. A workflow can be enabled and still never run, which is why both exist."
+    },
+    "security-audit.yml": {
+      "max_age_hours": 192,
+      "reason": "Weekly (Wednesday 07:00 UTC), and since SEC-105 rescoped the npm-audit gate it is the ONLY place the full dev+prod tree is audited at all — the four deploy workflows no longer audit anything. 192h = 8 days, one cadence plus a day of slack, so a single skipped week is a finding and a late run is not."
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "_why": [
+    "CTL-076 / KAN-459 \u00a72. Test-side Supabase mocks whose .eq() recorder is keyed",
+    "by TABLE rather than per .from() statement, as they stood when the control",
+    "landed. Grandfathered so it could ship green.",
+    "",
+    "TWO-WAY. A new pooled recorder fails; a baselined file that grows fails; a",
+    "baselined file that shrinks or is fixed fails as STALE until recorded. A list",
+    "you may only add to is a suppression list, not a ratchet.",
+    "",
+    "The single entry is tests/unit/profile-ownership.test.ts, the KAN-260",
+    "owner-scoping net. It is NOT vacuous today \u2014 mutation-checked: deleting",
+    ".eq('profile_id', profile.id) from removeProfileItem turns it RED \u2014 but only",
+    "because those actions happen not to pre-read the table they write. The day one",
+    "of them does, the assertion goes vacuous with no diff to the test.",
+    "",
+    "It is baselined rather than converted because converting it rewrites its",
+    "existing assertions, and the Test Integrity Policy requires sign-off for that.",
+    "Recorded so it cannot get worse and cannot be forgotten."
+  ],
+  "ticket": "KAN-459",
+  "_totals": {
+    "testFiles": 326,
+    "filesWithEqRecorder": 36
+  },
+  "files": {
+    "tests/unit/profile-ownership.test.ts": 1
+  }
+}

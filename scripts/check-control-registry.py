@@ -18,9 +18,28 @@ false confidence in exactly the audits that are supposed to catch drift.
 WHAT THIS ENFORCES
 ------------------
   1. Every registered control's `implementation` file EXISTS.
-  2. Every control is REFERENCED by at least one file it claims to be wired
-     into, and each `wired_in` file exists. A control nobody invokes is the
-     SEC-79 failure mode.
+  2. EVERY `wired_in` file exists AND actually invokes the implementation.
+     A control nobody invokes is the SEC-79 failure mode.
+
+     SEC-119 changed two things here, and both matter more than they look.
+
+     (a) COMMENTS ARE STRIPPED BEFORE MATCHING. The test used to be a bare
+         substring scan over the whole file, so a `#` comment MENTIONING a
+         control satisfied "this file invokes it". CTL-001 declared
+         `promote-to-production.yml` as a wiring on the strength of two
+         explanatory comments; neutering its one real `run:` line in
+         pr-checks.yml left this checker green at exit 0. That is CTL-039's
+         defect class — "the comment satisfies the assertion" — landing on
+         the meta-control that exists to catch exactly this.
+
+     (b) SATISFACTION IS PER-TARGET, NOT ANY-OF. A single flag was raised by
+         whichever target happened to match and tested once at the end, so a
+         control wired into five files was proven by one. A stale entry could
+         never be reported, because a live sibling always covered for it.
+         `wired_in` means "the control RUNS here" — that is what the error
+         text has always claimed and what the SEC-79 failure mode is about.
+         A file that is merely RELEVANT to a control (scanned by it,
+         documented alongside it) does not belong in the list.
   3. Every control names at least one real Jira key in `prevents` — a control
      with no defect behind it is speculative, and speculative gates are the
      ones that get switched off.
@@ -39,6 +58,7 @@ Process: docs/DEFECT_FEEDBACK_LOOP.md
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -51,6 +71,33 @@ CONTROL_ID_RE = re.compile(r"^CTL-\d{3}$")
 
 REQUIRED_FIELDS = ("id", "name", "defect_class", "summary", "implementation", "kind", "wired_in", "prevents")
 VALID_KINDS = {"ci-gate", "test", "scheduled", "policy"}
+
+# CTL-039 owns the comment-stripping semantics (per-file-type syntax, string-aware
+# line markers, characters blanked rather than deleted so offsets stay stable).
+# SEC-119 REUSES it rather than writing a second implementation: two copies of a
+# comment parser drift, and the drift is invisible until one of them wrongly
+# reports a control as invoked. The module name has hyphens, so it cannot be a
+# plain `import` — load it by path.
+COMMENT_STRIPPER_PATH = Path(__file__).resolve().parent / "check-comment-only-assertions.py"
+
+
+def _load_strip_comments():
+    """Return CTL-039's `strip_comments`, or raise.
+
+    Deliberately NOT wrapped in a try/except that falls back to a local copy or
+    to raw text. Either fallback would silently restore the defect this control
+    was fixed for — a comment satisfying the invocation test — and it would do
+    so while printing a clean result.
+    """
+    spec = importlib.util.spec_from_file_location("_ctl039_comments", COMMENT_STRIPPER_PATH)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {COMMENT_STRIPPER_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.strip_comments
+
+
+strip_comments = _load_strip_comments()
 
 
 def validate(registry: dict, repo_root: Path) -> list[str]:
@@ -106,7 +153,6 @@ def validate(registry: dict, repo_root: Path) -> list[str]:
         wired_in = control.get("wired_in") or []
         impl_basename = Path(impl).name if impl else None
         kind = control.get("kind")
-        referenced_anywhere = kind == "policy"
 
         for target in wired_in:
             target_path = repo_root / target
@@ -116,33 +162,54 @@ def validate(registry: dict, repo_root: Path) -> list[str]:
 
             if target == impl:
                 # A workflow that IS the control (e.g. main-chain-guard.yml).
-                referenced_anywhere = True
+                continue
+
+            if kind == "policy":
+                # No executable form; existence is the proof.
                 continue
 
             try:
-                content = target_path.read_text(encoding="utf-8")
+                raw = target_path.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):
                 continue
 
+            # SEC-119(a): a MENTION is not an INVOCATION.
+            content = strip_comments(raw, target_path.suffix)
+            if content is None:
+                # Unknown file type: a comment cannot be told from code, so the
+                # question "does this file invoke the control?" is undecidable.
+                # Say so rather than guessing — guessing raw text is how the
+                # comment-satisfies-the-assertion defect returns.
+                problems.append(
+                    f"::error::{cid}: wired_in target '{target}' has a file type with no known "
+                    f"comment syntax, so an invocation cannot be distinguished from a mention "
+                    f"of one. Add '{target_path.suffix}' to SYNTAX in "
+                    f"scripts/check-comment-only-assertions.py."
+                )
+                continue
+
+            # SEC-119(b): every target must carry its own proof.
             if kind == "test":
                 runs_runner = bool(re.search(r"\b(npm run test:unit|npm test|npx jest|jest)\b", content))
-                discoverable = impl and (impl.startswith("tests/") or impl.startswith("src/"))
-                if runs_runner and discoverable:
-                    referenced_anywhere = True
-            elif impl_basename and impl_basename in content:
-                referenced_anywhere = True
-
-        if wired_in and not referenced_anywhere:
-            detail = (
-                f"no wired_in target runs the test suite, or '{impl}' is outside the "
-                f"runner's discovery roots (tests/, src/)"
-                if kind == "test"
-                else f"none of its wired_in targets reference '{impl_basename}'"
-            )
-            problems.append(
-                f"::error::{cid}: {detail}. The control exists but nothing invokes it — "
-                f"this is the SEC-79 'silently disabled' failure mode."
-            )
+                discoverable = bool(impl and (impl.startswith("tests/") or impl.startswith("src/")))
+                if not (runs_runner and discoverable):
+                    detail = (
+                        f"wired_in target '{target}' does not run the test suite"
+                        if not runs_runner
+                        else f"'{impl}' is outside the runner's discovery roots (tests/, src/)"
+                    )
+                    problems.append(
+                        f"::error::{cid}: {detail}, so that wiring does not invoke the control — "
+                        f"this is the SEC-79 'silently disabled' failure mode. Either fix the "
+                        f"wiring or drop the target from wired_in."
+                    )
+            elif impl_basename and impl_basename not in content:
+                problems.append(
+                    f"::error::{cid}: wired_in target '{target}' does not reference "
+                    f"'{impl_basename}' outside comments, so it does not invoke the control — "
+                    f"this is the SEC-79 'silently disabled' failure mode. wired_in means "
+                    f"'the control RUNS here'; either wire it in or drop the target."
+                )
 
         # 3. prevents must cite real Jira keys
         prevents = control.get("prevents") or []
@@ -263,6 +330,91 @@ def self_test() -> int:
         (root / "scripts/check-orphan.py").unlink()
 
         cases.append(("empty registry fails", len(validate({"controls": []}, root)) == 1))
+
+        # --- SEC-119 -------------------------------------------------------
+        # (a) A MENTION inside a comment is not an INVOCATION. This is the
+        # defect that let CTL-001 claim promote-to-production.yml as a wiring
+        # on the strength of two `#` comments, and it is CTL-039's own class
+        # landing on the meta-control.
+        (root / ".github/workflows/comment-only.yml").write_text(
+            "# this workflow used to run scripts/check-thing.sh\n"
+            "jobs:\n  x:\n    steps:\n      - run: echo hi\n"
+        )
+        comment_only = json.loads(json.dumps(good))
+        comment_only["controls"][0]["wired_in"] = [".github/workflows/comment-only.yml"]
+        problems_co = validate(comment_only, root)
+        cases.append(
+            ("control named only in a comment fails", len(problems_co) >= 1)
+        )
+        cases.append(
+            (
+                "…and the failure names the comment-only target",
+                any("comment-only.yml" in p for p in problems_co),
+            )
+        )
+
+        # Same file, same basename, but on a real `run:` line — must pass. The
+        # contrast is what proves the stripping is what did the work, rather
+        # than the check having simply become stricter about everything.
+        (root / ".github/workflows/comment-plus-run.yml").write_text(
+            "# scripts/check-thing.sh is explained here\n"
+            "jobs:\n  x:\n    steps:\n      - run: bash scripts/check-thing.sh\n"
+        )
+        comment_plus_run = json.loads(json.dumps(good))
+        comment_plus_run["controls"][0]["wired_in"] = [".github/workflows/comment-plus-run.yml"]
+        cases.append(
+            ("a real run: line passes even when a comment also names it",
+             validate(comment_plus_run, root) == [])
+        )
+
+        # (b) Satisfaction is PER-TARGET. A live sibling used to cover for a
+        # stale entry, so a wiring that had rotted could never be reported.
+        stale_sibling = json.loads(json.dumps(good))
+        stale_sibling["controls"][0]["wired_in"] = [
+            ".github/workflows/pr.yml",              # genuinely invokes it
+            ".github/workflows/unrelated.yml",       # does not
+        ]
+        problems_ss = validate(stale_sibling, root)
+        cases.append(("a stale wired_in target fails despite a live sibling", len(problems_ss) == 1))
+        cases.append(
+            (
+                "…and the stale target is named",
+                any("unrelated.yml" in p for p in problems_ss),
+            )
+        )
+
+        # Per-target for kind: test as well — one workflow runs the runner, one
+        # does not, and the one that does not must be reported by name.
+        stale_test = json.loads(json.dumps(test_control))
+        stale_test["controls"][0]["wired_in"] = [
+            ".github/workflows/tests.yml",
+            ".github/workflows/unrelated.yml",
+        ]
+        problems_st = validate(stale_test, root)
+        cases.append(("a test wiring that never runs the runner fails per-target", len(problems_st) == 1))
+        cases.append(
+            ("…and that target is named", any("unrelated.yml" in p for p in problems_st))
+        )
+
+        # An undecidable file type is reported, never assumed clean. Guessing
+        # raw text is exactly how the comment-satisfies-the-assertion defect
+        # comes back.
+        (root / ".github/workflows/config.ini").write_text("; scripts/check-thing.sh\n")
+        unknown_type = json.loads(json.dumps(good))
+        unknown_type["controls"][0]["wired_in"] = [".github/workflows/config.ini"]
+        problems_ut = validate(unknown_type, root)
+        cases.append(("an undecidable file type fails rather than passing", len(problems_ut) == 1))
+        cases.append(
+            ("…and says which suffix it could not decide",
+             any(".ini" in p for p in problems_ut))
+        )
+
+        # `policy` controls have no executable form — existence is the proof —
+        # and that exemption must survive the per-target rewrite.
+        policy = json.loads(json.dumps(good))
+        policy["controls"][0]["kind"] = "policy"
+        policy["controls"][0]["wired_in"] = [".github/workflows/unrelated.yml"]
+        cases.append(("a policy control needs no invocation", validate(policy, root) == []))
 
     failures = 0
     for label, ok in cases:

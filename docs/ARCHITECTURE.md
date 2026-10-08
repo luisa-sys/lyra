@@ -164,6 +164,21 @@ reachable only through a denylisted action.
 - **Endpoint**: https://mcp.checklyra.com/mcp
 - **Dev Endpoint**: https://mcp-dev.checklyra.com/mcp (points to dev Supabase)
 
+### Admin MCP Server (lyra-admin-mcp-server)
+- **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
+- **Hosting**: Railway — its **own service**, separate from the user-facing MCP for blast-radius isolation (KAN-323)
+- **Repository**: https://github.com/luisa-sys/lyra-admin-mcp-server (**private**, branch `main`)
+- **Endpoint**: https://admin-mcp.checklyra.com/mcp — points at **prod** Supabase
+- **Purpose**: the high-privilege admin surface — suspend/unpublish users, per-user feature entitlements, beta approval, access stage, age-status override. Every mutation is audited to `moderation_logs` **before** it is applied; if the audit write fails, the action aborts.
+- **Access control**, four layers deep, because the server holds the Supabase service-role key and so bypasses RLS:
+  1. **Cloudflare Access + IP allow-list** at the edge. Verified live: an unauthenticated `GET /health` returns `401` with `WWW-Authenticate: Bearer realm="OAuth" … resource_metadata=…/cloudflare-access-protected-resource/health`.
+  2. **App-layer Access verification** (`src/cf-access.ts`) — the origin re-verifies the `Cf-Access-Jwt-Assertion` JWT against the team JWKS, so a request that reaches Railway directly is still refused. In production the server **refuses to boot** with this off unless `ALLOW_CF_ACCESS_OFF=true` is set (first deploy only).
+  3. **Admin gate** (`src/admin-auth.ts`) — a live DB read requiring `is_admin = true` and not suspended, mirroring the web `getCurrentAdmin()`.
+  4. **Audit-first wrapper**, asserted by a positive registry test: a new mutating tool that forgets the wrapper fails that repo's CI.
+- **Deploy**: push to `main` → Railway auto-deploys (same model as `lyra-mcp-server`; "Wait for CI" must stay **OFF** — BUGS-18/BUGS-54). Its Railway project is `resilient-commitment`.
+- **Lockdown scope**: covered under **Railway** in `docs/CYBER_LOCKDOWN.md`, not as a separate inventory entry — see "Service inventory for security lockdown" below.
+- ⚠️ **The repo's own `README.md` still says "It is not deployed yet"**. That is stale as of 2026-08-16: the endpoint is live behind Cloudflare Access (evidence above). Fixing that line is a change in the admin repo, tracked separately (KAN-466).
+
 ### Database
 - **Provider**: Supabase Pro (PostgreSQL 17)
 - **Region**: EU West (Ireland)
@@ -183,7 +198,7 @@ reachable only through a denylisted action.
 ### DNS & CDN
 - **Provider**: Cloudflare
 - **Domain**: checklyra.com
-- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**
+- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**, **admin-mcp.checklyra.com** (Cloudflare Access in front — see "Admin MCP Server")
 
 ## Environments
 
@@ -194,15 +209,15 @@ reachable only through a denylisted action.
 | Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
 | MCP Dev | mcp-dev.checklyra.com | main | Railway | ilprytcrnqyrsbsrfujj (dev) | Public |
-| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` |
+| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` AND NOT `is_suspended` (SEC-121) |
 
 **Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
 
 ### Admin back-office (`admin.checklyra.com`, KAN-309)
 
-The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Two gates: **Cloudflare Access** (allow-list of admin emails) in front, plus the existing `is_admin` DB check (`getCurrentAdmin`).
+The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Three conditions must hold: **Cloudflare Access** (allow-list of admin emails) in front, plus the `is_admin` DB check AND `is_suspended = false` in `getCurrentAdmin()` (SEC-121: suspension is the incident-response kill-switch for a compromised admin account, so a suspended admin is refused even on `admin.checklyra.com`).
 
-Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod** Vercel scope):
+Host routing lives in `src/modules/access/gates/admin-host.ts`, ordered inside `AUTHED_ORDER` in `src/modules/access/pipeline.ts` (post-KAN-415 D4 — the middleware composition root has no function body left). The `admin-host` gate returns early on the admin host so the beta gate below never runs, and — currently, until SEC-121's ordering fix lands — the middleware `suspension` gate positioned after it also does not run for admin-host requests. Containment is therefore provided by `getCurrentAdmin()` refusing a suspended admin at the layout, not by the middleware gate. Two env vars (set on the **prod** Vercel scope):
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
@@ -348,9 +363,17 @@ All operations run via GitHub Actions — no local machine needed:
 - Cloud workflows: fail the job and do not proceed; manual intervention required
 
 ### MCP Server Deployment
-- Railway auto-deploys on push to lyra-mcp-server main branch
-- No staging environment for MCP server (single environment)
-- Health check: GET https://mcp.checklyra.com/health
+There are **three** Railway services deploying MCP code, not one:
+
+| Service | Repo | Supabase | Health check |
+|---|---|---|---|
+| `lyra-mcp-server` (prod) | `luisa-sys/lyra-mcp-server` `main` | prod-lyra | `GET https://mcp.checklyra.com/health` → 200 |
+| `lyra-mcp-dev` | `luisa-sys/lyra-mcp-server` `main` | dev-lyra | `GET https://mcp-dev.checklyra.com/health` → 200 |
+| `lyra-admin-mcp-server` | `luisa-sys/lyra-admin-mcp-server` `main` | prod-lyra | `GET https://admin-mcp.checklyra.com/health` → **401** (Cloudflare Access) |
+
+- All three auto-deploy on push to `main`. **"Wait for CI" must stay OFF on every one of them** — turning it on wedges the deploy on unresolved third-party check suites (BUGS-18, recurred as BUGS-54).
+- No staging environment for any MCP service (single environment each).
+- ⚠️ The admin service's health check is **401 by design**, not a failure: Cloudflare Access refuses the unauthenticated request before it reaches the origin. A monitor that treats non-200 as down will report it permanently red.
 
 ## Database Schema
 
@@ -360,10 +383,24 @@ All operations run via GitHub Actions — no local machine needed:
 - **external_links**: Links attached to profiles (website, social, etc.)
 - **school_affiliations**: School connections (school_name, location, relationship)
 - **gift_suggestion_dismissals**: _(KAN-443)_ gift suggestions a member has said "not for me" to — `(profile_id, suggestion_key)`, owner-scoped by RLS. `suggestion_key` identifies a recommender CONCEPT, not a product, so a dismissal survives the catalogue resolving a different product for the same idea. Filters both the V1 concept list and the V2 pipeline output on the public profile.
+- **mcp_tool_call_log**: _(KAN-232)_ per-request audit log for the MCP server — `(ip, tool, method, ts, api_key_prefix, status_code)`. **RLS enabled with ZERO policies, and that is the protection**: with RLS on and no policy, `anon` and `authenticated` are denied every row regardless of their table grants, so only `service_role` (which bypasses RLS) can touch it. Do not "complete the set" by adding a policy. Holds IP addresses, so it is personal data; 30-day retention via `pg_cron` (KAN-245).
+- **content_moderation_flags**: _(KAN-244)_ moderation hits on user-authored text — `(profile_id, field, severity, flags[], content_snippet, source, created_at)`. `severity ∈ {warn, block}`, `source ∈ {web_app, mcp_server}`, `content_snippet` capped at 200 chars (a data-protection bound, not a display one). One RLS policy, `own_flags_select`, lets a member read their own flags at `/dashboard/settings`; there are deliberately **no** write policies, so the only writer is `service_role` via `src/modules/audit/moderation-audit.ts`. 30-day retention via `pg_cron`.
+
+> ⚠️ **SEC-160**: both tables above existed on dev, staging and production for months with **no `CREATE TABLE` anywhere in `supabase/migrations/`**, so the repo could not rebuild any of the three databases. Reconciliation migrations landed 2026-08-17 (`20260817100000`, `20260817100100`, `20260817100200`) and are idempotent — applying them to an environment that already has the objects is a no-op. CTL-049 reported "ledger parity holds ✓" throughout, because the entries were *baselined* rather than absent.
+
+### Scheduled database jobs (pg_cron)
+
+Recorded here because they are schema, not application code, and a rebuild without them retains personal data indefinitely — a compliance failure nothing in CI would report, since the tables themselves would look correct.
+
+- **mcp_tool_call_log_retention** — `0 3 * * *` — deletes `mcp_tool_call_log` rows older than 30 days.
+- **content_moderation_flags_retention** — `15 3 * * *` — deletes `content_moderation_flags` rows older than 30 days. ⚠️ This job appears in **no migration-ledger row at all**, which is why CTL-049's count of out-of-band objects understates reality: it counts out-of-band *ledger rows*, and an object created without one is invisible to it by construction.
 
 ### Custom Types
-- item_category: likes, dislikes, gift_ideas, gifts_to_avoid, boundaries, helpful_to_know, hobbies, allergies
-- visibility_level: public, friends, private
+
+⚠️ The two enums below were **corrected 2026-08-17** against a live `pg_enum` catalogue query on all three databases (dev, staging, production — identical membership on each). The previous text named two labels that exist in none of them (`hobbies`, `friends`) and omitted 19 that do. Read the catalogue, not this list, if a decision depends on it.
+
+- item_category _(26 labels)_: gift_ideas, gifts_to_avoid, likes, dislikes, helpful_to_know, boundaries, favourite_books, favourite_media, causes, quotes, proud_of, life_hacks, questions, billboard, current_problems, dietary, mobility, transport, availability_pattern, favourite_venues, allergies, favourite_tv, favourite_places, favourite_music, plays, favourite_custom
+- visibility_level: public, members_only, private, tribe_only, draft _(`draft` is `src/modules/profile/visibility.ts`'s default and fail-closed value; production accepts it — see CLAUDE.md, the CTL-036 stale-baseline note)_
 - link_type: website, twitter, instagram, linkedin, tiktok, youtube, other
 - school_relationship: student, alumni, parent, staff
 - access_stage: waitlist, beta, live _(KAN-273 — the user's access tier; see "User Access Lifecycle")_
@@ -418,7 +455,7 @@ All operations run via GitHub Actions — no local machine needed:
 | Vercel | Web hosting, CDN, serverless | luisa-sys-projects |
 | Supabase | Database, auth | ilprytcrnqyrsbsrfujj |
 | Cloudflare | DNS, SSL, CDN proxy | checklyra.com zone |
-| Railway | MCP server hosting | lyra-mcp-server |
+| Railway | MCP server hosting — **three** services: `lyra-mcp-server` (prod), `lyra-mcp-dev`, `lyra-admin-mcp-server` (admin surface, project `resilient-commitment`) | luisa-sys |
 | GitHub | Source code, CI/CD, secrets | luisa-sys |
 | Atlassian/Jira | Project management | checklyra.atlassian.net |
 | Claude Design | Design source of truth for UI changes — tokens + per-ticket before/after cards (KAN-441) | Projects `e4682889-…` (Lyra Design System) and `c179aa52-…` (Lyra Web Design) |
@@ -499,6 +536,25 @@ gap recorded above.
 > projects) and record any credential it holds in `docs/SECURITY_ROTATION.md`;
 > then add it here and move the KAN-24 count to 8. **No ticket tracks this yet —
 > one needs raising.**
+
+**`lyra-admin-mcp-server` is covered by the `Railway` entry, and the count stays
+7 (KAN-466).** The decision, recorded so it is not re-litigated: this inventory
+enumerates **providers** — the accounts whose console holds a 2FA setting, an
+access list and an API token — not individual deployed services. Supabase is one
+entry for three projects; Railway is one entry for three services. The admin MCP
+adds no new provider, so adding a row would inflate the KAN-24 count without
+adding a console to audit.
+
+That is only honest if the Railway checklist actually covers all three services,
+which is the gap this ticket found: `docs/CYBER_LOCKDOWN.md` §Railway named
+`lyra-mcp-server` as *the* service and scoped its auto-deploy check to that repo
+alone, so the **highest-privilege surface on the platform** sat outside the
+checklist behind the inventory entry that claimed to cover it. §Railway now
+enumerates all three and carries the admin-specific items (sealed prod
+service-role key, Cloudflare Access + IP allow-list, `ALLOW_CF_ACCESS_OFF`
+removed after first deploy). Coverage-by-provider is the rule; a provider entry
+whose checklist names one of its services is the same presence badge in a
+different shape.
 
 
 ### Token rotation

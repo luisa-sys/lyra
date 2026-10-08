@@ -79,6 +79,7 @@ import { giftVoucherHintPayload } from '@/modules/profile/profile-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
@@ -221,11 +222,6 @@ describe('updateProfileFields — the voucher hint is treated as public text', (
 // exactly that wiring; comments are stripped so none can satisfy them (KAN-459).
 describe('KAN-443: the gift surfaces are wired to the guarded helpers', () => {
   const ROOT = resolve(__dirname, '../..');
-  const stripComments = (src: string): string =>
-    src
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const read = (rel: string) => stripComments(readFileSync(resolve(ROOT, rel), 'utf-8'));
 
   const section = read(`${SRC.profile}/sections/gift-extras-section.tsx`);

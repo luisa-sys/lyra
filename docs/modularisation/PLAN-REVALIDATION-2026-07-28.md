@@ -108,6 +108,8 @@ This matters more than it looks, because the plan's whole §1.4 argument — *"o
 
 ## 4. Control-estate reconciliation (§1.6 and §5)
 
+> **Correction, 2026-08-17 (KAN-359 weekly second pass) — the "until SEC-106 lands" caveat below is now partly stale.** Jira SEC-106 is **In Progress**, not Done, but as of this run 4 of its 5 acceptance criteria are verified landed: branch-protection required checks on `develop`/`staging`/`beta`/`main` and the `production` Environment required-reviewer gate (both 2026-07-30, per `CLAUDE.md`), and **CTL-066** (`scripts/check-required-checks.py`, PR #819, merged 2026-08-16), which schedules a live-vs-committed branch-protection drift check. AC4 (`actionlint`/`zizmor` in `pr-checks.yml`) is verified still open. The specific structural gap this section names — **`controls/registry.json` has no field expressing blocking-vs-advisory** — is separately verified still true this run (same schema keys quoted below); CTL-066 did not add one. So: the acute risk in SEC-106's title now has a detector, but the general registry-schema complaint in this section stands.
+
 The plan was written against **11 blocking static gates**. The ticket assumes **31 controls**. SEC-106's title says **29**. `controls/registry.json` today holds **32** (CTL-001…CTL-032). Four numbers, all from the last few days.
 
 More significant than the count: **the registry schema has no field expressing blocking-vs-advisory at all.**

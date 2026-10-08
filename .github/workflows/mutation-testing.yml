@@ -30,9 +30,30 @@ jobs:
       - name: Install Stryker
         run: npm install --no-save @stryker-mutator/core @stryker-mutator/jest-runner @stryker-mutator/typescript-checker
 
+      # KAN-356 step 7/8. `continue-on-error: true` used to sit here, and the
+      # Workflow & Backup Integrity Policy does allow it on an advisory step —
+      # mutation testing is that policy's own worked example. It is removed
+      # because THIS step is about to stop being advisory: KAN-356 criterion 5
+      # sets `thresholds.break` in stryker.config.mjs, and a break threshold's
+      # entire purpose is to fail the build. Setting one while the step is
+      # allowed to fail produces a threshold that can never fail anything —
+      # a control that has never been seen to fail, which this repo treats as
+      # indistinguishable from no control.
+      #
+      # It also masked ordinary breakage. Stryker exits non-zero when its
+      # INITIAL TEST RUN fails, and that run is reachable: source-scanning
+      # tests read their subject with readFileSync, so any such test selected
+      # for a mutated file sees Stryker's INSTRUMENTED source and fails. The
+      # evidence is in the CTL-078 suite header — mutation-testing-can-fail
+      # under the tests directory. (Written without a full path on purpose:
+      # CTL-035 extracts guard paths with an UNANCHORED /scripts\/[\w./-]+/,
+      # so a "tests/scripts/..." literal in a workflow is read as a bare
+      # "scripts/..." pattern and reported as dead. The path is fine; the
+      # extractor cannot see the prefix. Narrowing that regex was considered
+      # and rejected here — any lookbehind that excludes "tests/scripts" also
+      # excludes "./scripts", which would quietly shrink a live control.)
       - name: Run Stryker mutation testing
         run: npx stryker run
-        continue-on-error: true
 
       - name: Upload mutation report
         if: always()
@@ -42,25 +63,37 @@ jobs:
           path: reports/mutation/
           retention-days: 90
 
+      # KAN-356 step 8. This step used to end on a green tick in BOTH failure
+      # directions, which is the CTL-042 shape: a missing report printed "No
+      # report generated" and exited 0, and an unparseable one printed the
+      # literal score "N/A%" via `|| echo "N/A"` plus a bare `except:`. Both
+      # are the banned lossy-fallback pattern — a report the reader cannot
+      # distinguish from a real measurement. Each now fails loud instead.
       - name: Summary
         if: always()
         run: |
           set -euo pipefail
-          if [ -f reports/mutation/mutation-report.json ]; then
-            SCORE=$(cat reports/mutation/mutation-report.json | python3 -c "
-          import json, sys
-          try:
-            data = json.load(sys.stdin)
-            killed = data.get('mutationScore', 0)
-            print(f'{killed:.1f}')
-          except:
-            print('N/A')
-          " 2>/dev/null || echo "N/A")
-            echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
-            echo "Mutation score: **${SCORE}%**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Full report available in the uploaded artifact." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## Mutation Testing" >> $GITHUB_STEP_SUMMARY
-            echo "No report generated. Check the Stryker run step for errors." >> $GITHUB_STEP_SUMMARY
+          REPORT=reports/mutation/mutation-report.json
+          if [ ! -f "$REPORT" ]; then
+            echo "## Mutation Testing" >> "$GITHUB_STEP_SUMMARY"
+            echo "**NO REPORT GENERATED** — Stryker produced no ${REPORT}." >> "$GITHUB_STEP_SUMMARY"
+            echo "This is a failure, not a zero. Check the Stryker run step." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Mutation testing produced no report at ${REPORT}."
+            exit 1
           fi
+          # No `|| echo` fallback: a report that will not parse must fail here
+          # rather than be reported as a score the reader will read as real.
+          if ! SCORE=$(python3 -c "
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          print(f\"{data['mutationScore']:.1f}\")
+          " "$REPORT"); then
+            echo "## Mutation Testing" >> "$GITHUB_STEP_SUMMARY"
+            echo "**REPORT UNREADABLE** — ${REPORT} exists but has no parseable mutationScore." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Mutation report ${REPORT} could not be parsed for a mutationScore."
+            exit 1
+          fi
+          echo "## Mutation Testing Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "Mutation score: **${SCORE}%**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Full report available in the uploaded artifact." >> "$GITHUB_STEP_SUMMARY"

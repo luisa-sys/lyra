@@ -68,6 +68,50 @@ RESOLVED. Without the second half, the file becomes a place to record defects
 rather than a record of ones being fixed — the failure mode CLAUDE.md names
 directly ("a list you may only add to is a suppression list, not a ratchet").
 
+⚠️ ...EXCEPT THAT `applied_not_in_repo` COULD NOT SHRINK. THIS IS SEC-160.
+The paragraph above was true of `in_repo_not_applied` and FALSE of
+`applied_not_in_repo`, and the gap went unnoticed for the same reason gaps
+usually do: the arm that could not fire is invisible from a green run.
+
+Read the remediation this file's own failure text prescribes — "commit the
+migration SQL that was applied out-of-band". Do it. Nothing changes. A ledger
+row is a historical fact: it records that a migration RAN, under the name it
+ran as, and committing SQL today cannot reach back and alter it. The row still
+has no file of that name, so the entry still computes, so the STALE arm never
+fires. Every entry in that list was permanent BY CONSTRUCTION — a list you may
+only add to, which is exactly what the paragraph above forbids.
+
+That is not hypothetical. SEC-160 committed the missing SQL for
+`kan_232_mcp_tool_call_log`, `kan_244_content_moderation_flags` and
+`kan_245_mcp_tool_call_log_retention`. Measured before the fix below existed:
+the three entries stayed exactly where they were, AND the three new repo files
+appeared as NINE `NEW — ... in the repo but NOT recorded as applied` failures,
+three per environment. Doing the prescribed fix turned the control RED.
+
+`reconciliations` closes it. Each entry pairs a ledger name with the repo file
+that now carries its SQL:
+
+    {"ledger": "kan_232_mcp_tool_call_log",
+     "repo":   "sec160_reconcile_mcp_tool_call_log",
+     "ticket": "SEC-160"}
+
+The pairing is ADDITIVE and deliberately does NOT edit `applied_not_in_repo`.
+That list stays the raw measurement — the ledger row genuinely has no file of
+its own name, and rewriting history to hide that would lose the fact that the
+migration was applied out of band in the first place. What the pairing does is
+(a) stop reporting the repo file as unapplied, because it names schema that IS
+applied, and (b) let the summary state the honest number: how many baselined
+entries are genuinely unrebuildable versus merely renamed.
+
+⚠️ A RECONCILIATION IS A CLAIM, NOT EVIDENCE — the same shape as the
+`UI-No-Visual-Change:` trailer in CLAUDE.md. Nothing here verifies that the
+named repo file actually contains the SQL that ledger row ran; a wrong pairing
+would silence a real finding. What IS verified is that the claim stays live,
+in both directions: the repo file must still exist (delete it and the
+reconciliation fails, so the fix cannot be silently reverted), and the ledger
+name must still be a real divergence somewhere (invent one and it fails as
+stale). Those two arms are why this is a ratchet and not an annotation.
+
 ⚠️ NAME NORMALISATION IS DELIBERATE, AND IT IS THE WEAK POINT.
 The repo names a migration `profile_items_visibility`; dev's ledger calls the
 same thing `kan_143_profile_items_visibility`. Matching them strictly would
@@ -295,14 +339,25 @@ def ledger_pairs(rows: list[dict]) -> list[tuple[str, str]]:
 # --------------------------------------------------------------------------
 
 
-def compare(repo: list[tuple[str, str]], ledger: list[tuple[str, str]]) -> dict:
+def compare(
+    repo: list[tuple[str, str]],
+    ledger: list[tuple[str, str]],
+    reconciled_repo_names: set[str] | None = None,
+) -> dict:
     """The two divergence sets, plus duplicate ledger rows.
 
     Compares on NORMALISED names only. Version stamps genuinely differ between
     the repo and every ledger (the repo's stamp is when the file was written,
     the ledger's is when it was applied), so asserting on them would be a
     permanent red that says nothing about rebuildability.
+
+    `reconciled_repo_names` are migration files declared to carry the SQL of a
+    ledger row recorded under a DIFFERENT name (see the module docstring). They
+    are excluded from `in_repo_not_applied` because the schema they describe is
+    applied — under the old name. They are deliberately NOT removed from
+    `applied_not_in_repo`, which stays the raw measurement.
     """
+    reconciled = {normalise(n) for n in (reconciled_repo_names or set())}
     repo_norm = {normalise(n) for _, n in repo}
     ledger_norm = {normalise(n) for _, n in ledger}
 
@@ -312,9 +367,103 @@ def compare(repo: list[tuple[str, str]], ledger: list[tuple[str, str]]) -> dict:
 
     return {
         "applied_not_in_repo": sorted({n for _, n in ledger if normalise(n) not in repo_norm}),
-        "in_repo_not_applied": sorted({n for _, n in repo if normalise(n) not in ledger_norm}),
+        "in_repo_not_applied": sorted(
+            {
+                n
+                for _, n in repo
+                if normalise(n) not in ledger_norm and normalise(n) not in reconciled
+            }
+        ),
         "duplicate_ledger_rows": sorted(n for n, c in seen.items() if c > 1),
     }
+
+
+_TICKET_KEY = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
+
+
+def validate_reconciliations(
+    entries: list, repo: list[tuple[str, str]], actuals: dict[str, dict]
+) -> list[str]:
+    """Check every reconciliation claim is well-formed and still live.
+
+    Returns problems; empty means all hold. These are CONFIGURATION errors, not
+    divergences, so the caller exits 2 rather than 1 — the distinction the
+    workflow branches on, and the one that separates "the repo drifted" from
+    "this control was handed something it cannot act on".
+
+    The two liveness arms are the point of the whole mechanism:
+
+      * the `repo` file must still exist. Without this, deleting the committed
+        SQL would silently return the ledger row to unrebuildable while the
+        pairing kept suppressing the report — the fix could be reverted with no
+        red build, which is worse than never having made it.
+      * the `ledger` name must still be a real divergence in some environment.
+        Without this, a pairing could name anything at all and would sit here
+        forever accumulating, which is the suppression-list failure re-entering
+        through the mechanism built to prevent it.
+    """
+    problems: list[str] = []
+    if not isinstance(entries, list):
+        return ["`reconciliations` must be a list"]
+
+    repo_names = {n for _, n in repo}
+    # Union across environments: an entry legitimately diverges on some
+    # databases and not others (dev and prod do not share a history), so
+    # requiring it everywhere would reject correct pairings.
+    all_applied_not_in_repo = {
+        name for a in actuals.values() for name in a.get("applied_not_in_repo", [])
+    }
+
+    seen_repo: dict[str, int] = {}
+    seen_ledger: dict[str, int] = {}
+
+    for index, entry in enumerate(entries):
+        where = f"reconciliations[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{where} is not an object")
+            continue
+
+        ledger_name = entry.get("ledger")
+        repo_name = entry.get("repo")
+        ticket = entry.get("ticket")
+
+        if not isinstance(ledger_name, str) or not ledger_name:
+            problems.append(f"{where} has no `ledger` name")
+        if not isinstance(repo_name, str) or not repo_name:
+            problems.append(f"{where} has no `repo` name")
+        if not isinstance(ticket, str) or not _TICKET_KEY.match(ticket or ""):
+            problems.append(
+                f"{where} needs a `ticket` like SEC-160 — an unattributed pairing is an "
+                f"annotation nobody can review (got {ticket!r})"
+            )
+        if not isinstance(ledger_name, str) or not isinstance(repo_name, str):
+            continue
+
+        seen_repo[repo_name] = seen_repo.get(repo_name, 0) + 1
+        seen_ledger[ledger_name] = seen_ledger.get(ledger_name, 0) + 1
+
+        if repo_name not in repo_names:
+            problems.append(
+                f"{where}: no migration file named {repo_name!r} exists under "
+                f"supabase/migrations/. Either the reconciliation was reverted — in which "
+                f"case {ledger_name!r} is unrebuildable again and this entry must go — or "
+                f"the file was renamed and this entry must follow it."
+            )
+        if ledger_name not in all_applied_not_in_repo:
+            problems.append(
+                f"{where}: {ledger_name!r} is not applied-not-in-repo on any environment, so "
+                f"there is nothing for it to reconcile. Remove the entry; a pairing that "
+                f"matches nothing is the stale half of the ratchet."
+            )
+
+    for name, count in sorted(seen_repo.items()):
+        if count > 1:
+            problems.append(f"reconciliations: repo file {name!r} is claimed {count} times")
+    for name, count in sorted(seen_ledger.items()):
+        if count > 1:
+            problems.append(f"reconciliations: ledger row {name!r} is claimed {count} times")
+
+    return problems
 
 
 def evaluate(env: str, actual: dict, baseline: dict) -> tuple[list[str], list[str]]:
@@ -371,8 +520,18 @@ def self_test() -> int:
     detects growth, a fetch path that reports clean when it could not read.
     """
     failures: list[str] = []
+    evaluated = 0
 
     def check(label: str, got, want) -> None:
+        # COUNTED HERE, not declared at the bottom of the file. The count used
+        # to be a hand-maintained constant, and adding twelve cases for SEC-160
+        # left it reading 29 — a self-test reporting fewer cases than it ran,
+        # which is CLAUDE.md catalogue failure mode 8 in the one place least
+        # able to afford it. Incrementing inside the assertion means the number
+        # is what was actually EVALUATED: a case added to a loop counts, and a
+        # case whose call site is deleted stops counting, with no bookkeeping.
+        nonlocal evaluated
+        evaluated += 1
         if got != want:
             failures.append(f"{label}\n     got:  {got!r}\n     want: {want!r}")
 
@@ -455,6 +614,96 @@ def self_test() -> int:
     fails, _ = evaluate("t", result, baseline_exact)
     check("an unchanged environment passes", fails, [])
 
+    # --- reconciliations: the SEC-160 arm ----------------------------------
+    # Every case below is a way this mechanism could silently stop working.
+    # The first two are the behaviour; the rest are the ways a pairing could
+    # become a licence to suppress rather than a claim that stays true.
+    recon_repo = [
+        ("20260101000000", "alpha"),
+        ("20260102000000", "beta"),
+        ("20260817100000", "sec160_reconcile_widget"),
+    ]
+    recon_ledger = [("20260101010101", "kan_1_alpha"), ("20260103000000", "kan_9_widget")]
+    pairing = [{"ledger": "kan_9_widget", "repo": "sec160_reconcile_widget", "ticket": "SEC-160"}]
+
+    plain = compare(recon_repo, recon_ledger)
+    check(
+        "without a reconciliation the committed file reads as unapplied",
+        "sec160_reconcile_widget" in plain["in_repo_not_applied"],
+        True,
+    )
+
+    reconciled = compare(recon_repo, recon_ledger, {"sec160_reconcile_widget"})
+    check(
+        "a reconciliation stops its repo file being reported as unapplied",
+        "sec160_reconcile_widget" in reconciled["in_repo_not_applied"],
+        False,
+    )
+    check(
+        "it suppresses ONLY the named file, not every unapplied one",
+        reconciled["in_repo_not_applied"],
+        ["beta"],
+    )
+    # The raw measurement must stay raw. Editing `applied_not_in_repo` here
+    # would erase the fact that the migration was applied out of band, which
+    # is the finding itself and not a wart to tidy away.
+    check(
+        "it does NOT remove the ledger row from applied-not-in-repo",
+        reconciled["applied_not_in_repo"],
+        ["kan_9_widget"],
+    )
+
+    actual_fixture = {"t": reconciled}
+    check(
+        "a well-formed, live pairing raises no problem",
+        validate_reconciliations(pairing, recon_repo, actual_fixture),
+        [],
+    )
+
+    # THE ARM THAT MATTERS. Delete the committed SQL and the ledger row is
+    # unrebuildable again — but the pairing would go on suppressing the
+    # report. Without this case the fix could be reverted with no red build.
+    gone = validate_reconciliations(pairing, [("1", "alpha"), ("2", "beta")], actual_fixture)
+    check(
+        "a reconciliation whose repo file has been deleted fails",
+        any("no migration file named" in p for p in gone),
+        True,
+    )
+
+    # The other direction: a pairing that matches no real divergence would sit
+    # here forever, which is the suppression list re-entering through the door
+    # built to keep it out.
+    orphan = validate_reconciliations(
+        [{"ledger": "never_diverged", "repo": "alpha", "ticket": "SEC-160"}],
+        recon_repo,
+        actual_fixture,
+    )
+    check(
+        "a pairing matching no divergence fails as stale",
+        any("nothing for it to reconcile" in p for p in orphan),
+        True,
+    )
+
+    for label, entry in [
+        ("no ticket", {"ledger": "kan_9_widget", "repo": "sec160_reconcile_widget"}),
+        (
+            "a placeholder ticket",
+            {"ledger": "kan_9_widget", "repo": "sec160_reconcile_widget", "ticket": "SEC-xxx"},
+        ),
+    ]:
+        check(
+            f"a reconciliation with {label} fails",
+            any("needs a `ticket`" in p for p in validate_reconciliations([entry], recon_repo, actual_fixture)),
+            True,
+        )
+
+    dup = validate_reconciliations(pairing + pairing, recon_repo, actual_fixture)
+    check("a repo file claimed twice fails", any("is claimed 2 times" in p for p in dup), True)
+
+    # ...and an empty list is fine, so the checks above are not passing merely
+    # because everything raises.
+    check("no reconciliations at all is not an error", validate_reconciliations([], recon_repo, actual_fixture), [])
+
     # --- fetch: malformed bodies must raise, never return empty ------------
     # Calls the REAL parser. An earlier draft re-implemented this loop's
     # parsing inline and therefore kept passing when the real one was mutated
@@ -526,13 +775,16 @@ def self_test() -> int:
             print(f"  ✗ {f}")
         return 1
 
-    print(f"Self-test passed ({SELF_TEST_CASES} cases).")
+    print(f"Self-test passed ({evaluated} cases).")
     return 0
 
 
-# Kept in step with the checks above; `tests/scripts/` asserts this does not
-# silently fall, which is how a self-test quietly stops testing anything.
-SELF_TEST_CASES = 29
+# The FLOOR, not the count — the count is now whatever `check()` actually
+# evaluated (see the comment there). `tests/scripts/` asserts the reported
+# number does not fall below this, which is how a self-test that quietly stops
+# testing things is caught. Raise it when cases are added; never lower it to
+# make a run green.
+SELF_TEST_FLOOR = 29
 
 
 # --------------------------------------------------------------------------
@@ -607,6 +859,18 @@ def main() -> int:
         print("::error::compare against an empty corpus, which would pass trivially.")
         return 2
 
+    # Reconciliations come from the baseline, so they must be read before the
+    # comparison that uses them. A missing baseline is fatal below either way;
+    # here an unreadable one degrades to "no reconciliations", which is the
+    # SAFE direction — it can only cause extra reports, never suppress one.
+    try:
+        reconciliations = load_baseline().get("reconciliations", [])
+    except (LedgerError, json.JSONDecodeError):
+        reconciliations = []
+    reconciled_repo_names = {
+        e.get("repo") for e in reconciliations if isinstance(e, dict) and e.get("repo")
+    }
+
     environments = resolve_environments(args.env)
     actuals: dict[str, dict] = {}
 
@@ -621,7 +885,7 @@ def main() -> int:
             print(f"::error::{env}: {exc}")
             print(f"::error::Failing closed — a ledger that cannot be read is not a ledger that agrees.")
             return 2
-        actuals[env] = compare(repo, rows)
+        actuals[env] = compare(repo, rows, reconciled_repo_names)
         actuals[env]["_ledger_rows"] = len(rows)
 
     if args.write_baseline:
@@ -635,14 +899,29 @@ def main() -> int:
                 "that has been resolved ALSO fails, so this cannot quietly become a",
                 "suppression list. Regenerate with --write-baseline in the same commit",
                 "that fixes something; never hand-edit.",
+                "",
+                "`reconciliations` (SEC-160) pairs a ledger name with the repo file that",
+                "now carries its SQL. It is CARRIED THROUGH regeneration rather than",
+                "recomputed, because it records a human claim that two names denote the",
+                "same migration — something no measurement can derive. Losing it on a",
+                "regenerate would resurrect the entries it suppresses, so it is preserved",
+                "explicitly and its liveness is re-checked on every run.",
             ],
             "ticket": "SEC-137",
             "environments": {
                 env: {k: v for k, v in a.items() if not k.startswith("_")}
                 for env, a in actuals.items()
             },
+            "reconciliations": reconciliations,
         }
-        BASELINE_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        # ensure_ascii=False so the generator emits the same bytes a human
+        # would write. With the default, an em-dash in `_why` or a `why` field
+        # comes back as — and the committed file stops being reproducible
+        # from its own generator — a small thing that makes "is this file
+        # generated or hand-edited?" unanswerable from the diff.
+        BASELINE_PATH.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         print(f"Wrote {BASELINE_PATH.relative_to(REPO_ROOT)}")
         return 0
 
@@ -652,6 +931,17 @@ def main() -> int:
         print(f"::error::{exc}")
         return 2
 
+    # Configuration problems are exit 2, not exit 1. A reconciliation naming a
+    # file that no longer exists does not mean the repo drifted; it means this
+    # control was handed a claim it cannot act on, and reporting that as a
+    # divergence would send the reader looking in the wrong place.
+    reconciliation_problems = validate_reconciliations(reconciliations, repo, actuals)
+    if reconciliation_problems:
+        print("::error::Reconciliation claims in the baseline do not hold.")
+        for problem in reconciliation_problems:
+            print(f"::error::{problem}")
+        return 2
+
     all_failures: list[str] = []
     for env, actual in actuals.items():
         fails, notes = evaluate(env, actual, baseline)
@@ -659,6 +949,22 @@ def main() -> int:
         for note in notes:
             print(f"  · {note}")
         all_failures.extend(fails)
+
+    # The honest count. `applied_not_in_repo` deliberately still holds the
+    # reconciled rows (it is the raw measurement), so without this line the
+    # summary overstates how much schema is genuinely unrecoverable — and
+    # overstating a risk erodes the number the same way understating it does.
+    if reconciliations:
+        reconciled_ledger = {e["ledger"] for e in reconciliations}
+        print()
+        for env, actual in actuals.items():
+            baselined = set(baseline.get("environments", {}).get(env, {}).get("applied_not_in_repo", []))
+            recovered = baselined & reconciled_ledger
+            print(
+                f"  · {env}: {len(baselined)} applied-not-in-repo — "
+                f"{len(recovered)} now have SQL in the repo under another name, "
+                f"{len(baselined - recovered)} remain genuinely unrebuildable"
+            )
 
     print()
     if all_failures:

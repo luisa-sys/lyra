@@ -116,6 +116,44 @@ describe('the manifest as a whole stays honest', () => {
     expect(dangling).toEqual([]);
   });
 
+  test('the JSON mirror self-reports the number of entries it actually has', () => {
+    // SEC-168. `source-paths.json` carries a `count` scalar alongside the SRC
+    // map, and until now nothing compared the two. They drifted apart on
+    // `develop` (count 247 against 249 real entries) and no gate noticed.
+    //
+    // The cause is worth recording, because it is not carelessness: this file
+    // is GENERATED, and git text-merged it. Two branches each added one SRC
+    // entry; the three-way merge took both map entries — they are on different
+    // lines — and then took only one side's `count` line. Neither branch was
+    // wrong and neither merge conflicted. A generated file has no business
+    // being merged line-by-line at all, which is the standing argument for a
+    // regenerating merge driver.
+    //
+    // Note the asymmetry this closes: the sibling lock file already asserts
+    // exactly this invariant (`lock.count` vs its own key set, in
+    // tests/scripts/source-path-identity.test.js). One of two generated files
+    // was guarded and the other was not, which is why only one of them drifted.
+    const mirror = JSON.parse(
+      fs.readFileSync(path.join(REPO_ROOT, 'tests', 'support', 'source-paths.json'), 'utf8'),
+    );
+    // Assert the corpus is real before trusting the equality — an empty map
+    // would satisfy `0 === 0` forever (catalogue failure mode 4).
+    expect(Object.keys(mirror.SRC).length).toBeGreaterThan(100);
+    expect(mirror.count).toBe(Object.keys(mirror.SRC).length);
+  });
+
+  test('the JSON mirror and the TS manifest hold the same entries', () => {
+    // The two are generated from one source in the same pass, so they can only
+    // disagree if one was hand-edited or a merge took different sides of each.
+    // That is the same defect as above, one layer out: the drift above moved a
+    // scalar, this catches it moving a KEY, which no count comparison can see.
+    const mirror = JSON.parse(
+      fs.readFileSync(path.join(REPO_ROOT, 'tests', 'support', 'source-paths.json'), 'utf8'),
+    );
+    expect(Object.keys(SRC).length).toBeGreaterThan(100);
+    expect(mirror.SRC).toEqual(SRC);
+  });
+
   test('every seeded path is in the manifest', () => {
     // The seeds exist precisely to keep keys alive across a move. A seed that
     // has itself gone stale (its file moved again) would silently stop doing
