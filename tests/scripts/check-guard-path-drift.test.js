@@ -253,9 +253,17 @@ describe('check-guard-path-drift.py — check-extraction-dod.sh registration (KA
 
       expect(r.exitCode).toBe(1);
       expect(r.stdout).toContain(target);
-      expect(r.stdout).toMatch(
-        new RegExp(`::error file=${SRC.checkExtractionDod.replace(/[./]/g, '\\$&')},line=\\d+::`),
-      );
+      // Parse the annotation with a STATIC regex and compare the captured path by
+      // equality, rather than interpolating the path into a pattern. Hand-rolled
+      // escaping of a value into a regex is incomplete by construction (it missed
+      // backslashes, which CodeQL js/incomplete-sanitization correctly flagged as
+      // HIGH), and `toBe` on the capture is a stricter assertion than a match
+      // anyway: a regex would also accept a longer path that merely contains this
+      // one.
+      const annotation = r.stdout.match(/::error file=([^,\n]+),line=(\d+)::/);
+      expect(annotation).not.toBeNull();
+      expect(annotation[1]).toBe(SRC.checkExtractionDod);
+      expect(Number(annotation[2])).toBeGreaterThan(0);
       expect(r.stdout).toMatch(/This control is not operating/);
     });
   }, 120000);
