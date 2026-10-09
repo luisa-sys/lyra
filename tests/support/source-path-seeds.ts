@@ -360,6 +360,14 @@ export const SEEDED_PATHS = [
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-production-deploy-drift.py',
 
+  // KAN-474 — the ROUTINE_COUPLED entry that tests/scripts/check-guard-path-drift.test.js
+  // moves to prove an expected-absent mirror entry does NOT redden the build.
+  // Seeded rather than hard-coded because `scripts/` IS one of the roots
+  // LITERAL_RE admits, so naming it in the test would raise the shrink-only F4
+  // ratchet — and raising a shrink-only baseline to fit one new line is how a
+  // ratchet decays into the suppression list it replaced.
+  'scripts/staging-soak.sh',
+
   // CTL-068 / SEC-158 — a recorded secret ABSENCE is still real. Seeded for
   // the same reason as the four above: the test reaches the checker only
   // through `SRC`, so without a literal here the key would vanish on the next

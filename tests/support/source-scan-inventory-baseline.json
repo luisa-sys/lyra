@@ -7,7 +7,7 @@
   },
   "_totals": {
     "files": 149,
-    "blocks": 343
+    "blocks": 344
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -23,7 +23,7 @@
     "tests/scripts/check-env-access.test.js": 3,
     "tests/scripts/check-extraction-dod.test.js": 2,
     "tests/scripts/check-fix-only-promote.test.js": 1,
-    "tests/scripts/check-guard-path-drift.test.js": 2,
+    "tests/scripts/check-guard-path-drift.test.js": 3,
     "tests/scripts/check-heartbeat-page-id.test.js": 3,
     "tests/scripts/check-live-schema-parity.test.js": 3,
     "tests/scripts/check-macos-duplicate-files.test.js": 1,
