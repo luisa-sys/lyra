@@ -322,7 +322,7 @@ jobs:
       # even if the `if:` were changed. Belt-and-braces per KAN-121.
       - name: Upload encrypted artifact
         if: success()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
         with:
           name: lyra-complete-backup-${{ github.run_id }}
           # Only the encrypted tree — the plaintext $BACKUP_DIR was removed after
