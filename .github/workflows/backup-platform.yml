@@ -283,7 +283,7 @@ jobs:
       # inspect what went wrong. This is intentional and not a silent-skip.
       - name: Upload platform backup artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
         with:
           name: lyra-platform-backup-${{ github.run_id }}
           path: platform-backup/
