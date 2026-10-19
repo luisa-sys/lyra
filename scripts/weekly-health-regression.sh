@@ -17,10 +17,27 @@
 #   RUN_E2E=1   also run integration + Playwright E2E (need deps + browsers; E2E
 #               needs a reachable target).
 #   PHASES="…"  override the phase list (default: lint type-check unit scripts
-#               build audit). The `audit` phase runs `npm audit --audit-level=high`
-#               — the SAME gate as pr-checks.yml + every deploy-*.yml — so a RED
-#               dependency gate that blocks all PRs + the deploy chain is surfaced
-#               by the runner itself, not discovered by hand (SEC-91, 2026-07-22).
+#               build audit). The `audit` phase runs
+#               `scripts/check-npm-audit-gate.py --scope prod` — the SAME
+#               prod-tree-scoped gate pr-checks.yml runs (SEC-105/CTL-052,
+#               2026-08-13), so a RED dependency gate that blocks all PRs is
+#               surfaced by the runner itself, not discovered by hand
+#               (SEC-91, 2026-07-22).
+#
+#   ⚠️ BUGS-126 (2026-10-19): this phase used to run bare
+#   `npm audit --audit-level=high` with no `--omit=dev` and no scoping — a
+#   full-tree audit that stopped matching any blocking CI gate the day
+#   SEC-105/CTL-052 rescoped pr-checks.yml to prod-tree-only and removed the
+#   audit step from every deploy-*.yml. The header comment above still
+#   claimed "the SAME gate as pr-checks.yml + every deploy-*.yml" for two
+#   months after that stopped being true. Net effect: this phase reported a
+#   FAIL on dev-only advisories (e.g. a transitive `ts-jest > handlebars`
+#   critical) that block nothing — the actual blocking gate (prod tree) was
+#   clean throughout. Dev-only full-tree advisories are already the weekly
+#   `security-audit.yml` scan's job (non-blocking, files/updates GitHub issue
+#   #919) — this phase duplicated that signal under the wrong severity.
+#   Repointed to call the real gate script directly, so this phase's FAIL now
+#   means what it says: the gate pr-checks.yml would also fail on.
 #
 # The `e2e` phase defaults CI, E2E_LOCAL_SERVER and four dummy Supabase vars
 # (only when unset) to the exact values .github/workflows/e2e-tests.yml sets
@@ -59,7 +76,7 @@ cmd_for() {
   type-check)  echo "npm run type-check" ;;
   unit)        echo "npm run test:unit" ;;
   scripts)     echo "npm run test:scripts" ;;
-  audit)       echo "npm audit --audit-level=high" ;;
+  audit)       echo "python3 scripts/check-npm-audit-gate.py --scope prod" ;;
   integration) echo "npm run test:integration" ;;
   # NB: no quotes around these values — $c is executed unquoted below ($c, not
   # "$c"), so word-splitting is what tokenises this into argv for `env`. A
