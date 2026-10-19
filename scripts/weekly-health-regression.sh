@@ -24,7 +24,7 @@
 #               surfaced by the runner itself, not discovered by hand
 #               (SEC-91, 2026-07-22).
 #
-#   ⚠️ BUGS-126 (2026-10-19): this phase used to run bare
+#   ⚠️ BUGS-123 (2026-10-19): this phase used to run bare
 #   `npm audit --audit-level=high` with no `--omit=dev` and no scoping — a
 #   full-tree audit that stopped matching any blocking CI gate the day
 #   SEC-105/CTL-052 rescoped pr-checks.yml to prod-tree-only and removed the
