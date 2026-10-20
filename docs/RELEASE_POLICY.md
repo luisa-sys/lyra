@@ -4,13 +4,15 @@
 
 ## Cadence
 
-| Stage | Cadence | Trigger | Why |
+⚠️ **Corrected 2026-10-19 (KAN-359 second pass) — `auto-promote-to-staging.yml` is currently OFF, not "weekly, automatic."** Luisa decided 2026-08-09 to disable it (`disabled_manually`, confirmed live via the GitHub API on this date) and it is recorded as a deliberate exception in `.github/scheduled-workflow-exceptions.json` under SEC-98 — an unattended promote sits awkwardly beside manual-only production change control. `CLAUDE.md`'s Deployment Pipeline section was corrected the same day this decision was made; this page and `docs/RUNBOOK.md` were not, and had read "weekly, automatic" for over two months. The cadence below is the *original design*, worth keeping as a reference for what re-enabling would restore — it is not what currently happens. In its place, the weekly `develop → staging` exercise is currently done **manually** each week by the Weekly Health+Regression routine (`docs/WEEKLY_HEALTH_REGRESSION_ROUTINE.md`), which rehearses the promote by hand and reports the result.
+
+| Stage | Cadence (as designed; see correction above) | Trigger | Why |
 |---|---|---|---|
-| `develop` → `staging` | **Weekly, automatic** | Sunday 23:00 UTC | Forces the staging chain to run every week so `deploy-staging.yml` doesn't go a month without exercise. |
+| `develop` → `staging` | Weekly, automatic — **currently disabled**, see correction above | Sunday 23:00 UTC | Forces the staging chain to run every week so `deploy-staging.yml` doesn't go a month without exercise. |
 | `staging` → `beta` | Manual | When ready to expose changes to beta testers | Beta hits real prod data, so the move beyond staging is a deliberate decision. |
 | `beta` → `main` | Manual (fix-only exception WITHDRAWN 2026-07-23) | When beta has been exercised against real users | Highest blast radius. Human-supervised, no exception currently active — Luisa withdrew the fix-only auto-promote exception on 2026-07-23. See "What stays manual". |
 
-**The chain MUST be exercised at least weekly.** If `auto-promote-to-staging.yml` skips for any reason, the weekly report flags it red — see "Skip behaviour" below.
+**The chain MUST be exercised at least weekly.** While `auto-promote-to-staging.yml` is disabled, this is satisfied by the Weekly Health+Regression routine's manual rehearsal (see above), not by the cron. If the cron is ever re-enabled, a skip would again make the weekly report flag it red — see "Skip behaviour" below, which describes that (currently dormant) mechanism.
 
 ## Drift thresholds
 
@@ -107,23 +109,7 @@ It is now **machine-enforced**:
 - The fallback on a hard fail is exactly the policy's prescribed one: **stop the auto-promote and require manual sign-off** (re-dispatch without `promote_mode=auto-fix-only`). A false positive therefore only forces a human — safe — while a false negative (a feature auto-ships) is the failure mode the gate biases hard against.
 - **Allow-list (the one policy knob):** the non-feature types treated as fix-only live in `ALLOWED_TYPES` at the top of `scripts/check-fix-only-promote.sh` (`fix revert docs chore ci build test style`). It deliberately errs strict — `perf`/`refactor` are treated as feature-class (they can change runtime behaviour) and force manual sign-off. Widen or narrow it only as a reviewed policy decision.
 
-## Release-flow gate (SEC-86 Finding A)
-
-The `beta → main` merge in `promote-to-production.yml` is the highest-blast-radius, effectively irreversible action in the project. It is worth being precise about what gates it today:
-
-- The **`merge-and-push` job** performs the `git merge beta` + `git push origin main` (pushed with `LYRA_RELEASE_PAT` so the downstream `deploy-production.yml` fires — see CLAUDE.md gotcha #16). This job declares **no `environment:` block**.
-- The **`production` GitHub Environment** — the only place GitHub *required-reviewers* can attach — is referenced solely by `deploy-production.yml`'s `deploy-production` job, which runs **after** the merge to `main`.
-
-**Net residual:** any required-reviewers configured on the `production` Environment guard the Vercel *deploy*, not the *merge*. The sole gate on the irreversible merge is the typed `workflow_dispatch` input (`Type "PRODUCTION"`). Anyone with repo-write who can dispatch the workflow can land `beta` on `main` by typing the fixed string, with no second pair of eyes on the merge itself. Compensating controls that remain in force: `verify-source` (beta CI must be green at HEAD), SHA-matched production smoke tests, and `auto-rollback` on smoke failure.
-
-**Decision pending (Luisa):** either
-
-1. **Add a merge-time reviewer gate** — put `environment: production` on the `merge-and-push` job so required-reviewers fire *before* the merge. This adds a manual approval step to the solo-maintainer release flow (you approve your own dispatch), which may or may not be worth the friction; **or**
-2. **Accept the residual** — keep the typed-confirm gate as the merge control and rely on the compensating controls above.
-
-Either way, the `production` Environment's *required-reviewers* setting must be confirmed in **GitHub repo settings** (it is not verifiable from the workflow files).
-
-Until this is decided, the gap is kept **explicit and non-regressing** by `scripts/check-workflow-integrity.sh` **Pattern 5**, which fails CI if a workflow pushes to `main` without either `environment: production` or an `# integrity-ok: sec-86` waiver, and *separately* fails if the typed-confirm compensating control is ever removed.
+<!-- KAN-359 second pass, 2026-10-19: removed a verbatim duplicate of the "## Release-flow gate (SEC-86 Finding A)" section (its full text + "Decision pending" list) that was accidentally pasted a second time here, immediately before this point. The one copy of that section earlier in this file is unchanged. -->
 
 ## Credential / separation-of-duties residual (SEC-66)
 
