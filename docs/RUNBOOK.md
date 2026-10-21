@@ -39,7 +39,7 @@ Real-user beta testing happens on `beta.checklyra.com` with prod credentials, so
 
 ## Release Procedure
 
-Promotions follow develop → staging → beta → main with manual triggers (and one weekly auto-promote to staging — see `docs/RELEASE_POLICY.md`). The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
+Promotions follow develop → staging → beta → main with manual triggers. ⚠️ **Corrected 2026-10-19 (KAN-359 second pass):** this line previously said "(and one weekly auto-promote to staging)" — `auto-promote-to-staging.yml` has been `disabled_manually` since 2026-08-09 (SEC-98; see `.github/scheduled-workflow-exceptions.json`), so every promotion, including `develop → staging`, is currently manual. The weekly `develop → staging` exercise is instead done by hand by the Weekly Health+Regression routine. The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
 
 ### Promote develop → staging
 
