@@ -18,9 +18,13 @@
 #               needs a reachable target).
 #   PHASES="…"  override the phase list (default: lint type-check unit scripts
 #               build audit). The `audit` phase runs `npm audit --audit-level=high`
-#               — the SAME gate as pr-checks.yml + every deploy-*.yml — so a RED
-#               dependency gate that blocks all PRs + the deploy chain is surfaced
-#               by the runner itself, not discovered by hand (SEC-91, 2026-07-22).
+#               full-tree (prod+dev deps), which is BROADER than the real PR/deploy
+#               gate — `scripts/check-npm-audit-gate.py --scope prod` (production
+#               tree only, waiver-aware), run from `pr-checks.yml` (SEC-105/CTL-052,
+#               2026-08-13). A FAIL here can be dev-tree-only noise; cross-check with
+#               `check-npm-audit-gate.py --scope prod` before treating it as blocking.
+#               This phase still surfaces a real prod-tree regression (SEC-91,
+#               2026-07-22), just not by being literally the same gate (BUGS-123).
 #
 # The `e2e` phase defaults CI, E2E_LOCAL_SERVER and four dummy Supabase vars
 # (only when unset) to the exact values .github/workflows/e2e-tests.yml sets
