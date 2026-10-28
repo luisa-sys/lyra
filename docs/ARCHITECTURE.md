@@ -13,12 +13,23 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
-#### Code layout — `src/lib/` and `src/modules/` (KAN-415, IN FLIGHT)
+#### Code layout — `src/lib/` and `src/modules/` (KAN-415, COMPLETE)
 
 **Both directories exist and both hold live code. That is expected, not drift.**
-The KAN-415 modularisation programme is extracting `src/lib/**` into bounded
-modules under `src/modules/**`, one domain at a time, so the tree is mixed until
-it completes.
+⚠️ **Corrected 2026-10-26 (KAN-359 second pass) — this line said "IN FLIGHT" and
+"the tree is mixed until it completes."** The KAN-415 modularisation programme
+is **done**: D1–D9 plus the TAIL (`dashboard`, `contracts`, `audit`, `admin`,
+`marketing-legal`, `account`, `affiliate`, `recommendations`) are all on
+`develop` (see `CLAUDE.md` → "The modularisation programme — KAN-415"). The
+"complete" declaration landed in PR [#771](https://github.com/luisa-sys/lyra/pull/771)
+(2026-08-13) — over two months before this correction, and this page's own most
+recent prior edit (2026-09-14) still didn't catch it. `src/lib/` now holds
+**27 tracked files, all Convene** — verified this run via `git ls-files
+src/lib`, matching `CLAUDE.md`'s count exactly — and Convene is **permanently**
+out of scope (routes 404, `CONVENE_ENABLED` false everywhere) unless Convene
+itself is turned back on. So the mixed tree is not a transitional state "until
+it completes" — it is the **permanent** end state. `modules.json` is the
+authoritative manifest; check it, not this paragraph, for current ownership.
 
 | module | what it owns |
 |---|---|
