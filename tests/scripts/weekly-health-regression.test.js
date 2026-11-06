@@ -68,7 +68,7 @@ describe(SRC.weeklyHealthRegression, () => {
 
       const env = {
         ...process.env,
-        PHASES: 'browsergap webkitgap notests realfail installword ok',
+        PHASES: 'browsergap webkitgap notests realfail installword sysdepsgap libword ok',
         // Exact Playwright/Jest tooling-gap output the classifier keys on:
         CMD_browsergap: stub('browsergap.sh',
           'echo "Error: browserType.launch: Executable doesn\'t exist at /opt/pw-browsers/chromium_headless_shell-1223/chrome-headless-shell"; exit 1'),
@@ -83,6 +83,15 @@ describe(SRC.weeklyHealthRegression, () => {
         // the word "install" must NOT be mistaken for the Playwright prompt.
         CMD_installword: stub('installword.sh',
           'echo "npm install ok, but expect(received).toBe(expected) failed"; exit 1'),
+        // BUGS-131: the browser binary exists but the host OS is missing
+        // shared libraries webkit needs to launch — a distinct Playwright
+        // failure shape from the binary-missing cases above.
+        CMD_sysdepsgap: stub('sysdepsgap.sh',
+          'echo "Error: browserType.launch:"; echo "Host system is missing dependencies to run browsers."; echo "Missing libraries:"; echo "    libgtk-4.so.1"; exit 1'),
+        // Edge case: a real failure that merely mentions "dependencies"/
+        // "libraries" must NOT be mistaken for the Playwright box message.
+        CMD_libword: stub('libword.sh',
+          'echo "expect(dependencies.libraries).toHaveLength(3) failed"; exit 1'),
         CMD_ok: stub('ok.sh', 'echo "all good"; exit 0'),
       };
       res = spawnSync('bash', [SCRIPT], { cwd: dir, env, encoding: 'utf8' });
@@ -108,6 +117,14 @@ describe(SRC.weeklyHealthRegression, () => {
 
     it('does not misclassify a real failure that merely mentions "install"', () => {
       expect(line('installword').startsWith('FAIL')).toBe(true);
+    });
+
+    it('marks missing webkit/chromium OS-level dependencies UNVERIFIED, not FAIL', () => {
+      expect(line('sysdepsgap').startsWith('UNVERIFIED')).toBe(true);
+    });
+
+    it('does not misclassify a real failure that merely mentions "dependencies"/"libraries"', () => {
+      expect(line('libword').startsWith('FAIL')).toBe(true);
     });
 
     it('still marks a passing phase PASS and exits 2 when any phase FAILs', () => {

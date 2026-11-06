@@ -116,6 +116,14 @@ run_phase() { # $1 label
     # failure that merely mentions "install" still FAILs.
     if grep -qE "Executable doesn'?t exist|Looks like Playwright was just installed|Please run.*playwright install|Failed to download (WebKit|Chromium|Firefox)" "$log"; then
       record UNVERIFIED "$label" "Playwright browsers unavailable — run 'npx playwright install' (env gap, not a test failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
+    elif grep -qE "Host system is missing dependencies" "$log"; then
+      # BUGS-131: distinct from the binary-missing case above — the browser
+      # binary exists but the host OS lacks shared libraries it needs to
+      # launch (e.g. webkit's libgtk-4/libgraphene on a fresh sandbox).
+      # Anchored to Playwright's own box-message wording so a genuine
+      # assertion failure that happens to mention "dependencies"/"libraries"
+      # still FAILs.
+      record UNVERIFIED "$label" "Playwright OS-level dependencies missing — run 'npx playwright install-deps' (env gap, not a test failure; BUGS-131): $(grep -m1 -E 'Host system is missing dependencies' "$log" | cut -c1-160)"
     elif grep -qE "No tests found" "$log"; then
       record UNVERIFIED "$label" "no tests matched this phase's path (env/layout gap, not a failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
     elif [ "$label" = "audit" ] && grep -qE "ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|Unable to reach|registry error|EAI_AGAIN" "$log"; then
