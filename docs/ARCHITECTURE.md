@@ -425,6 +425,7 @@ Recorded here because they are schema, not application code, and a rebuild witho
 ### Row Level Security
 - Owners can CRUD their own data
 - Public can read published profiles only
+- **Hidden affiliations are never public.** The only public read policy on `school_affiliations` ("Anyone can read visible affiliations from published profiles", `20261113120000_hidden_affiliations_public_read_rls.sql`) requires `show_on_profile = true` plus a published, non-suspended profile. Until that migration, two policies (one created out-of-band) omitted `show_on_profile`, so every hidden affiliation of every published profile was readable with the public anon key. Guarded by `tests/unit/hidden-affiliations-public-read-rls.test.js`, which replays every migration and fails if any anon-reachable read policy on the table omits the predicate.
 
 ## Backup Strategy
 
