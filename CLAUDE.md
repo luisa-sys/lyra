@@ -338,12 +338,24 @@ The gates, in summary — this table is **not** the full set:
 | **G2 no-close** (same) | a ticket goes `DONE` while not `BASELINED` | none |
 | **G3 promote-verified** (same) | `PROMOTED` claimed while `main` ≠ `beta` ≠ `staging` **by tree SHA**, or the ticket's `dev_paths` change is absent from `main` | none — finish the promote |
 
-**G4** (baseline current) and **G5** (no lost work) also run and are not listed above. All six — G0–G5 — are defined in `docs/DESIGN_CHANGE_WORKFLOW.md` → "The gates"; read that before relying on this summary.
+**G4** (baseline current), **G5** (no lost work) and **G6** (design system published, added 2026-11-22) also run and are not listed above. All seven — G0–G6 — are defined in `docs/DESIGN_CHANGE_WORKFLOW.md` → "The gates"; read that before relying on this summary.
 
 **Two traps:**
 
 1. **The trailer is a string, not evidence.** `UI-Bugfix-Only: KAN-1234` on a commit that actually changes intended design passes the gate and bypasses the founder entirely — the gate reads a commit message, it cannot read a design. (Any key matching `[A-Z][A-Z0-9]+-[0-9]+` satisfies it. Note the **digits are required**: a literal placeholder like `KAN-xxx` does *not* match, so that one fails the gate rather than sneaking past it.) Only the approved card proves approval, which is why the loop exists alongside the trailer rather than instead of it. If you are unsure whether your change is a restore or a change, it is a change.
 2. **A green tick does not prove the gate ran.** `check-ui-copy-ownership.sh` fails **open** when the diff base cannot be resolved (shallow or detached CI history): it emits a `::warning::` and exits 0, leaning on CODEOWNERS. Deliberate — a git hiccup must not block every unrelated PR — but it means the absence of a red X is not the presence of a check. Separately, **this repo's CI cannot run `check-design-sync.py` at all**, because that checker lives in the `lyra-design-system` repo; G0–G5 are enforced there, not here. Whether to fold the two repos together so CI can diff design against `src/` directly is **open** — KAN-427 / KAN-457, Luisa decides.
+
+### The design system — where it lives and how to use it (2026-11-22, KAN-427 / KAN-457)
+
+Standalone Claude Design closes by 14 Dec 2026, and the design system moved into Claude. **Its canonical home is now git:** `luisa-sys/lyra-design-system` (private), branch **`main`**, folder **`claude-design/project/`**. The full handoff is that repo's `CLAUDE.md`. Read it before any UI work. The essentials:
+
+- **Direction of truth: app code → design-system repo → Claude artifact.** Token values come from **this** repo's `src/app/globals.css` and the Tailwind classes in `src/`. The design system follows them. The published copy is the Claude artifact *Lyra Design System* (<https://claude.ai/artifact/7RRnLnaTnWaELbDzTXnVmV>). Proposals for change are before/after cards in the *Lyra Web Design* artifact (<https://claude.ai/artifact/FSRSD8jvTmi4SSr2r2esQS>), approved through the loop above.
+- **No build-time dependency.** Nothing in this app imports the design-system repo, and nothing may: it's private and Vercel couldn't read it. Agents pull it explicitly.
+- **Every session, before UI work:** attach or clone `luisa-sys/lyra-design-system`, `git pull --ff-only` its `main`, then run from this repo's root:
+  `python3 ../lyra-design-system/rebuild/check-token-drift.py --design ../lyra-design-system/claude-design/project/tokens.json --repo src/app/globals.css`.
+  Exit 0 = in sync. **Exit 1 = the design system is behind the app: re-sync the design system (PR in that repo) and tell Luisa. Never edit `globals.css` to match it.**
+- **Build with it:** read `claude-design/project/README.md` (brand book), `tokens.json` (values + usage notes), and `components/<Name>/README.md` + `preview.html`. Previews are specs, not code. Colours are used as `text-[var(--color-ink)]` / `bg-[var(--color-sage)]` (never the bare `[--color-…]` form). Spacing, radius, shadow and width map to classes such as `py-[15px]`, `px-[18px]`, `mt-11`, `rounded-[10px]` and `max-w-[760px]`: the full token → class table is in that repo's `CLAUDE.md` §3. Don't introduce colours the design system lacks. `#f4efe7`, `#ece7df`, `#544f49` and `#4f4a44` are known inline literals, deliberately not tokens.
+- **Change it:** only by PR in `lyra-design-system`, then publish to the artifact (a Claude session with the artifact tools) and refresh `claude-design/SNAPSHOT.json`. Never edit the artifact page directly, and never use the retired `DesignSync` / `claude.ai/design/p/…` route.
 
 ## Deployment Pipeline
 
