@@ -36,8 +36,13 @@ describe('validateQuestionInput', () => {
     expect(validateQuestionInput('A fine question?', ok).ok).toBe(true);
   });
 
-  it('strips markup from the wording', () => {
-    expect(cleanPromptText('What <b>really</b> matters?')).toBe('What really matters?');
+  it('rejects markup in the wording instead of stripping it', () => {
+    expect(validateQuestionInput('What <b>really</b> matters?', 300).ok).toBe(false);
+    expect(validateQuestionInput('Is 3 > 2?', 300).ok).toBe(false);
+  });
+
+  it('collapses whitespace in the wording', () => {
+    expect(cleanPromptText('  What   really\n matters? ')).toBe('What really matters?');
   });
 });
 

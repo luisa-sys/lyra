@@ -58,8 +58,15 @@ describe('KAN-484 question bank migration', () => {
   it.each(V08_PRESETS.map(([q, max], i) => [i + 1, q, max] as const))(
     'seeds preset %i with its exact wording and answer limit',
     (_n, question, max) => {
-      const escaped = question.replace(/'/g, "''").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      expect(sql).toMatch(new RegExp(`\\('${escaped}',\\s*\\d+,\\s*${max},\\s*true\\)`));
+      // Static pattern + exact comparison (no value interpolated into a
+      // RegExp): capture every seed row, then look the question up by
+      // equality, which is strictly stronger than a substring pattern.
+      const rows = new Map<string, number>();
+      for (const m of sql.matchAll(/^\s*\('((?:[^']|'')+)',\s*\d+,\s*(\d+),\s*true\)/gm)) {
+        rows.set(m[1].replace(/''/g, "'"), Number(m[2]));
+      }
+      expect(rows.size).toBe(16);
+      expect(rows.get(question)).toBe(max);
     },
   );
 
@@ -91,7 +98,7 @@ describe('KAN-484 question bank migration', () => {
 
   it('revokes EXECUTE on its trigger functions from public, anon and authenticated (gotcha #26)', () => {
     for (const fn of ['enforce_pcs_answer_max', 'enforce_pcs_custom_cap']) {
-      expect(sql).toMatch(new RegExp(`revoke execute on function public\\.${fn}\\(\\) from public, anon, authenticated`));
+      expect(sql).toContain(`revoke execute on function public.${fn}() from public, anon, authenticated`);
     }
   });
 });

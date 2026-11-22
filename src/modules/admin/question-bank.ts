@@ -30,10 +30,14 @@ export interface QuestionInput {
 
 export type QuestionValidation = { ok: true; value: QuestionInput } | { ok: false; error: string };
 
-/** Collapse internal whitespace and trim; strip anything that looks like markup. */
+/**
+ * Collapse internal whitespace and trim. Markup is REJECTED by
+ * validateQuestionInput rather than stripped here: hand-rolled tag stripping
+ * is incomplete by construction (CodeQL js/incomplete-multi-character-
+ * sanitization), and the text is rendered by React, which escapes it anyway.
+ */
 export function cleanPromptText(raw: unknown): string {
   return String(raw ?? '')
-    .replace(/<[^>]*>/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -42,6 +46,7 @@ export function cleanPromptText(raw: unknown): string {
 export function validateQuestionInput(rawPrompt: unknown, rawAnswerMax: unknown): QuestionValidation {
   const prompt = cleanPromptText(rawPrompt);
   if (prompt.length === 0) return { ok: false, error: 'The question cannot be empty.' };
+  if (/[<>]/.test(prompt)) return { ok: false, error: 'The question cannot contain < or >.' };
   if (prompt.length > PRESET_PROMPT_MAX) {
     return { ok: false, error: `The question must be ${PRESET_PROMPT_MAX} characters or fewer.` };
   }
