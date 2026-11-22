@@ -2027,7 +2027,7 @@
         "src/modules/profile/"
       ],
       "owns": {
-        "files": 46,
+        "files": 47,
         "tables": [
           "external_links",
           "profile_conversation_starters",

@@ -1403,11 +1403,13 @@ export type Database = {
       }
       profile_items: {
         Row: {
+          approved: boolean
           category: Database["public"]["Enums"]["item_category"]
           created_at: string | null
           description: string | null
           group_label: string | null
           id: string
+          origin: string
           profile_id: string
           sort_order: number | null
           title: string
@@ -1415,11 +1417,13 @@ export type Database = {
           visibility: Database["public"]["Enums"]["visibility_level"] | null
         }
         Insert: {
+          approved?: boolean
           category: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
           group_label?: string | null
           id?: string
+          origin?: string
           profile_id: string
           sort_order?: number | null
           title: string
@@ -1427,11 +1431,13 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["visibility_level"] | null
         }
         Update: {
+          approved?: boolean
           category?: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
           group_label?: string | null
           id?: string
+          origin?: string
           profile_id?: string
           sort_order?: number | null
           title?: string
@@ -1518,6 +1524,7 @@ export type Database = {
           avatar_url: string | null
           beta_approved_at: string | null
           beta_requested_at: string | null
+          billboard: string | null
           bio_short: string | null
           city: string | null
           completion_score: number | null
@@ -1528,6 +1535,7 @@ export type Database = {
           discoverable_by_phone: boolean
           discoverable_by_postcode: boolean
           display_name: string
+          first_published_at: string | null
           gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
@@ -1545,6 +1553,7 @@ export type Database = {
           section_visibility: Json
           share_availability_with_contacts: boolean
           slug: string
+          slug_confirmed: boolean
           suspended_at: string | null
           suspension_reason: string | null
           updated_at: string | null
@@ -1562,6 +1571,7 @@ export type Database = {
           avatar_url?: string | null
           beta_approved_at?: string | null
           beta_requested_at?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           completion_score?: number | null
@@ -1572,6 +1582,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name: string
+          first_published_at?: string | null
           gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
@@ -1589,6 +1600,7 @@ export type Database = {
           section_visibility?: Json
           share_availability_with_contacts?: boolean
           slug: string
+          slug_confirmed?: boolean
           suspended_at?: string | null
           suspension_reason?: string | null
           updated_at?: string | null
@@ -1606,6 +1618,7 @@ export type Database = {
           avatar_url?: string | null
           beta_approved_at?: string | null
           beta_requested_at?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           completion_score?: number | null
@@ -1616,6 +1629,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name?: string
+          first_published_at?: string | null
           gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
@@ -1633,6 +1647,7 @@ export type Database = {
           section_visibility?: Json
           share_availability_with_contacts?: boolean
           slug?: string
+          slug_confirmed?: boolean
           suspended_at?: string | null
           suspension_reason?: string | null
           updated_at?: string | null
@@ -2258,6 +2273,7 @@ export type Database = {
         Args: { p_end_at: string; p_start_at: string }
         Returns: Json
       }
+      is_reserved_lyra_id: { Args: { p_id: string }; Returns: boolean }
       moderation_log_row_hash: {
         Args: {
           p_action: string
@@ -2274,6 +2290,15 @@ export type Database = {
         Returns: string
       }
       oauth_connect_state_purge_expired: { Args: never; Returns: number }
+      profile_item_rule: {
+        Args: { p_category: string; p_origin: string }
+        Returns: {
+          cap: number
+          cap_group: string
+          description_max: number
+          title_max: number
+        }[]
+      }
       rate_limit_hit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
         Returns: {
