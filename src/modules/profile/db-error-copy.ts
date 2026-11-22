@@ -63,12 +63,25 @@ export const GENERIC_DB_ERROR = 'Something went wrong saving that. Please try ag
  * a `grep` from either direction finds the pair.
  */
 const TRIGGER_COPY: ReadonlyArray<readonly [RegExp, string]> = [
-  // 20260803160000_kan445_custom_conversation_prompts.sql:248
+  // 20261122120000_kan484_question_bank.sql (cap raised 3 -> 10, spec v0.8 §09;
+  // first introduced in 20260803160000_kan445_custom_conversation_prompts.sql)
   [
     /^custom question limit \(\d+\) reached/i,
-    'You can write up to 3 of your own questions. Remove one to add another.',
+    'You can write up to 10 of your own questions. Remove one to add another.',
   ],
-  // 20260516200200_conversation_starters.sql:31 and its later 5-cap sibling
+  // 20261122120000_kan484_question_bank.sql — enforce_pcs_answer_max()
+  [
+    /^answer is longer than \d+ characters/i,
+    'That answer is longer than this question allows. Please shorten it.',
+  ],
+  // 20261122120000_kan484_question_bank.sql — enforce_pcs_answer_max()
+  [
+    /^unknown question/i,
+    'That question is no longer available.',
+  ],
+  // 20260516200200_conversation_starters.sql:31 and its later 5-cap sibling.
+  // KAN-484 drops this trigger; the entry stays until the migration has
+  // reached every environment, because code is promoted ahead of migrations.
   [
     /^conversation-starter answer limit \(\d+\) reached/i,
     'You can answer up to 10 prompts. Remove one to add another.',

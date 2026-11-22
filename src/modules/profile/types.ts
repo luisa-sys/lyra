@@ -112,6 +112,9 @@ export interface ConversationPrompt {
   id: string;
   prompt: string;
   sort_order: number;
+  /** KAN-484 — this question's own answer limit (v0.8 §09). Absent on a
+   *  database that predates 20261122120000, where the default (500) applies. */
+  answer_max?: number | null;
 }
 
 export interface ConversationAnswer {
@@ -122,5 +125,8 @@ export interface ConversationAnswer {
   prompt: string; // the seeded prompt joined for display, or the member's own
   /** The member's own question text; null for a seeded prompt. */
   custom_prompt: string | null;
+  /** KAN-484 — the joined preset's answer limit; null for a member-written
+   *  question (CUSTOM_ANSWER_MAX applies) or a pre-migration database. */
+  answer_max?: number | null;
 }
 

@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { SaveButton, type ConversationPrompt, type ConversationAnswer } from './types';
 import {
-  ANSWER_MAX,
-  ANSWER_CAP,
+  CUSTOM_ANSWER_MAX,
   CUSTOM_PROMPT_MAX,
   CUSTOM_ANSWER_CAP,
+  answerLimitFor,
 } from '../conversation-starters-fields';
 
 /**
@@ -19,14 +19,14 @@ import {
  *      flow tight in a multi-step wizard. A question the member wrote
  *      themselves can have its wording edited too.
  *   2. **Unanswered** — offered prompts not yet answered, each clickable to
- *      expand into an answer form. Hidden when the answer cap is hit
- *      so the user isn't tempted by something they can't add.
- *   3. **Write your own** (KAN-445) — up to three questions of the member's
- *      own, question and answer both supplied by them.
+ *      expand into an answer form. KAN-484 (v0.8 §09): there is no total
+ *      answer cap any more, and each preset carries its own answer limit.
+ *   3. **Write your own** (KAN-445) — up to ten questions of the member's
+ *      own (v0.8 §09), question and answer both supplied by them.
  *
- * Both caps are enforced at the DB layer (BEFORE INSERT/UPDATE triggers); the
- * UI mirrors them for a friendly nudge and to hide the "add" affordances
- * when at limit.
+ * The custom-question cap and every answer limit are enforced at the DB layer
+ * (BEFORE INSERT/UPDATE triggers); the UI mirrors them for a friendly nudge
+ * and to hide the "add" affordance when at the custom cap.
  */
 
 export function ConversationStartersStep({
@@ -49,10 +49,12 @@ export function ConversationStartersStep({
   // disappearing into a transition. Same shape as ItemsStep's onEdit.
   // `customPrompt` is omitted when the member edited only the answer, so the
   // saved question is left untouched.
+  // KAN-484 — `promptId` lets the server apply the preset's own answer limit.
   onUpdate: (
     id: string,
     answer: string,
     customPrompt?: string,
+    promptId?: string | null,
   ) => Promise<{ success: boolean; error?: string }>;
   onRemove: (id: string) => void;
   onNext: () => void;
@@ -74,7 +76,6 @@ export function ConversationStartersStep({
 
   const answeredPromptIds = new Set(answers.map((a) => a.prompt_id));
   const unanswered = prompts.filter((p) => !answeredPromptIds.has(p.id));
-  const atCap = answers.length >= ANSWER_CAP;
   const ownCount = answers.filter((a) => a.prompt_id === null).length;
   const ownLeft = Math.max(0, CUSTOM_ANSWER_CAP - ownCount);
 
@@ -105,7 +106,7 @@ export function ConversationStartersStep({
     setEditError(null);
   }
 
-  async function handleSaveEdit(isOwnQuestion: boolean) {
+  async function handleSaveEdit(isOwnQuestion: boolean, promptId: string | null) {
     if (!editingId || !editingAnswer.trim()) return;
     if (isOwnQuestion && !editingPrompt.trim()) return;
     setEditSaving(true);
@@ -116,6 +117,7 @@ export function ConversationStartersStep({
       editingId,
       editingAnswer.trim(),
       isOwnQuestion ? editingPrompt.trim() : undefined,
+      promptId,
     );
     setEditSaving(false);
     if (!res.success) {
@@ -160,13 +162,13 @@ export function ConversationStartersStep({
                   )}
                   <textarea
                     value={editingAnswer}
-                    onChange={(e) => setEditingAnswer(e.target.value.slice(0, ANSWER_MAX))}
+                    onChange={(e) => setEditingAnswer(e.target.value.slice(0, answerLimitFor(a.answer_max, a.prompt_id === null)))}
                     rows={3}
                     className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
                   {editError && <p role="alert" className="text-xs text-red-600">{editError}</p>}
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--color-muted)]">{editingAnswer.length} / {ANSWER_MAX}</span>
+                    <span className="text-[var(--color-muted)]">{editingAnswer.length} / {answerLimitFor(a.answer_max, a.prompt_id === null)}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -178,7 +180,7 @@ export function ConversationStartersStep({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleSaveEdit(a.prompt_id === null)}
+                        onClick={() => handleSaveEdit(a.prompt_id === null, a.prompt_id)}
                         disabled={
                           editSaving
                           || isPending
@@ -220,18 +222,14 @@ export function ConversationStartersStep({
         </div>
       )}
 
-      {atCap ? (
-        <p className="text-sm text-[var(--color-muted)] italic">
-          You&rsquo;ve answered {ANSWER_CAP} prompts — the max. Remove one to add another.
-        </p>
-      ) : unanswered.length === 0 ? (
+      {unanswered.length === 0 ? (
         <p className="text-sm text-[var(--color-muted)] italic">
           You&rsquo;ve answered all available prompts. Nice.
         </p>
       ) : (
         <div className="space-y-2">
           <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">
-            Questions you could answer ({ANSWER_CAP - answers.length} answer{ANSWER_CAP - answers.length === 1 ? '' : 's'} left)
+            Questions you could answer
           </p>
           {unanswered.map((p) => (
             <div
@@ -251,13 +249,13 @@ export function ConversationStartersStep({
                   <textarea
                     autoFocus
                     value={newAnswer}
-                    onChange={(e) => setNewAnswer(e.target.value.slice(0, ANSWER_MAX))}
+                    onChange={(e) => setNewAnswer(e.target.value.slice(0, answerLimitFor(p.answer_max, false)))}
                     rows={3}
                     placeholder="Example: I'd take one battered paperback and a very large pot of coffee."
                     className="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-white"
                   />
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--color-muted)]">{newAnswer.length} / {ANSWER_MAX}</span>
+                    <span className="text-[var(--color-muted)]">{newAnswer.length} / {answerLimitFor(p.answer_max, false)}</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -284,9 +282,9 @@ export function ConversationStartersStep({
         </div>
       )}
 
-      {/* KAN-445 — write your own. Hidden at either cap so the member is never
-          offered something the database would refuse. */}
-      {!atCap && ownLeft > 0 && (
+      {/* KAN-445 — write your own. Hidden at the custom cap so the member is
+          never offered something the database would refuse. */}
+      {ownLeft > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">
             Or ask yourself something ({ownLeft} of your own left)
@@ -312,7 +310,7 @@ export function ConversationStartersStep({
                 />
                 <textarea
                   value={ownAnswer}
-                  onChange={(e) => setOwnAnswer(e.target.value.slice(0, ANSWER_MAX))}
+                  onChange={(e) => setOwnAnswer(e.target.value.slice(0, CUSTOM_ANSWER_MAX))}
                   rows={3}
                   aria-label="Your answer"
                   placeholder="Your answer"
@@ -320,7 +318,7 @@ export function ConversationStartersStep({
                 />
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-[var(--color-muted)]">
-                    {ownPrompt.length} / {CUSTOM_PROMPT_MAX} · {ownAnswer.length} / {ANSWER_MAX}
+                    {ownPrompt.length} / {CUSTOM_PROMPT_MAX} · {ownAnswer.length} / {CUSTOM_ANSWER_MAX}
                   </span>
                   <div className="flex gap-2">
                     <button

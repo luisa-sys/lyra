@@ -8,7 +8,18 @@
   },
   "drift": {
     "dev_vs_staging": {
-      "only_in_first": [],
+      "only_in_first": [
+        {
+          "line": "column:conversation_starter_prompts.answer_max",
+          "ticket": "KAN-484",
+          "note": "v0.8 question bank (epic KAN-482). DEV is ahead by design: migration 20261122120000_kan484_question_bank.sql is applied on dev only, for the founder's first-draft review. It reaches staging/prod through the normal chain; remove this entry then."
+        },
+        {
+          "line": "column:conversation_starter_prompts.updated_at",
+          "ticket": "KAN-484",
+          "note": "Same migration as answer_max above; same removal condition."
+        }
+      ],
       "only_in_second": [
         {
           "line": "column:gathering_invite_messages.claimed_at",

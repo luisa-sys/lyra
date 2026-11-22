@@ -72,7 +72,7 @@ export default async function ProfilePage() {
 
   const { data: conversationPrompts } = await supabase
     .from('conversation_starter_prompts')
-    .select('id, prompt, sort_order')
+    .select('*') // KAN-484: `*` so a DB without `answer_max` yet does not 42703 the editor
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
   const { data: starterRows } = await supabase
@@ -82,16 +82,17 @@ export default async function ProfilePage() {
     // before its migration runs — PostgREST rejects the WHOLE query with 42703
     // if a named column is absent, which would blank the profile editor. `*`
     // returns the column once it exists and simply omits it before then.
-    .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(prompt)')
+    .select('*, prompt:conversation_starter_prompts!profile_conversation_starters_prompt_id_fkey(*)')
     .eq('profile_id', profile.id)
     .order('created_at', { ascending: true });
   const conversationAnswers = (starterRows ?? []).map((r) => {
     // Supabase typegen sometimes flattens the joined row to an object,
     // sometimes to an array — handle both shapes.
     const promptCandidate = r.prompt as unknown;
-    const joinedPrompt = Array.isArray(promptCandidate)
-      ? ((promptCandidate[0] as { prompt: string } | undefined)?.prompt ?? '')
-      : ((promptCandidate as { prompt: string } | null)?.prompt ?? '');
+    const joinedRow = (Array.isArray(promptCandidate)
+      ? (promptCandidate[0] as { prompt?: string; answer_max?: number | null } | undefined)
+      : (promptCandidate as { prompt?: string; answer_max?: number | null } | null)) ?? null;
+    const joinedPrompt = joinedRow?.prompt ?? '';
     const customPrompt = (r.custom_prompt as string | null | undefined) ?? null;
     return {
       id: r.id as string,
@@ -100,6 +101,7 @@ export default async function ProfilePage() {
       // A member-written question IS the question shown above the answer.
       prompt: customPrompt ?? joinedPrompt,
       custom_prompt: customPrompt,
+      answer_max: customPrompt ? null : (joinedRow?.answer_max ?? null),
     };
   });
 

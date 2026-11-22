@@ -449,8 +449,8 @@ export function EditProfileForm({
                           // edits, so a moderation block surfaces on the answer
                           // being edited instead of only flipping the section
                           // status to error.
-                          onUpdate={async (id, answer, customPrompt) => {
-                            const res = await updateConversationStarter(id, answer, customPrompt);
+                          onUpdate={async (id, answer, customPrompt, promptId) => {
+                            const res = await updateConversationStarter(id, answer, customPrompt, promptId);
                             if (res.success) router.refresh();
                             return { success: res.success, error: res.success ? undefined : res.error };
                           }}

@@ -2027,9 +2027,8 @@
         "src/modules/profile/"
       ],
       "owns": {
-        "files": 45,
+        "files": 46,
         "tables": [
-          "conversation_starter_prompts",
           "external_links",
           "profile_conversation_starters",
           "profile_files",
@@ -3223,8 +3222,10 @@
         "src/modules/admin/"
       ],
       "owns": {
-        "files": 21,
-        "tables": [],
+        "files": 25,
+        "tables": [
+          "conversation_starter_prompts"
+        ],
         "rpcs": [
           "admin_filter_profile_ids",
           "admin_list_users"
@@ -3397,7 +3398,7 @@
         "profile_files": "profile",
         "profile_manual_of_me": "profile",
         "profile_conversation_starters": "profile",
-        "conversation_starter_prompts": "profile",
+        "conversation_starter_prompts": "admin",
         "external_links": "profile",
         "school_affiliations": "profile",
         "gatherings": "convene",
