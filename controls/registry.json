@@ -1413,6 +1413,22 @@
       ],
       "escape_hatch": "none - the inventory, its count and its checklist are three statements of one fact; if they disagree one of them is wrong. A service that genuinely needs no checklist belongs outside the inventory, recorded with its reason (the Claude Design / KAN-441 precedent in ARCHITECTURE.md).",
       "added": "2026-08-16"
+    },
+    {
+      "id": "CTL-080",
+      "name": "school_affiliations public reads require show_on_profile",
+      "defect_class": "rls-predicate-omitted",
+      "summary": "SEC-196: both public SELECT policies on school_affiliations omitted show_on_profile, so every hidden ('searchable but hidden') affiliation of every published profile was readable with the public anon key via PostgREST (29 rows on production). One of the two policies was created out-of-band and existed in no migration. The control replays every migration in timestamp order to model the final effective policy set and fails if any anon-reachable read policy on the table omits show_on_profile = true; SQL comments are stripped before matching so a comment quoting the predicate cannot satisfy it (catalogue failure mode 2), and the corpus is asserted non-empty first (failure mode 4). Stated gap: it reads migrations, not live databases, so a policy created out-of-band (exactly how the second policy arose) is invisible to it; the live backstop for that class is CTL-024. Mutation-proven: removing the predicate from the fix migration reddens 2 cases; adding a later migration with an open 'using (true)' policy reddens 1.",
+      "implementation": "tests/unit/hidden-affiliations-public-read-rls.test.js",
+      "kind": "test",
+      "wired_in": [
+        ".github/workflows/pr-checks.yml"
+      ],
+      "prevents": [
+        "SEC-196"
+      ],
+      "escape_hatch": null,
+      "added": "2026-11-22"
     }
   ]
 }
