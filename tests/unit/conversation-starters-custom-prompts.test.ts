@@ -220,18 +220,18 @@ describe('KAN-445 the member-written question is public text — BOTH paths', ()
     expect(String(writePayload('update').custom_prompt)).not.toContain('<i>');
   });
 
-  it('caps the question at 140 characters on ADD', async () => {
+  it('caps the question at 180 characters on ADD', async () => {
     await addConversationStarter({ customPrompt: 'q'.repeat(400), answer: 'A kettle.' });
 
     // Mirrors `pcs_custom_prompt_length`; an uncapped path fails with a raw
     // 23514 instead of a clean truncation.
-    expect(String(writePayload('insert').custom_prompt)).toHaveLength(140);
+    expect(String(writePayload('insert').custom_prompt)).toHaveLength(180);
   });
 
-  it('caps the question at 140 characters on UPDATE', async () => {
+  it('caps the question at 180 characters on UPDATE', async () => {
     await updateConversationStarter('a1', 'A kettle.', 'q'.repeat(400));
 
-    expect(String(writePayload('update').custom_prompt)).toHaveLength(140);
+    expect(String(writePayload('update').custom_prompt)).toHaveLength(180);
   });
 
   it('refuses a question that is empty once stripped, writing nothing', async () => {
@@ -300,7 +300,7 @@ describe('KAN-445 cap errors — the custom cap must be read BEFORE the general 
     // who filled their three own questions is told to delete one of their ten
     // answers — advice that does not fix anything.
     if (!res.success) {
-      expect(res.error).toMatch(/up to 3 of your own questions/i);
+      expect(res.error).toMatch(/up to 10 of your own questions/i);
       expect(res.error).not.toMatch(/up to 10 prompts/i);
     }
   });
@@ -323,7 +323,7 @@ describe('KAN-445 cap errors — the custom cap must be read BEFORE the general 
     const res = await updateConversationStarter('a1', 'x', 'A fourth?');
 
     expect(res.success).toBe(false);
-    if (!res.success) expect(res.error).toMatch(/up to 3 of your own questions/i);
+    if (!res.success) expect(res.error).toMatch(/up to 10 of your own questions/i);
   });
 });
 

@@ -59,6 +59,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Features
               </Link>
               <Link
+                href="/admin/questions"
+                className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+              >
+                Questions
+              </Link>
+              <Link
                 href="/admin/moderation"
                 className="text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
               >

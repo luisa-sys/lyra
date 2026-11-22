@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
+import { CUSTOM_PROMPT_MAX, answerLimitFor } from './conversation-starters-fields';
+import { fetchPresetAnswerMax } from '@/modules/profile/question-limits';
 import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 /**
@@ -18,11 +19,13 @@ import { dbErrorFor } from '@/modules/profile/db-error-copy';
  *     `user_id = auth.uid()`. RLS enforces the same at the DB layer
  *     but the application checks too so error messages are useful.
  *  3. **Answer sanitised + length-capped.** `sanitiseText` strips HTML;
- *     length cap mirrors the DB CHECK (≤500 chars). Empty / whitespace-
- *     only answers rejected client- and server-side.
+ *     the length cap is the preset's own `answer_max` (KAN-484, v0.8 §09)
+ *     or 500 for a member-written question, mirroring the DB trigger
+ *     `enforce_pcs_answer_max()`. Empty / whitespace-only answers rejected
+ *     client- and server-side.
  *
- * The answer cap is enforced by the DB trigger `pcs_cap`; we surface
- * it as a user-facing error instead of a raw Postgres exception.
+ * KAN-484 removed the total-answer cap (`pcs_cap`); the custom-question cap
+ * (10) is enforced by `pcs_custom_cap` and surfaced as friendly copy.
  *
  * KAN-445 — a row is now EITHER a seeded prompt (`prompt_id`) OR a question
  * the member wrote themselves (`custom_prompt`), never both and never
@@ -120,7 +123,18 @@ export async function addConversationStarter(input: {
     customPrompt = res.text;
   }
 
-  const cleaned = sanitiseText(input.answer ?? '').slice(0, ANSWER_MAX);
+  // KAN-484 — each preset carries its own answer limit (v0.8 §09); a
+  // member-written question's answer is capped at CUSTOM_ANSWER_MAX.
+  let limit = answerLimitFor(null, true);
+  if (hasPromptId) {
+    const preset = await fetchPresetAnswerMax(supabase, input.promptId as string);
+    if (!preset.found) {
+      return { success: false, error: 'That question is no longer available' };
+    }
+    limit = answerLimitFor(preset.answerMax, false);
+  }
+
+  const cleaned = sanitiseText(input.answer ?? '', limit);
   if (cleaned.trim().length === 0) {
     return { success: false, error: 'Answer cannot be empty' };
   }
@@ -164,6 +178,7 @@ export async function updateConversationStarter(
   id: string,
   answer: string,
   customPrompt?: string,
+  promptId?: string | null,
 ): Promise<ActionResult> {
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
@@ -184,7 +199,20 @@ export async function updateConversationStarter(
     cleanedPrompt = res.text;
   }
 
-  const cleaned = sanitiseText(answer ?? '').slice(0, ANSWER_MAX);
+  // KAN-484 — the preset's own limit when the caller names the preset; a
+  // member-written question (no promptId) uses CUSTOM_ANSWER_MAX. The DB
+  // trigger enforces the true limit either way, so a wrong promptId from the
+  // client can only make this courtesy cap stricter or looser, never bypass
+  // the database. The limit is read from the prompts table, NOT a pre-read of
+  // profile_conversation_starters, so the ownership filter on the UPDATE
+  // stays the only `.eq('profile_id', …)` on that table (pooled-eq hazard).
+  let limit = answerLimitFor(null, true);
+  if (typeof promptId === 'string' && /^[0-9a-f-]{36}$/i.test(promptId)) {
+    const preset = await fetchPresetAnswerMax(supabase, promptId);
+    if (preset.found) limit = answerLimitFor(preset.answerMax, false);
+  }
+
+  const cleaned = sanitiseText(answer ?? '', limit);
   if (cleaned.trim().length === 0) {
     return { success: false, error: 'Answer cannot be empty' };
   }

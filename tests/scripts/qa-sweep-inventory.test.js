@@ -379,7 +379,7 @@ describe('qa-sweep/inventory.py — scope flags', () => {
     const adminPages = INV.routes.filter(
       (r) => r.kind === 'page' && r.path.startsWith('/admin'),
     );
-    expect(adminPages.length).toBe(11); // verified independently: find src/app/admin -name page.tsx
+    expect(adminPages.length).toBe(12); // verified independently: find src/app/admin -name page.tsx (KAN-484 added /admin/questions)
     expect(INV.counts.pages_by_surface.admin).toBe(adminPages.length);
     expect(INV.counts.pages).toBeGreaterThanOrEqual(adminPages.length);
   });
