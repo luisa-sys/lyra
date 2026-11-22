@@ -18,6 +18,41 @@
           "line": "column:conversation_starter_prompts.updated_at",
           "ticket": "KAN-484",
           "note": "Same migration as answer_max above; same removal condition."
+        },
+        {
+          "line": "column:profile_items.approved",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profile_items.origin",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profiles.billboard",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profiles.first_published_at",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profiles.slug_confirmed",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "function:is_reserved_lyra_id",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "function:profile_item_rule",
+          "ticket": "KAN-485",
+          "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
         }
       ],
       "only_in_second": [

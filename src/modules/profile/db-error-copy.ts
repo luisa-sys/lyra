@@ -86,6 +86,26 @@ const TRIGGER_COPY: ReadonlyArray<readonly [RegExp, string]> = [
     /^conversation-starter answer limit \(\d+\) reached/i,
     'You can answer up to 10 prompts. Remove one to add another.',
   ],
+  // 20261123090000_kan485_profile_model_v08.sql — enforce_profile_item_rules()
+  // and enforce_affiliation_rules() (spec v0.8 per-section caps and limits).
+  [/^section limit \(\d+\) reached/i, 'You’ve reached the limit for this section. Remove an entry to add another.'],
+  [/^title is required/i, 'Please add a title.'],
+  [/^title is longer than \d+ characters/i, 'That title is too long. Please shorten it.'],
+  [/^description is longer than \d+ characters/i, 'That description is too long. Please shorten it.'],
+  [/^links must start with http/i, 'Links must start with http:// or https://.'],
+  [/^name is required/i, 'Please add a name.'],
+  [/^name is longer than \d+ characters/i, 'That name is too long. Please shorten it.'],
+  [/^location is longer than \d+ characters/i, 'That location is too long. Please shorten it.'],
+  [/^postcode is required for a school/i, 'Please add the school’s postcode.'],
+  [/^postcode is longer than \d+ characters/i, 'That postcode is too long.'],
+  // 20261123090000_kan485_profile_model_v08.sql — enforce_profile_identity_rules()
+  [/^invalid checklyra id/i, 'Use 3–30 letters, numbers or underscores for your CheckLyra ID.'],
+  [/^reserved checklyra id/i, 'That ID is reserved. Please choose another.'],
+  [/^checklyra id cannot be changed after publishing/i, 'Your CheckLyra ID can’t be changed after publishing.'],
+  [/^publishing needs a profile photo/i, 'Add a profile photo to publish.'],
+  [/^publishing needs a display name/i, 'Add a display name to publish.'],
+  [/^publishing needs a checklyra id/i, 'Choose your CheckLyra ID to publish.'],
+  [/^a published profile needs a profile photo/i, 'A published profile needs a photo. Add a new photo before removing this one.'],
   // 20260516180000_profile_files.sql:46 — NOT previously mapped anywhere.
   // Its absence is exactly the collision described in the header: without its
   // own entry it would fall into the conversation-starter copy.
