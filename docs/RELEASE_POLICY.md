@@ -36,6 +36,8 @@ When the security alert is filed:
 3. Promote develop → staging → beta → main without waiting for the weekly cron — manually via `gh workflow run promote-to-staging.yml -f confirm=promote`.
 4. Confirm the alert is closed in GitHub Security tab and the corresponding KAN/BUGS ticket is closed.
 
+**Dependency freshness (SEC-197, 2026-11-23).** Getting the fix *onto* `develop` is governed by `docs/DEPENDENCY_POLICY.md`: any vulnerable dependency (any severity) or any dependency >90 days old with a newer release must be upgraded — critical/high on `develop` within 2 days of a fix existing, moderate/low and age findings within 14 days — or carry a dated waiver. The 24-hour clock above then runs from the merge to `develop`. The promote chain is unchanged (SEC-98) and is the founder's step; a Dependabot security PR that targets `main` (SEC-190) is never merged — fix on `develop`, promote, then close it.
+
 ## When NOT to release
 
 Don't auto-promote (suspend the cron) and don't manually promote when:

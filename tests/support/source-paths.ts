@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 258 entries.
+// 260 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -29,6 +29,7 @@ export const SRC = {
   backupDatabase: '.github/workflows/backup-database.yml',
   backupRestoreTest: '.github/workflows/backup-restore-test.yml',
   dbInvariants: '.github/workflows/db-invariants.yml',
+  dependencyFreshness: '.github/workflows/dependency-freshness.yml',
   deployBeta: '.github/workflows/deploy-beta.yml',
   deployDev: '.github/workflows/deploy-dev.yml',
   deployProduction: '.github/workflows/deploy-production.yml',
@@ -59,6 +60,7 @@ export const SRC = {
   checkCommentOnlyAssertions: 'scripts/check-comment-only-assertions.py',
   checkCompleteBackup: 'scripts/check-complete-backup.sh',
   checkControlRegistry: 'scripts/check-control-registry.py',
+  checkDependencyFreshness: 'scripts/check-dependency-freshness.py',
   checkDependencyRules: 'scripts/check-dependency-rules.sh',
   checkDesignBaseline: 'scripts/check-design-baseline.py',
   checkDocMirrorContent: 'scripts/check-doc-mirror-content.sh',

@@ -555,7 +555,7 @@ see SEC-131, because there all three databases agreed perfectly.
 
 ## Scheduled Workflows (GitHub Actions)
 
-DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns found
+DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns foundDaily05:40dependency-freshness.ymlDependency freshness (SEC-197 / CTL-081): vulnerable or >90-day-old dependencies → one tracking GitHub issue
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
@@ -762,6 +762,14 @@ Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E
 - Writes detailed advisory table to GitHub Actions step summary
 - Workflow fails (red status) when high/critical vulns detected — visible in GitHub UI
 - Manual trigger: GitHub → Actions → "Weekly Security Audit" → Run workflow
+
+### Dependency freshness (daily 05:40 UTC) — SEC-197 / CTL-081
+
+- Its own workflow, `.github/workflows/dependency-freshness.yml` (manual trigger: GitHub → Actions → "Dependency Freshness" → Run workflow). Deliberately NOT a job in `security-audit.yml`: CTL-072 counts any successful run, so a daily job there would mask a weekly audit that stopped succeeding. Watched by CTL-072 at 36h.
+- Runs `python3 scripts/check-dependency-freshness.py --report --report-only`: every npm advisory at any severity (full tree), every direct dependency >90 days old with a newer release, and every Node major pinned by `node-version:`.
+- Opens / updates / closes ONE issue, *"Dependency freshness — out-of-policy dependencies (SEC-197)"*, label `dependencies`. Green on findings — the issue is the work item. The issue is also updated when a waiver has expired or is malformed (the run is red then too); it is left untouched only when the measurement itself failed.
+- **Red means act:** exit 1 = a waiver in `security/dependency-freshness-waivers.json` expired or is malformed (upgrade, or renew with a fresh reason); exit 2 = the measurement failed (npm audit / registry / nodejs.org unreachable after retries) — re-run, and investigate if it persists.
+- The blocking half is the `pr-checks.yml` step, which fires only on PRs changing `package.json` / `package-lock.json` / the waiver file. Policy: `docs/DEPENDENCY_POLICY.md`.
 
 ## Incident Response
 
