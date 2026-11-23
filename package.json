@@ -52,7 +52,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dependency-cruiser": "^18.9.0",
+    "dependency-cruiser": "^17.4.3",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.6",
     "jest": "^30.5.2",
