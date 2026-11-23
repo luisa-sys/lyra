@@ -84,17 +84,19 @@ processing). Founder is the accountable data-protection lead.
 - **Lawful basis:** Art. 6(1)(b) contract (service emails); consent for any marketing.
 - **Recipients/processors:** Resend.
 
-### P9 — AI gift suggestions (KAN-489) — DRAFT, FOUNDER APPROVAL REQUIRED
-> Drafted with the feature. It is OFF in every environment until the founder
-> signs this entry off and sets `LYRA_AI_GIFTS_ENABLED=1` (see
+### P9 — AI gift suggestions (KAN-489) — FOUNDER-APPROVED 2026-11-23, NOT YET ACTIVE
+> Drafted with the feature; consent copy and this entry approved by the
+> founder in chat on 2026-11-23. It stays OFF, and Anthropic is NOT YET
+> ACTIVE as a processor, in every environment until a spend limit,
+> `ANTHROPIC_API_KEY` and `LYRA_AI_GIFTS_ENABLED=1` are set there (see
 > FOUNDER_CHECKLIST.md §B).
 
 - **Personal data:** the member's saved, self-authored profile text (headline, about, gift preferences, Billboard, list items in public or members-only sections, "To understand me a little better", question answers) disclosed to the AI provider per request; the returned suggestions (`profile_items` rows, `origin='ai'`); a claim log (`ai_gift_generations`: timestamp, random editor-session id, consent-note version). Not sent: name, CheckLyra ID, location, photo, affiliations, email.
 - **Purpose:** suggest gift ideas the member can approve onto their own profile.
-- **Lawful basis (to confirm):** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
+- **Lawful basis:** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
 - **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (only the last 24 h is read).
 - **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
-- **Open points for the founder:** approve the consent copy; decide whether members-only items may be sent; confirm the provider's data-retention / no-training terms and the transfer mechanism.
+- **Decided 2026-11-23 (founder):** consent copy approved (version `v1-2026-11-23`); members-only items may be sent. **Still to record:** the provider's data-retention / no-training terms and the transfer mechanism (SUBPROCESSORS.md), before the key is set.
 
 ### P10 — Affiliation-based discovery (search) (KAN-482, added 2026-11-23)
 > Recorded in the main privacy specification by founder decision 2026-11-23

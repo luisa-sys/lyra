@@ -6,9 +6,11 @@
  * Copy sources: the toggle, Generate, counter, "AI suggestion" badge,
  * Approve / Delete, the refused / no-content / cap / filtered / didn't-fit
  * messages and the not-configured line are from the KAN-489 plan approved
- * against spec v0.8. The consent text is a DRAFT for founder approval (spec
- * v0.8 §03 OPEN DECISION "Confirm AI data-sharing/consent copy"). The
- * session / daily / cooldown / rate-limit lines are proposed copy.
+ * against spec v0.8. The consent text was approved by the founder in chat on
+ * 2026-11-23 (closing spec v0.8 §03 OPEN DECISION "Confirm AI
+ * data-sharing/consent copy"). The session / daily / cooldown / rate-limit
+ * lines are still proposed copy (not in the spec or the plan, and not part
+ * of the 2026-11-23 approvals).
  *
  * PURE: no `'use client'`, no Supabase, no SDK.
  */
@@ -30,7 +32,7 @@ export const AI_NOT_CONFIGURED_COPY = 'AI gift suggestions aren’t available ye
 export const AI_CAP_FULL_COPY = 'Remove a suggestion to generate more';
 export const AI_CONSENT_ACK_LABEL = 'Got it';
 
-// DRAFT COPY — FOUNDER APPROVAL REQUIRED (spec v0.8 §03 OPEN DECISION).
+// Founder-approved consent copy (chat, 2026-11-23; spec v0.8 §03).
 // Its version is AI_CONSENT_VERSION in src/modules/profile/ai-gifts/types.ts:
 // bump that whenever this text changes (the server records the version).
 export const AI_CONSENT_COPY =

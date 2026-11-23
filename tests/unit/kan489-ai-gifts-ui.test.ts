@@ -108,9 +108,9 @@ describe('aiRemainingAfter', () => {
   });
 });
 
-describe('consent draft copy', () => {
-  it('the copy below is consent version draft-2026-11-23 (bump the version when the copy changes)', () => {
-    expect(AI_CONSENT_VERSION).toBe('draft-2026-11-23');
+describe('consent copy (founder-approved 2026-11-23)', () => {
+  it('the copy below is consent version v1-2026-11-23 (bump the version when the copy changes)', () => {
+    expect(AI_CONSENT_VERSION).toBe('v1-2026-11-23');
   });
 
   it('names what is shared, what is not, the provider, and that nothing is public until approved', () => {
