@@ -343,8 +343,11 @@ delete the legacy profile wizard and its tests (Test Integrity Policy).
   (`wizard.tsx`, `steps/*`, `sections/*`, `legacy/page.tsx`,
   `geo/places-schools-lookup.ts`). No test file was deleted; 13 files were
   trimmed. The per-test list is in the PR body.
-- **−6 parameterised cases** in `source-path-manifest-integrity`, one per `SRC`
-  key (258 → 251).
+- **−6 parameterised cases** in `source-path-manifest-integrity` (measured
+  252 → 246). That suite registers one case per distinct `SRC` key that test
+  CODE references, not one per manifest entry, so it does not track the
+  manifest count: `SRC` went 258 → 251 (8 keys removed with the deleted files,
+  1 seeded), and the number of distinct referenced keys fell by 6.
 - **Repointed, not deleted:** assertions that still describe live behaviour
   were moved to the v0.8 editor files (`editor/item-list-editor.tsx`,
   `editor/photo-field.tsx`, `editor/section-affiliations.tsx`,
