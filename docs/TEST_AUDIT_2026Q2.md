@@ -325,3 +325,41 @@ age-gate, publish, suspension, ownership). That remains open on KAN-356, as do
 legs **A** (runtime cross-user isolation in `lyra-mcp-server`), **B** (Stryker
 scope + a measured `thresholds.break`) and **D** (the authenticated E2E
 journey).
+
+---
+
+## Addendum — 2026-11-23 (KAN-487 part 3: legacy wizard/editor deleted)
+
+Recorded under the KAN-359 Documentation Definition-of-Done because the floor
+moved **down**. That is a deliberate deletion, not a regression: the founder
+gave explicit sign-off in chat on 2026-11-23 ("go ahead with the clean-up") to
+delete the legacy profile wizard and its tests (Test Integrity Policy).
+
+**Floor: 5,836 → 5,763 tests (367 → 367 suites); generated floor 367 files /
+4,605 blocks → 367 / 4,554.** Both measured on the same machine
+(`develop` `00ed032` in a sibling worktree, then this branch).
+
+- **−67 hand-written tests** that read or imported deleted files
+  (`wizard.tsx`, `steps/*`, `sections/*`, `legacy/page.tsx`,
+  `geo/places-schools-lookup.ts`). No test file was deleted; 13 files were
+  trimmed. The per-test list is in the PR body.
+- **−6 parameterised cases** in `source-path-manifest-integrity`, one per `SRC`
+  key (258 → 251).
+- **Repointed, not deleted:** assertions that still describe live behaviour
+  were moved to the v0.8 editor files (`editor/item-list-editor.tsx`,
+  `editor/photo-field.tsx`, `editor/section-affiliations.tsx`,
+  `editor/section-questions.tsx`, `editor/section-problems.tsx`, `page.tsx`,
+  `editor-state.ts`, `validate-save-payload.ts`): 20 tests across
+  `inline-item-edit` (4), `photo-upload` (5), `profile-item-url` (3),
+  `current-problems-category` (2), `conversation-starters-custom-prompts` (2),
+  `conversation-starters` (1) and `kan451-schools-picker` (3). Every repoint was
+  mutation-proven (13 mutations, each asserted to have applied, each reddening
+  the repointed test, each restored and verified clean).
+- **Ratchets:** CTL-077 source-scan inventory 149 files / 339 blocks → 147 /
+  327. ⚠️ One file went **up** (`photo-upload.test.js` 3 → 4) and was
+  baselined: the classifier splits on `test(` and attributes the next
+  describe's `beforeAll` read to the last test of the repointed describe, which
+  turned a copy-pin block into a "behavioural" one. That last test is in fact
+  behavioural (it calls `preCheckPhotoFile`). CTL-039 lost one stale entry
+  (`photo-upload` → `identity-step.tsx`).
+

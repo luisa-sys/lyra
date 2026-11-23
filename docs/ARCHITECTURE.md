@@ -137,7 +137,7 @@ imports still worked; **new code should import from `@/modules/profile/types`.**
 components), the autosave `sections/*` files (`use-auto-save.tsx`,
 `auto-save-core.ts`, `section-save-bar.tsx`, the five section components,
 `affiliation-name-picker.tsx`) and the no-longer-called Google Places lookup
-`src/modules/profile/geo/places-schools-lookup.ts`. `/dashboard/profile` (the
+`geo/places-schools-lookup.ts` in the profile module. `/dashboard/profile` (the
 v0.8 editor) is the only profile editing route; nothing links, redirects or
 rewrites to the old path, so it now 404s. `actions.ts` imports `WizardItem`
 from `@/modules/profile/types`. The server actions in `actions.ts` and the

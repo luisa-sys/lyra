@@ -286,7 +286,7 @@ describe('KAN-451: resolvePickedLocation', () => {
 
 // KAN-487 part 3 (founder sign-off 2026-11-23, chat): "KAN-451:
 // lookupPlaceSuggestions" stood here (9 tests) and drove
-// `src/modules/profile/geo/places-schools-lookup.ts`, the Google Places call.
+// the profile module's `geo/places-schools-lookup.ts`, the Google Places call.
 // KAN-487 (spec v0.8 §02, founder decision) replaced Places with Lyra's own
 // entries (`suggest_affiliation_names`, pinned in section 3 below), which left
 // the lookup module with no caller; part 3 deletes it, and these tests with
