@@ -113,7 +113,7 @@ describe('KAN-490 seed-dev-data — structure (comment-stripped)', () => {
   test('no profile UUID literal anywhere: targets are found only by reserved email', () => {
     expect(sql()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
     // Positive control: the UUID pattern does match a UUID.
-    expect('1bc7f0af-6d7b-4f61-82f0-69eb4b43ca08').toMatch(
+    expect('00000000-0000-4000-8000-000000000000').toMatch(
       /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
     );
   });
