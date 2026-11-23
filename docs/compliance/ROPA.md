@@ -87,7 +87,9 @@ processing). Founder is the accountable data-protection lead.
 ### P9 — AI gift suggestions (KAN-489) — FOUNDER-APPROVED 2026-11-23, NOT YET ACTIVE
 > Drafted with the feature; consent copy and this entry approved by the
 > founder in chat on 2026-11-23. It stays OFF, and Anthropic is NOT YET
-> ACTIVE as a processor, in every environment until a spend limit,
+> ACTIVE as a processor, in every environment until, in order, a spend limit
+> is set, Anthropic's DPA / transfer terms are accepted and recorded in
+> SUBPROCESSORS.md, the privacy page names Anthropic, and then
 > `ANTHROPIC_API_KEY` and `LYRA_AI_GIFTS_ENABLED=1` are set there (see
 > FOUNDER_CHECKLIST.md §B).
 
@@ -96,18 +98,18 @@ processing). Founder is the accountable data-protection lead.
 - **Lawful basis:** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
 - **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (only the last 24 h is read).
 - **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
-- **Decided 2026-11-23 (founder):** consent copy approved (version `v1-2026-11-23`); members-only items may be sent. **Still to record:** the provider's data-retention / no-training terms and the transfer mechanism (SUBPROCESSORS.md), before the key is set.
+- **Decided 2026-11-23 (founder):** consent copy approved (version `v1-2026-11-23`). Sending members-only items, and the browser-generated session, were approved as part of the FOUNDER_CHECKLIST.md list as a whole (one "approved"), not as separately stated choices. **Still to do, before the key is set:** accept and record the provider's data-retention / no-training terms and the transfer mechanism (SUBPROCESSORS.md), and add Anthropic to the privacy page.
 
 ### P10 — Affiliation-based discovery (search) (KAN-482, added 2026-11-23)
 > Recorded in the main privacy specification by founder decision 2026-11-23
 > (spec v0.8 §02 had asked for a separate one). Full assessment and the
 > binding rules AD-1…AD-8: DPIA.md §2a; risks R8–R11 in DPIA.md §5.
 
-- **Personal data:** the name of a school / organisation the member chose to show on their profile (`school_affiliations.school_name` where `show_on_profile = true`), used as a search key; the public profile card returned (name, CheckLyra ID, headline, city, country, photo). No new data is collected. Hidden affiliations are never used. The search term typed by a visitor is not stored or logged.
-- **Data subjects:** DS1 (registered users with a published, non-suspended profile). Visitors searching are not identified by the search.
+- **Personal data:** the name of a school / organisation the member chose to show on their profile (`school_affiliations.school_name` where `show_on_profile = true`), used as a search key; the public profile card returned (name, CheckLyra ID, headline, city, country, photo). No new data is collected. Hidden affiliations are never used. The search term typed by a visitor is not stored by Lyra and is stripped before error monitoring (Sentry) and analytics; but because `/search` is a GET form, the term is in the request URL and **Vercel's platform request logs record it with the visitor's IP address** for Vercel's log retention period (DPIA §2a AD-6, FD-AD1).
+- **Data subjects:** DS1 (registered users with a published, non-suspended profile); visitors who search, only through the hosting request log above (IP + URL) — Lyra does not otherwise identify them.
 - **Purpose:** let people who already know a member offline find their profile by a shared school or organisation.
 - **Lawful basis:** Art. 6(1)(a) **consent / publication by the member** — per affiliation, by ticking "Show on my profile" (same basis as publishing P2); withdrawn by unticking, unpublishing or deleting. _(Founder to confirm.)_
-- **Surfaces:** web `/search` (anyone, signed in or not; school + organisation names; capped); MCP `lyra_search_profiles` `school` filter and `lyra_list_schools` (public; being retired, KAN-483; known gaps in DPIA §2a); the public PostgREST read of shown affiliations (RLS).
+- **Surfaces:** web `/search` (anyone, signed in or not — founder decision FD-AD1 open; school + organisation names; capped); MCP `lyra_search_profiles` `school` filter and `lyra_list_schools` (public; being retired, KAN-483; known gaps in DPIA §2a); the PostgREST read of shown affiliations (RLS) — signed-in members only once `20261123140000_kan482_affiliations_read_authenticated_only.sql` is applied (until then, also the anon key).
 - **Retention:** none beyond P2 — the affiliation stops being searchable as soon as it is hidden, deleted or the profile is unpublished, suspended or deleted.
 - **Recipients/processors:** Supabase, Vercel, Cloudflare (as P2); Railway (MCP server).
 

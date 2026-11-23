@@ -115,17 +115,27 @@ Other places affiliation data can be read, checked on the same date:
   profiles and returns **the affiliation's name, location/postcode,
   relationship and description together with the owner's name and slug**, 20
   rows at most. It does **not** exclude homepage examples, and the term is not
-  sanitised (`%` lists any 20 shown affiliations). It reveals nothing a public
+  sanitised (`%` lists any 20 shown affiliations). Called with **no query at
+  all** it does the same: it returns any 20 shown affiliations with their
+  owners' names and slugs. It reveals nothing a public
   profile page does not, but it is a "people at this school" list.
 - **Public profile** (`/[slug]`, `src/modules/public-profile/load-public-profile.ts`):
   shows shown affiliations only (name, location/postcode, description).
 - **Direct database API.** The RLS policy *"Anyone can read visible affiliations
   from published profiles"* (`20261113120000_hidden_affiliations_public_read_rls.sql`)
-  lets anyone holding the public anon key read shown affiliations of published,
-  non-suspended profiles through PostgREST, with filters, up to 1,000 rows per
-  request. Hidden affiliations are not readable this way. The web app does not
-  need this for anonymous visitors (public pages read through the service
-  role); the signed-in autocomplete does (see next line).
+  had no `to` clause, so anyone holding the public anon key could read shown
+  affiliations of published, non-suspended profiles (postcodes included)
+  through PostgREST, with filters, up to 1,000 rows per request — confirmed on
+  dev in `pg_policies` (role `public`) on 2026-11-23. Hidden affiliations were
+  never readable this way. **Fixed in this change:**
+  `20261123140000_kan482_affiliations_read_authenticated_only.sql` recreates
+  the policy `to authenticated` (same predicate), pinned by
+  `tests/unit/kan482-affiliations-no-anon-read.test.ts`. ⚠️ It takes effect
+  only once applied to each database (dev, then staging, then production);
+  until then anonymous reads remain possible there. Nothing anonymous needs
+  this read (public pages, `/search` and the MCP server all use the service
+  role). Signed-in members can still read shown affiliations this way, up to
+  1,000 rows per request — the editor autocomplete needs it (next line).
 - **Autocomplete** in the editor (`suggest_affiliation_names`, SECURITY
   INVOKER): signed-in members only, at least 3 characters, returns affiliation
   **names only** (no people, no profile ids), limited by RLS to shown
@@ -162,8 +172,10 @@ confirm.)*
 - **Bounded:** web results are capped and wildcards are stripped, which limits
   using search to list everyone at a school.
 - **Gaps against proportionality** (scored as risks below): web search needs
-  no sign-in and accepts a one-letter term; the MCP `school` filter and the
-  direct database API are uncapped and allow wildcard-style listing; the
+  no sign-in and accepts a one-letter term (see the founder decision below);
+  the MCP `school` filter and MCP `lyra_list_schools` are uncapped or allow
+  wildcard-style listing; signed-in members can still read shown affiliations
+  through the database API, 1,000 rows per request; the
   editor text (spec copy, verbatim) says hidden affiliations are *"only used to
   help people who know you find you"*, which suggests hidden ones are
   searchable — the code is stricter than the copy (they are not).
@@ -188,15 +200,34 @@ search, requires updating this section first.
 - **AD-5 Sanitised and bounded.** Search terms are stripped of filter
   metacharacters and wildcards; an empty sanitised term reads nothing; every
   surface caps how many profiles one search can return.
-- **AD-6 Terms are not logged.** Search terms are not written to logs,
-  analytics or error monitoring.
+- **AD-6 Terms are not sent to Lyra's monitoring or analytics.** The app
+  does not log search terms, and strips them before anything reaches error
+  monitoring or analytics: Sentry redacts the whole query string of `/search`
+  URLs in events, breadcrumbs (navigation, fetch) and performance traces
+  (`WEB_SCRUB_OPTIONS` in `src/modules/observability/sentry-scrub.ts`, used
+  by the server, edge and browser inits); Vercel Analytics and Speed Insights
+  (only after the visitor accepts analytics cookies) send `/search` URLs
+  without the query (`src/modules/observability/analytics-redaction.ts`).
+  **Known limit — hosting logs:** `/search` is a GET form, so the term is part
+  of the request URL (`/search?q=…`). Vercel's platform request logs record
+  that URL with the visitor's IP address, for Vercel's log retention period.
+  App code cannot redact them. Removing this would mean a POST form or
+  client-side search, which changes how search links and the back button
+  work; that is a founder decision (FD-AD1 below).
 - **AD-7 No affiliation data in indexable metadata.** Sitemap, page metadata
   and Open Graph tags carry no affiliation data.
 - **AD-8 Fail loudly.** A failed read is reported, never shown as "no matches".
 
 **Compliance on 2026-11-23:** the web search and the public profile meet AD-1
-to AD-8 (pinned by `tests/unit/kan450-search-affiliations.test.ts` and
-`tests/unit/kan482-affiliation-discovery-rules.test.ts`). The **MCP
+to AD-5, AD-7 and AD-8 (pinned by `tests/unit/kan450-search-affiliations.test.ts`
+and `tests/unit/kan482-affiliation-discovery-rules.test.ts`), and AD-6 within
+the hosting-log limit stated there (pinned by `tests/unit/sentry-scrub.test.ts`,
+`tests/unit/kan482-sentry-server-search-redaction.test.ts`,
+`tests/unit/sentry-client-init-behaviour.test.ts` and
+`tests/unit/kan482-analytics-search-redaction.test.tsx`). Before this change
+the term could reach Sentry (request URL, navigation breadcrumbs, traces) and
+consented analytics pageviews; that is now fixed. Meeting these rules does
+**not** settle who may search — see FD-AD1. The **MCP
 `school` filter breaks AD-5 and AD-8** (no sanitising, no cap, errors read as
 no matches) and matches community affiliations the web search does not; it
 lives in another repo and is being retired (KAN-483), so it is recorded here
@@ -205,7 +236,32 @@ breaks AD-2, AD-3 and AD-5** (homepage examples not excluded; returns the
 matched affiliation's fields; term not sanitised) — same repo, same
 treatment. The **direct database API**
 (PostgREST) is uncapped beyond PostgREST's 1,000 rows per request (AD-5) and
-returns affiliation fields (it is a data API, not a search page): risk R10.
+returns affiliation fields (it is a data API, not a search page): the
+anonymous route is closed by `20261123140000` once applied; the signed-in
+route remains, as risk R10.
+
+### Founder decision required — FD-AD1: who may search by affiliation
+
+Spec v0.8 §02 said search-by-affiliation was **not authorised** by that spec.
+The founder moved its specification into this DPIA (2026-11-23); that
+decision did not say whether today's behaviour is acceptable, and **this
+section does not approve it by describing it.** Today (behaviour that predates
+v0.8), `/search`:
+
+- needs **no sign-in**, so anyone, including scrapers, can search by school;
+- is **crawlable** (`robots.txt` allows it; no `noindex`);
+- accepts a **one-letter** term (`a` matches every shown affiliation
+  containing "a", capped at 100 affiliation rows / 30 profiles per search);
+- carries the term in the URL, so it reaches Vercel's request logs with the
+  visitor's IP (AD-6 limit).
+
+Options, any combination: (1) require sign-in for affiliation matches (name
+search could stay public); (2) add `noindex` to `/search`; (3) a minimum term
+length (e.g. 3, as the editor autocomplete already uses); (4) a POST or
+client-side search so the term is not in the URL. Each changes product
+behaviour, so none is made here. **Until the founder decides, affiliation
+search runs as it did before v0.8 and R9 stays open.** Tracked in the
+founder follow-ups for KAN-482.
 
 ### Risks (scored in §5)
 
@@ -279,8 +335,8 @@ founder's judgement.
 | R6 | **International-transfer / US-government-access risk** | UK Addendum/IDTA via each DPA; encryption in transit + at rest; age-encrypted WORM backups; low-sensitivity dataset (TRA in SUBPROCESSORS.md) | ____ | ____ | ____ | ____ |
 | R7 | **Incomplete account deletion** | 30-day purge flow; deletion covers profile, media, contacts; backup rotation | ____ | ____ | ____ | ____ |
 | R8 | **Listing people by school or organisation** (e.g. finding the parents at one school; schools can point to where children are) — §2a | Opt-in per affiliation (hidden by default); only shown affiliations on published, non-suspended profiles; matched affiliation not displayed; web search strips wildcards and caps at 100 affiliation rows / 30 profiles | ____ | ____ | ____ | ____ |
-| R9 | **Search needs no sign-in and `/search` is crawlable**, so anyone (including scrapers) can search by school — §2a | Same as R8; search term not logged. *Founder decision open:* require sign-in for affiliation matches, add `noindex` to `/search`, and/or set a minimum term length | ____ | ____ | ____ | ____ |
-| R10 | **Uncapped / unsanitised channels:** MCP `lyra_search_profiles` `school` filter (wildcards, no cap, errors ignored), MCP `lyra_list_schools` (returns affiliation fields with the owner's name; demo profiles not excluded; wildcards) and the direct PostgREST read of shown affiliations (up to 1,000 rows per request, with postcodes) — §2a | Both return shown affiliations only, on published non-suspended profiles. *Open:* fix or retire the two MCP tools (KAN-483); narrow the anon RLS read policy to `authenticated` (the web app reads public pages through the service role) | ____ | ____ | ____ | ____ |
+| R9 | **Search needs no sign-in, `/search` is crawlable and accepts a one-letter term**, so anyone (including scrapers) can search by school; the term reaches Vercel request logs with the visitor's IP — §2a | Same as R8; term stripped from Sentry and analytics. **Founder decision FD-AD1 open:** require sign-in for affiliation matches, add `noindex` to `/search`, a minimum term length, and/or a POST / client-side search | ____ | ____ | ____ | ____ |
+| R10 | **Uncapped / unsanitised channels:** MCP `lyra_search_profiles` `school` filter (wildcards, no cap, errors ignored), MCP `lyra_list_schools` (returns affiliation fields with the owner's name; demo profiles not excluded; wildcards; no query lists any 20) and the direct PostgREST read of shown affiliations (up to 1,000 rows per request, with postcodes) — §2a | All return shown affiliations only, on published non-suspended profiles. Anonymous PostgREST read closed by `20261123140000_kan482_affiliations_read_authenticated_only.sql` (**effective only once applied** to each database). *Open:* fix or retire the two MCP tools (KAN-483); decide whether signed-in members need more than the autocomplete (e.g. replace the table read with a capped RPC) | ____ | ____ | ____ | ____ |
 | R11 | **Member expectation:** the editor says hidden affiliations are "only used to help people who know you find you", but search uses shown ones only — §2a | The mismatch is in the privacy-protective direction (hidden ones are never searched). *Open:* founder to decide whether the copy should change (founder-owned copy) and whether the Privacy Policy should mention search by affiliation | ____ | ____ | ____ | ____ |
 
 ## 6. Measures to reduce risk and sign-off

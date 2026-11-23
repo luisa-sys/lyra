@@ -53,6 +53,7 @@ type InitOptions = {
   replaysOnErrorSampleRate?: number;
   beforeSend?: (event: unknown) => unknown;
   beforeBreadcrumb?: (crumb: unknown) => unknown;
+  beforeSendTransaction?: (event: unknown) => unknown;
 };
 
 /**
@@ -146,6 +147,26 @@ describe('Sentry client initialisation (behavioural, KAN-414 F4)', () => {
 
     // Breadcrumbs are the quieter leak: they ship attached to unrelated errors.
     expect(JSON.stringify(scrubbed)).not.toContain('AUTHCODE123');
+  });
+
+  it('registers a beforeSendTransaction that removes the /search term (KAN-482 AD-6)', async () => {
+    await load(DSN);
+
+    const hook = optionsFromInit().beforeSendTransaction;
+    expect(typeof hook).toBe('function');
+
+    const scrubbed = hook!({
+      type: 'transaction',
+      transaction: '/search',
+      request: { url: 'https://checklyra.com/search?q=Zebedee+Primary' },
+      spans: [{ data: { 'url.full': 'https://checklyra.com/search?q=Zebedee+Primary' } }],
+    });
+
+    // Transactions skip beforeSend, so without this hook the term ships at the
+    // traces sample rate. Positive control: the route name is still there.
+    const out = JSON.stringify(scrubbed);
+    expect(out).not.toContain('Zebedee');
+    expect(out).toContain('/search');
   });
 
   it('exposes a harmless no-op router hook when Sentry is off', async () => {

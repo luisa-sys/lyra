@@ -14,7 +14,12 @@
  *         card columns;
  *   AD-4  matching is on the affiliation NAME only (no location / postcode,
  *         relationship or description filter);
- *   AD-6  the search term never reaches error monitoring.
+ *   AD-6  the page's own Sentry reports never carry the search term. (The
+ *         other AD-6 routes — request URL, breadcrumbs, transactions and
+ *         analytics — are pinned in sentry-scrub.test.ts,
+ *         kan482-sentry-server-search-redaction.test.ts,
+ *         sentry-client-init-behaviour.test.ts and
+ *         kan482-analytics-search-redaction.test.tsx.)
  *
  * Like kan450, it drives the REAL page module through a stub Supabase client
  * and asserts on the query chains the page builds. Expected values are
