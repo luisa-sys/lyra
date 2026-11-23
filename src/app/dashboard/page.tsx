@@ -48,7 +48,10 @@ export default async function DashboardPage() {
         .from('profile_items')
         .select('id', { count: 'exact', head: true })
         .eq('profile_id', profileId)
-        .eq('category', 'gift_ideas'),
+        .eq('category', 'gift_ideas')
+        // KAN-489: only the member's own gifts count — AI suggestions (pending
+        // or approved) are not the member's onboarding progress.
+        .eq('origin', 'user'),
       supabase
         .from('school_affiliations')
         .select('id', { count: 'exact', head: true })

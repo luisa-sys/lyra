@@ -108,6 +108,8 @@ export type EditorAction =
   | { type: 'requestPhotoRemoval' }
   | { type: 'approveAiGift'; id: string }
   | { type: 'deleteAiGift'; id: string }
+  | { type: 'aiGiftsGenerated'; rows: ReadonlyArray<{ id: string; title: string; description: string | null }> }
+  | { type: 'aiGiftDismissed'; id: string }
   | { type: 'applySaveResult'; idMap: Record<string, string>; newBaseline: SaveBaseline };
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -346,6 +348,35 @@ function deleteAiGift(state: EditorState, id: string): EditorState {
 }
 
 /**
+ * KAN-489: suggestions just stored by a generation (unapproved, private).
+ * Appended as `approved: false`; ids already present are skipped. No undo —
+ * the rows are already in the database. The editor applies the SAME action
+ * to its baseline (`applyAiGiftChangeToBaseline`), so new pending rows never
+ * make the editor dirty and approving one later is sent as `ai_gifts.approve`.
+ */
+function aiGiftsGenerated(
+  state: EditorState,
+  rows: ReadonlyArray<{ id: string; title: string; description: string | null }>,
+): EditorState {
+  const have = new Set(state.aiGifts.map((g) => g.id));
+  const added = rows
+    .filter((r) => !have.has(r.id))
+    .map((r) => ({ id: r.id, title: r.title, description: r.description ?? '', url: '', approved: false }));
+  if (added.length === 0) return state;
+  return { ...state, aiGifts: [...state.aiGifts, ...added] };
+}
+
+/**
+ * KAN-489: a pending suggestion the server has already deleted
+ * (`dismissAiGift`). Removes exactly that row; also applied to the baseline,
+ * so it is not sent again as `ai_gifts.delete`.
+ */
+function aiGiftDismissed(state: EditorState, id: string): EditorState {
+  if (!state.aiGifts.some((g) => g.id === id)) return state;
+  return { ...state, aiGifts: state.aiGifts.filter((g) => g.id !== id) };
+}
+
+/**
  * Turn the editor state into the new save BASELINE.
  *
  * Apply this to the snapshot that was SENT (the `current` passed to
@@ -432,6 +463,10 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return approveAiGift(state, action.id);
     case 'deleteAiGift':
       return deleteAiGift(state, action.id);
+    case 'aiGiftsGenerated':
+      return aiGiftsGenerated(state, action.rows);
+    case 'aiGiftDismissed':
+      return aiGiftDismissed(state, action.id);
     case 'applySaveResult':
       return applySaveResult(state, action.idMap, action.newBaseline);
     default: {

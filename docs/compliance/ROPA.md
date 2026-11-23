@@ -84,6 +84,18 @@ processing). Founder is the accountable data-protection lead.
 - **Lawful basis:** Art. 6(1)(b) contract (service emails); consent for any marketing.
 - **Recipients/processors:** Resend.
 
+### P9 — AI gift suggestions (KAN-489) — DRAFT, FOUNDER APPROVAL REQUIRED
+> Drafted with the feature. It is OFF in every environment until the founder
+> signs this entry off and sets `LYRA_AI_GIFTS_ENABLED=1` (see
+> FOUNDER_CHECKLIST.md §B).
+
+- **Personal data:** the member's saved, self-authored profile text (headline, about, gift preferences, Billboard, list items in public or members-only sections, "To understand me a little better", question answers) disclosed to the AI provider per request; the returned suggestions (`profile_items` rows, `origin='ai'`); a claim log (`ai_gift_generations`: timestamp, random editor-session id, consent-note version). Not sent: name, CheckLyra ID, location, photo, affiliations, email.
+- **Purpose:** suggest gift ideas the member can approve onto their own profile.
+- **Lawful basis (to confirm):** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
+- **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (only the last 24 h is read).
+- **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
+- **Open points for the founder:** approve the consent copy; decide whether members-only items may be sent; confirm the provider's data-retention / no-training terms and the transfer mechanism.
+
 ### P8 — Security, abuse-prevention & audit
 - **Personal data:** IP/user-agent, moderation logs, admin actions, OAuth token registry (jti), backups.
 - **Purpose:** secure the platform, detect abuse, maintain an audit trail, disaster recovery.
@@ -147,6 +159,7 @@ recording it here is a red build.
 | `relationship_signals` | P4 | `user_id` | exported — **inferred** data; Art.15 covers inferences |
 | `venue_ratings` | P4 | `user_id` | exported |
 | `gift_suggestion_dismissals` | P4 | `profile_id` | exported — the member's own editorial decisions about their profile (KAN-443) |
+| `ai_gift_generations` | P2 | `profile_id` | exported — AI gift suggestion requests: timestamps and random editor-session ids only, no content (KAN-489; the suggestions themselves are `profile_items` rows) |
 | `venue_visits` | P4 | via `gathering_id` | exported (join) |
 | `oauth_connections` | P4 | `owner_user_id` | exported (token refs redacted) |
 | `oauth_consents` | P4 | `user_id` | exported |

@@ -24,6 +24,7 @@
     "qa:coverage": "python3 qa-sweep/coverage.py"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.12.0",
     "@sentry/nextjs": "^10.76.2",
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.117.3",
@@ -52,6 +53,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.4.3",
     "jest": "^30.5.2",
+    "jest-environment-jsdom": "30.5.2",
     "next-router-mock": "^1.0.5",
     "tailwindcss": "^4.3.2",
     "ts-jest": "^29.4.15",

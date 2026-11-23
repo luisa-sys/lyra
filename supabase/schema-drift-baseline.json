@@ -60,6 +60,41 @@
           "note": "Same migration as save_profile above; same removal condition."
         },
         {
+          "line": "column:ai_gift_generations.consent_version",
+          "ticket": "KAN-489",
+          "note": "v0.8 AI gift suggestions (epic KAN-482): migration 20261123120000_kan489_ai_gift_generations.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:ai_gift_generations.created_at",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
+          "line": "column:ai_gift_generations.id",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
+          "line": "column:ai_gift_generations.profile_id",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
+          "line": "column:ai_gift_generations.session_id",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
+          "line": "function:claim_ai_gift_generation",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
+          "line": "function:insert_ai_gift_suggestions",
+          "ticket": "KAN-489",
+          "note": "Same migration as ai_gift_generations.consent_version above; same removal condition."
+        },
+        {
           "line": "function:profile_item_rule",
           "ticket": "KAN-485",
           "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."

@@ -4,6 +4,7 @@ import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
+import { env } from '@/modules/platform/env';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -38,6 +39,9 @@ const EMPTY_MANUAL_OF_ME: ManualOfMe = {
  *   - affiliations in the order they were added (`created_at`);
  *   - each answer carries `sort_order` / `created_at` so custom questions
  *     keep the member's order.
+ * KAN-489: `aiGiftsConfigured` (ANTHROPIC_API_KEY set, as a boolean) turns on
+ * the §03 AI suggestion controls; without it the slot says they aren't
+ * available yet.
  * The profile row is read with `*`, so `slug_confirmed`, `first_published_at`,
  * `billboard` and `updated_at` reach the editor, and items carry `origin` /
  * `approved` (AI suggestions are kept apart from the member's own gifts).
@@ -127,6 +131,8 @@ export default async function ProfilePage() {
       conversationPrompts={conversationPrompts || []}
       conversationAnswers={conversationAnswers}
       conveneEnabled={await isConveneEnabledForCurrentUser()}
+      // KAN-489: a boolean only — the key itself never leaves the server.
+      aiGiftsConfigured={env.aiGiftsConfigured()}
     />
   );
 }

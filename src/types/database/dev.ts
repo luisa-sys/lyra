@@ -131,6 +131,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_gift_generations: {
+        Row: {
+          consent_version: string
+          created_at: string
+          id: string
+          profile_id: string
+          session_id: string
+        }
+        Insert: {
+          consent_version: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          session_id: string
+        }
+        Update: {
+          consent_version?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_gift_generations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_gift_generations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string | null
@@ -2258,6 +2297,10 @@ export type Database = {
         Args: { cutoff: string }
         Returns: number
       }
+      claim_ai_gift_generation: {
+        Args: { p_consent_version: string; p_session: string }
+        Returns: Json
+      }
       convene_vault_read_secret: {
         Args: { p_secret_id: string }
         Returns: string
@@ -2276,6 +2319,7 @@ export type Database = {
         Args: { p_end_at: string; p_start_at: string }
         Returns: Json
       }
+      insert_ai_gift_suggestions: { Args: { p_items: Json }; Returns: Json }
       is_reserved_lyra_id: { Args: { p_id: string }; Returns: boolean }
       moderation_log_row_hash: {
         Args: {

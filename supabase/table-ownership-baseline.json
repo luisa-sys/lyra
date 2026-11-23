@@ -40,10 +40,10 @@
   "ticket": "KAN-415",
   "_concentration": {
     "$comment": "Computed at --write-baseline, never typed. Files contributing the most pairs. A single file with a large share is usually a legitimate cross-cutting concern (erasure, export, admin) rather than N separate boundary breaks \u2014 read the count here before proposing a cleanup.",
-    "pairs": 55,
+    "pairs": 56,
     "writes": 12,
     "topFiles": {
-      "src/app/dashboard/settings/actions.ts": 29,
+      "src/app/dashboard/settings/actions.ts": 30,
       "src/modules/public-profile/load-public-profile.ts": 3,
       "src/app/admin/moderation/page.tsx": 2
     }
@@ -66,6 +66,15 @@
         "affiliate"
       ],
       "example": "src/modules/account/retention/affiliate-clicks.ts"
+    },
+    "account -> ai_gift_generations": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
     },
     "account -> consent_log": {
       "mode": "read",

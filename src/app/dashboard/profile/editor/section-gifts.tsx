@@ -13,8 +13,10 @@
  *     25; "Add gift". `initialEditorState` gives ONE empty row when there are
  *     none, and `ItemListEditor` opens blank rows expanded, so the member
  *     sees one empty input initially.
- *   - `GiftsAiSlot` is the step-6 mount point; in step 4 it shows only
- *     already-approved AI suggestions (if any) under "AI suggested".
+ *   - `GiftsAiSlot` (KAN-489): the AI suggestions switch, Generate, the
+ *     session counter, pending suggestions to approve or delete, and approved
+ *     ones under "AI suggested". Its props are unchanged; it reads the
+ *     session and baseline hooks from `AiGiftsContext`.
  *
  * Renders its own `EditorSectionCard` (id `gifts`, number 3).
  */
