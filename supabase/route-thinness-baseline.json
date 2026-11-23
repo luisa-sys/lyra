@@ -24,9 +24,9 @@
   ],
   "ticket": "KAN-415",
   "_totals": {
-    "routeFiles": 104,
-    "filesWithCalls": 47,
-    "calls": 209
+    "routeFiles": 103,
+    "filesWithCalls": 46,
+    "calls": 201
   },
   "routes": {
     "src/app/admin/affiliate-reporting/page.tsx": 1,
@@ -64,7 +64,6 @@
     "src/app/dashboard/profile/conversation-starters-actions.ts": 4,
     "src/app/dashboard/profile/delivery-country-actions.ts": 1,
     "src/app/dashboard/profile/files-actions.ts": 8,
-    "src/app/dashboard/profile/legacy/page.tsx": 8,
     "src/app/dashboard/profile/manual-of-me-actions.ts": 2,
     "src/app/dashboard/profile/page.tsx": 6,
     "src/app/dashboard/settings/actions.ts": 38,

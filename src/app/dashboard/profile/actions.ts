@@ -5,7 +5,7 @@ import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { revalidatePath } from 'next/cache';
 import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
-import type { WizardItem } from './steps/types';
+import type { WizardItem } from '@/modules/profile/types';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/modules/age/provider-gate';
 import { isAllowedProfileField } from '@/modules/profile/profile-fields';
@@ -239,7 +239,7 @@ export async function addProfileItem(data: {
   // Only send group_label when there is one. PostgREST builds the INSERT
   // column list from the payload keys, so an unknown key fails the WHOLE
   // request with PGRST204 even when the value is null — which would break
-  // every add path here (9 editor sections + 6 legacy wizard steps) on any
+  // every add path here on any
   // environment where 20260803114500_favourites_custom_group.sql has not run
   // yet. Omitting the key keeps existing adds byte-identical to before, so
   // only the new add-your-own path depends on the new column.

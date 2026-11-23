@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 260 entries.
+// 253 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -170,16 +170,8 @@ export const SRC = {
   deliveryCountryActions: 'src/app/dashboard/profile/delivery-country-actions.ts',
   editProfileForm: 'src/app/dashboard/profile/edit-profile-form.tsx',
   filesActions: 'src/app/dashboard/profile/files-actions.ts',
-  legacyPage: 'src/app/dashboard/profile/legacy/page.tsx',
   manualOfMeActions: 'src/app/dashboard/profile/manual-of-me-actions.ts',
   profilePage: 'src/app/dashboard/profile/page.tsx',
-  profileSections: 'src/app/dashboard/profile/sections',
-  steps: 'src/app/dashboard/profile/steps',
-  conversationStartersStep: 'src/app/dashboard/profile/steps/conversation-starters-step.tsx',
-  identityStep: 'src/app/dashboard/profile/steps/identity-step.tsx',
-  itemsStep: 'src/app/dashboard/profile/steps/items-step.tsx',
-  types: 'src/app/dashboard/profile/steps/types.tsx',
-  wizard: 'src/app/dashboard/profile/wizard.tsx',
   settingsActions: 'src/app/dashboard/settings/actions.ts',
   settingsPage: 'src/app/dashboard/settings/page.tsx',
   settingsClient: 'src/app/dashboard/settings/settings-client.tsx',
@@ -241,10 +233,11 @@ export const SRC = {
   dbErrorCopy: 'src/modules/profile/db-error-copy.ts',
   editorState: 'src/modules/profile/editor/editor-state.ts',
   publicViewModel: 'src/modules/profile/editor/public-view-model.ts',
+  validateSavePayload: 'src/modules/profile/editor/validate-save-payload.ts',
   favourites: 'src/modules/profile/favourites.ts',
   profileFields: 'src/modules/profile/profile-fields.ts',
   sectionVisibility: 'src/modules/profile/section-visibility.ts',
-  profileTypes: 'src/modules/profile/types.ts',
+  types: 'src/modules/profile/types.ts',
   publicProfile: 'src/modules/public-profile',
   modulesPublicProfile: 'src/modules/public-profile/',
   loadPublicProfile: 'src/modules/public-profile/load-public-profile.ts',

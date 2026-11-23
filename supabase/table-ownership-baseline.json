@@ -466,11 +466,11 @@
     "profile -> conversation_starter_prompts": {
       "mode": "read",
       "basis": "select-call",
-      "sites": 4,
+      "sites": 3,
       "owner": [
         "admin"
       ],
-      "example": "src/app/dashboard/profile/legacy/page.tsx"
+      "example": "src/app/dashboard/profile/page.tsx"
     },
     "profile -> gift_suggestion_dismissals": {
       "mode": "write",

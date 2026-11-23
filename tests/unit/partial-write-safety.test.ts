@@ -256,15 +256,17 @@ describe('form-backed tables: every reader loads the full field set', () => {
 
   test('the scanner finds the loaders we already know about', () => {
     const files = discoverReadSites('profile_manual_of_me').map((s) => s.file);
-    // These three were the BUGS-74 blast radius. If the scanner stops seeing
-    // them, coverage above is meaningless.
+    // These were the BUGS-74 blast radius (three until the legacy editor was
+    // deleted). If the scanner stops seeing them, coverage above is
+    // meaningless.
     expect(files).toEqual(
       expect.arrayContaining([
         SRC.profilePage,
         // KAN-488: the public page's read moved into the public-profile loader
         // (CTL-056). Was: SRC.slugPage
         SRC.loadPublicProfile,
-        SRC.legacyPage,
+        // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy
+        // editor is deleted. Was: SRC.legacyPage
       ]),
     );
   });

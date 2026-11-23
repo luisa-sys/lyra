@@ -112,38 +112,14 @@ describe('KAN-143 — public profile page filters by visibility', () => {
   });
 });
 
-describe('KAN-143 — items step UI exposes visibility selector', () => {
-  const stepPath = path.join(root, SRC.itemsStep);
-  const content = fs.readFileSync(stepPath, 'utf8');
-
-  test('renders a <select> for visibility on the add-item form', () => {
-    expect(content).toMatch(/id=["']new-item-visibility["']/);
-  });
-
-  test('offers all three visibility levels in the UI', () => {
-    expect(content).toContain("value: 'public'");
-    expect(content).toContain("value: 'members_only'");
-    expect(content).toContain("value: 'draft'");
-  });
-
-  test('does NOT offer the legacy "private" value as a write target', () => {
-    // The wizard must not let new items be created as 'private'. Existing
-    // rows with that value still render (coerced to draft on display), but
-    // it's not a selectable option.
-    expect(content).not.toMatch(/value:\s*['"]private['"]/);
-  });
-
-  test('default visibility for new items is "" (inherit from section default — KAN-234)', () => {
-    // KAN-234: new items default to '' (inherit) so they pick up whatever
-    // the user has set as the section visibility default. Existing items
-    // keep their stored value. Pre-KAN-234 this defaulted to 'public'.
-    expect(content).toMatch(/useState<string>\(['"]['"]\)/);
-  });
-
-  test('exposes an onUpdateVisibility callback so existing items can be re-classified', () => {
-    expect(content).toContain('onUpdateVisibility');
-  });
-});
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): "KAN-143 — items step
+// UI exposes visibility selector" stood here (5 tests) and read the legacy
+// wizard's `steps/items-step.tsx`, which is deleted: the add-item visibility
+// <select>, its three levels, no 'private' write target, the '' (inherit)
+// default, and the onUpdateVisibility callback. The v0.8 editor has no
+// per-item visibility control (KAN-266: the profile is simply public), so
+// none has a live counterpart. The server-side coercion is still pinned by
+// the "actions.ts wiring" describe below.
 
 describe('KAN-143 — actions.ts wiring', () => {
   const actionsPath = path.join(root, SRC.profileActions);

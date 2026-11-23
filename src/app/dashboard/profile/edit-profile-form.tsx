@@ -30,9 +30,9 @@
  * decisions live in `src/modules/profile/editor/*` (tested without a DOM);
  * this component only wires them.
  *
- * Retired from the live editor (files stay on disk until PR3): per-section
- * autosave, the "Use legacy wizard" link, the intro note and the Links
- * section. The Convene link is kept.
+ * Retired from the editor: per-section autosave, the "Use legacy wizard"
+ * link, the intro note and the Links section (their files were deleted in
+ * KAN-487 part 3). The Convene link is kept.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';

@@ -2034,7 +2034,7 @@
         "src/modules/profile/"
       ],
       "owns": {
-        "files": 108,
+        "files": 84,
         "tables": [
           "ai_gift_generations",
           "external_links",

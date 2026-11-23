@@ -191,29 +191,17 @@ describe('KAN-234: updateProfileItemVisibility writes NULL for inherit', () => {
 // ───────────── 3. Static regression guards ─────────────
 
 describe('KAN-234: surface-area regression guards', () => {
-  test('items-step.tsx has the "Use section default" option (empty value)', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    // The option's value is the empty string — distinctive label too.
-    expect(src).toMatch(/Use section default/);
-    // New-item form defaults to '' (inherit), not 'public'.
-    expect(src).toMatch(/setItemVisibility\(['"]['"]\)/);
-  });
-
-  test('items-step.tsx handles null/undefined item.visibility in the per-item selector', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    // The select value derives '' from a null/undefined item.visibility.
-    expect(src).toMatch(/item\.visibility == null/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): two guards stood
+  // here reading the deleted `steps/items-step.tsx` — "items-step.tsx has the
+  // \"Use section default\" option (empty value)" and "items-step.tsx handles
+  // null/undefined item.visibility in the per-item selector". The v0.8 editor
+  // has no per-item visibility control (KAN-266: the profile is simply
+  // public), so neither has a live counterpart. The server-side coercion they
+  // relied on keeps its behavioural tests above.
 
   test('WizardProfile and WizardItem types declare section_visibility / nullable visibility', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.profileTypes),
+      resolve(ROOT, SRC.types),
       'utf-8',
     );
     expect(src).toMatch(/section_visibility:\s*Record<string,\s*string>\s*\|\s*null/);

@@ -239,25 +239,15 @@ describe('KAN-444: the favourites category list is pinned', () => {
 describe('KAN-444: the editor is wired to the shared grouping', () => {
   // Via the manifest, not raw literals — raw paths feed the KAN-414 F4
   // shrink-only ratchet, and a path that moves must move in one place.
-  const itemsStep = readSource(SRC.itemsStep);
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): four tests stood
+  // here, all reading `steps/items-step.tsx`, which is deleted with the legacy
+  // wizard: "the group-name input is gated only on needsGroupLabel", "a group
+  // name is required before a custom item can be added", "the picker prefers
+  // the shared group options over raw categories" and "row labels go through
+  // labelForItem, so the editor names match the public cards". v0.8 §06 has
+  // five fixed sub-lists — no group picker, no member-named groups — so none
+  // of these has a live counterpart; the §06 wiring is pinned below.
   const editor = readSource(SRC.editProfileForm);
-
-  test('the group-name input is gated only on needsGroupLabel', () => {
-    expect(itemsStep).toMatch(/\{\s*needsGroupLabel\s*&&\s*\(/);
-    expect(itemsStep).not.toMatch(/\{\s*false\s*&&\s*needsGroupLabel/);
-  });
-
-  test('a group name is required before a custom item can be added', () => {
-    expect(itemsStep).toMatch(/canAdd[\s\S]{0,120}needsGroupLabel[\s\S]{0,60}groupLabel\.trim\(\)\s*!==\s*''/);
-  });
-
-  test('the picker prefers the shared group options over raw categories', () => {
-    expect(itemsStep).toMatch(/pickerOptions\s*=\s*categoryOptions\s*\?\?/);
-  });
-
-  test('row labels go through labelForItem, so the editor names match the public cards', () => {
-    expect(itemsStep).toContain('labelForItem?.(item)');
-  });
 
   // KAN-487 (spec v0.8 §06: five fixed sub-lists, no group picker, no
   // member-named groups). Old expected values:
@@ -511,10 +501,7 @@ describe('KAN-444: both surfaces render from the shared grouping', () => {
     });
   });
 
-  test('ItemsStep hands the member’s group name to onAdd', () => {
-    const step = readSource(SRC.itemsStep);
-    expect(step).toMatch(/needsGroupLabel\s*\?\s*\{\s*groupLabel:\s*groupLabel\.trim\(\)\s*\}/);
-    // And will not let them create an unnamed group.
-    expect(step).toMatch(/canAdd\s*=[\s\S]{0,120}groupLabel\.trim\(\)\s*!==\s*''/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): "ItemsStep hands
+  // the member’s group name to onAdd" stood here, reading the deleted
+  // `steps/items-step.tsx`. v0.8 has no member-named groups to hand on.
 });

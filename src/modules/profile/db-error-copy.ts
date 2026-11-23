@@ -6,7 +6,7 @@
  * ---------------
  * 33 sites across 12 server-action files returned a raw Supabase/Postgres
  * `error.message` straight to the caller. 11 of those reach a member's screen
- * — `gift-extras-section.tsx` renders the string verbatim inside a
+ * — the (since deleted) `gift-extras-section.tsx` rendered the string verbatim inside a
  * `role="alert"` paragraph — so a member could be shown
  * `relation "public.gift_suggestion_dismissals" does not exist`, or an
  * internal constraint name like `pcs_prompt_source_xor`.
@@ -30,10 +30,10 @@
  * the TEN-FILE UPLOAD CAP: "You can answer up to 10 prompts. Remove one to add
  * another."
  *
- * That would have landed invisibly — `wizard.tsx` discards the file-upload
- * result today, so no screen or test exercises it — and surfaced later, with
- * no code change, the moment file errors get wired to the UI (which
- * `files-step.tsx` says is the intent).
+ * That would have landed invisibly — the legacy `wizard.tsx` discarded the
+ * file-upload result, so no screen or test exercised it — and surfaced later,
+ * with no code change, the moment file errors got wired to a UI. (The wizard
+ * and its `files-step.tsx` were deleted in KAN-487 part 3.)
  *
  * So every matcher below is anchored to its OWN trigger message. Adding a new
  * cap means adding a line here, which is the correct amount of friction for a

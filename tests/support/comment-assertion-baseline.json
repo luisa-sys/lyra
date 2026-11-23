@@ -316,12 +316,6 @@
     },
     {
       "test": "tests/unit/photo-upload.test.js",
-      "subject": "src/app/dashboard/profile/steps/identity-step.tsx",
-      "assertion": "preview",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/photo-upload.test.js",
       "subject": "supabase/migrations/20260330120000_add_avatar_url_and_storage.sql",
       "assertion": "avatar_url",
       "severity": "comment-shadowed"

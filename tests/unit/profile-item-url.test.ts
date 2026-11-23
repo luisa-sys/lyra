@@ -25,6 +25,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // ───────────── Mocks ─────────────
 
@@ -210,32 +211,37 @@ describe('KAN-219: addProfileItem — URL handling', () => {
 describe('KAN-219: surface-area regression guards', () => {
   const ROOT = resolve(__dirname, '../..');
 
-  test('items-step.tsx renders a Link input with type="url"', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    expect(src).toMatch(/Link \(optional\)/);
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the three guards
+  // below read the legacy wizard's `steps/items-step.tsx`, which is deleted.
+  // The v0.8 editor carries the same three properties — a Link input of
+  // type="url", the link reaching the save payload (parsed, so trimmed), and
+  // a safe outbound link on a saved row — so they are repointed to it.
+  // Comments are stripped, so prose cannot satisfy them. Old expected values,
+  // on items-step.tsx:
+  //   /Link \(optional\)/, /type="url"/, /itemUrl/
+  //   /trimmedUrl/, /url: trimmedUrl/
+  //   /item\.url/, /rel="noopener noreferrer"/
+  const stripped = (rel: string) =>
+    stripComments(readFileSync(resolve(ROOT, rel), 'utf-8'));
+  const itemListEditor = `${SRC.profile}/editor/item-list-editor.tsx`;
+
+  test('the editor list row renders a Link input with type="url"', () => {
+    const src = stripped(itemListEditor);
+    expect(src).toMatch(/label="Link"/);
     expect(src).toMatch(/type="url"/);
-    expect(src).toMatch(/itemUrl/);
+    expect(src).toMatch(/onChange=\{\(v\) => patch\(\{ url: v \}\)\}/);
   });
 
-  test('items-step.tsx handleAdd passes the trimmed URL in onAdd payload', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    expect(src).toMatch(/trimmedUrl/);
-    expect(src).toMatch(/url: trimmedUrl/);
+  test('the save payload carries the parsed (trimmed) URL', () => {
+    const src = stripped(SRC.validateSavePayload);
+    expect(src).toMatch(/const u = parseMemberUrl\(it\.url\);/);
+    expect(src).toMatch(/else out\.url = u\.url;/);
   });
 
-  test('items-step.tsx renders ↗ link on saved items when url is present', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    expect(src).toMatch(/item\.url/);
-    expect(src).toMatch(/rel="noopener noreferrer"/);
+  test('a saved row renders its link as a safe outbound chip', () => {
+    const src = stripped(itemListEditor);
+    expect(src).toMatch(/linkChip\(row\.url\)/);
+    expect(src).toMatch(/rel="noopener noreferrer/);
   });
 
   // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): item URLs now go
@@ -272,19 +278,8 @@ describe('KAN-219: surface-area regression guards', () => {
     expect(src).toMatch(/rel="noopener noreferrer"/);
   });
 
-  test('wizard.tsx uses the richer Python lyra-app prompts', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.wizard),
-      'utf-8',
-    );
-    // Replaces the terse one-liners with the Python predecessor's longer
-    // prompts. We check for distinctive phrases that wouldn't appear by
-    // accident, not the entire string, so minor copy edits won't break.
-    expect(src).toMatch(/Tastes, interests, and favourites/);
-    expect(src).toMatch(/luxuries you don't give yourself/);
-    expect(src).toMatch(/things that help people respect/);
-    expect(src).toMatch(/screen favourites that shaped you/);
-    expect(src).toMatch(/Causes and charities you care about/);
-    expect(src).toMatch(/billboard message/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): "wizard.tsx uses
+  // the richer Python lyra-app prompts" stood here. It pinned the deleted
+  // wizard's step copy; the v0.8 editor's section copy is the founder's spec
+  // wording and is pinned in the kan487 suites.
 });

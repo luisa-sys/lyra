@@ -6,8 +6,8 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 150,
-    "blocks": 340
+    "files": 148,
+    "blocks": 328
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -70,14 +70,12 @@
     "tests/scripts/ui-ownership-covers-modules.test.js": 2,
     "tests/scripts/weekly-health-regression.test.js": 1,
     "tests/unit/affiliate-badge.test.js": 1,
-    "tests/unit/affiliations-and-autosave.test.ts": 7,
+    "tests/unit/affiliations-and-autosave.test.ts": 4,
     "tests/unit/age-self-declaration.test.ts": 3,
     "tests/unit/auth-confirm-route.test.ts": 1,
     "tests/unit/auth.test.js": 2,
     "tests/unit/auto-fix-patterns.test.js": 3,
-    "tests/unit/auto-save-flush.test.ts": 2,
     "tests/unit/bugs66-dashboard-loading-guard.test.js": 2,
-    "tests/unit/bugs70-manual-of-me-persist.test.ts": 1,
     "tests/unit/consented-analytics.test.ts": 2,
     "tests/unit/convene/connections-page.test.ts": 11,
     "tests/unit/convene/contacts-ui.test.ts": 1,
@@ -122,15 +120,15 @@
     "tests/unit/oauth/metadata.test.ts": 2,
     "tests/unit/oauth/revoke-route.test.ts": 1,
     "tests/unit/partners-page.test.js": 1,
-    "tests/unit/phase3-ui-integration.test.ts": 4,
-    "tests/unit/photo-upload.test.js": 3,
+    "tests/unit/phase3-ui-integration.test.ts": 2,
+    "tests/unit/photo-upload.test.js": 4,
     "tests/unit/privacy-affiliate-disclosure.test.js": 1,
     "tests/unit/privacy-complaints.test.js": 4,
     "tests/unit/privacy-places-disclosure.test.js": 1,
     "tests/unit/privacy-subprocessors.test.js": 3,
     "tests/unit/profile-actions.test.ts": 1,
-    "tests/unit/profile-item-url.test.ts": 6,
-    "tests/unit/profile-items-visibility-migration.test.js": 2,
+    "tests/unit/profile-item-url.test.ts": 3,
+    "tests/unit/profile-items-visibility-migration.test.js": 1,
     "tests/unit/profile-rate-limit-wiring.test.ts": 1,
     "tests/unit/profile-sections.test.js": 1,
     "tests/unit/public-profile-suspended-gating.test.ts": 1,
@@ -159,6 +157,6 @@
     "tests/unit/test-meta-integrity.test.js": 1,
     "tests/unit/test-regression-guard.test.js": 2,
     "tests/unit/version-drift.test.js": 1,
-    "tests/unit/wizard.test.js": 3
+    "tests/unit/wizard.test.js": 2
   }
 }

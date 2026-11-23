@@ -4,8 +4,8 @@
  * Three layers:
  *
  * 1. **Static-grep regression guards** — migration file, affiliation-fields
- *    module, new section components, legacy route, and edit-profile-form
- *    orchestrator all exist and reference each other by name. Same cheap-
+ *    module and the edit-profile-form orchestrator all exist and reference
+ *    each other by name. Same cheap-
  *    coverage pattern as `current-problems-category.test.ts` (KAN-182)
  *    and `conversation-starters.test.ts` (KAN-181).
  *
@@ -20,12 +20,12 @@
  *    in depth alongside the DB CHECK), backward-compat when
  *    `affiliation_type` is omitted.
  *
- * The `useAutoSave` hook isn't unit-tested here — exercising it
- * meaningfully needs a React testing environment (which the Jest config
- * doesn't currently provide); it's covered indirectly by the E2E pass
- * that loads the edit page and types into a field, and the static guard
- * test that confirms the hook exists and is imported by the sections
- * that use it.
+ * KAN-487 part 3 (founder sign-off 2026-11-23, chat): the autosave sections,
+ * `useAutoSave` and the legacy wizard route are deleted, so the five guards
+ * that pinned them are deleted too — "new section components exist",
+ * "useAutoSave hook is referenced by the autosave sections", "legacy wizard
+ * route exists at /dashboard/profile/legacy", "legacy /dashboard/profile/legacy
+ * page also fetches the full dataset" and "legacy wizard.tsx left untouched".
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -361,25 +361,11 @@ describe('KAN-220: surface-area regression guards', () => {
 
   test('WizardSchool type declares affiliation_type', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.profileTypes),
+      resolve(ROOT, SRC.types),
       'utf-8',
     );
     // Type now carries affiliation_type — KAN-220 schools/orgs/communities split
     expect(src).toMatch(/affiliation_type:\s*string/);
-  });
-
-  test('new section components exist', () => {
-    for (const name of [
-      'basic-info-section.tsx',
-      'bio-section.tsx',
-      'manual-of-me-section.tsx',
-      'affiliations-section.tsx',
-      'use-auto-save.tsx',
-      'index.ts',
-    ]) {
-      const p = resolve(ROOT, `src/app/dashboard/profile/sections/${name}`);
-      expect(existsSync(p)).toBe(true);
-    }
   });
 
   test('edit-profile-form orchestrator imports all four new sections + uses ItemsStep for lists', () => {
@@ -417,35 +403,13 @@ describe('KAN-220: surface-area regression guards', () => {
     expect(src).not.toMatch(/FilesStep/);
   });
 
-  test('useAutoSave hook is referenced by the autosave sections', () => {
-    for (const name of [
-      'basic-info-section.tsx',
-      'bio-section.tsx',
-      'manual-of-me-section.tsx',
-    ]) {
-      const src = readFileSync(
-        resolve(ROOT, `src/app/dashboard/profile/sections/${name}`),
-        'utf-8',
-      );
-      expect(src).toMatch(/useAutoSave/);
-    }
-  });
-
-  test('legacy wizard route exists at /dashboard/profile/legacy', () => {
-    const p = resolve(ROOT, SRC.legacyPage);
-    expect(existsSync(p)).toBe(true);
-    const src = readFileSync(p, 'utf-8');
-    expect(src).toMatch(/ProfileWizard/);
-    expect(src).toMatch(/robots:\s*\{[^}]*index:\s*false/); // SEO-hidden — should not be indexed
-  });
-
   test('main /dashboard/profile route renders EditProfileForm (new single-page editor)', () => {
     const src = readFileSync(
       resolve(ROOT, SRC.profilePage),
       'utf-8',
     );
     expect(src).toMatch(/EditProfileForm/);
-    expect(src).not.toMatch(/ProfileWizard/); // wizard moved to /legacy
+    expect(src).not.toMatch(/ProfileWizard/); // the wizard is deleted (KAN-487 part 3)
   });
 
   test('main /dashboard/profile page.tsx still fetches conversation starter data (KAN-181 guard)', () => {
@@ -461,16 +425,6 @@ describe('KAN-220: surface-area regression guards', () => {
     expect(src).toMatch(/profile_conversation_starters/);
   });
 
-  test('legacy /dashboard/profile/legacy page also fetches the full dataset', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.legacyPage),
-      'utf-8',
-    );
-    expect(src).toMatch(/conversation_starter_prompts/);
-    expect(src).toMatch(/profile_conversation_starters/);
-    expect(src).toMatch(/school_affiliations/);
-  });
-
   test('public profile [slug]/page.tsx groups Schools / Orgs / Communities', () => {
     // KAN-488: the page renders the v0.8 view model, which groups opted-in
     // affiliations by type (behaviour in kan488-public-profile-page.test.tsx).
@@ -484,14 +438,4 @@ describe('KAN-220: surface-area regression guards', () => {
     expect(src).toMatch(/Communities/);
   });
 
-  test('legacy wizard.tsx left untouched (preserves profile-sections.test.js assertions)', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.wizard),
-      'utf-8',
-    );
-    // These strings are still expected by tests/unit/profile-sections.test.js
-    expect(src).toMatch(/'Books & Media'/);
-    expect(src).toMatch(/'Causes & Quotes'/);
-    expect(src).toMatch(/More about you/);
-  });
 });

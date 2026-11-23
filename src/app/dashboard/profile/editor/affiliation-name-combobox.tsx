@@ -4,7 +4,7 @@
  * KAN-487 — v0.8 profile editor: the affiliation Name field with type-ahead
  * suggestions (spec v0.8 §02 "Offer autocomplete suggestions with manual
  * fallback"; plan §C row 02). Replaces KAN-451's `sections/affiliation-name-
- * picker.tsx` in the v0.8 editor (the old file stays on disk until PR3).
+ * picker.tsx` (deleted in KAN-487 part 3).
  *
  *   - An ordinary labelled `TextField` (counter, required marker, inline
  *     error, aria wiring) — the member can always type any name. Suggestions
