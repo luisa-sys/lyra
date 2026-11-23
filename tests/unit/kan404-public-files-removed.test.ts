@@ -14,6 +14,7 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { SRC } from '../support/source-paths';
 
 const PUBLIC_PROFILE_PAGE = join(
   __dirname,
@@ -35,7 +36,11 @@ describe('KAN-404 — public profile no longer renders Files & media', () => {
   test('retains the retained-by-design "My boundaries" Manual-of-Me box', () => {
     // KAN-404 explicitly keeps the MoM boundaries box — guard against an
     // over-eager removal taking it out alongside the files surface.
-    expect(source).toContain('My boundaries');
-    expect(source).toContain('boundaries');
+    // KAN-488: the page renders the v0.8 view model, where the box is a §05
+    // prompt; its loader still selects the column. Was (on the page source):
+    //   expect(source).toContain('My boundaries');
+    //   expect(source).toContain('boundaries');
+    expect(readFileSync(join(__dirname, '../..', SRC.publicViewModel), 'utf8')).toContain("label: 'My boundaries'");
+    expect(readFileSync(join(__dirname, '../..', SRC.loadPublicProfile), 'utf8')).toContain('boundaries');
   });
 });

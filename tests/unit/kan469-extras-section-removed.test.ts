@@ -141,7 +141,9 @@ describe('KAN-469: the public profile no longer renders a standalone billboard',
 
   test('the public page source is non-trivial — the read actually found it', () => {
     expect(page.length).toBeGreaterThan(1000);
-    expect(page).toContain('groupedItems');
+    // KAN-488: the page no longer groups items itself; it renders the v0.8
+    // view model. Was: expect(page).toContain('groupedItems');
+    expect(page).toContain('buildPublicProfileView');
   });
 
   test('nothing on the public page reads the billboard category', () => {
@@ -152,8 +154,16 @@ describe('KAN-469: the public profile no longer renders a standalone billboard',
   test('the Q&A section that absorbs the prompt is untouched', () => {
     // The billboard block sat between the Q&A section and Links. Removing it
     // must not have taken either neighbour with it.
-    expect(page).toContain("groupedItems['questions']");
-    expect(page).toContain('A bit more about me');
-    expect(page).toContain('typedLinks');
+    // KAN-488 (spec v0.8): Q&A is §09 "Random Questions & Answers" built by
+    // the view model from answered questions only; legacy "questions" items
+    // are no longer read and the Links section is retired. The rendered Q&A
+    // is asserted in kan488-public-profile-page.test.tsx. Old expected values:
+    //   expect(page).toContain("groupedItems['questions']");
+    //   expect(page).toContain('A bit more about me');
+    //   expect(page).toContain('typedLinks');
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(page).not.toContain("groupedItems['questions']");
+    expect(page).not.toContain('A bit more about me');
+    expect(page).not.toContain('typedLinks');
   });
 });

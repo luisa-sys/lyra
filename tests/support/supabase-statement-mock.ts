@@ -63,6 +63,12 @@ export type MockStatement = {
   kind: StatementKind;
   /** `.eq()` filters applied to THIS statement only — never pooled. */
   eq: Array<[string, unknown]>;
+  /** KAN-488: `.in()` filters applied to THIS statement, as `[column, values]`. */
+  in: Array<[string, readonly unknown[]]>;
+  /** KAN-488: `.order()` columns, in call order. */
+  order: string[];
+  /** KAN-488: the column list handed to `.select()`, or null if none was. */
+  columns: string | null;
 };
 
 const statements: MockStatement[] = [];
@@ -113,7 +119,7 @@ export function expectUpdateScopedTo(
 
 /** Opens a new statement against `table` and returns its record. */
 export function recordStatement(table: string): MockStatement {
-  const statement: MockStatement = { table, kind: 'unknown', eq: [] };
+  const statement: MockStatement = { table, kind: 'unknown', eq: [], in: [], order: [], columns: null };
   statements.push(statement);
   return statement;
 }
@@ -129,19 +135,31 @@ export type StatementMockOptions = {
   onInsert?: (table: string, data: unknown) => void;
   /** Called with the payload handed to `.update()`. */
   onUpdate?: (table: string, data: unknown) => void;
+  /**
+   * KAN-488: fixture rows for a table. When given, an awaited statement and
+   * `.maybeSingle()` / `.single()` (without their own option) resolve to the
+   * rows that pass THIS statement's recorded `.eq()` / `.in()` filters — so a
+   * filter the code under test forgets really lets the row through.
+   * Return `undefined` for a table with no fixture.
+   */
+  rows?: (table: string) => ReadonlyArray<Record<string, unknown>> | undefined;
+  /** KAN-488: a read error for a table (simulates a failed statement). */
+  error?: (table: string) => unknown;
 };
 
 export type StatementMockBuilder = {
-  select: () => StatementMockBuilder;
+  select: (columns?: string) => StatementMockBuilder;
   update: (data: unknown) => StatementMockBuilder;
   insert: (data: unknown) => Promise<{ error: null }>;
   upsert: (data: unknown) => Promise<{ error: null }>;
   delete: () => StatementMockBuilder;
   eq: (col: string, val: unknown) => StatementMockBuilder;
-  single: () => Promise<{ data: unknown; error: null }>;
-  maybeSingle: () => Promise<{ data: unknown; error: null }>;
+  in: (col: string, values: readonly unknown[]) => StatementMockBuilder;
+  order: (col: string, opts?: unknown) => StatementMockBuilder;
+  single: () => Promise<{ data: unknown; error: unknown }>;
+  maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
   then: (
-    resolve: (v: { error: null }) => unknown,
+    resolve: (v: { data?: unknown; error: unknown }) => unknown,
     reject?: (e: unknown) => unknown,
   ) => Promise<unknown>;
 };
@@ -153,9 +171,27 @@ export function createStatementMockBuilder(
 ): StatementMockBuilder {
   const statement = recordStatement(table);
 
+  // KAN-488: fixture rows that pass this statement's own filters.
+  const fixture = (): Array<Record<string, unknown>> | undefined => {
+    const all = options.rows?.(table);
+    if (all === undefined) return undefined;
+    return all.filter(
+      (row) =>
+        statement.eq.every(([col, val]) => row[col] === val) &&
+        statement.in.every(([col, values]) => values.includes(row[col])),
+    );
+  };
+  const readError = (): unknown => (options.error ? (options.error(table) ?? null) : null);
+  const oneRow = (explicit: ((t: string) => unknown) | undefined): unknown => {
+    if (explicit) return explicit(table) ?? null;
+    const rows = fixture();
+    return rows === undefined ? null : (rows[0] ?? null);
+  };
+
   const b: StatementMockBuilder = {
-    select: () => {
+    select: (columns?: string) => {
       statement.kind = 'select';
+      statement.columns = columns ?? null;
       return b;
     },
     update: (data: unknown) => {
@@ -181,14 +217,25 @@ export function createStatementMockBuilder(
       statement.eq.push([col, val]);
       return b;
     },
-    single: () =>
-      Promise.resolve({ data: options.single ? (options.single(table) ?? null) : null, error: null }),
-    maybeSingle: () =>
-      Promise.resolve({
-        data: options.maybeSingle ? (options.maybeSingle(table) ?? null) : null,
-        error: null,
-      }),
-    then: (resolve, reject) => Promise.resolve({ error: null }).then(resolve, reject),
+    in: (col: string, values: readonly unknown[]) => {
+      statement.in.push([col, [...values]]);
+      return b;
+    },
+    order: (col: string) => {
+      statement.order.push(col);
+      return b;
+    },
+    single: () => Promise.resolve({ data: oneRow(options.single), error: readError() }),
+    maybeSingle: () => Promise.resolve({ data: oneRow(options.maybeSingle), error: readError() }),
+    then: (resolve, reject) => {
+      const rows = fixture();
+      const err = readError();
+      const value =
+        rows === undefined && err === null
+          ? { error: null }
+          : { data: err === null ? (rows ?? []) : null, error: err };
+      return Promise.resolve(value).then(resolve, reject);
+    },
   };
   return b;
 }

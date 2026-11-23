@@ -472,12 +472,15 @@ describe('KAN-445 migration — the offered set, and what it must not touch', ()
     // page: the JSX comment above the heading repeated it word for word, so
     // deleting the heading left the guard green. Stripping comments first is
     // what makes this assertion about what a member reads.
-    expect(publicPage).toContain('A bit more about me');
+    // KAN-488 (step 5): the public page now uses the v0.8 §09 heading too,
+    // asserted on the rendered page in kan488-public-profile-page.test.tsx.
+    // Old expected value: expect(publicPage).toContain('A bit more about me')
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(publicPage).not.toContain('A bit more about me');
     expect(publicPage).not.toContain('A few more things about me');
     // KAN-487 (spec v0.8 §09 heading "Random Questions & Answers").
     // Old expected value: expect(editor).toContain('A bit more about me')
     // (founder standing approval 2026-11-23: v0.8 contradicts)
-    // The public page keeps its heading until step 5 (KAN-487 plan §A).
     expect(editor).toContain('Random Questions & Answers');
   });
 
@@ -511,7 +514,9 @@ describe('KAN-445: every read site and the write-your-own surface', () => {
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const src = (rel: string) => noComments(readFileSync(resolve(root, rel), 'utf-8'));
-  const publicPage = src(SRC.slugPage);
+  // KAN-488: the public page's starters read moved into the public-profile
+  // loader (CTL-056); same expected values, new location. Was: src(SRC.slugPage)
+  const publicPage = src(SRC.loadPublicProfile);
   const legacyPage = src(SRC.legacyPage);
   const step = src(SRC.conversationStartersStep);
 

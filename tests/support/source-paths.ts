@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 253 entries.
+// 258 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -237,12 +237,17 @@ export const SRC = {
   supabaseServer: 'src/modules/platform/supabase-server.ts',
   supabaseService: 'src/modules/platform/supabase-service.ts',
   dbErrorCopy: 'src/modules/profile/db-error-copy.ts',
+  editorState: 'src/modules/profile/editor/editor-state.ts',
+  publicViewModel: 'src/modules/profile/editor/public-view-model.ts',
   favourites: 'src/modules/profile/favourites.ts',
   profileFields: 'src/modules/profile/profile-fields.ts',
   sectionVisibility: 'src/modules/profile/section-visibility.ts',
   profileTypes: 'src/modules/profile/types.ts',
   publicProfile: 'src/modules/public-profile',
   modulesPublicProfile: 'src/modules/public-profile/',
+  loadPublicProfile: 'src/modules/public-profile/load-public-profile.ts',
+  publicProfileMeta: 'src/modules/public-profile/public-profile-meta.ts',
+  publicProfileSections: 'src/modules/public-profile/public-profile-sections.tsx',
   recommendationsSection: 'src/modules/public-profile/recommendations-section.tsx',
   reportButton: 'src/modules/public-profile/report-button.tsx',
   slugUtils: 'src/modules/public-profile/slug-utils.ts',

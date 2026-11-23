@@ -164,6 +164,15 @@ export const LIST_KEYS: readonly ListKey[] = [
   'current_problems',
 ];
 
+/**
+ * KAN-488 — every stored category a v0.8 list shows, flattened from
+ * `LIST_CATEGORIES` in spec order. The public page reads only these, so a
+ * legacy row the editor cannot show (KAN-490 owns them) is never fetched.
+ */
+export const PUBLIC_ITEM_CATEGORIES: readonly ItemCategory[] = LIST_KEYS.flatMap(
+  (key) => LIST_CATEGORIES[key].categories,
+);
+
 /** The list a stored category belongs to, or null for a legacy category. */
 export function listKeyForCategory(category: string): ListKey | null {
   for (const key of LIST_KEYS) {

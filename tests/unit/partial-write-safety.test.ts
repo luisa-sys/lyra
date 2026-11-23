@@ -261,7 +261,9 @@ describe('form-backed tables: every reader loads the full field set', () => {
     expect(files).toEqual(
       expect.arrayContaining([
         SRC.profilePage,
-        SRC.slugPage,
+        // KAN-488: the public page's read moved into the public-profile loader
+        // (CTL-056). Was: SRC.slugPage
+        SRC.loadPublicProfile,
         SRC.legacyPage,
       ]),
     );

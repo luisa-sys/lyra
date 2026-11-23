@@ -250,6 +250,11 @@ describe('KAN-443: the gift surfaces are wired to the guarded helpers', () => {
   });
 
   test('the public profile still renders the gift list', () => {
-    expect(publicPage).toContain('<GiftLines');
+    // KAN-488: the page renders the v0.8 view model through the public-profile
+    // module's section renderer, which draws the member's gifts. The rendered
+    // gift list is asserted behaviourally in kan488-public-profile-page.test.tsx.
+    // Was: expect(publicPage).toContain('<GiftLines');
+    expect(publicPage).toContain('<PublicProfileSections');
+    expect(read(SRC.publicProfileSections)).toContain('<EntryList entries={section.userGifts} />');
   });
 });

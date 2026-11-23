@@ -2074,15 +2074,6 @@
           "typeOnly": false
         },
         {
-          "symbol": "isManualOfMeEmpty",
-          "file": "src/modules/profile/manual-of-me-fields.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "public-profile"
-          ],
-          "typeOnly": false
-        },
-        {
           "symbol": "type:ManualOfMe",
           "file": "src/modules/profile/manual-of-me-fields.ts",
           "importingFiles": 1,
@@ -2094,10 +2085,9 @@
         {
           "symbol": "normaliseDeliveryCountry",
           "file": "src/modules/profile/country-codes.ts",
-          "importingFiles": 3,
+          "importingFiles": 2,
           "consumingModules": [
             "profile",
-            "public-profile",
             "recommendations"
           ],
           "typeOnly": false
@@ -2105,9 +2095,8 @@
         {
           "symbol": "isIsoAlpha2",
           "file": "src/modules/profile/country-codes.ts",
-          "importingFiles": 2,
+          "importingFiles": 1,
           "consumingModules": [
-            "public-profile",
             "recommendations"
           ],
           "typeOnly": false
@@ -2122,32 +2111,145 @@
           "typeOnly": false
         },
         {
-          "symbol": "(file-level; symbol not derived)",
-          "file": "src/modules/profile/favourites.ts",
-          "importingFiles": 5,
+          "symbol": "buildPublicProfileView",
+          "file": "src/modules/profile/editor/public-view-model.ts",
+          "importingFiles": 1,
           "consumingModules": [
             "public-profile"
           ],
           "typeOnly": false,
-          "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
+          "note": "Added 2026-11-23 (KAN-488): the public page renders the v0.8 view model."
+        },
+        {
+          "symbol": "type:PublicProfileView",
+          "file": "src/modules/profile/editor/public-view-model.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:PublicEntry",
+          "file": "src/modules/profile/editor/public-view-model.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:PublicSection",
+          "file": "src/modules/profile/editor/public-view-model.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:PublicAboutSection",
+          "file": "src/modules/profile/editor/public-view-model.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "initialEditorState",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-11-23 (KAN-488): the public page renders the v0.8 view model."
+        },
+        {
+          "symbol": "PUBLIC_ITEM_CATEGORIES",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-11-23 (KAN-488): the public page renders the v0.8 view model."
+        },
+        {
+          "symbol": "type:LoadedProfile",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:LoadedItem",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:LoadedAnswer",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "type:LoadedPrompt",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": true
+        },
+        {
+          "symbol": "parseMemberUrl",
+          "file": "src/modules/profile/member-url.ts",
+          "importingFiles": 1,
+          "consumingModules": [
+            "public-profile"
+          ],
+          "typeOnly": false,
+          "note": "Added 2026-11-23 (KAN-488): the public page renders the v0.8 view model."
         }
       ],
       "declaredApi": [
         {
           "file": "src/modules/profile/country-codes.ts",
           "consumedBy": [
-            "public-profile",
             "recommendations"
           ]
         },
         {
-          "file": "src/modules/profile/favourites.ts",
+          "file": "src/modules/profile/editor/editor-state.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/editor/public-view-model.ts",
           "consumedBy": [
             "public-profile"
           ]
         },
         {
           "file": "src/modules/profile/manual-of-me-fields.ts",
+          "consumedBy": [
+            "public-profile"
+          ]
+        },
+        {
+          "file": "src/modules/profile/member-url.ts",
           "consumedBy": [
             "public-profile"
           ]
@@ -2239,7 +2341,7 @@
         "src/modules/public-profile/"
       ],
       "owns": {
-        "files": 8,
+        "files": 11,
         "tables": [],
         "rpcs": [],
         "profilesColumns": []
@@ -2669,33 +2771,6 @@
           "typeOnly": true
         },
         {
-          "symbol": "getRecommendations",
-          "file": "src/modules/recommendations/recommend/index.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "public-profile"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "buildV2Recommendations",
-          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "public-profile"
-          ],
-          "typeOnly": false
-        },
-        {
-          "symbol": "ConceptInput",
-          "file": "src/modules/recommendations/recommender/v2/types.ts",
-          "importingFiles": 1,
-          "consumingModules": [
-            "public-profile"
-          ],
-          "typeOnly": true
-        },
-        {
           "symbol": "RecommendationResult",
           "file": "src/modules/recommendations/recommend/index.ts",
           "importingFiles": 1,
@@ -2707,10 +2782,9 @@
         {
           "symbol": "(file-level; symbol not derived)",
           "file": "src/modules/recommendations/recommend/dismissals.ts",
-          "importingFiles": 4,
+          "importingFiles": 1,
           "consumingModules": [
-            "profile",
-            "public-profile"
+            "profile"
           ],
           "typeOnly": false,
           "note": "Added 2026-08-13 (KAN-415 C2). Became externally imported during the D1-D9 moves; the KAN-416 derivation predates them."
@@ -2720,20 +2794,13 @@
         {
           "file": "src/modules/recommendations/recommend/dismissals.ts",
           "consumedBy": [
-            "profile",
-            "public-profile"
+            "profile"
           ]
         },
         {
           "file": "src/modules/recommendations/recommend/index.ts",
           "consumedBy": [
             "profile",
-            "public-profile"
-          ]
-        },
-        {
-          "file": "src/modules/recommendations/recommender/v2/pipeline.ts",
-          "consumedBy": [
             "public-profile"
           ]
         },

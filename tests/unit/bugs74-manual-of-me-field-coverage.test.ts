@@ -53,7 +53,9 @@ function assertCoversEveryField(selectArg: string, file: string): void {
 
 const LOADERS = [
   { label: 'profile editor', path: SRC.profilePage },
-  { label: 'public profile', path: SRC.slugPage },
+  // KAN-488: the public page's reads moved into the public-profile loader
+  // (CTL-056). Was: { label: 'public profile', path: SRC.slugPage }
+  { label: 'public profile', path: SRC.loadPublicProfile },
   // BUGS-74 follow-up: the legacy step-by-step editor carried the identical
   // four-column select and was missed by the original fix. It is the live
   // rollback path, so leaving it drifted meant a rollback would resume the

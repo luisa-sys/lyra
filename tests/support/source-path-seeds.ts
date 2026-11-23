@@ -208,6 +208,15 @@ export const SEEDED_PATHS = [
   'src/modules/public-profile/v2-recommendations-section.tsx',
   'src/modules/public-profile/slug-utils.ts',
   'src/modules/public-profile/v2-recommendations-helpers.ts',
+  // KAN-488: the public page's data access, metadata and section renderer
+  // moved out of src/app/[slug]/page.tsx. Tests that pin the loader's query
+  // shape reach these only via SRC, so they are seeded here.
+  'src/modules/public-profile/load-public-profile.ts',
+  'src/modules/public-profile/public-profile-meta.ts',
+  'src/modules/public-profile/public-profile-sections.tsx',
+  // ...and the two profile-module files the public page now renders through.
+  'src/modules/profile/editor/editor-state.ts',
+  'src/modules/profile/editor/public-view-model.ts',
   // CTL-049 / SEC-137. Both are reached ONLY through `SRC` — the test routes
   // every path through the manifest so the F4 raw-literal ratchet (shrink-only)
   // is not raised by a new file, which would have been the easy wrong move.

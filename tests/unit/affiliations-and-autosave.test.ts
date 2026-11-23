@@ -472,10 +472,12 @@ describe('KAN-220: surface-area regression guards', () => {
   });
 
   test('public profile [slug]/page.tsx groups Schools / Orgs / Communities', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
-      'utf-8',
-    );
+    // KAN-488: the page renders the v0.8 view model, which groups opted-in
+    // affiliations by type (behaviour in kan488-public-profile-page.test.tsx).
+    // Was: readFileSync(resolve(ROOT, SRC.slugPage), 'utf-8')
+    const src =
+      readFileSync(resolve(ROOT, SRC.editorState), 'utf-8') +
+      readFileSync(resolve(ROOT, SRC.publicViewModel), 'utf-8');
     // The render groups by affiliation_type — checking distinctive strings
     expect(src).toMatch(/affiliation_type/);
     expect(src).toMatch(/Organisations/);
