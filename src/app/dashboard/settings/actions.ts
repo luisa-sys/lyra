@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
@@ -224,11 +223,7 @@ export async function exportUserData(): Promise<string> {
   // KAN-489: the AI gift suggestion requests the member made (timestamps,
   // random editor-session ids and the consent-note version; no content). Unreadable by the member's own
   // client by design (no RLS policy), so only this service-role export shows it.
-  // The table is not in the generated types until the KAN-489 migration is
-  // applied to dev and `npm run gen:db-types` is re-run; until then this one
-  // read goes through the untyped client. Remove the cast after regeneration.
-  const untypedAdmin = admin as unknown as SupabaseClient;
-  const { data: aiGiftGenerations, error: aiGenErr } = await untypedAdmin
+  const { data: aiGiftGenerations, error: aiGenErr } = await admin
     .from('ai_gift_generations').select('id, session_id, consent_version, created_at').eq('profile_id', profileId);
   record('ai_gift_generations', aiGenErr);
 
