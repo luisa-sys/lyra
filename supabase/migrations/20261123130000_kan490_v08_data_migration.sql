@@ -177,6 +177,12 @@
 -- ============================================================
 -- 0. Serialise against concurrent profile / item writes for the duration.
 -- ============================================================
+-- Explicit transaction (precedent: 20260820090000_sec103): the Supabase CLI /
+-- branching runner does not wrap a migration file in a transaction, and LOCK
+-- TABLE is only valid inside one (Supabase Preview failed with 25P01). Under
+-- apply_migration, which already wraps, BEGIN only warns.
+begin;
+
 lock table public.profiles in share row exclusive mode;
 lock table public.profile_items in share row exclusive mode;
 lock table public.profile_manual_of_me in share row exclusive mode;
@@ -692,3 +698,5 @@ begin
   end if;
 end
 $migration$;
+
+commit;

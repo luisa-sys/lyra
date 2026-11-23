@@ -350,3 +350,14 @@ describe('KAN-490 migration — no deletions, post-checks, locking', () => {
     expect(header).toMatch(/P3 invariants/);
   });
 });
+
+describe('KAN-490 migration runs as ONE explicit transaction (Supabase CLI / branching does not wrap)', () => {
+  const body = raw.replace(/--[^\n]*/g, '');
+  test('BEGIN precedes the first LOCK TABLE and COMMIT is the last statement', () => {
+    const begin = body.search(/^\s*begin;\s*$/m);
+    const lock = body.search(/^\s*lock table /m);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeGreaterThan(begin);
+    expect(body.trimEnd().endsWith('commit;')).toBe(true);
+  });
+});
