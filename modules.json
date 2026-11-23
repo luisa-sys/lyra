@@ -2027,13 +2027,14 @@
         "src/modules/profile/"
       ],
       "owns": {
-        "files": 107,
+        "files": 108,
         "tables": [
           "ai_gift_generations",
           "external_links",
           "profile_conversation_starters",
           "profile_files",
           "profile_items",
+          "profile_items_legacy_archive",
           "profile_manual_of_me",
           "school_affiliations"
         ],
@@ -2343,7 +2344,9 @@
       ],
       "owns": {
         "files": 11,
-        "tables": [],
+        "tables": [
+          "profile_slug_history"
+        ],
         "rpcs": [],
         "profilesColumns": []
       },

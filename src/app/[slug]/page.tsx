@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
@@ -9,7 +9,11 @@ import { initialEditorState } from '@/modules/profile/editor/editor-state';
 import { buildPublicProfileView } from '@/modules/profile/editor/public-view-model';
 import ReportButton from '@/modules/public-profile/report-button';
 import { decodeSlug } from '@/modules/public-profile/slug-utils';
-import { loadPublicProfile, loadPublicProfileRow } from '@/modules/public-profile/load-public-profile';
+import {
+  loadPublicProfile,
+  loadPublicProfileRow,
+  resolveLegacySlug,
+} from '@/modules/public-profile/load-public-profile';
 import { buildPublicProfileMeta } from '@/modules/public-profile/public-profile-meta';
 import { PublicProfileSections } from '@/modules/public-profile/public-profile-sections';
 
@@ -70,6 +74,13 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const row = await loadPublicProfileRow(slug);
   if (!row) {
+    // KAN-490 / ADR-011: an old (pre-v0.8) slug, or a mixed-case form of a
+    // live ID, redirects permanently (308) to the current ID — only ever to a
+    // published, not-suspended profile. Anything else is a 404.
+    const target = await resolveLegacySlug(slug);
+    if (target) {
+      permanentRedirect(`/${encodeURIComponent(target)}`);
+    }
     notFound();
   }
 

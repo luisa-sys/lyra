@@ -13,8 +13,9 @@
  *     such a row is never fetched (spec §03, §3);
  *   - affiliations the owner has not opted in — filtered in the affiliation
  *     query itself (spec §02, §1);
- *   - pre-v0.8 item categories the editor cannot show (KAN-490 owns them) —
- *     the item query asks only for the v0.8 categories;
+ *   - pre-v0.8 item categories the editor cannot show (KAN-490 mapped the
+ *     public ones it could and archived the rest) — the item query asks only
+ *     for the v0.8 categories;
  *   - members-only / draft items under the legacy hybrid visibility model —
  *     filtered here in JS after the read, for anonymous viewers.
  *
@@ -68,6 +69,78 @@ export const loadPublicProfileRow = cache(async (slug: string): Promise<PublicPr
   if (!data || !data.id || !data.slug) return null;
   return data as PublicProfileRow;
 });
+
+/**
+ * KAN-490 / ADR-011 — where an unknown public slug should permanently
+ * redirect to, or null (404).
+ *
+ * Called only after `loadPublicProfileRow(slug)` found nothing. Two cases:
+ *   1. Case: IDs are stored lower-case and unique without regard to case, so
+ *      a mixed-case request whose lower-case form is a live profile redirects
+ *      to that lower-case ID.
+ *   2. History: the v0.8 conversion (migration
+ *      20261123130000_kan490_v08_data_migration.sql) recorded every old slug
+ *      in `profile_slug_history`, keyed by its lower-cased form
+ *      (`old_slug_key`). The target is read back from the `public_profiles`
+ *      VIEW, so only a published, not-suspended profile is ever a target
+ *      (SEC-104); a draft or suspended owner yields null and the page 404s.
+ *
+ * No loops: a returned target is always a slug that `loadPublicProfileRow`
+ * finds (it was just read from the same view), and a target equal to the
+ * requested slug is refused. Service-role reads: the history table has RLS on
+ * and no policies (members and visitors cannot read it).
+ *
+ * A failed read still ends in null (the page 404s rather than erroring for an
+ * old link) but is reported to Sentry, never swallowed (KAN-351).
+ */
+export async function resolveLegacySlug(slug: string): Promise<string | null> {
+  const key = slug.toLowerCase();
+  const supabase = createServiceRoleClient();
+  const report = (step: string, error: unknown) =>
+    Sentry.captureException(error, {
+      tags: { area: 'public-profile', step: `legacy-slug:${step}`, ticket: 'KAN-490' },
+      extra: { slug },
+    });
+
+  if (key !== slug) {
+    const { data: live, error: liveError } = await supabase
+      .from('public_profiles')
+      .select('slug')
+      .eq('slug', key)
+      .maybeSingle();
+    if (liveError) {
+      report('case', liveError);
+    } else {
+      const liveSlug = (live as { slug?: string | null } | null)?.slug;
+      if (liveSlug && liveSlug !== slug) return liveSlug;
+    }
+  }
+
+  const { data: history, error: historyError } = await supabase
+    .from('profile_slug_history')
+    .select('profile_id')
+    .eq('old_slug_key', key)
+    .maybeSingle();
+  if (historyError) {
+    report('history', historyError);
+    return null;
+  }
+  const profileId = (history as { profile_id?: string | null } | null)?.profile_id;
+  if (!profileId) return null;
+
+  const { data: target, error: targetError } = await supabase
+    .from('public_profiles')
+    .select('slug')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (targetError) {
+    report('target', targetError);
+    return null;
+  }
+  const targetSlug = (target as { slug?: string | null } | null)?.slug;
+  if (!targetSlug || targetSlug === slug) return null;
+  return targetSlug;
+}
 
 export interface LoadPublicProfileOptions {
   /** Signed-in viewers also see members-only items (KAN-143). */

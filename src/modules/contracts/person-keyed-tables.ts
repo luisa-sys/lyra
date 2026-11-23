@@ -65,6 +65,13 @@ export const PERSON_KEYED_TABLES = {
   // must not be inspectable or editable), but it is personal data about them,
   // so the service-role export returns it. Added with its migration.
   ai_gift_generations: 'profile_id',
+  // KAN-490. The member's pre-v0.8 profile addresses (old slugs, which hold
+  // their name), kept so old links redirect; and the full archive copy of
+  // their pre-v0.8 list items taken before the v0.8 data migration moved
+  // them. RLS on, no policies; personal data, so the export returns both.
+  // Added with their migration.
+  profile_slug_history: 'profile_id',
+  profile_items_legacy_archive: 'profile_id',
 } as const;
 
 /**
