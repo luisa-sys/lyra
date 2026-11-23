@@ -120,7 +120,7 @@ The two waiver files stay **separate**. That's the least disruptive option, and 
 | `security/npm-audit-waivers.json` | The **blocking prod-tree HIGH/CRITICAL** audit gate in `pr-checks.yml` (SEC-105) | CTL-052 (matching), CTL-025 (hygiene: ticket/owner/reason, `expires` ≤ 12 months or `review_by`) |
 | `security/dependency-freshness-waivers.json` | **This policy**: any severity, any tree, plus the age rule | CTL-081 (shape, ≤ 90-day expiry, expiry fails, staleness) |
 
-If a package has an unfixable HIGH in the production tree, it needs an entry in **both** files. The audit-gate entry stops PRs being blocked; the freshness entry records the policy exception and its 90-day re-look. Merging the two would mean either loosening CTL-081's 90-day cap to CTL-025's 12 months, or tightening every existing audit waiver. Neither is worth the churn while both files are empty.
+If a package has an unfixable HIGH in the production tree, it needs an entry in **both** files. The audit-gate entry stops PRs being blocked; the freshness entry records the policy exception and its 90-day re-look. Merging the two would mean either loosening CTL-081's 90-day cap to CTL-025's 12 months, or tightening every existing audit waiver. Neither is worth the churn while the audit-gate file is empty (the freshness file holds age waivers only, none for a prod-tree HIGH).
 
 ## 7. The control (CTL-081)
 

@@ -29,5 +29,42 @@
     "EMPTY IS THE CORRECT STEADY STATE."
   ],
   "ticket": "SEC-197",
-  "waivers": []
+  "waivers": [
+    {
+      "package": "jose",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Installed 5.10.0 (published 2025-02-17, latest 5.x); 6.2.18 not taken. jose 6 is ESM-only and the jest suite runs CommonJS through @swc/jest, so 6 suites (oauth/*, admin/cf-access, admin) fail with 'Must use import to load ES Module'. The app code needs NO change (tsc clean on 6.2.18: importSPKI/importPKCS8/SignJWT/jwtVerify/createRemoteJWKSet/decodeJwt/exportJWK unchanged). The fix is a jest.config.js change, which the Test Integrity Policy reserves for founder sign-off: add transform '^.+/node_modules/jose/.+\\.js$' -> @swc/jest and transformIgnorePatterns ['/node_modules/(?!jose/)']; verified on a scratch config: those 19 suites pass 214/214 with jose 6. Mitigation: no advisories against 5.10.0. Follow-up: founder approves the two-line jest.config change, then bump jose.",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "founder 2026-11-23 standing policy"
+    },
+    {
+      "package": "@sentry/nextjs",
+      "kind": "age",
+      "advisory": null,
+      "reason": "NOT an age breach: the installed 10.78.0 is within 90 days, so SEC-197 does not require this entry. It records a declined major (11) for visibility; the 11 move needs founder sign-off (assertion changes under the Test Integrity Policy, plus v11 dataCollection defaults that would start sending PII). Installed 10.78.0 (latest 10.x, published 2026-10-28, within 90 days); 11.16.0 not taken. Sentry 11 removes `sendDefaultPii` and moves withSentryConfig to '@sentry/nextjs/config'; three existing assertions encode the v10 API (sentry-scaffold.test.ts: toContain('sendDefaultPii: false') and the withSentryConfig import string; sentry-client-init-behaviour.test.ts: sendDefaultPii toBe(false)), and changing assertions needs founder sign-off. PRIVACY: v11's replacement option `dataCollection` defaults to COLLECTING user info, cookies, request/response headers and bodies, query params, DB query data and gen-AI inputs/outputs, so a naive bump would silently start sending personal data (incl. Anthropic prompts from AI gifts) to Sentry; the upgrade must set every dataCollection category off. A prototype (tsc clean, next build exit 0) is saved as sentry11-prototype.patch + sentry-data-collection.ts.proto in the SEC-174 scratchpad. Mitigation: the v10 audit chain (glob/minimatch) is already cleared by overrides; npm audit 0. Follow-up: founder signs off the three assertion changes (and the dataCollection posture), then land the prototype.",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "founder 2026-11-23 standing policy"
+    },
+    {
+      "package": "eslint",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Installed 9.39.5 (latest 9.x, published 2026-07-10, >90 days); 10.15.0 not taken. END OF LIFE: npm marks every eslint 9.x release deprecated ('This version is no longer supported', see eslint.org/version-support) and prints it at install, so 9.x will receive no further security fixes; that is why this waiver is short. eslint-config-next 16.4.6 (latest) bundles eslint-plugin-react 7.37.5, eslint-plugin-import 2.32.0 and eslint-plugin-jsx-a11y 6.10.2, none of which declare ESLint 10 in their peer range and none of which has a release that does; installing eslint 10 makes npm override three peer dependencies and `npm ls` reports the tree invalid. Tested on a throwaway tree: the lint output was byte-identical to 9.x (37 warnings, 0 errors) and probe violations for react/jsx-key, react/no-unescaped-entities, react-hooks/rules-of-hooks, jsx-a11y/alt-text, import/no-anonymous-default-export and @next/next/no-img-element all still fired, so it is workable, but only by forcing peers. Mitigation: no advisories against 9.39.5 today (npm audit 0); eslint is dev/CI-only and never ships in the app bundle; any new eslint 9 advisory voids this waiver immediately because no 9.x fix will come. Follow-up: upgrade when eslint-config-next's bundled plugins declare ESLint 10 support, or by the expiry date with peer overrides if they still have not (the throwaway-tree test above shows that works).",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "founder 2026-11-23 standing policy"
+    },
+    {
+      "package": "typescript",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Upgraded 5.9.3 -> 6.0.3 (latest 6.x, published 2026-04-16, so itself >90 days old) in SEC-174; 7.0.2 not taken. TypeScript 7 is the native (Go) compiler: its package exports only ./lib/version.cjs and unstable/* entry points, with no require('typescript') compiler API. typescript-eslint 8.73 (peer typescript >=4.8.4 <6.1.0), ts-jest 29.4 (peer <7) and next 16.4.6's build-time type check (resolves typescript/lib/typescript.js) all need that API. Mitigation: no advisories against 6.0.3; tsc, lint and next build are clean on it. Follow-up: re-evaluate when typescript-eslint and Next.js declare TS 7 support (or adopt @typescript/native-preview alongside 6.x for tsc only).",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "founder 2026-11-23 standing policy"
+    }
+  ]
 }
