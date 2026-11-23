@@ -44,8 +44,14 @@
 -- Dev measurements (read-only, 2026-11-23, project ilprytcrnqyrsbsrfujj):
 -- 33 profiles (30 published), all 33 slugs fail the format, 0 reserved, 0
 -- collisions after conversion, 2 conversions over 30 characters; 3
--- external_links on 2 profiles (both under the 25 cap); 0 legacy-category
--- items. The full old -> new table is pinned in
+-- external_links on 2 profiles (both under the 25 cap); 24 legacy-category
+-- items, all public, on 2 profiles (re-measured in the 2026-11-23 dry run —
+-- an earlier read-only count of 0 was wrong): likes 12 -> gift_ideas,
+-- dislikes 3 -> gifts_to_avoid, questions 1 -> current_problems, billboard
+-- items 2 -> profiles.billboard (both empty), helpful_to_know 3 ->
+-- manual_of_me.good_to_know, boundaries 3 -> manual_of_me.boundaries (one new
+-- manual_of_me row). All archived first; nothing deleted; caps hold (gift
+-- ideas end at 20 and 7 of 25). The full old -> new table is pinned in
 -- tests/unit/kan490-lyra-id-convert.test.ts (src/modules/profile/lyra-id-convert.ts
 -- is the TypeScript mirror of lyra_slugify + lyra_id_from_legacy).
 --
@@ -98,7 +104,7 @@
 --   select profile_id from public.profile_manual_of_me
 --    where length(good_to_know) > 500 or length(boundaries) > 500;
 --   select id from public.profiles where length(billboard) > 200;
---   -- P5 legacy (expect 0 on dev): select kan490_action, count(*) from
+--   -- P5 legacy (expect 24 archived on dev: 16 moved, 8 merged): select kan490_action, count(*) from
 --   --    public.profile_items_legacy_archive group by 1;
 --   -- P6 guard (expect ERROR 'Retired CheckLyra ID'): every dev old slug
 --   --    fails the ID format, so prove the guard with a valid-format history
