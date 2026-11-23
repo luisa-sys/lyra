@@ -40,10 +40,16 @@ turned an unchanged repo red. This control is built so that cannot happen.
   --pr (pr-checks.yml)   blocking, but ONLY when the PR changes package.json,
       package-lock.json or the waiver file. It then fails only on what the PR
       itself INTRODUCES, judged against the BASE tree, not in the abstract:
-        - a (package, advisory) pair on a new or re-versioned lockfile entry
-          that the base tree's audit does NOT already report. Re-resolving a
-          still-vulnerable subtree (e.g. glob 10.4.5 -> 10.4.6, same GHSA, fix
-          only via a parent's major) is not "introducing" anything;
+        - a vulnerability on a new or re-versioned lockfile entry whose
+          identity — (package name, installed version, advisory) — the base
+          tree's audit does NOT already report. Identity is never the lockfile
+          PATH: a regeneration that hoists or nests an already-vulnerable copy
+          (same name, version, advisory) moves it and introduces nothing. A
+          (name, advisory) pair absent from the base is introduced; so is the
+          same advisory on a version the base did not carry it on, EXCEPT a
+          bump that replaces an older base version and stays vulnerable
+          (e.g. glob 10.4.5 -> 10.4.6, same GHSA, fix only via a parent's
+          major) — a step forward, not an introduction;
         - a changed direct dependency that is out of the age rule, unless the
           base version was ALSO out of it and the PR does not downgrade it
           (eslint 9.39.3 -> 9.39.4 while 10.x is latest is an improvement).
@@ -94,6 +100,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -421,38 +428,78 @@ def changed_lock_paths(base_lock, head_lock: dict) -> set:
     }
 
 
-def _vuln_node_pairs(findings_vuln: list) -> set:
-    """(lockfile node path, advisory) pairs; a finding npm reports without any id keys on None.
+def _node_version(lock, node):
+    """Installed version of one lockfile node, or None when there is no lockfile/entry."""
+    entry = ((lock or {}).get("packages") or {}).get(node)
+    return entry.get("version") if isinstance(entry, dict) else None
 
-    Keyed on the lockfile NODE, not the package name: a second, new copy of a
-    package somewhere else in the tree is a new vulnerable install even when
-    another copy was already vulnerable to the same advisory on the base.
+
+def _vuln_identities(findings_vuln: list, lock) -> dict:
+    """{(package name, advisory): Counter({installed version: copies carrying it})}.
+
+    The identity of a vulnerability is (name, installed version, advisory) —
+    NOT the lockfile path. Path is where npm happened to put a copy; a lockfile
+    regeneration that hoists or nests an already-vulnerable copy moves it
+    without installing anything new. Copies are counted only so that a bump
+    of ONE of several copies can be recognised (see _unexcused_versions). A
+    finding npm reports without any id keys on None.
     """
-    return {
-        (node, a)
-        for f in findings_vuln
-        for node in f["nodes"]
-        for a in (f["advisories"] or [None])
-    }
+    out = {}
+    for f in findings_vuln:
+        versions = Counter(_node_version(lock, node) for node in f["nodes"])
+        for a in (f["advisories"] or [None]):
+            out.setdefault((f["package"], a), Counter()).update(versions)
+    return out
 
 
-def introduced(findings_vuln: list, direct: dict, changed: set, base_findings_vuln=None):
+def _unexcused_versions(head: Counter, base: Counter) -> set:
+    """Head versions carrying an advisory that the base did not already carry it on.
+
+    A version present on the base with the same advisory is not new, however
+    many copies or paths it now has (pure hoist; a second copy of the same
+    version; a fix that cleared one copy while another stays). A version NOT
+    on the base is excused only when it replaces a base copy that went away
+    and it is strictly newer than that copy: the "bump that stays vulnerable"
+    improvement (glob 10.4.5 -> 10.4.6, same GHSA). Each departed copy excuses
+    at most ONE new version, so ADDING a vulnerable version, or moving
+    backwards, is still introduced. Unparseable versions are never excused.
+    """
+    key = lambda v: _semver_key(parse_semver(v))
+    new = {v for v in head if v not in base}
+    departed = sorted((v for v in (base - head).elements() if parse_semver(v) is not None), key=key)
+    unexcused = {v for v in new if parse_semver(v) is None}
+    i = 0
+    for v in sorted((v for v in new if parse_semver(v) is not None), key=key):
+        # greedy, both ascending: maximises the number of excused bumps
+        if i < len(departed) and key(departed[i]) < key(v):
+            i += 1
+        else:
+            unexcused.add(v)
+    return unexcused
+
+
+def introduced(findings_vuln: list, direct: dict, changed: set, base_findings_vuln=None, head_lock=None, base_lock=None):
     """(vulnerability findings the PR introduced, direct deps the PR changed).
 
-    Judged per lockfile node the PR added or re-versioned: an advisory on a
-    NEW node path is introduced; on a re-versioned path it is introduced only
-    if the BASE audit did not already report that advisory at that same path.
-    Only the introduced advisories (and the nodes carrying them) are kept.
+    Only findings on lockfile nodes the PR added or re-versioned are looked at
+    (an untouched package never blocks). For each (package, advisory) on such a
+    node, it is introduced only if the base did not report that pair at all,
+    or the advisory now applies to an installed version the base did not
+    carry it on (see _unexcused_versions). Identity is (name, version,
+    advisory): moving a vulnerable copy to a new path is not introducing it.
+    Only the introduced advisories (and the changed nodes carrying them) are kept.
     """
-    at_base = _vuln_node_pairs(base_findings_vuln or [])
+    at_base = _vuln_identities(base_findings_vuln or [], base_lock)
     vulns = []
     for f in findings_vuln:
         hit_nodes = sorted(set(f["nodes"]) & changed)
         if not hit_nodes:
             continue
+        head_versions = Counter(_node_version(head_lock, n) for n in f["nodes"])
         new_adv, new_nodes = [], []
         for a in (f["advisories"] or [None]):
-            nodes = [n for n in hit_nodes if (n, a) not in at_base]
+            fresh = _unexcused_versions(head_versions, at_base.get((f["package"], a), Counter()))
+            nodes = [n for n in hit_nodes if _node_version(head_lock, n) in fresh]
             if nodes:
                 new_adv.append(a)
                 new_nodes.extend(n for n in nodes if n not in new_nodes)
@@ -786,13 +833,13 @@ def run_pr(args, today: date) -> int:
     direct = direct_dependencies(package_json, lock)
     head_vulns = vulnerability_findings(fetch_audit(), advisory_ids)
     base_vulns = vulnerability_findings(fetch_audit.base(base_pj, base_lock), advisory_ids) if base_lock.get("packages") else []
-    vulns, touched = introduced(head_vulns, direct, changed, base_vulns)
+    vulns, touched = introduced(head_vulns, direct, changed, base_vulns, head_lock=lock, base_lock=base_lock)
     ages, notes = age_findings(touched, fetch_doc, today)
     ages = age_regressions(ages, touched, base_lock, fetch_doc, today)
     unwaived, waived, _stale = apply_waivers(vulns + ages, valid)
     improved = len([f for f in head_vulns if set(f["nodes"]) & changed]) - len(vulns)
     if improved > 0:
-        print(f"  {improved} re-versioned vulnerable package(s) were already vulnerable to the same advisory on the base — not introduced by this PR (the daily report still lists them).")
+        print(f"  {improved} moved or re-versioned vulnerable package(s) were already vulnerable to the same advisory on the base — not introduced by this PR (the daily report still lists them).")
 
     print(f"{len(changed)} lockfile entr{'y' if len(changed) == 1 else 'ies'} changed; {len(touched)} direct dependenc{'y' if len(touched) == 1 else 'ies'} changed.")
     for w in waived:
@@ -952,13 +999,29 @@ def self_test() -> int:
     iv, _ = introduced(child_two, {}, {"node_modules/child"}, v)
     check("...but a NEW advisory on that re-versioned package is", [f["advisories"] for f in iv], [["GHSA-gggg-hhhh-jjjj"]])
 
+    # Identity is (name, installed version, advisory), never the lockfile path.
     old_copy, new_copy = "node_modules/a/node_modules/child", "node_modules/new/node_modules/child"
+    lk = lambda nodes: {"packages": {n: {"version": ver} for n, ver in nodes.items()}}
     base_copy = [{**child_f, "nodes": [old_copy]}]
     head_copy = [{**child_f, "nodes": [old_copy, new_copy]}]
-    iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy)
-    check("a NEW vulnerable copy of a package already vulnerable elsewhere is introduced", [f["nodes"] for f in iv], [[new_copy]])
-    iv, _ = introduced(head_copy, {}, {old_copy}, base_copy)
-    check("re-versioning the OLD copy that stays vulnerable to the same advisory is not introduced", iv, [])
+    b_lock = lk({old_copy: "1.0.0"})
+    iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy, lk({old_copy: "1.0.0", new_copy: "0.9.0"}), b_lock)
+    check("a NEW vulnerable VERSION alongside one already vulnerable elsewhere is introduced", [f["nodes"] for f in iv], [[new_copy]])
+    iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy, lk({old_copy: "1.0.0", new_copy: "1.0.0"}), b_lock)
+    check("a second copy of the SAME vulnerable version (same advisory) is not introduced", iv, [])
+    iv, _ = introduced(head_copy, {}, {old_copy}, head_copy, lk({old_copy: "1.0.1", new_copy: "1.0.0"}), lk({old_copy: "1.0.0", new_copy: "1.0.0"}))
+    check("re-versioning the OLD copy UP while it stays vulnerable to the same advisory is not introduced", iv, [])
+    iv, _ = introduced(base_copy, {}, {old_copy}, base_copy, lk({old_copy: "0.9.0"}), b_lock)
+    check("re-versioning DOWN into a version still vulnerable to the same advisory IS introduced", [f["nodes"] for f in iv], [[old_copy]])
+    hoisted = "node_modules/child"
+    iv, _ = introduced([{**child_f, "nodes": [hoisted]}], {}, {hoisted}, base_copy, lk({hoisted: "1.0.0"}), b_lock)
+    check("a pure HOIST (same name, version, advisory; new path) is not introduced", iv, [])
+    iv, _ = introduced([{**child_f, "nodes": [hoisted]}], {}, {hoisted}, base_copy, lk({hoisted: "0.9.0"}), b_lock)
+    check("...but a hoist that also lands on a version the base did not carry is", [f["nodes"] for f in iv], [[hoisted]])
+    iv, _ = introduced([{**child_f, "nodes": [hoisted, new_copy]}], {}, {hoisted, new_copy}, base_copy, lk({hoisted: "1.0.1", new_copy: "1.0.2"}), b_lock)
+    check("one departed base version excuses ONE bump, not two new versions", len(iv[0]["nodes"]) if iv else 0, 1)
+    iv, _ = introduced([{**child_f, "nodes": [hoisted]}], {}, {hoisted}, base_copy, lk({hoisted: "weird"}), lk({old_copy: "0.1.0"}))
+    check("an unparseable new version is never excused", [f["nodes"] for f in iv], [[hoisted]])
 
     # --- PR scope: age judged against the base version ------------------------
     adoc = lambda _n: {"dist-tags": {"latest": "10.0.0"}, "time": {"9.0.3": "2026-03-06", "9.0.2": "2026-02-01", "9.0.4": "2026-08-01", "10.0.0": "2026-11-01"}}

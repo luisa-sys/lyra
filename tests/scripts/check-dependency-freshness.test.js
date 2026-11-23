@@ -16,7 +16,9 @@
  *            that changes no dependency is "not applicable" and makes NO
  *            measurement at all — proven by pointing it at fixtures that do
  *            not exist, which would exit 2 if they were read.
- *   COVERED  "introduces" is judged against the BASE tree: a bump that leaves
+ *   COVERED  "introduces" is judged against the BASE tree, by identity
+ *            (package name, installed version, advisory) — never by lockfile
+ *            path, so a hoist introduces nothing. A bump that leaves
  *            a package vulnerable to the same advisory, or old but newer than
  *            before, passes; a new advisory, a new old dependency or a
  *            downgrade does not. An expired waiver fails a dependency PR.
@@ -167,7 +169,7 @@ describe('CTL-081 — the checker itself', () => {
     expect(`${code}: ${out.trim()}`).toContain('Self-test passed');
     expect(code).toBe(0);
     const cases = Number(/Self-test passed \((\d+) cases\)/.exec(out)?.[1] ?? 0);
-    expect(cases).toBeGreaterThanOrEqual(67);
+    expect(cases).toBeGreaterThanOrEqual(75);
   });
 });
 
@@ -245,6 +247,28 @@ describe('CTL-081 — the daily report (--report)', () => {
     const { code, out } = run(['--report', '--report-only', ...w.args]);
     expect(out).toContain('more than 90 days away');
     expect(code).toBe(1);
+  });
+
+  test('an unexpired waiver for a package not out of policy at the installed version is STALE, never a crash', () => {
+    // The real file carries waivers written against the versions on a sibling
+    // branch (e.g. typescript 6.0.3, eslint 9.39.5). Where the installed
+    // version differs — or the package is not a direct dependency at all — the
+    // check must report the waiver stale and carry on, not throw.
+    const ageWaiver = (pkg) => ({ ...WAIVER, package: pkg, kind: 'age', advisory: null });
+    const w = world({
+      deps: { inpolicy: FRESH, latestpkg: OLD_BUT_LATEST },
+      waivers: [ageWaiver('inpolicy'), ageWaiver('latestpkg'), ageWaiver('not-installed'), { ...WAIVER, package: 'not-installed' }],
+    });
+    const { code, out } = run(['--report', '--report-only', ...w.args]);
+    expect(out).not.toContain('Traceback');
+    expect(out).toContain('0 out of policy, 0 waived, 0 expired waiver(s), 0 malformed, 4 stale');
+    expect(out).toMatch(/stale waiver — matches nothing: inpolicy age/);
+    expect(out).toMatch(/stale waiver — matches nothing: not-installed vulnerability GHSA-aaaa-bbbb-cccc/);
+    expect(code).toBe(0);
+    // The PR gate on a waiver-file-only change validates the shape and passes.
+    const pr = run(['--pr', ...w.args, '--changed-files', write('changed.txt', WAIVERS)]);
+    expect(pr.out).not.toContain('Traceback');
+    expect(pr.code).toBe(0);
   });
 
   test('a waiver matching nothing is reported STALE (and fails without --report-only)', () => {
@@ -374,31 +398,102 @@ describe('CTL-081 — the PR gate (--pr) blocks only what a PR introduces', () =
     expect(code).toBe(1);
   });
 
-  test('a NEW vulnerable copy of a package that is already vulnerable elsewhere in the tree is blocked', () => {
-    // Base: node_modules/a/node_modules/vulnpkg carries GHSA-aaaa. The PR adds
-    // node_modules/newdep with its own nested copy carrying the SAME GHSA.
-    // Judged per lockfile node, the new copy is a new vulnerable install.
-    const OLD_COPY = 'node_modules/a/node_modules/vulnpkg';
-    const NEW_COPY = 'node_modules/newdep/node_modules/vulnpkg';
-    const baseVuln = { ...LOW_VULN, nodes: [OLD_COPY] };
-    const headVuln = { ...LOW_VULN, nodes: [OLD_COPY, NEW_COPY] };
-    const w = world({ vulns: { vulnpkg: headVuln }, baseVulns: { vulnpkg: baseVuln } });
-    w.lock.packages['node_modules/newdep'] = { version: '1.0.0' };
-    const head = write('head-lock.json', w.lock);
-    const base = JSON.parse(JSON.stringify(w.lock));
-    delete base.packages['node_modules/newdep'];
-    delete base.packages[NEW_COPY];
-    const lockIdx = w.args.indexOf('--lockfile');
+  // Identity is (package name, installed version, advisory) — never the
+  // lockfile PATH. Each case below builds its head and base lockfiles by hand
+  // and runs the gate on them, so the version each path holds is explicit.
+  const OLD_COPY = 'node_modules/a/node_modules/vulnpkg';
+  const NEW_COPY = 'node_modules/newdep/node_modules/vulnpkg';
+  const HOISTED = 'node_modules/vulnpkg';
+  const lockOf = (nodes) => ({
+    lockfileVersion: 3,
+    packages: { '': { name: 'fixture' }, ...Object.fromEntries(Object.entries(nodes).map(([p, v]) => [p, { version: v }])) },
+  });
+  function gate(w, headNodes, baseNodes) {
     const args = [...w.args];
-    args[lockIdx + 1] = head;
-    const { code, out } = run([
+    args[args.indexOf('--lockfile') + 1] = write('head-lock.json', lockOf(headNodes));
+    return run([
       '--pr', ...args,
       '--changed-files', changed(['package-lock.json']),
-      '--base-lockfile', write('base-lock.json', base),
+      '--base-lockfile', write('base-lock.json', lockOf(baseNodes)),
     ]);
+  }
+
+  test('a NEW vulnerable VERSION of a package already vulnerable elsewhere in the tree is blocked', () => {
+    // Base: vulnpkg@1.0.0 at OLD_COPY carries GHSA-aaaa. The PR adds newdep
+    // with its own nested vulnpkg@0.8.0 carrying the SAME GHSA: a version the
+    // base never carried that advisory on, and nothing it replaced.
+    const w = world({
+      vulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY, NEW_COPY] } },
+      baseVulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY] } },
+    });
+    const { code, out } = gate(
+      w,
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0', 'node_modules/newdep': '1.0.0', [NEW_COPY]: '0.8.0' },
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0' },
+    );
     expect(out).toMatch(/VULNERABLE\s+vulnpkg\s+low\s+GHSA-aaaa-bbbb-cccc\s/);
     expect(out).toContain('introduces 1 out-of-policy');
     expect(code).toBe(1);
+  });
+
+  test('a pure HOIST (same name, version and advisory at a new path) is not introduced', () => {
+    // A lockfile regeneration moves the already-vulnerable vulnpkg@1.0.0 from
+    // a nested path to the top level. Judged by path this looked like a new
+    // vulnerable install and blocked the PR; nothing new was installed.
+    const w = world({
+      vulns: { vulnpkg: { ...LOW_VULN, nodes: [HOISTED] } },
+      baseVulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY] } },
+    });
+    const { code, out } = gate(
+      w,
+      { 'node_modules/a': '1.0.0', [HOISTED]: '1.0.0' },
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0' },
+    );
+    expect(`${code}: ${out}`).toContain('already vulnerable to the same advisory on the base');
+    expect(out).toContain('Nothing out of policy introduced');
+    expect(out).not.toMatch(/VULNERABLE/);
+    expect(code).toBe(0);
+  });
+
+  test('a NEW advisory on a package whose version did not change (only moved) is blocked', () => {
+    // Same vulnpkg@1.0.0, hoisted — but the head audit reports a second
+    // advisory the base did not. The (name, advisory) pair is new: introduced,
+    // naming only the new advisory.
+    const head = { ...LOW_VULN, nodes: [HOISTED], severity: 'moderate', via: [...LOW_VULN.via, advisory('moderate', 'GHSA-mmmm-nnnn-pppp')] };
+    const w = world({
+      vulns: { vulnpkg: head },
+      baseVulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY] } },
+    });
+    const { code, out } = gate(
+      w,
+      { 'node_modules/a': '1.0.0', [HOISTED]: '1.0.0' },
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0' },
+    );
+    expect(out).toMatch(/VULNERABLE\s+vulnpkg\s+moderate\s+GHSA-mmmm-nnnn-pppp\s/);
+    expect(out).not.toMatch(/VULNERABLE.*GHSA-aaaa-bbbb-cccc/);
+    expect(out).toContain('introduces 1 out-of-policy');
+    expect(code).toBe(1);
+  });
+
+  test('a fix that clears one copy while another stays vulnerable is still present, not introduced', () => {
+    // Base: vulnpkg@1.0.0 under both a/ and b/. The PR fixes a/'s copy to
+    // 2.0.0 (clean) and the regeneration hoists b/'s still-vulnerable 1.0.0
+    // to the top level. The vulnerability is still there (the daily report
+    // keeps listing it) but this PR did not introduce it.
+    const B_COPY = 'node_modules/b/node_modules/vulnpkg';
+    const w = world({
+      vulns: { vulnpkg: { ...LOW_VULN, nodes: [HOISTED] } },
+      baseVulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY, B_COPY] } },
+    });
+    const { code, out } = gate(
+      w,
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '2.0.0', 'node_modules/b': '1.0.0', [HOISTED]: '1.0.0' },
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0', 'node_modules/b': '1.0.0', [B_COPY]: '1.0.0' },
+    );
+    expect(`${code}: ${out}`).toContain('1 moved or re-versioned vulnerable package(s) were already vulnerable to the same advisory on the base');
+    expect(out).toContain('Nothing out of policy introduced');
+    expect(out).not.toMatch(/VULNERABLE/);
+    expect(code).toBe(0);
   });
 
   test('bumping a direct dependency that stays >90 days old but is NEWER than base passes', () => {
