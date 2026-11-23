@@ -211,9 +211,18 @@ rather than skipping. With CI on Node 24 the pin is now `^18.9.0` (SEC-174).
 ⚠️ **Local machines on an odd-numbered Node (e.g. Homebrew's Node 25) cannot
 run `npm run depcruise` any more** — 18's `engines.node` is `^22||^24||>=26`,
 which skips 25, and the gate fails closed with `Your node version (25.x) is
-not supported`; five cases of `tests/scripts/check-dependency-rules.test.js`
-go red with it. That is the gate working, not a regression: run it on Node 24
-(what CI uses) or 26. **The lesson stands: a dev-tool major can carry an
+not supported`; ten cases across four suites of `npm run test:unit` go red
+with it (`tests/scripts/check-dependency-rules.test.js`,
+`check-edge-safe.test.js`, `check-module-api.test.js` and
+`check-module-layering.test.js` — CTL-051, CTL-053, CTL-054 and KAN-425, all of
+which shell out to dependency-cruiser), and `scripts/check-edge-safe.py` exits 2.
+That is the gate working, not a regression: run it on Node 24 (what CI uses).
+The repo pins that for you: `.nvmrc` says `24` (`nvm use` / `fnm use`) and
+`package.json` declares `"engines": {"node": "24.x"}`, so `npm ci` on any other
+major prints an `EBADENGINE` warning naming the mismatch (a warning, not a
+failure — there is no `engine-strict`). Note Vercel also reads `engines.node`
+to pick the build/runtime Node, so `24.x` pins the deployed runtime to 24 too —
+the same version every CI workflow uses. **The lesson stands: a dev-tool major can carry an
 engines bump, and every step in a job (lint, type-check, unit tests, build,
 audit) shares that runtime** — move the CI Node version first, as its own
 change.
