@@ -79,8 +79,7 @@
 ### Supporting files (not routes)
 - `(auth)/actions.ts` — Server Actions: signIn, signUp, signInWithGoogle, signInWithApple
 - `(auth)/social-login-buttons.tsx` — Google/Apple OAuth button component
-- `dashboard/profile/steps/*.tsx` — 7 wizard step components (identity, bio, items, links, schools, preview, types)
-- `dashboard/profile/wizard.tsx` — Wizard container/state management
+- ~~`dashboard/profile/steps/*.tsx` — 7 wizard step components~~ and ~~`dashboard/profile/wizard.tsx` — wizard container~~ — **deleted 2026-11-23 (KAN-487 part 3)**. The profile editor is now `dashboard/profile/editor/*` (v0.8), served at `/dashboard/profile`.
 - `dashboard/profile/actions.ts` — Profile mutation Server Actions
 - `dashboard/settings/actions.ts` — Settings mutation Server Actions
 - `dashboard/settings/settings-client.tsx` — Client component for settings page
