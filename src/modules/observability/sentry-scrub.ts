@@ -25,6 +25,11 @@
  *   redacted (KAN-482, DPIA §2a AD-6): `?q=` is free text that routinely
  *   names a third party or a school. It is an option, not a default, so the
  *   SEC-55 defaults stay identical to the MCP server's copy (no /search).
+ * - `Referer` / `Referrer` request headers and the
+ *   `http.request.header.referer` span attribute are URLs too (the browser SDK
+ *   fills them from `document.referrer`), so they get the same URL scrub
+ *   (KAN-482). This also applies with the defaults — a web-side addition the
+ *   MCP server copy does not have yet.
  * - All other URLs only drop the enumerated sensitive params, preserving
  *   benign query context (pagination, etc.) for debugging.
  * - Navigation breadcrumbs carry URLs in `data.from` / `data.to`, and
@@ -151,12 +156,24 @@ export function scrubUrl(url: string, opts: ScrubOptions = {}): string {
   return rebuilt ? `${path}?${rebuilt}` : path;
 }
 
-function scrubHeaders(headers: Record<string, unknown>): void {
+/**
+ * Header names whose value is a URL (KAN-482, DPIA §2a AD-6). The browser SDK
+ * copies `document.referrer` into `request.headers.Referer`, and the server
+ * request data carries the inbound `Referer`; after a second native-GET search
+ * that header is the previous `/search?q=<term>` URL, so it gets the same URL
+ * scrub as `request.url`.
+ */
+const URL_HEADERS: ReadonlySet<string> = new Set(['referer', 'referrer']);
+
+function scrubHeaders(headers: Record<string, unknown>, opts: ScrubOptions): void {
   for (const key of Object.keys(headers)) {
     const lower = key.toLowerCase();
     if (SENSITIVE_HEADERS.has(lower) || SENSITIVE_KEYS.has(lower)) {
       delete headers[key];
+      continue;
     }
+    const val = headers[key];
+    if (URL_HEADERS.has(lower) && typeof val === 'string') headers[key] = scrubUrl(val, opts);
   }
 }
 
@@ -202,7 +219,7 @@ function scrubRequest(req: Record<string, unknown>, opts: ScrubOptions): void {
   if (isPlainObject(req.data)) scrubObjectInPlace(req.data, 0);
   else if (typeof req.data === 'string') req.data = scrubJsonString(req.data);
 
-  if (isPlainObject(req.headers)) scrubHeaders(req.headers);
+  if (isPlainObject(req.headers)) scrubHeaders(req.headers, opts);
   if (isPlainObject(req.cookies)) scrubObjectInPlace(req.cookies, 0);
 }
 
@@ -215,7 +232,17 @@ function scrubMessageUrls(message: string, opts: ScrubOptions): string {
 }
 
 /** URL-bearing keys in breadcrumb / span `data`. */
-const URL_DATA_KEYS = ['url', 'from', 'to', 'http.url', 'url.full', 'http.target'] as const;
+const URL_DATA_KEYS = [
+  'url',
+  'from',
+  'to',
+  'http.url',
+  'url.full',
+  'http.target',
+  // KAN-482 AD-6: the browser httpContext integration copies the Referer
+  // (document.referrer, e.g. a previous /search?q=) into this span attribute.
+  'http.request.header.referer',
+] as const;
 /** Bare query-string keys in span `data` (OpenTelemetry semantic conventions). */
 const QUERY_DATA_KEYS = ['url.query', 'http.query'] as const;
 /** Path-only keys that tell us which route a bare query belongs to. */
@@ -225,6 +252,8 @@ const PATH_DATA_KEYS = ['url.path', 'http.route', 'next.route'] as const;
 function scrubUrlDataInPlace(data: Record<string, unknown>, opts: ScrubOptions): void {
   let redactBareQuery = false;
   for (const key of [...URL_DATA_KEYS, ...PATH_DATA_KEYS]) {
+    // The referer names the PREVIOUS page, not the one a bare query belongs to.
+    if (key === 'http.request.header.referer') continue;
     const v = data[key];
     if (typeof v === 'string' && isFullyRedactedPath(pathOf(v), opts)) redactBareQuery = true;
   }

@@ -76,6 +76,22 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // KAN-482 (DPIA §2a AD-6): /search is a GET form, so its URL carries
+        // the term (?q=). With the site-wide policy the NEXT page's
+        // document.referrer (same origin) would be that full URL, which the
+        // Sentry browser SDK copies into events and third-party analytics
+        // scripts can read. Pages navigated to from /search get the origin
+        // only. Must stay AFTER the catch-all: for the same key the last
+        // matching entry wins.
+        source: "/search",
+        headers: [
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin",
+          },
+        ],
+      },
     ];
   },
 };

@@ -149,6 +149,39 @@ describe('Sentry client initialisation (behavioural, KAN-414 F4)', () => {
     expect(JSON.stringify(scrubbed)).not.toContain('AUTHCODE123');
   });
 
+  it('registers a beforeSend that removes the /search term from url, query and Referer (KAN-482 AD-6)', async () => {
+    await load(DSN);
+
+    const scrubbed = optionsFromInit().beforeSend!({
+      message: 'render error',
+      request: {
+        url: 'https://checklyra.com/search?q=Zebedee+Primary',
+        query_string: 'q=Zebedee+Primary',
+        // Browser SDK copies document.referrer here: the previous search.
+        headers: { Referer: 'https://checklyra.com/search?q=Zebedee+Infants' },
+      },
+    });
+
+    // A beforeSend registered WITHOUT WEB_SCRUB_OPTIONS keeps q on /search
+    // (the SEC-55 defaults), so this goes red on that regression too.
+    const out = JSON.stringify(scrubbed);
+    expect(out).not.toContain('Zebedee');
+    expect(out).toContain('/search');
+  });
+
+  it('registers a beforeBreadcrumb that removes the /search term (KAN-482 AD-6)', async () => {
+    await load(DSN);
+
+    const scrubbed = optionsFromInit().beforeBreadcrumb!({
+      category: 'navigation',
+      data: { from: '/', to: '/search?q=Zebedee+Primary' },
+    });
+
+    const out = JSON.stringify(scrubbed);
+    expect(out).not.toContain('Zebedee');
+    expect(out).toContain('/search');
+  });
+
   it('registers a beforeSendTransaction that removes the /search term (KAN-482 AD-6)', async () => {
     await load(DSN);
 

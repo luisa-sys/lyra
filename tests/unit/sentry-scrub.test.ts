@@ -317,6 +317,47 @@ describe('KAN-482 /search term redaction', () => {
     expect(tx.spans[0].data['url.query']).toBe('[Filtered]');
   });
 
+  it('redacts the Referer header (document.referrer after a second native-GET search)', () => {
+    // /search is a plain GET form, so the second search is a full page load
+    // whose Referer is the FIRST search URL. Both header spellings/cases.
+    for (const key of ['Referer', 'referer', 'Referrer']) {
+      const ev = scrubSentryEvent({
+        request: {
+          url: 'https://checklyra.com/search?q=Second',
+          headers: { [key]: `https://checklyra.com/search?q=${enc}`, 'User-Agent': 'jest' },
+        },
+      }, WEB_SCRUB_OPTIONS);
+      notLeaked(ev);
+      expect(ev.request.headers[key]).toBe('https://checklyra.com/search?[Filtered]');
+      // Positive control: unrelated headers survive.
+      expect(ev.request.headers['User-Agent']).toBe('jest');
+    }
+  });
+
+  it('a Referer from another page keeps benign params and drops sensitive ones', () => {
+    const ev = scrubSentryEvent({
+      request: { headers: { Referer: 'https://checklyra.com/dashboard?page=2&code=AUTHCODE' } },
+    }, WEB_SCRUB_OPTIONS);
+    expect(ev.request.headers.Referer).toBe('https://checklyra.com/dashboard?page=2');
+  });
+
+  it('redacts the http.request.header.referer span attribute without over-redacting the span query', () => {
+    const tx = scrubSentryTransaction({
+      contexts: { trace: { data: { 'http.request.header.referer': `https://checklyra.com/search?q=${enc}` } } },
+      spans: [{
+        data: {
+          'http.request.header.referer': `/search?q=${enc}`,
+          'url.path': '/dashboard',
+          'url.query': 'page=2',
+        },
+      }],
+    }, WEB_SCRUB_OPTIONS);
+    notLeaked(tx);
+    expect(tx.spans[0].data['http.request.header.referer']).toBe('/search?[Filtered]');
+    // The referer names the previous page; the span's own query is kept.
+    expect(tx.spans[0].data['url.query']).toBe('page=2');
+  });
+
   it('a bare url.query on another route keeps benign params and drops sensitive ones', () => {
     const tx = scrubSentryTransaction({
       spans: [{ data: { 'url.path': '/dashboard', 'url.query': 'page=2&token=SECRET' } }],

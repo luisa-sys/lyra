@@ -47,6 +47,14 @@ describe.each(['nodejs', 'edge'] as const)('%s runtime', (runtime) => {
     expect(leaks({ request: { url: URL_WITH_TERM } })).toBe(true);
   });
 
+  test('beforeSend removes the term from the inbound Referer header', async () => {
+    const o = await optionsFor(runtime);
+    const out = o.beforeSend!({
+      request: { url: 'https://checklyra.com/search?q=Second', headers: { referer: URL_WITH_TERM } },
+    });
+    expect(leaks(out)).toBe(false);
+  });
+
   test('beforeBreadcrumb removes the term from a navigation breadcrumb', async () => {
     const o = await optionsFor(runtime);
     expect(leaks(o.beforeBreadcrumb!({ category: 'navigation', data: { from: '/', to: URL_WITH_TERM } }))).toBe(false);

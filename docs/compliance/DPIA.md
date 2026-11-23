@@ -203,11 +203,18 @@ search, requires updating this section first.
 - **AD-6 Terms are not sent to Lyra's monitoring or analytics.** The app
   does not log search terms, and strips them before anything reaches error
   monitoring or analytics: Sentry redacts the whole query string of `/search`
-  URLs in events, breadcrumbs (navigation, fetch) and performance traces
-  (`WEB_SCRUB_OPTIONS` in `src/modules/observability/sentry-scrub.ts`, used
-  by the server, edge and browser inits); Vercel Analytics and Speed Insights
-  (only after the visitor accepts analytics cookies) send `/search` URLs
-  without the query (`src/modules/observability/analytics-redaction.ts`).
+  URLs in events (request URL, query string and the `Referer` header),
+  breadcrumbs (navigation, fetch) and performance traces (span URLs and the
+  `http.request.header.referer` attribute) (`WEB_SCRUB_OPTIONS` in
+  `src/modules/observability/sentry-scrub.ts`, used by the server, edge and
+  browser inits); Vercel Analytics and Speed Insights (only after the visitor
+  accepts analytics cookies) send `/search` URLs without the query
+  (`src/modules/observability/analytics-redaction.ts`). `/search` responses
+  also carry `Referrer-Policy: strict-origin` (`next.config.ts`), so the page
+  a visitor opens next (a result, or a second search) gets only the origin as
+  its Referer and `document.referrer`. That covers what the remotely loaded
+  Vercel Analytics script could read from the referrer, which app code cannot
+  inspect; browsers that ignore the header are a residual limit.
   **Known limit — hosting logs:** `/search` is a GET form, so the term is part
   of the request URL (`/search?q=…`). Vercel's platform request logs record
   that URL with the visitor's IP address, for Vercel's log retention period.
@@ -223,10 +230,12 @@ to AD-5, AD-7 and AD-8 (pinned by `tests/unit/kan450-search-affiliations.test.ts
 and `tests/unit/kan482-affiliation-discovery-rules.test.ts`), and AD-6 within
 the hosting-log limit stated there (pinned by `tests/unit/sentry-scrub.test.ts`,
 `tests/unit/kan482-sentry-server-search-redaction.test.ts`,
-`tests/unit/sentry-client-init-behaviour.test.ts` and
+`tests/unit/sentry-client-init-behaviour.test.ts` (all three browser hooks),
+`tests/unit/kan482-search-referrer-policy.test.ts` and
 `tests/unit/kan482-analytics-search-redaction.test.tsx`). Before this change
-the term could reach Sentry (request URL, navigation breadcrumbs, traces) and
-consented analytics pageviews; that is now fixed. Meeting these rules does
+the term could reach Sentry (request URL, `Referer` header, navigation
+breadcrumbs, traces) and consented analytics pageviews; that is fixed in code
+on this branch and takes effect when it is deployed. Meeting these rules does
 **not** settle who may search — see FD-AD1. The **MCP
 `school` filter breaks AD-5 and AD-8** (no sanitising, no cap, errors read as
 no matches) and matches community affiliations the web search does not; it
