@@ -35,7 +35,6 @@ import {
   centreCropAt,
   checkPhotoDimensions,
   cropOverlayPercent,
-  cropPreviewStyle,
   cropStep,
   displayToNatural,
   downscaleSide,
@@ -125,13 +124,17 @@ async function prepareUpload(p: Pending, crop: CropBox): Promise<{ file: File; c
 
 export function PhotoField({ photo, isPublished, dispatch, error, readOnly = false }: PhotoFieldProps) {
   const [pending, setPending] = useState<Pending | null>(null);
-  const pendingSrc = safeObjectUrl(pending?.url);
   const [crop, setCrop] = useState<CropBox | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  // KAN-487: the picked image is DRAWN onto canvases from the decoded
+  // HTMLImageElement, so no URL string ever reaches an <img src> (CodeQL
+  // js/xss-through-dom).
+  const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const pendingUrl = useRef<string | null>(null);
 
   // Free the object URL when the pending image changes or the field unmounts.
@@ -256,7 +259,24 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
   );
 
   const overlay = pending && crop ? cropOverlayPercent(crop, pending.width, pending.height) : null;
-  const preview = pending && crop ? cropPreviewStyle(crop, pending.width, pending.height, PREVIEW_BOX) : null;
+  const preview = Boolean(pending && crop);
+
+  useEffect(() => {
+    const canvas = mainCanvasRef.current;
+    if (!pending || !canvas) return;
+    canvas.width = pending.width;
+    canvas.height = pending.height;
+    canvas.getContext('2d')?.drawImage(pending.img, 0, 0);
+  }, [pending]);
+
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!pending || !crop || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, PREVIEW_BOX, PREVIEW_BOX);
+    ctx.drawImage(pending.img, crop.x, crop.y, crop.size, crop.size, 0, 0, PREVIEW_BOX, PREVIEW_BOX);
+  }, [pending, crop]);
 
   return (
     <div>
@@ -301,17 +321,11 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
         </div>
       </div>
 
-      {pending && pendingSrc && crop && overlay && preview && (
+      {pending && crop && overlay && preview && (
         <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] p-4 space-y-3">
           <div className="flex flex-wrap items-start gap-4">
             <div className="relative inline-block max-w-full overflow-hidden cursor-crosshair select-none" onClick={onImageClick}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- KAN-487: local object URL of the picked file, shown only while cropping. */}
-              <img
-                src={pendingSrc}
-                alt=""
-                draggable={false}
-                className="block max-w-full max-h-[320px] w-auto h-auto"
-              />
+              <canvas ref={mainCanvasRef} aria-hidden="true" className="block max-w-full max-h-[320px] w-auto h-auto" />
               <div
                 ref={frameRef}
                 tabIndex={0}
@@ -333,13 +347,7 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
               style={{ width: PREVIEW_BOX, height: PREVIEW_BOX }}
               aria-hidden="true"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- KAN-487: crop preview of the local object URL. */}
-              <img
-                src={pendingSrc}
-                alt=""
-                className="absolute max-w-none"
-                style={{ width: preview.width, height: preview.height, left: preview.left, top: preview.top }}
-              />
+              <canvas ref={previewCanvasRef} width={PREVIEW_BOX} height={PREVIEW_BOX} className="block w-full h-full" />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
