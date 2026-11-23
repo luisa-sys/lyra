@@ -206,7 +206,14 @@ next step once the Vercel runtime and the toolchain are confirmed on it.
 Node 20 and refused to start on it, so the pin was `^17.4.3`. Local dev on
 Node 22 ran either happily, which is exactly how it was missed until CI — the
 first run of this gate failed for that reason, and correctly failed *closed*
-rather than skipping. **The lesson stands: a dev-tool major can carry an
+rather than skipping. With CI on Node 24 the pin is now `^18.9.0` (SEC-174).
+
+⚠️ **Local machines on an odd-numbered Node (e.g. Homebrew's Node 25) cannot
+run `npm run depcruise` any more** — 18's `engines.node` is `^22||^24||>=26`,
+which skips 25, and the gate fails closed with `Your node version (25.x) is
+not supported`; five cases of `tests/scripts/check-dependency-rules.test.js`
+go red with it. That is the gate working, not a regression: run it on Node 24
+(what CI uses) or 26. **The lesson stands: a dev-tool major can carry an
 engines bump, and every step in a job (lint, type-check, unit tests, build,
 audit) shares that runtime** — move the CI Node version first, as its own
 change.
