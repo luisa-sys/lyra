@@ -10,9 +10,9 @@ First-pass UK data-protection documentation for CheckLyra Ltd (Lyra), created
 
 | Document | Covers | UK GDPR / law |
 |---|---|---|
-| [ROPA.md](ROPA.md) | Record of Processing Activities — every data category, purpose, lawful basis, processor | Art. 30 |
+| [ROPA.md](ROPA.md) | Record of Processing Activities — every data category, purpose, lawful basis, processor (P10: affiliation-based discovery, 2026-11-23) | Art. 30 |
 | [SUBPROCESSORS.md](SUBPROCESSORS.md) | Sub-processor register + international transfers + per-vendor TRA | Art. 28, 44–46 |
-| [DPIA.md](DPIA.md) | Data Protection Impact Assessment — need, description, necessity/proportionality, risk table, measures + sign-off (children-access, Didit biometric, calendar, contacts). **Drafted — awaiting founder risk scores + sign-off (SEC-70).** Updated 2026-07-20: the biometric age-assurance trigger and risk R2 are removed (Lyra now has no Art. 9 processing). | Art. 35 |
+| [DPIA.md](DPIA.md) | Data Protection Impact Assessment — need, description, necessity/proportionality, risk table, measures + sign-off (children-access, Didit biometric, calendar, contacts). **Drafted — awaiting founder risk scores + sign-off (SEC-70).** Updated 2026-07-20: the biometric age-assurance trigger and risk R2 are removed (Lyra now has no Art. 9 processing). Updated 2026-11-23: **§2a affiliation-based discovery (search)** — the main privacy specification for search by school/organisation (founder decision: no separate spec), binding rules AD-1…AD-8, risks R8–R11. | Art. 35 |
 | [RETENTION_SCHEDULE.md](RETENTION_SCHEDULE.md) | Retention periods + deletion mechanisms (incl. waitlist-KV TTL) | Art. 5(1)(e) |
 | [DSAR_BREACH_COMPLAINTS.md](DSAR_BREACH_COMPLAINTS.md) | Data-subject rights (1 month), breach (72h), DUAA complaints (30-day) | Art. 12–22, 33/34; DUAA 2025 |
 | [FOUNDER_CHECKLIST.md](FOUNDER_CHECKLIST.md) | One-page list of founder-only actions (ICO fee, DPAs, branch protection, sign-offs) | — |

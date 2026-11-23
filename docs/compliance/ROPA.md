@@ -96,6 +96,19 @@ processing). Founder is the accountable data-protection lead.
 - **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
 - **Open points for the founder:** approve the consent copy; decide whether members-only items may be sent; confirm the provider's data-retention / no-training terms and the transfer mechanism.
 
+### P10 — Affiliation-based discovery (search) (KAN-482, added 2026-11-23)
+> Recorded in the main privacy specification by founder decision 2026-11-23
+> (spec v0.8 §02 had asked for a separate one). Full assessment and the
+> binding rules AD-1…AD-8: DPIA.md §2a; risks R8–R11 in DPIA.md §5.
+
+- **Personal data:** the name of a school / organisation the member chose to show on their profile (`school_affiliations.school_name` where `show_on_profile = true`), used as a search key; the public profile card returned (name, CheckLyra ID, headline, city, country, photo). No new data is collected. Hidden affiliations are never used. The search term typed by a visitor is not stored or logged.
+- **Data subjects:** DS1 (registered users with a published, non-suspended profile). Visitors searching are not identified by the search.
+- **Purpose:** let people who already know a member offline find their profile by a shared school or organisation.
+- **Lawful basis:** Art. 6(1)(a) **consent / publication by the member** — per affiliation, by ticking "Show on my profile" (same basis as publishing P2); withdrawn by unticking, unpublishing or deleting. _(Founder to confirm.)_
+- **Surfaces:** web `/search` (anyone, signed in or not; school + organisation names; capped); MCP `lyra_search_profiles` `school` filter and `lyra_list_schools` (public; being retired, KAN-483; known gaps in DPIA §2a); the public PostgREST read of shown affiliations (RLS).
+- **Retention:** none beyond P2 — the affiliation stops being searchable as soon as it is hidden, deleted or the profile is unpublished, suspended or deleted.
+- **Recipients/processors:** Supabase, Vercel, Cloudflare (as P2); Railway (MCP server).
+
 ### P8 — Security, abuse-prevention & audit
 - **Personal data:** IP/user-agent, moderation logs, admin actions, OAuth token registry (jti), backups.
 - **Purpose:** secure the platform, detect abuse, maintain an audit trail, disaster recovery.
