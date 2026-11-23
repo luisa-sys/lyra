@@ -285,6 +285,11 @@ describe('KAN-482 /search term redaction', () => {
   });
 
   it('redacts fetch breadcrumbs for the RSC request and breadcrumbs carried on an event', () => {
+    const fetchCrumb = scrubSentryBreadcrumb(
+      { category: 'fetch', data: { url: `/search?q=${enc}&_rsc=1` } },
+      WEB_SCRUB_OPTIONS,
+    );
+    expect(fetchCrumb.data.url).toBe('/search?[Filtered]');
     notLeaked(
       scrubSentryBreadcrumb({ category: 'fetch', data: { url: `/search?q=${enc}&_rsc=1` } }, WEB_SCRUB_OPTIONS),
     );
