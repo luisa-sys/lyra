@@ -107,6 +107,9 @@ const TRIGGER_COPY: ReadonlyArray<readonly [RegExp, string]> = [
   // 20261123090000_kan485_profile_model_v08.sql — enforce_profile_identity_rules()
   [/^invalid checklyra id/i, 'Use 3–30 letters, numbers or underscores for your CheckLyra ID.'],
   [/^reserved checklyra id/i, 'That ID is reserved. Please choose another.'],
+  // 20261123130000_kan490_v08_data_migration.sql — enforce_lyra_id_not_retired()
+  // (another profile's pre-v0.8 slug, kept so its old links still redirect)
+  [/^retired checklyra id/i, 'That CheckLyra ID is already taken.'],
   [/^checklyra id cannot be changed after publishing/i, 'Your CheckLyra ID can’t be changed after publishing.'],
   [/^publishing needs a profile photo/i, 'Add a profile photo to publish.'],
   [/^publishing needs a display name/i, 'Add a display name to publish.'],

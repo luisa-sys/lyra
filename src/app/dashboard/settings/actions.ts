@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
@@ -227,6 +228,20 @@ export async function exportUserData(): Promise<string> {
     .from('ai_gift_generations').select('id, session_id, consent_version, created_at').eq('profile_id', profileId);
   record('ai_gift_generations', aiGenErr);
 
+  // KAN-490: the member's pre-v0.8 profile addresses (old slugs kept so old
+  // links redirect) and the archive copy of their pre-v0.8 list items. Both
+  // are unreadable by the member's own client (RLS on, no policies). Neither
+  // table is in the generated types until the KAN-490 migration is applied to
+  // dev and `npm run gen:db-types` is re-run; until then these two reads go
+  // through the untyped client. Remove the cast after regeneration.
+  const untypedAdmin = admin as unknown as SupabaseClient;
+  const { data: slugHistory, error: slugHistErr } = await untypedAdmin
+    .from('profile_slug_history').select('old_slug, created_at').eq('profile_id', profileId);
+  record('profile_slug_history', slugHistErr);
+  const { data: legacyItemArchive, error: legacyArchErr } = await untypedAdmin
+    .from('profile_items_legacy_archive').select('*').eq('profile_id', profileId);
+  record('profile_items_legacy_archive', legacyArchErr);
+
   // Venue visits hang off the user's own gatherings.
   let venueVisits: unknown[] = [];
   if (gatheringIds.length) {
@@ -280,6 +295,8 @@ export async function exportUserData(): Promise<string> {
     oauth_scopes_granted: oauthScopes,
     gift_suggestion_dismissals: giftDismissals || [],
     ai_gift_generations: aiGiftGenerations || [],
+    profile_slug_history: slugHistory || [],
+    profile_items_legacy_archive: legacyItemArchive || [],
     // Present only when one or more sections failed to fetch — the export is
     // then known-incomplete and must not be treated as a full SAR response.
     ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),

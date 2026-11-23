@@ -160,6 +160,8 @@ recording it here is a red build.
 | `venue_ratings` | P4 | `user_id` | exported |
 | `gift_suggestion_dismissals` | P4 | `profile_id` | exported — the member's own editorial decisions about their profile (KAN-443) |
 | `ai_gift_generations` | P2 | `profile_id` | exported — AI gift suggestion requests: timestamps and random editor-session ids only, no content (KAN-489; the suggestions themselves are `profile_items` rows) |
+| `profile_slug_history` | P2 | `profile_id` | exported — the member's pre-v0.8 profile addresses (old slugs), kept so old links redirect to the current CheckLyra ID (KAN-490, ADR-011) |
+| `profile_items_legacy_archive` | P2 | `profile_id` | exported — full copy of the member's pre-v0.8 list items, taken before the v0.8 data migration mapped them (KAN-490) |
 | `venue_visits` | P4 | via `gathering_id` | exported (join) |
 | `oauth_connections` | P4 | `owner_user_id` | exported (token refs redacted) |
 | `oauth_consents` | P4 | `user_id` | exported |

@@ -120,6 +120,16 @@ export async function seedJourneyUser(state: JourneyState): Promise<SeededUser> 
   const bioShort = state === 'empty' ? null : 'A short intro so this profile reads as drafted.';
   const isPublished =
     state === 'published_activate' || state === 'published_grow' || state === 'no_convene';
+  // KAN-485 publish rules (enforced by the profiles_v08_identity trigger, even
+  // for service-role writes): publishing needs a profile photo, a display name
+  // and a CONFIRMED CheckLyra ID. handle_new_user gives every account a
+  // placeholder ID (`user_<10 hex>`, valid format, slug_confirmed = false), so
+  // a published seed confirms that ID and carries a photo. The photo is a
+  // static asset of the app itself — no upload, no external host. (KAN-490:
+  // without this, every authed e2e run failed at this update.)
+  const publishFields = isPublished
+    ? { avatar_url: '/lyra-icon-512.png', slug_confirmed: true }
+    : {};
 
   const { error: updErr } = await admin
     .from('profiles')
@@ -136,6 +146,7 @@ export async function seedJourneyUser(state: JourneyState): Promise<SeededUser> 
       age_provider: passesAge ? 'manual' : null,
       age_range: passesAge ? '30_44' : null,
       is_published: isPublished,
+      ...publishFields,
       // Deterministic dismissal baseline for every seed.
       dashboard_widget_state: {},
     })
@@ -156,9 +167,12 @@ export async function seedJourneyUser(state: JourneyState): Promise<SeededUser> 
       title: 'A good book',
     });
     if (giftErr) throw new Error(`gift insert for ${email} failed: ${giftErr.message}`);
+    // KAN-485: a school needs a postcode (at most 12 characters).
     const { error: affErr } = await admin.from('school_affiliations').insert({
       profile_id: profileId,
       school_name: 'Greenfield Primary',
+      affiliation_type: 'school',
+      school_location: 'AB1 2CD',
     });
     if (affErr) throw new Error(`affiliation insert for ${email} failed: ${affErr.message}`);
   }

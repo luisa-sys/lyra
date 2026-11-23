@@ -40,10 +40,10 @@
   "ticket": "KAN-415",
   "_concentration": {
     "$comment": "Computed at --write-baseline, never typed. Files contributing the most pairs. A single file with a large share is usually a legitimate cross-cutting concern (erasure, export, admin) rather than N separate boundary breaks \u2014 read the count here before proposing a cleanup.",
-    "pairs": 56,
+    "pairs": 58,
     "writes": 12,
     "topFiles": {
-      "src/app/dashboard/settings/actions.ts": 30,
+      "src/app/dashboard/settings/actions.ts": 32,
       "src/modules/public-profile/load-public-profile.ts": 3,
       "src/app/admin/moderation/page.tsx": 2
     }
@@ -243,12 +243,30 @@
       ],
       "example": "src/app/dashboard/settings/actions.ts"
     },
+    "account -> profile_items_legacy_archive": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
     "account -> profile_manual_of_me": {
       "mode": "read",
       "basis": "select-call",
       "sites": 1,
       "owner": [
         "profile"
+      ],
+      "example": "src/app/dashboard/settings/actions.ts"
+    },
+    "account -> profile_slug_history": {
+      "mode": "read",
+      "basis": "select-call",
+      "sites": 1,
+      "owner": [
+        "public-profile"
       ],
       "example": "src/app/dashboard/settings/actions.ts"
     },
@@ -491,7 +509,7 @@
     "public-profile -> public_profiles": {
       "mode": "read",
       "basis": "select-call",
-      "sites": 2,
+      "sites": 4,
       "owner": null,
       "example": "src/app/search/page.tsx"
     },
