@@ -3,7 +3,7 @@
 /**
  * KAN-487 — v0.8 profile editor unsaved-changes warning (spec v0.8 §1 "Warn
  * before abandoning unsaved changes"; plan §C "Unsaved-changes warning";
- * plan §D proposed copy).
+ * plan §D copy — not in the spec, founder-approved 2026-11-23).
  *
  * While `dirty`:
  *   - `beforeunload` asks the browser to confirm (it supplies its own text);

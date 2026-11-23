@@ -42,7 +42,7 @@ export const PROFILE_PHOTO_BUCKET = 'profile-photos';
 /** Same allowlist as `uploadAvatar` (spec v0.8 §01: JPG, PNG or WebP). */
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-/** Proposed copy (not in the spec). */
+/** Not in the spec; founder-approved 2026-11-23 with the PR #1238 error messages. */
 export const STAGED_PHOTO_INVALID_ERROR = 'That photo is no longer available. Please upload it again.';
 export const NO_FILE_ERROR = 'No file provided';
 

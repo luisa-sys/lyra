@@ -2,8 +2,8 @@
 
 /**
  * KAN-487 — v0.8 profile editor: confirmation dialog (plan §C photo "Remove
- * with confirmation"; plan §D proposed copy "Remove your profile photo?" /
- * "Remove photo" / "Cancel").
+ * with confirmation"; plan §D copy "Remove your profile photo?" /
+ * "Remove photo" / "Cancel" — not in the spec, founder-approved 2026-11-23).
  *
  * A native modal `<dialog>` (`showModal()`): the rest of the page is inert
  * while it is open. Focus management:

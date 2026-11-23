@@ -40,7 +40,7 @@ export const PHOTO_TYPE_ERROR = 'Photos must be JPG, PNG or WebP.';
 export const PHOTO_SIZE_ERROR = 'Photos must be 5 MB or smaller.';
 export const PHOTO_DIMENSIONS_ERROR = 'Photos must be at least 400 × 400 pixels.';
 export const PHOTO_UNREADABLE_ERROR = "We couldn't read that image. Please try another.";
-/** Plan §D proposed copy: a published profile cannot save without a photo. */
+/** Plan §D copy (not in the spec; founder-approved 2026-11-23): a published profile cannot save without a photo. */
 export const PHOTO_PUBLISHED_BLOCK_NOTE =
   'Add a new photo to save your changes — a published profile needs a photo.';
 

@@ -118,7 +118,7 @@ describe('KAN-487 summary text', () => {
 });
 
 describe('KAN-487 undo row', () => {
-  test('message (plan §D proposed copy)', () => {
+  test('message (plan §D copy, founder-approved 2026-11-23)', () => {
     expect(undoMessage('Coffee')).toBe("Removed 'Coffee'.");
   });
 

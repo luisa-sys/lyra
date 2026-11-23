@@ -6,7 +6,8 @@
  *
  * COUNTRIES is every officially assigned ISO 3166-1 alpha-2 code with a short
  * English name, sorted by name (localeCompare 'en'), which is the display
- * order of the editor's <select>.
+ * order of the editor's <select>. The short names (e.g. Türkiye, Czechia) are
+ * not in the spec; founder-approved 2026-11-23 with the PR #1238 wording.
  *
  * This is deliberately NOT `SUPPORTED_DELIVERY_COUNTRIES` in
  * ./country-codes.ts: that list is the small recommendation-engine allowlist
