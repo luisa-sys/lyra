@@ -50,6 +50,16 @@
           "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
         },
         {
+          "line": "function:save_profile",
+          "ticket": "KAN-487",
+          "note": "v0.8 profile editor (epic KAN-482): migration 20261123100000_kan487_profile_editor.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "function:suggest_affiliation_names",
+          "ticket": "KAN-487",
+          "note": "Same migration as save_profile above; same removal condition."
+        },
+        {
           "line": "function:profile_item_rule",
           "ticket": "KAN-485",
           "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."

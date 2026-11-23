@@ -41,10 +41,16 @@
  */
 import * as Sentry from '@sentry/nextjs';
 
-/** The shape both `supabase-js` errors and thrown Postgres errors satisfy. */
+/**
+ * The shape both `supabase-js` errors and thrown Postgres errors satisfy.
+ * `details` / `hint` are PostgREST's names for Postgres DETAIL / HINT
+ * (KAN-487: `save_profile` puts its jsonb error context in DETAIL).
+ */
 export type DbErrorLike = {
   message?: string | null;
   code?: string | null;
+  details?: string | null;
+  hint?: string | null;
 } | null | undefined;
 
 /**
@@ -106,6 +112,19 @@ const TRIGGER_COPY: ReadonlyArray<readonly [RegExp, string]> = [
   [/^publishing needs a display name/i, 'Add a display name to publish.'],
   [/^publishing needs a checklyra id/i, 'Choose your CheckLyra ID to publish.'],
   [/^a published profile needs a profile photo/i, 'A published profile needs a photo. Add a new photo before removing this one.'],
+  // KAN-487 (spec v0.8 §1/§3) — public.save_profile(jsonb, text). The first
+  // two are already member copy and pass through verbatim.
+  [
+    /^your profile was saved somewhere else/i,
+    'Your profile was saved somewhere else. Reload to see the latest version.',
+  ],
+  [
+    /^some entries no longer exist/i,
+    'Some entries no longer exist. Reload to see your latest profile.',
+  ],
+  [/^editor is out of date/i, 'Editor is out of date. Reload to continue.'],
+  // save_profile refuses a blank display_name on a published profile.
+  [/^add a display name$/i, 'Add a display name'],
   // 20260516180000_profile_files.sql:46 — NOT previously mapped anywhere.
   // Its absence is exactly the collision described in the header: without its
   // own entry it would fall into the conversation-starter copy.
@@ -115,10 +134,26 @@ const TRIGGER_COPY: ReadonlyArray<readonly [RegExp, string]> = [
   ],
 ];
 
+/**
+ * KAN-487 — unique violations keyed on the constraint they name. Before this,
+ * every 23505 got the conversation-starter copy, so a taken CheckLyra ID told
+ * the member "You already answered this prompt". Postgres puts the constraint
+ * name in the message (`duplicate key value violates unique constraint "…"`);
+ * `details` is searched too because callers may surface it there.
+ *
+ *   profiles_slug_lower_key — 20261123090000_kan485_profile_model_v08.sql:72
+ *   profiles_slug_idx       — 20260324061701_create_lyra_schema.sql:29
+ *   profiles_slug_key       — the implicit `slug text unique` constraint (:14)
+ */
+const UNIQUE_CONSTRAINT_COPY: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bprofiles_slug_(lower_key|key|idx)\b/i, 'That CheckLyra ID is already taken.'],
+];
+
 /** Postgres SQLSTATEs with copy that is genuinely more useful than the generic. */
 const CODE_COPY: Readonly<Record<string, string>> = {
-  // unique_violation. The only current use is (profile_id, prompt_id) on
-  // profile_conversation_starters — see conversation-starters-actions.ts.
+  // unique_violation not matched above. The remaining use is
+  // (profile_id, prompt_id) on profile_conversation_starters — see
+  // conversation-starters-actions.ts.
   '23505': 'You already answered this prompt — edit your existing answer instead.',
 };
 
@@ -136,6 +171,12 @@ export function memberFacingDbError(error: DbErrorLike): string {
   }
 
   const code = (error.code ?? '').trim();
+  if (code === '23505') {
+    const haystack = `${message}\n${error.details ?? ''}`;
+    for (const [pattern, copy] of UNIQUE_CONSTRAINT_COPY) {
+      if (pattern.test(haystack)) return copy;
+    }
+  }
   if (code && code in CODE_COPY) return CODE_COPY[code];
 
   return GENERIC_DB_ERROR;
@@ -158,9 +199,42 @@ export function dbErrorFor(area: string, error: DbErrorLike): string {
   if (error && copy === GENERIC_DB_ERROR) {
     Sentry.captureException(
       new Error(`${area}: ${error.message ?? 'unknown database error'}`),
-      { tags: { area, ticket: 'BUGS-87' }, extra: { code: error.code ?? null } },
+      {
+        tags: { area, ticket: 'BUGS-87' },
+        extra: { code: error.code ?? null, details: error.details ?? null, hint: error.hint ?? null },
+      },
     );
   }
 
   return copy;
+}
+
+/** Where in a `save_profile` payload the failing statement was (KAN-487). */
+export type SaveErrorDetail = { section: string; clientKey: string | null };
+
+/**
+ * KAN-487 (plan §B "Error context") — parse the DETAIL that `save_profile`
+ * attaches to every error it re-raises:
+ *     jsonb_build_object('section', v_section, 'client_key', v_client_key)::text
+ * so the editor can point at the row that failed. PURE. Returns null for
+ * anything that is not exactly that shape (a plain Postgres DETAIL such as
+ * `Key (lower(slug))=(x) already exists.`, invalid JSON, a missing or empty
+ * section, a non-string client_key).
+ */
+export function parseSaveErrorDetail(details: string | null | undefined): SaveErrorDetail | null {
+  if (typeof details !== 'string' || details.trim() === '') return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(details);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+
+  const { section, client_key: clientKey } = parsed as Record<string, unknown>;
+  if (typeof section !== 'string' || section.trim() === '') return null;
+  if (clientKey === undefined || clientKey === null) return { section, clientKey: null };
+  if (typeof clientKey !== 'string' || clientKey === '') return null;
+  return { section, clientKey };
 }

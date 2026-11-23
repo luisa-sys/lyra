@@ -38,6 +38,8 @@
 
 const mockInsertCapture = jest.fn();
 const mockRevalidatePath = jest.fn();
+// KAN-487: suggestAffiliations now calls the suggest_affiliation_names RPC.
+const mockRpc = jest.fn();
 
 const mockState: { userId: string | null } = { userId: 'kan451-user' };
 
@@ -54,6 +56,7 @@ jest.mock('@/modules/platform/supabase-server', () => ({
             data: { user: mockState.userId ? { id: mockState.userId } : null },
           }),
       },
+      rpc: (...args: unknown[]) => mockRpc(...args),
       from: (table: string) => {
         if (table === 'profiles') {
           return {
@@ -111,6 +114,8 @@ let userCounter = 0;
 const ORIGINAL_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
 beforeEach(() => {
+  mockRpc.mockReset();
+  mockRpc.mockResolvedValue({ data: [], error: null });
   mockInsertCapture.mockClear();
   mockRevalidatePath.mockClear();
   userCounter += 1;
@@ -385,13 +390,46 @@ describe('KAN-451: suggestAffiliations', () => {
       success: true,
       suggestions: [],
     });
+    // KAN-487: and no lookup is made for fewer than 3 characters.
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  test('no key configured → success with nothing, so the picker degrades quietly', async () => {
+  // KAN-487 (spec v0.8 §02, founder decision): Lyra's own entries replace
+  // Google Places. Old expectation (KAN-451): "no key configured → success
+  // with nothing" — with GOOGLE_PLACES_API_KEY deleted, suggestAffiliations
+  // returned { success: true, suggestions: [] } without a provider call.
+  test('suggests names from suggest_affiliation_names, with no Google Places key involved', async () => {
     delete process.env.GOOGLE_PLACES_API_KEY;
-    await expect(suggestAffiliations('Greenfield Primary', 'school')).resolves.toEqual({
+    mockRpc.mockResolvedValue({
+      data: [{ name: 'Greenfield Primary' }, { name: 'Greenfield Academy' }],
+      error: null,
+    });
+    await expect(suggestAffiliations('Greenfield', 'school')).resolves.toEqual({
+      success: true,
+      suggestions: [
+        { name: 'Greenfield Primary', address: null, postcode: null },
+        { name: 'Greenfield Academy', address: null, postcode: null },
+      ],
+    });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('suggest_affiliation_names', {
+      p_type: 'school',
+      p_prefix: 'Greenfield',
+      p_limit: 8,
+    });
+  });
+
+  // KAN-487: an RPC failure degrades exactly like the old "no key" case did.
+  test('an RPC error → success with nothing, so the picker degrades quietly', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom', code: 'XX000' } });
+    await expect(suggestAffiliations('Greenfield Primary', 'organisation')).resolves.toEqual({
       success: true,
       suggestions: [],
+    });
+    expect(mockRpc).toHaveBeenCalledWith('suggest_affiliation_names', {
+      p_type: 'organisation',
+      p_prefix: 'Greenfield Primary',
+      p_limit: 8,
     });
   });
 });
