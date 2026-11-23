@@ -191,135 +191,54 @@ Only these three rules live here. The other six from the modularisation plan
 `modules.json` and land in KAN-415 C2. `tests/scripts/check-dependency-rules.test.js`
 asserts they are absent, so they cannot creep in early.
 
-### Gotcha — `dependency-cruiser` is pinned to 17.x by CI's Node version
+### CI runs on Node 24 (SEC-174, 2026-11-23)
 
-The `PR Quality Gate` job runs on **Node 20** (`node-version: '20'` in
-`pr-checks.yml`). `dependency-cruiser` 18 dropped Node 20 (`engines.node:
-^22||^24||>=26`) and refuses to start on it, so the pin is `^17.4.3`
-(`^20.12||^22||>=24`). Local dev on Node 22 runs either happily, which is exactly
-how this got missed until CI — the first run of this gate failed for that reason,
-and correctly failed *closed* rather than skipping.
+Every workflow's `actions/setup-node` step now pins `node-version: '24'`
+(was a mix of `'20'` and `'22'`). Node 20 left support in April 2026, and
+`@lhci/cli` 0.16, required by the dependency-freshness policy (SEC-197) to
+clear the last HIGH advisories, refuses to start below Node 22
+(`engines.node: >=22.19.0`). Node 24 is an LTS line supported by the Vercel
+runtime; 26 is newer, and is the next step once the Vercel runtime and the
+toolchain are confirmed on it.
 
-**Do not bump to 18+ without moving the CI job to Node 22 first**, and treat that
-as its own change: every step in the job (lint, type-check, unit tests, build,
-audit) shares that runtime.
+### Gotcha — `dependency-cruiser` is held at 17.x (waived major, SEC-198)
 
-### Gotcha — segment names contain regex metacharacters
+`dependency-cruiser` 18 declares `engines.node: ^22||^24||>=26`, which **skips
+Node 25** (an odd, non-LTS line that Homebrew installs by default). 17.4.3
+declares `^20.12||^22||>=24`, so it runs on CI's Node 24 *and* on a local
+Node 25. Bumping to 18 was tried on the SEC-174 branch and reverted: on Node 25
+the gate fails closed with `Your node version (25.x) is not supported`, ten
+cases across four suites of `npm run test:unit` go red
+(`tests/scripts/check-dependency-rules.test.js`, `check-edge-safe.test.js`,
+`check-module-api.test.js`, `check-module-layering.test.js` — CTL-051, CTL-053,
+CTL-054, KAN-425), and `scripts/check-dependency-rules.sh`,
+`check-edge-safe.py`, `check-module-api.py` and `check-module-layering.py` exit
+non-zero. The 18.x major is therefore a dependency-freshness waiver tracked in
+**SEC-198** (with jose 6, `@sentry/nextjs` 11, eslint 10 and TypeScript 7).
+**Do not bump to 18+ until local dev is off Node 25** (Node 26 is in 18's range)
+or 18 adds 25 to its range.
 
-The rule set is **generated**, one rule per `src/app` segment, rather than written
-as a single rule with a `$1` backreference. dependency-cruiser interpolates a
-capture group into `to.pathNot` as raw regex source without escaping it, and
-Next.js segment directories are named `[slug]`, `(auth)`, `(legal)` — so `$1`
-expands to a character class or a capture group that cannot match its own
-directory, and every same-segment import is reported as a cross-segment violation.
-The first run produced 20 "violations" of which 15 were false. A gate that cries
-wolf gets switched off; `tests/scripts/check-dependency-rules.test.js` keeps a
-fixture for exactly that blind spot.
+History: before SEC-174 the pin was 17.x because the `PR Quality Gate` job ran
+on Node 20, which 18 also refuses; the first run of this gate failed for that
+reason, and correctly failed *closed* rather than skipping.
 
-## Extraction Definition-of-Done gate (KAN-428)
+**Local Node.** `.nvmrc` says `24` (`nvm use` / `fnm use`), every workflow's
+`setup-node` uses `'24'`, and `package.json` declares
+`"engines": {"node": "24.x"}`, so `npm ci` on any other major (including 25)
+prints an `EBADENGINE` warning naming the mismatch (a warning only — no
+`engine-strict`). The full unit suite and repo check scripts are green on
+Node 25 as well as 24, with no shims. There is deliberately **no jest-level
+Node preflight**: a `globalSetup` guard was tried on the SEC-174 branch and
+removed, because changing `jest.config.js` in a way that affects how tests run
+needs founder sign-off under the Test Integrity Policy. `engines.node` `24.x`
+matches the Vercel project's existing Node setting (already 24.x, checked
+read-only 2026-11-23), so it changes nothing at deploy time. **The lesson
+stands: a dev-tool major can carry an engines bump, and every step in a job
+(lint, type-check, unit tests, build, audit) shares that runtime** — move the
+CI Node version first, as its own change, and check the new range against the
+Node majors developers actually run, not just CI's.
 
-`scripts/check-extraction-dod.sh` — guard #13, blocking in `pr-checks.yml`,
-registered as `CTL-033`. Full checklist: `docs/MODULARISATION_EXTRACTION_DOD.md`.
-
-**It is inert unless a PR deletes or renames a file under `src/`.** Ordinary PRs
-see one line of output and pass. When it does fire, it enforces the rule that an
-**extraction carries its own estate rework in the same PR**: every artefact that
-classifies a file by its PATH must have moved with it.
-
-Machine-checked (`stale-refs`, `doc-manifest`, `module-manifest`, `test-estate`):
-no literal reference to a moved-from path may remain in `.github/`, `scripts/`,
-`docs/`, `docs/DOC_SOURCE_OF_TRUTH.md`, `modules.json` or `tests/`.
-
-Attested in the PR body, because CI can never check them (`out-of-repo`,
-`coverage`, `routine-prompts`): the design-system generator and the claude.ai
-routine prompts live outside every repository this CI can read, and the covering
-Playwright project + soak clause must be named or `no coverage` recorded as a
-finding. The PR template supplies the three `EXTRACTION-DOD-*` lines, shipped
-with a `FILL-IN` placeholder that fails the gate until it is replaced.
-
-> ⚠️ **Corrected 2026-08-04 (KAN-441).** The design-system half of that
-> attestation used to read *"lives outside every repository"*. The design system
-> **is** now in git — `github.com/luisa-sys/lyra-design-system` — but it is a
-> **different repo, which this repo's CI still cannot read**, so the attestation
-> is unchanged and only its reason is narrower. Process:
-> `docs/DESIGN_CHANGE_WORKFLOW.md`. Whether the two repos should merge, which
-> would let CI check this mechanically, is open (KAN-427 / KAN-457).
-
-**Why the estate needs a gate at all:** KAN-419 measured `docs/**/*.md` at 110
-path literals, **20 of them (18%) matching nothing**, before a single file was
-moved on purpose. `.github/signup-surface.paths` is 100% path globs and every
-entry moves in the first two extractions — and the signup E2E gate is the only
-thing proving account creation works before staging.
-
-**Exit codes: 0 pass · 1 violation · 2 cannot verify.** It fails *closed* on an
-unresolvable diff base, a missing artefact, or an extraction PR with no readable
-body — deliberately stricter than the KAN-411 UI/copy guard, which can fail open
-because CODEOWNERS still hard-gates its paths. Nothing sits underneath this one.
-
-**Escape hatch:** `EXTRACTION-DOD-OK: <JIRA-KEY> <check-id>` on a commit in the
-PR suppresses exactly one named check. A Jira key is required, every active
-exception is printed on every run, and more than three in one PR emits a
-`::warning::`. Check ids: `stale-refs`, `doc-manifest`, `module-manifest`,
-`test-estate`, `out-of-repo`, `coverage`, `routine-prompts`.
-
-**What it does not catch** (stated so it is not trusted past its limits): dead
-*globs* — it matches literal paths only, so `src/lib/age/**` surviving a move of
-`src/lib/age/gate.ts` is `check-guard-path-drift.sh`'s job (F1); test *floors*,
-which are not in `modules.json` until F5 lands; the two out-of-repo couplings, by
-construction; and Confluence, which the KAN-359 DoD covers.
-
-## Self-Healing Flows (KAN-233)
-
-The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.
-
-### Smoke-failure auto-rollback (Part A — shipped)
-
-**What fires it:** `promote-to-production.yml` `smoke-tests` job fails (post-deploy smoke against `checklyra.com` or `mcp.checklyra.com` returned an unexpected response).
-
-**What happens:**
-
-1. `auto-rollback` job runs (lives at the bottom of `promote-to-production.yml`).
-2. `scripts/rollback-to-sha.py` promotes the **pre-merge** SHA back to production on Vercel using the captured `verify-source.outputs.main_sha_before_merge`.
-3. An alert email is sent via Resend to `luisa@santos-stephens.com` with the SHA, the rollback step's outcome, and a link to the workflow run.
-
-**What you do when it fires:**
-
-1. Read the email. If status was `success`, production is back on the previous green SHA — proceed to step 2.
-2. Investigate the failing smoke test in the workflow run (linked from the email).
-3. Fix on `develop` → promote `develop → staging → beta` and verify the smoke test passes locally / on beta.
-4. Re-run `promote-to-production.yml` once you're confident.
-
-**If the rollback itself fails** (`status: failure` in the email): production is in an inconsistent state. Follow "Deployment Rollback → Via Vercel Dashboard" below to roll back manually, then file a Highest-priority BUGS ticket so the root-cause of the failed auto-rollback is fixed.
-
-**Reference:** BUGS-9 captured the original auto-rollback, KAN-233 added the alerting layer.
-
-### Tier-2 abuse-detection logging (Part of KAN-232, shipped)
-
-Every MCP request now writes a row to `public.mcp_tool_call_log` on the Supabase project the MCP server points at. Aggregated as `mcp_per_ip_recent_count` (rolling 1-hour count per IP). The MCP server gates this behind `MCP_TOOL_CALL_LOG_ENABLED=true` — default OFF; flip the env var on Railway per environment after the migration is promoted.
-
-To inspect:
-
-```sql
--- Top noisy IPs in the last hour (on the relevant Supabase project)
-select ip, request_count, last_seen
-from public.mcp_per_ip_recent_count
-order by request_count desc limit 20;
-```
-
-### MCP restart on health-check failure (Part B — deferred, KAN-246)
-
-Not yet shipped. The current `health-check.yml` cron creates a GitHub issue on failure but does not auto-restart the Railway service. Tracked under KAN-246; needs a `RAILWAY_API_TOKEN` secret scoped to restart on the `lyra-mcp-server` project.
-
-### Cloudflare auto-block on abuse threshold (Part C — deferred, KAN-247)
-
-Not yet shipped. KAN-232 built the logging foundation; KAN-247 will consume `mcp_per_ip_recent_count` and add Cloudflare WAF rules for IPs over the threshold. Needs a `CLOUDFLARE_API_TOKEN` with `Zone WAF:Edit` on `checklyra.com`.
-
-### CI workflow auto-triage and self-heal (Tier 4 — shipped)
-
-`.github/workflows/auto-fix-known-failures.yml` reacts to `workflow_run.completed` events from the recurring failure-prone workflows (Anomaly detect, Beta gate smoke, Staging Tests, Affiliate link smoke, Auto-promote develop→staging) and runs `scripts/auto-fix-known-failures.py` to classify the failure against `scripts/auto-fix-patterns.json` and apply one of four remediations:
-
-| Remediation kind | What it does | Idempotent? |
-|---|---|---|
+---|---|---|
 | `create_label` | Creates a missing GitHub label; re-runs the failed workflow | Yes (label_exists check) |
 | `alert_secret_rotation` | Files (or updates) a deduped issue labeled `autoheal-tracked` + `autoheal/needs-human` listing the rotation steps | Yes (issue_upsert) |
 | `pr_pending` | Finds the open PR carrying the fix (by branch substring) and posts a one-time marker comment so the daily failure surfaces on the PR | Yes (marker dedup) |
