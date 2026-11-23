@@ -2027,7 +2027,7 @@
         "src/modules/profile/"
       ],
       "owns": {
-        "files": 52,
+        "files": 63,
         "tables": [
           "external_links",
           "profile_conversation_starters",
@@ -2036,7 +2036,7 @@
           "profile_manual_of_me",
           "school_affiliations"
         ],
-        "rpcs": [],
+        "rpcs": ["save_profile", "suggest_affiliation_names"],
         "profilesColumns": [
           "display_name",
           "slug",

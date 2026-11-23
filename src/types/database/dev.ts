@@ -2316,6 +2316,7 @@ export type Database = {
         Returns: string
       }
       refresh_relationship_signals: { Args: never; Returns: undefined }
+      save_profile: { Args: { p_mode: string; p_payload: Json }; Returns: Json }
       search_by_contact_hash: {
         Args: { p_hash: string; p_kind: string }
         Returns: {
@@ -2329,6 +2330,12 @@ export type Database = {
           detail: string
           invariant: string
           object_name: string
+        }[]
+      }
+      suggest_affiliation_names: {
+        Args: { p_limit?: number; p_prefix: string; p_type: string }
+        Returns: {
+          name: string
         }[]
       }
       tribe_only_visible_tribes: {
