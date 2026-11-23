@@ -69,5 +69,22 @@ export const env = {
    */
   publicRecommendationsApiEnabled: () =>
     optionalEnv('LYRA_PUBLIC_RECOMMENDATIONS_API', '').trim() === '1',
+  // KAN-489 — the Anthropic key behind AI gift suggestions (spec v0.8 §03).
+  // Server-only and optional on purpose: with no key the editor shows "AI
+  // gift suggestions aren't available yet." and never calls the model, so an
+  // unset value degrades the feature rather than breaking the editor. Never
+  // log or render the value; report only booleans.
+  anthropicApiKey: () => optionalEnv('ANTHROPIC_API_KEY', '').trim(),
+  anthropicKeyPresent: () => optionalEnv('ANTHROPIC_API_KEY', '').trim() !== '',
+  // KAN-489 review — a SECOND switch, like CF_PROXY_ENFORCE: setting the key
+  // alone must not start sending member text to a new sub-processor. Only
+  // exactly '1' turns the feature on, and it needs founder sign-off first
+  // (consent copy, members-only inclusion, privacy-page sub-processor
+  // listing — docs/compliance/FOUNDER_CHECKLIST.md).
+  aiGiftsEnabled: () => optionalEnv('LYRA_AI_GIFTS_ENABLED', '').trim() === '1',
+  // Members can use AI gift suggestions only when BOTH are true.
+  aiGiftsConfigured: () =>
+    optionalEnv('ANTHROPIC_API_KEY', '').trim() !== '' &&
+    optionalEnv('LYRA_AI_GIFTS_ENABLED', '').trim() === '1',
 };
 // Force rebuild 20260329011858

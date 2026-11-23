@@ -59,20 +59,25 @@ import {
   SAVE_FAILED_COPY,
   SAVE_SUCCESS_COPY,
   UNSAVED_COPY,
+  applyAiGiftChangeToBaseline,
   editorShellReducer,
   failedIntentAfter,
   liveServerErrors,
   lyraIdWarningMessage,
   publishBlockerErrors,
   publishBlockers,
+  replayAiGiftChanges,
   retryIntent,
   saveChangesDisabled,
   saveFailureStatus,
   touchField,
+  savedApprovedAiGiftIds,
   visibleErrors,
+  type CommittedAiGiftChange,
   type PublishBlocker,
   type SaveIntent,
 } from '@/modules/profile/editor/editor-shell';
+import type { GeneratedSuggestion } from '@/modules/profile/ai-gifts/types';
 import type { EditorPublishResult } from '@/modules/profile/save-profile';
 import { publishProfileFromEditor, saveProfileChanges, saveProfileDraft } from './editor-actions';
 import { EditorHeader, HEADER_LINK_FOCUS } from './editor/editor-header';
@@ -81,6 +86,7 @@ import { EditorActionBar, type ActionBarStatus } from './editor/editor-action-ba
 import { ProfilePreview } from './editor/profile-preview';
 import { useUnsavedGuard } from './editor/use-unsaved-guard';
 import { SaveKeyMapContext } from './editor/use-expanded-rows';
+import { AiGiftsContext, type AiGiftsContextValue } from './editor/ai-gifts-context';
 import { revealAndFocus } from './editor/editor-section-card';
 import { SectionAbout } from './editor/section-about';
 import { SectionAffiliations } from './editor/section-affiliations';
@@ -118,6 +124,8 @@ interface SaveAttempt {
   intent: SaveIntent;
   sent: EditorState;
   payload: SavePayload;
+  /** KAN-489: length of the committed AI-gift change log when the save started. */
+  aiLogAt: number;
 }
 
 function callSave(a: SaveAttempt): Promise<EditorPublishResult | SaveResult> {
@@ -134,6 +142,7 @@ export function EditProfileForm({
   conversationPrompts,
   conversationAnswers,
   conveneEnabled = false,
+  aiGiftsConfigured = false,
 }: {
   profile: LoadedProfileRow;
   items: LoadedItem[];
@@ -142,6 +151,8 @@ export function EditProfileForm({
   conversationPrompts: LoadedPrompt[];
   conversationAnswers: LoadedAnswer[];
   conveneEnabled?: boolean;
+  /** KAN-489: ANTHROPIC_API_KEY is set (a boolean; the value never reaches the browser). */
+  aiGiftsConfigured?: boolean;
 }) {
   const router = useRouter();
 
@@ -157,6 +168,22 @@ export function EditProfileForm({
   const baselineRef = useRef<EditorState>(state);
   const [baseline, setBaseline] = useState<EditorState>(state);
   const [publicSlug, setPublicSlug] = useState<string>(profile.slug ?? '');
+
+  // KAN-489 — AI gift suggestions. One session id per editor load (survives
+  // Saves, resets on reload). Changes the server has already committed
+  // (suggestions stored, a pending one dismissed) go to the live state AND
+  // the baseline, so they never mark the editor dirty and an approval of a
+  // new suggestion is sent as ai_gifts.approve. The log lets a save that was
+  // in flight replay them onto its new baseline.
+  const [aiSessionId] = useState<string>(() => crypto.randomUUID());
+  const aiChangesRef = useRef<CommittedAiGiftChange[]>([]);
+  const commitAiChange = useCallback((change: CommittedAiGiftChange) => {
+    aiChangesRef.current.push(change);
+    dispatch(change);
+    const next = applyAiGiftChangeToBaseline(baselineRef.current, change);
+    baselineRef.current = next;
+    setBaseline(next);
+  }, []);
 
   const [status, setStatus] = useState<ActionBarStatus>({ kind: 'idle' });
   const [blockers, setBlockers] = useState<PublishBlocker[]>([]);
@@ -202,9 +229,12 @@ export function EditProfileForm({
   }, [focusErrorTick]);
 
   const applySuccess = useCallback(
-    (sent: EditorState, res: Extract<SaveResult, { ok: true }>) => {
+    (sent: EditorState, res: Extract<SaveResult, { ok: true }>, aiLogAt: number) => {
       const newBaseline = saveBaselineFromResult(res);
-      const next = editorReducer(sent, { type: 'applySaveResult', idMap: res.idMap, newBaseline });
+      const next = replayAiGiftChanges(
+        editorReducer(sent, { type: 'applySaveResult', idMap: res.idMap, newBaseline }),
+        aiChangesRef.current.slice(aiLogAt),
+      );
       baselineRef.current = next;
       setBaseline(next);
       dispatch({ type: 'rebaseAfterSave', sent, idMap: res.idMap, newBaseline });
@@ -228,7 +258,7 @@ export function EditProfileForm({
       setFailedIntent(failedIntentAfter(attempt.intent, res.ok));
 
       if (res.ok) {
-        applySuccess(attempt.sent, res);
+        applySuccess(attempt.sent, res, attempt.aiLogAt);
         setAttempted(false);
         setTouched(new Set());
         const idWarning = lyraIdWarningMessage(res.warnings.lyra_id);
@@ -254,7 +284,7 @@ export function EditProfileForm({
       // Publish (failedIntent) and re-diffs against this fresh baseline, so
       // only the publish step is left to run.
       if ('saved' in res && res.saved) {
-        applySuccess(attempt.sent, res.saved);
+        applySuccess(attempt.sent, res.saved, attempt.aiLogAt);
       }
 
       const fieldErrors = res.fieldErrors ?? {};
@@ -293,7 +323,7 @@ export function EditProfileForm({
     }
     const sent = state;
     const payload = buildSavePayload(baselineRef.current, sent, MODE_FOR_INTENT[intent]);
-    void submit({ intent, sent, payload });
+    void submit({ intent, sent, payload, aiLogAt: aiChangesRef.current.length });
   };
 
   // "Try again": the failed save's own intent, with a payload built from the
@@ -320,6 +350,17 @@ export function EditProfileForm({
   };
 
   const sectionProps = { state, dispatch, errors, readOnly: saving };
+  const savedApprovedIds = useMemo(() => savedApprovedAiGiftIds(baseline), [baseline]);
+  const aiGifts = useMemo<AiGiftsContextValue>(
+    () => ({
+      configured: aiGiftsConfigured,
+      sessionId: aiSessionId,
+      savedApprovedIds,
+      onGenerated: (rows: readonly GeneratedSuggestion[]) => commitAiChange({ type: 'aiGiftsGenerated', rows }),
+      onDismissed: (id: string) => commitAiChange({ type: 'aiGiftDismissed', id }),
+    }),
+    [aiGiftsConfigured, aiSessionId, savedApprovedIds, commitAiChange],
+  );
   const shownStatus: ActionBarStatus = status.kind === 'success' && dirty ? { kind: 'idle' } : status;
 
   return (
@@ -343,18 +384,20 @@ export function EditProfileForm({
         <EditorToc sections={SECTIONS} />
 
         <SaveKeyMapContext.Provider value={keyMap}>
-          <div className="space-y-3" onBlur={onFieldBlur}>
-            <SectionAbout {...sectionProps} />
-            <SectionAffiliations {...sectionProps} />
-            <SectionGifts {...sectionProps} />
-            <SectionNotForMe {...sectionProps} />
-            <SectionUnderstand {...sectionProps} />
-            <SectionFavourites {...sectionProps} />
-            <SectionTips {...sectionProps} />
-            <SectionProblems {...sectionProps} />
-            <SectionQuestions {...sectionProps} />
-            <SectionBillboard {...sectionProps} />
-          </div>
+          <AiGiftsContext.Provider value={aiGifts}>
+            <div className="space-y-3" onBlur={onFieldBlur}>
+              <SectionAbout {...sectionProps} />
+              <SectionAffiliations {...sectionProps} />
+              <SectionGifts {...sectionProps} />
+              <SectionNotForMe {...sectionProps} />
+              <SectionUnderstand {...sectionProps} />
+              <SectionFavourites {...sectionProps} />
+              <SectionTips {...sectionProps} />
+              <SectionProblems {...sectionProps} />
+              <SectionQuestions {...sectionProps} />
+              <SectionBillboard {...sectionProps} />
+            </div>
+          </AiGiftsContext.Provider>
         </SaveKeyMapContext.Provider>
       </div>
 

@@ -125,6 +125,39 @@ export function rebaseAfterSave(
   };
 }
 
+/** KAN-489: the AI-gift changes the server has ALREADY committed. */
+export type CommittedAiGiftChange = Extract<EditorAction, { type: 'aiGiftsGenerated' } | { type: 'aiGiftDismissed' }>;
+
+/**
+ * KAN-489 — apply a committed AI-gift change (a generation stored new pending
+ * rows; a pending row was dismissed on the server) to the BASELINE as well
+ * as the live state. Without this, generated rows would be missing from the
+ * baseline, so approving one would never reach `ai_gifts.approve` (the diff
+ * approves only ids the baseline holds), and a dismissed row would be sent
+ * again as `ai_gifts.delete` and fail the next save. PURE.
+ */
+export function applyAiGiftChangeToBaseline(baseline: EditorState, change: CommittedAiGiftChange): EditorState {
+  return editorReducer(baseline, change);
+}
+
+/**
+ * KAN-489 — re-apply the committed AI-gift changes made WHILE a save was in
+ * flight to the baseline built from the sent snapshot. The sent snapshot was
+ * taken before those changes, so without this a suggestion generated during
+ * the save would vanish from the baseline and its approval would never be
+ * sent. Replay only the changes logged after the save started: older ones
+ * are already in the snapshot (and a later Remove may have deleted their
+ * rows). PURE.
+ */
+export function replayAiGiftChanges(baseline: EditorState, changes: readonly CommittedAiGiftChange[]): EditorState {
+  return changes.reduce<EditorState>((b, c) => editorReducer(b, c), baseline);
+}
+
+/** KAN-489: ids of AI suggestions approved in the SAVED state (the baseline). PURE. */
+export function savedApprovedAiGiftIds(baseline: EditorState): ReadonlySet<string> {
+  return new Set(baseline.aiGifts.filter((g) => g.approved).map((g) => g.id));
+}
+
 export type ShellAction =
   | EditorAction
   | { type: 'rebaseAfterSave'; sent: EditorState; idMap: Record<string, string>; newBaseline: SaveBaseline };

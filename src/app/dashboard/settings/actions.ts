@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
@@ -220,6 +221,17 @@ export async function exportUserData(): Promise<string> {
     .from('gift_suggestion_dismissals').select('*').eq('profile_id', profileId);
   record('gift_suggestion_dismissals', dismissalsErr);
 
+  // KAN-489: the AI gift suggestion requests the member made (timestamps,
+  // random editor-session ids and the consent-note version; no content). Unreadable by the member's own
+  // client by design (no RLS policy), so only this service-role export shows it.
+  // The table is not in the generated types until the KAN-489 migration is
+  // applied to dev and `npm run gen:db-types` is re-run; until then this one
+  // read goes through the untyped client. Remove the cast after regeneration.
+  const untypedAdmin = admin as unknown as SupabaseClient;
+  const { data: aiGiftGenerations, error: aiGenErr } = await untypedAdmin
+    .from('ai_gift_generations').select('id, session_id, consent_version, created_at').eq('profile_id', profileId);
+  record('ai_gift_generations', aiGenErr);
+
   // Venue visits hang off the user's own gatherings.
   let venueVisits: unknown[] = [];
   if (gatheringIds.length) {
@@ -272,6 +284,7 @@ export async function exportUserData(): Promise<string> {
     venue_visits: venueVisits,
     oauth_scopes_granted: oauthScopes,
     gift_suggestion_dismissals: giftDismissals || [],
+    ai_gift_generations: aiGiftGenerations || [],
     // Present only when one or more sections failed to fetch — the export is
     // then known-incomplete and must not be treated as a full SAR response.
     ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
@@ -344,11 +357,13 @@ export async function deleteAccount() {
 
   // Best-effort: remove now-orphaned storage objects (the DB cascade
   // doesn't touch storage). Non-fatal — the account and all rows are gone.
+  // One bucket handle per bucket, used for both the list and the remove.
   for (const bucket of ['profile-photos', 'profile-files']) {
     try {
-      const { data: files } = await admin.storage.from(bucket).list(userId);
+      const store = admin.storage.from(bucket);
+      const { data: files } = await store.list(userId);
       if (files?.length) {
-        await admin.storage.from(bucket).remove(files.map((f) => `${userId}/${f.name}`));
+        await store.remove(files.map((f) => `${userId}/${f.name}`));
       }
     } catch {
       // ignore — orphaned-object cleanup isn't worth failing the flow

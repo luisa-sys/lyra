@@ -40,10 +40,14 @@ export default async function LegacyProfilePage() {
 
   if (!profile) redirect('/login');
 
+  // KAN-489: member-authored rows only. AI gift suggestions (pending or
+  // approved) are managed in the v0.8 editor; listing them here showed pending
+  // suggestions as ordinary, editable gifts.
   const { data: items } = await supabase
     .from('profile_items')
     .select('*')
     .eq('profile_id', profile.id)
+    .eq('origin', 'user')
     .order('created_at', { ascending: true });
 
   const { data: schools } = await supabase

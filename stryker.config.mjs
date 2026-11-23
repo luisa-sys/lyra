@@ -5,6 +5,12 @@ const config = {
   mutate: [
     'src/app/(auth)/actions.ts',
     'src/modules/guards/sanitise.ts',
+    // KAN-489 — AI gift suggestions (behavioural suites kan489-ai-gifts-*).
+    'src/modules/profile/ai-gifts/prompt.ts',
+    'src/modules/profile/ai-gifts/parse.ts',
+    'src/modules/profile/ai-gifts/filter.ts',
+    'src/modules/profile/ai-gifts/generate.ts',
+    'src/modules/profile/ai-gifts/client.ts',
   ],
   testRunner: 'jest',
   jest: {

@@ -59,6 +59,12 @@ export const PERSON_KEYED_TABLES = {
   // response. Added 2026-08-09, at the same time as its migration, precisely
   // so it never exists in the schema without a SAR decision attached.
   gift_suggestion_dismissals: 'profile_id',
+  // KAN-489. The AI gift suggestion claim log: one row per paid generation,
+  // holding a timestamp and the random session id of the editor that asked.
+  // Members cannot read it in the app (RLS on, no policies — the abuse limit
+  // must not be inspectable or editable), but it is personal data about them,
+  // so the service-role export returns it. Added with its migration.
+  ai_gift_generations: 'profile_id',
 } as const;
 
 /**
@@ -104,4 +110,5 @@ export const DELIBERATELY_EXCLUDED: Record<string, string> = {
   // REDUNDANT, not withheld — unlike the entries above, nothing here is absent
   // from the response. Art.15 is satisfied by the `profiles` row itself.
   public_profiles: 'SEC-132 — view over profiles; every column already exported via the profiles row',
+
 };

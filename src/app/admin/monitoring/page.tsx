@@ -15,7 +15,7 @@
 import Link from 'next/link';
 import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAnomalyWindowAdmin, type AnomalyWindowKey, type MetricsSnapshot } from '@/modules/observability/metrics';
-import { getMonitoringIntegrations } from './integration-status';
+import { getAiIntegrations, getMonitoringIntegrations } from './integration-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +97,8 @@ export default async function MonitoringPage() {
     Promise.all(WINDOWS.map((w) => safeWindow(w))),
   ]);
 
-  const integrations = getMonitoringIntegrations();
+  // KAN-489: the AI provider row is appended (configured / not only — never the key).
+  const integrations = [...getMonitoringIntegrations(), ...getAiIntegrations()];
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 space-y-10">
