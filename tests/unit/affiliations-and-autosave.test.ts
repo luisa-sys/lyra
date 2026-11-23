@@ -387,16 +387,34 @@ describe('KAN-220: surface-area regression guards', () => {
       resolve(ROOT, SRC.editProfileForm),
       'utf-8',
     );
-    expect(src).toMatch(/BasicInfoSection/);
-    expect(src).toMatch(/BioSection/);
-    expect(src).toMatch(/ManualOfMeSection/);
-    expect(src).toMatch(/AffiliationsSection/);
-    expect(src).toMatch(/ItemsStep/);  // reused from legacy steps
-    expect(src).toMatch(/LinksStep/);
+    // KAN-487 (spec v0.8 §01–§10): the editor composes the ten v0.8
+    // section components; the autosave sections, ItemsStep, LinksStep (Links
+    // retired) and ConversationStartersStep are no longer used. Old expected
+    // values:
+    //   toMatch BasicInfoSection, BioSection, ManualOfMeSection,
+    //   AffiliationsSection, ItemsStep, LinksStep,
+    //   ConversationStartersSection|ConversationStartersStep
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    for (const section of [
+      'SectionAbout',
+      'SectionAffiliations',
+      'SectionGifts',
+      'SectionNotForMe',
+      'SectionUnderstand',
+      'SectionFavourites',
+      'SectionTips',
+      'SectionProblems',
+      'SectionQuestions',
+      'SectionBillboard',
+    ]) {
+      expect(src).toContain(`<${section} `);
+    }
+    expect(src).not.toMatch(/ItemsStep/);
+    expect(src).not.toMatch(/LinksStep/);
+    expect(src).not.toMatch(/useAutoSave/);
     // KAN-404: FilesStep is intentionally unwired (edit == published, and the
     // public profile no longer renders a Files & media section).
     expect(src).not.toMatch(/FilesStep/);
-    expect(src).toMatch(/ConversationStartersSection|ConversationStartersStep/);
   });
 
   test('useAutoSave hook is referenced by the autosave sections', () => {

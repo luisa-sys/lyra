@@ -474,7 +474,11 @@ describe('KAN-445 migration — the offered set, and what it must not touch', ()
     // what makes this assertion about what a member reads.
     expect(publicPage).toContain('A bit more about me');
     expect(publicPage).not.toContain('A few more things about me');
-    expect(editor).toContain('A bit more about me');
+    // KAN-487 (spec v0.8 §09 heading "Random Questions & Answers").
+    // Old expected value: expect(editor).toContain('A bit more about me')
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    // The public page keeps its heading until step 5 (KAN-487 plan §A).
+    expect(editor).toContain('Random Questions & Answers');
   });
 
   it('does NOT redefine enforce_pcs_cap — the total cap is out of scope', () => {

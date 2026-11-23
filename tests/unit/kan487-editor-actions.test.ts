@@ -677,12 +677,26 @@ describe('KAN-487 review M2: publish returns the row as it is AFTER publishProfi
     expect(mockPublishProfile.mock.invocationCallOrder[0]).toBeGreaterThan(0);
   });
 
-  test('if the row cannot be re-read after publishing, the client is told to reload (never a stale updatedAt)', async () => {
+  // KAN-487 PR2 review Major 1: the profile DID publish; only the re-read
+  // failed. Old expected value (PR-new test, changed in the same PR):
+  //   expect(res.ok).toBe(false);
+  //   expect(res.error).toBe('Editor is out of date. Reload to continue.');
+  // New: ok:true, published, with the reload note as a warning (an ok:false
+  // made the UI say "We couldn't save" and retry as a draft).
+  test('if the row cannot be re-read after publishing, the result is still a publish, with a reload warning', async () => {
     mockState.profileRows = [draftRow(), readyRow(), null];
     const res = await publishProfileFromEditor({ base_updated_at: BASE, profile: { headline: 'Hello' } });
-    expect(res.ok).toBe(false);
-    if (res.ok) return;
-    expect(res.error).toBe('Editor is out of date. Reload to continue.');
+    expect(res).toEqual({
+      ok: true,
+      idMap: {},
+      updatedAt: '2026-11-23T10:05:00.000Z',
+      warnings: { publish: 'Editor is out of date. Reload to continue.' },
+      slug: 'user_ab12cd',
+      slugConfirmed: false,
+      avatarUrl: null,
+      isPublished: true,
+      firstPublishedAt: null,
+    });
     expect(mockPublishProfile).toHaveBeenCalledTimes(1);
   });
 });

@@ -131,14 +131,27 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   // founder-signed-off 2026-07-25). Assertion unchanged.
   const marker = `Soak note ref-${Date.now().toString(36)}`;
   await page.goto('/dashboard/profile', { waitUntil: 'load' });
-  const goodToKnow = page.getByPlaceholder(/I'm a slow texter/);
+  // KAN-487 (spec v0.8 §1, §05): edits stay private until Save Changes, then
+  // exactly "Changes saved successfully". Old flow: placeholder
+  // /I'm a slow texter/, blur, autosave label /Saved|Saving/, then the marker
+  // on /<slug>. (founder standing approval 2026-11-23: v0.8 contradicts)
+  const goodToKnow = page.getByLabel('Good to know about me / Things I’m into');
   await expect(goodToKnow).toBeVisible();
   await goodToKnow.fill(marker);
   await goodToKnow.blur();
-  await expect(page.getByText(/Saved|Saving/).first()).toBeVisible();
+
+  // Not public before Save Changes (checked in a second tab so the editor's
+  // unsaved edit stays open).
+  const publicPage = await page.context().newPage();
+  await publicPage.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+  await expect(publicPage.getByText(marker)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
 
   await expect(async () => {
-    await page.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
-    await expect(page.getByText(marker)).toBeVisible();
+    await publicPage.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+    await expect(publicPage.getByText(marker)).toBeVisible();
   }).toPass({ timeout: 20_000 });
+  await publicPage.close();
 });

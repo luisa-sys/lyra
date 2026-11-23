@@ -285,7 +285,12 @@ export async function publishProfileFromEditor(
   // and the updated_at trigger), so the save's values are stale: re-read.
   const fresh = await loadEditorProfileSnapshot(prepared.supabase, prepared.userId);
   const result = fresh ? refreshedAfterPublish(saved, fresh) : null;
-  if (!result) return { ok: false, error: EDITOR_OUT_OF_DATE, saved };
+  // The profile IS published; only the re-read failed. Report success (never
+  // "couldn't save", which would invite a retry as a draft) with a warning
+  // that the editor must reload before its next save — its updatedAt is stale.
+  if (!result) {
+    return { ...saved, isPublished: true, warnings: { ...saved.warnings, publish: EDITOR_OUT_OF_DATE } };
+  }
   return result;
 }
 

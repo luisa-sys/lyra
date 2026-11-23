@@ -63,18 +63,34 @@ const ITEM_DESCRIPTION_CEILING = Math.max(
   ...Object.values(ITEM_RULES).map((r) => r.descriptionMax),
 );
 
+/**
+ * KAN-487 line-break decision (founder, 2026-11-23): item DESCRIPTIONS (every
+ * category) and the QUOTE text (a `quotes` title) are multiline — their line
+ * breaks are kept. Every other item title is one line (whitespace collapsed).
+ * The edit path's null-category ceiling cannot tell a quote apart, so it
+ * keeps titles single-line.
+ */
+export function itemTitleIsMultiline(category: string | null): boolean {
+  return category === 'quotes';
+}
+
 /** Title for a known category (add path), or `null` for the ceiling (edit path). */
 export function validateItemTitle(category: string | null, raw: string | null | undefined): FreeTextResult {
   const rule = category === null ? null : itemRuleFor(category);
   const max = category === null ? ITEM_TITLE_CEILING : rule ? rule.titleMax : LEGACY_TITLE_MAX;
-  return validateFreeText(raw, { label: labelsFor(category).title, max, required: true });
+  return validateFreeText(raw, {
+    label: labelsFor(category).title,
+    max,
+    required: true,
+    multiline: itemTitleIsMultiline(category),
+  });
 }
 
-/** Description for a known category (add path), or `null` for the ceiling (edit path). */
+/** Description for a known category (add path), or `null` for the ceiling (edit path). Multiline. */
 export function validateItemDescription(category: string | null, raw: string | null | undefined): FreeTextResult {
   const rule = category === null ? null : itemRuleFor(category);
   const max = category === null ? ITEM_DESCRIPTION_CEILING : rule ? rule.descriptionMax : LEGACY_DESCRIPTION_MAX;
-  return validateFreeText(raw, { label: labelsFor(category).description, max });
+  return validateFreeText(raw, { label: labelsFor(category).description, max, multiline: true });
 }
 
 export function validateGroupLabel(raw: string | null | undefined): FreeTextResult {

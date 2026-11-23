@@ -7,7 +7,7 @@
   },
   "_totals": {
     "files": 149,
-    "blocks": 344
+    "blocks": 342
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -74,7 +74,7 @@
     "tests/unit/auth-confirm-route.test.ts": 1,
     "tests/unit/auth.test.js": 2,
     "tests/unit/auto-fix-patterns.test.js": 3,
-    "tests/unit/auto-save-flush.test.ts": 3,
+    "tests/unit/auto-save-flush.test.ts": 2,
     "tests/unit/bugs66-dashboard-loading-guard.test.js": 2,
     "tests/unit/bugs70-manual-of-me-persist.test.ts": 1,
     "tests/unit/consented-analytics.test.ts": 2,
@@ -101,7 +101,7 @@
     "tests/unit/gdpr.test.js": 3,
     "tests/unit/global-enforcement.test.ts": 1,
     "tests/unit/homepage-content.test.js": 1,
-    "tests/unit/inline-item-edit.test.ts": 3,
+    "tests/unit/inline-item-edit.test.ts": 2,
     "tests/unit/kan342-gift-visibility.test.ts": 1,
     "tests/unit/kan351-public-profile-data-integrity.test.ts": 1,
     "tests/unit/kan404-public-files-removed.test.ts": 1,

@@ -16,7 +16,10 @@
  *   - AI gift suggestions appear ONLY when `approved`, grouped under
  *     "AI suggested" (spec §03).
  *   - Text is kept verbatim (line breaks preserved); whitespace-only counts
- *     as empty.
+ *     as empty. Exception (KAN-487 line-break decision): item titles other
+ *     than a quote are single-line, so their whitespace is collapsed exactly
+ *     as the save will store it — the preview never shows a break the public
+ *     page drops. Descriptions and quote text keep their breaks.
  *   - Country is shown as its English name (`countries.ts`); a legacy
  *     free-text value that is not a code is shown as stored.
  *   - Links pass `parseMemberUrl` (http/https only) or are dropped; lists the
@@ -27,6 +30,7 @@
  */
 
 import { countryName } from '@/modules/profile/countries';
+import { itemTitleIsMultiline } from '@/modules/profile/field-validation';
 import { parseMemberUrl } from '@/modules/profile/member-url';
 import type { ManualOfMeField } from '@/modules/profile/manual-of-me-fields';
 import type {
@@ -213,6 +217,13 @@ function textOrNull(v: string | null | undefined): string | null {
   return v;
 }
 
+/** An item title as stored: one line unless the category keeps breaks (quotes). */
+function itemTitleOrNull(v: string | null | undefined, category: string): string | null {
+  const t = textOrNull(v);
+  if (t === null || itemTitleIsMultiline(category)) return t;
+  return t.replace(/\s+/g, ' ').trim();
+}
+
 /** A validated http/https link, or null. */
 function safeLink(v: string | null | undefined): string | null {
   if (textOrNull(v) === null) return null;
@@ -239,7 +250,7 @@ function entries(state: EditorState, listKey: ListKey): PublicEntry[] {
   const out: PublicEntry[] = [];
   const noLink = NO_LINK_LISTS.has(listKey);
   for (const row of state.lists[listKey] as EditorRow[]) {
-    const title = textOrNull(row.title);
+    const title = itemTitleOrNull(row.title, row.category);
     if (title === null) continue;
     out.push({
       title,
@@ -310,7 +321,7 @@ function giftsSection(state: EditorState): PublicGiftsSection | null {
   const aiSuggested: PublicEntry[] = [];
   for (const g of state.aiGifts) {
     if (g.approved !== true) continue; // never publish an unapproved suggestion
-    const title = textOrNull(g.title);
+    const title = itemTitleOrNull(g.title, 'gift_ideas');
     if (title === null) continue;
     aiSuggested.push({ title, description: textOrNull(g.description), url: safeLink(g.url), tag: null });
   }

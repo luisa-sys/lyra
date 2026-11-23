@@ -236,9 +236,16 @@ describe('KAN-443: the gift surfaces are wired to the guarded helpers', () => {
     expect(section).not.toMatch(/\{\s*gift_voucher_hint\s*:\s*value\s*\}/);
   });
 
+  // KAN-487 (spec v0.8 §1 "compact list summaries", §03): the live editor's
+  // gifts are §03's compact summary rows, not an ItemsStep with a row layout.
+  // Old expected values:
+  //   expect(editor).toMatch(/rowLayout:\s*'inline'/)
+  //   expect(editor).toMatch(/rowLayout=\{s\.rowLayout\}/)
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // ItemsStep (legacy wizard, still on disk until PR3) keeps its inline layout.
   test('the gifts section renders one-line rows, not the old stacked label', () => {
-    expect(editor).toMatch(/rowLayout:\s*'inline'/);
-    expect(editor).toMatch(/rowLayout=\{s\.rowLayout\}/);
+    expect(editor).not.toMatch(/rowLayout/);
+    expect(editor).toContain('<SectionGifts');
     expect(itemsStep).toMatch(/rowLayout\s*===\s*'inline'/);
   });
 

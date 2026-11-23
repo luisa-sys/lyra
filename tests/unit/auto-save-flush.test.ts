@@ -134,13 +134,20 @@ describe('KAN-404: Continue button gated behind showContinue', () => {
     },
   );
 
-  test('single-page editor passes showContinue={false} to the list steps', () => {
+  // KAN-487 (spec v0.8 §1: no autosave; one Save Draft / Save Changes for
+  // all sections). The live editor no longer renders the wizard list steps,
+  // their Continue buttons, useAutoSave or SectionSaveBar. Old expected value:
+  //   (src.match(/showContinue=\{false\}/g) || []).length >= 3  // items + links + starters
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('single-page editor renders no list steps (no showContinue, no autosave) and one action bar', () => {
     const src = readFileSync(
       resolve(ROOT, SRC.editProfileForm),
       'utf-8',
     );
-    const count = (src.match(/showContinue=\{false\}/g) || []).length;
-    expect(count).toBeGreaterThanOrEqual(3); // items + links + starters
+    expect(src).not.toMatch(/showContinue=/);
+    expect(src).not.toMatch(/useAutoSave/);
+    expect(src).not.toMatch(/SectionSaveBar/);
+    expect(src).toContain('<EditorActionBar');
   });
 
   test('legacy wizard.tsx does NOT pass showContinue (keeps the default true)', () => {

@@ -356,3 +356,36 @@ describe('KAN-487 public view-model — text, country, links (spec §01, §10, �
     expect(section(view(l).sections, 'about')?.photoUrl).toBeNull();
   });
 });
+
+// KAN-487 PR2 review Major 4 — line-break decision: descriptions (all
+// categories) and quote text keep their breaks; every other item title is one
+// line, so the preview shows what the save stores.
+describe('KAN-487 public view-model — line breaks (PR2 review Major 4)', () => {
+  test('a description keeps its line break', () => {
+    const l = loaded({
+      items: [item({ id: 'h1', category: 'life_hacks', title: 'Batch cook', description: 'Sundays.\nFreeze it.' })],
+    });
+    expect(section(view(l).sections, 'tips')?.entries[0].description).toBe('Sundays.\nFreeze it.');
+  });
+
+  test('a non-quote title collapses its line break to a space', () => {
+    const l = loaded({
+      items: [
+        item({ id: 'h1', category: 'life_hacks', title: 'Batch\ncook' }),
+        item({ id: 'c1', category: 'causes', title: 'Clean\n\nrivers ' }),
+      ],
+    });
+    const v = view(l);
+    expect(section(v.sections, 'tips')?.entries[0].title).toBe('Batch cook');
+    expect(section(v.sections, 'about')?.causes).toEqual(['Clean rivers']);
+  });
+
+  test('a quote keeps its line break', () => {
+    const l = loaded({
+      items: [item({ id: 'q1', category: 'quotes', title: 'Be brave.\nBe kind.', description: 'Someone' })],
+    });
+    const fav = section(view(l).sections, 'favourites');
+    expect(fav?.groups[0].label).toBe('Quotes');
+    expect(fav?.groups[0].entries[0].title).toBe('Be brave.\nBe kind.');
+  });
+});

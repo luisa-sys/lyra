@@ -233,10 +233,14 @@ describe('KAN-234: surface-area regression guards', () => {
     // surfaces per-section public/members/draft selects.
     expect(src).not.toMatch(/updateSectionVisibility/);
     expect(src).not.toMatch(/<option value="members_only">/);
-    // Item sections now pass hideVisibility to ItemsStep, and the editor shows
-    // a single "everything optional" note instead of per-section controls.
-    expect(src).toMatch(/hideVisibility/);
-    expect(src).toMatch(/Everything here is optional/);
+    // KAN-487 (spec v0.8): the ItemsStep lists and the intro note are gone
+    // from the live editor (v0.8 sections have no visibility control at all).
+    // Old expected values:
+    //   expect(src).toMatch(/hideVisibility/)
+    //   expect(src).toMatch(/Everything here is optional/)
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(src).not.toMatch(/hideVisibility/);
+    expect(src).not.toMatch(/Everything here is optional/);
   });
 
   test('[slug]/page.tsx uses the hybrid filter (isItemVisibleUnderHybridModel)', () => {

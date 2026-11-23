@@ -4,9 +4,6 @@ import { EditProfileForm } from './edit-profile-form';
 import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import { MANUAL_OF_ME_FIELDS } from '@/modules/profile/manual-of-me-fields';
 import { isConveneEnabledForCurrentUser } from '@/lib/convene/flags-user';
-import { getRecommendations } from '@/modules/recommendations/recommend';
-import { keyForRecommendation } from '@/modules/recommendations/recommend/dismissals';
-import type { GiftSuggestionView } from './sections';
 
 export const metadata = {
   title: 'Edit your profile — Lyra',
@@ -29,6 +26,21 @@ const EMPTY_MANUAL_OF_ME: ManualOfMe = {
  * routes by design (small price for keeping each route independent —
  * also matches `conversation_starter_prompts` / `profile_conversation_starters`
  * regression guard in `tests/unit/conversation-starters.test.ts`).
+ *
+ * KAN-487 (spec v0.8; plan §A "Loader changes") — the v0.8 editor holds all
+ * edits client-side and saves them in one `save_profile` call, so the loader
+ * only reads what the ten sections show:
+ *   - no external-links read (the Links section is retired from the editor;
+ *     stored links stay in the database, untouched);
+ *   - no KAN-443 gift-suggestion block (the dismissals read and the
+ *     recommender call) — §03's AI slot replaces it (step 6);
+ *   - items in their stored order (`sort_order`, then `created_at`);
+ *   - affiliations in the order they were added (`created_at`);
+ *   - each answer carries `sort_order` / `created_at` so custom questions
+ *     keep the member's order.
+ * The profile row is read with `*`, so `slug_confirmed`, `first_published_at`,
+ * `billboard` and `updated_at` reach the editor, and items carry `origin` /
+ * `approved` (AI suggestions are kept apart from the member's own gifts).
  */
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -47,17 +59,14 @@ export default async function ProfilePage() {
     .from('profile_items')
     .select('*')
     .eq('profile_id', profile.id)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
   const { data: schools } = await supabase
     .from('school_affiliations')
     .select('*')
-    .eq('profile_id', profile.id);
-
-  const { data: links } = await supabase
-    .from('external_links')
-    .select('*')
-    .eq('profile_id', profile.id);
+    .eq('profile_id', profile.id)
+    .order('created_at', { ascending: true });
 
   const { data: manualOfMeRow } = await supabase
     .from('profile_manual_of_me')
@@ -102,52 +111,18 @@ export default async function ProfilePage() {
       prompt: customPrompt ?? joinedPrompt,
       custom_prompt: customPrompt,
       answer_max: customPrompt ? null : (joinedRow?.answer_max ?? null),
+      // KAN-487: custom questions keep the member's order (§09 Move up/down).
+      // Passed through as read — absent columns stay absent, not null.
+      sort_order: r.sort_order as number | null | undefined,
+      created_at: r.created_at as string | null | undefined,
     };
-  });
-
-  // KAN-443 — the auto-generated gift suggestions, so the member can say "not
-  // for me" to any of them. `getRecommendations` is pure and runs over data
-  // this page has already loaded, so this costs no extra query. The limit
-  // matches the public profile's concept window, so what the member curates
-  // here is what visitors are offered.
-  //
-  // `gift_suggestion_dismissals` is created by
-  // 20260803170000_kan443_gift_redesign.sql, and code reaches an environment
-  // before its migration does. Only `data` is read (as every other read on this
-  // page does), so a not-yet-migrated environment degrades to "nothing
-  // dismissed" — the member sees every suggestion — rather than failing to
-  // render their editor.
-  const { data: dismissalRows } = await supabase
-    .from('gift_suggestion_dismissals')
-    .select('suggestion_key')
-    .eq('profile_id', profile.id);
-  const dismissedKeys = new Set(
-    ((dismissalRows ?? []) as { suggestion_key: string }[]).map((r) => r.suggestion_key),
-  );
-
-  const giftSuggestions: GiftSuggestionView[] = getRecommendations(
-    {
-      bio: profile.bio_short,
-      headline: profile.headline,
-      items: (items ?? []).map((i) => ({
-        category: i.category,
-        title: i.title,
-        description: i.description,
-      })),
-    },
-    { limit: 8 },
-  ).map((r) => {
-    const key = keyForRecommendation(r);
-    return { key, title: r.title, description: r.description, dismissed: dismissedKeys.has(key) };
   });
 
   return (
     <EditProfileForm
       profile={profile}
-      giftSuggestions={giftSuggestions}
       items={items || []}
       schools={schools || []}
-      links={links || []}
       manualOfMe={(manualOfMeRow as ManualOfMe | null) ?? EMPTY_MANUAL_OF_ME}
       conversationPrompts={conversationPrompts || []}
       conversationAnswers={conversationAnswers}
