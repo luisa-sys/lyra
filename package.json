@@ -31,7 +31,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jose": "^5.10.0",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "sharp": "0.35.5"
@@ -51,7 +51,7 @@
     "@types/react-dom": "^19",
     "dependency-cruiser": "^17.4.3",
     "eslint": "^9",
-    "eslint-config-next": "^16.4.3",
+    "eslint-config-next": "^16.4.6",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "30.5.2",
     "next-router-mock": "^1.0.5",
@@ -65,19 +65,24 @@
     "tmp": "^0.2.7",
     "brace-expansion": "5.0.12",
     "@eslint/config-array": {
-      "minimatch": "^10.2.5"
+      "minimatch": "^11.0.5"
     },
     "@eslint/eslintrc": {
-      "minimatch": "^10.2.5"
+      "minimatch": "^11.0.5"
     },
     "eslint": {
-      "minimatch": "^10.2.5"
+      "minimatch": "^11.0.5"
     },
-    "js-yaml": "5.2.3",
-    "fast-uri@^3.0.0": "3.1.7",
+    "js-yaml": "^5.5.0",
+    "fast-uri@^3.0.0": "^3.1.9",
     "sharp": "0.35.5",
     "ip-address": "^10.4.0",
     "@puppeteer/browsers": "^3.2.0",
-    "source-map-js": "^1.2.2"
+    "source-map-js": "^1.2.2",
+    "glob@^13.0.6": "^14.0.6",
+    "test-exclude": {
+      "glob": "^14.0.6",
+      "minimatch": "^11.0.5"
+    }
   }
 }
