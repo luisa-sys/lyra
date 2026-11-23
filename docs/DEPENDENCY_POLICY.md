@@ -133,7 +133,7 @@ If a package has an unfixable HIGH in the production tree, it needs an entry in 
 
 **What "introduces" means in the PR gate.** The gate audits both the PR's tree and the base tree (the base from its lockfile alone, `npm audit --package-lock-only`), then fails on:
 
-- a **(package, advisory) pair** on a new or re-versioned lockfile entry that the **base audit does not already report**. Re-resolving a subtree that stays vulnerable to the same advisory (for example `glob` 10.4.5 → 10.4.6 while the fix needs a parent's major) is not introducing anything, so it passes. A *new* advisory on that entry fails.
+- an advisory on a new or re-versioned lockfile entry that the **base audit does not already report at that same lockfile path** (judged per node, not per package name). Re-resolving a subtree that stays vulnerable to the same advisory at the same path (for example `glob` 10.4.5 → 10.4.6 while the fix needs a parent's major) is not introducing anything, so it passes. A *new* advisory on that entry fails, and so does a *new* copy of a package at a new path, even if another copy elsewhere was already vulnerable to the same advisory on the base.
 - a **changed direct dependency that is out of the age rule**, unless the base version was **also** out of it and the PR doesn't move it backwards. `eslint` 9.39.3 → 9.39.4 while 10.x is latest is a step toward compliance and passes. A new dependency that is already old, a version that was in policy at base, or a downgrade, fails.
 
 Improvements therefore never need a waiver first. The daily issue still lists what remains out of policy.

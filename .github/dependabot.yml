@@ -14,7 +14,7 @@ updates:
   # upgraded on develop. Weekly cadence for both ecosystems keeps every bump far
   # inside that 90-day window; minor/patch are grouped, majors come singly (they
   # are still in policy — a major upgrade is still an upgrade). The daily
-  # `freshness` job in security-audit.yml (CTL-081) catches anything Dependabot
+  # report in dependency-freshness.yml (CTL-081) catches anything Dependabot
   # misses or that sits unmerged.
   #
   # ⚠️ SEC-190: `target-branch` governs VERSION updates only. GitHub always opens

@@ -766,7 +766,7 @@ jobs:
       # already >90 days old with a newer release. A vulnerable package the PR
       # did not touch never blocks it, so a third-party advisory cannot freeze
       # unrelated work (the SEC-88 lesson). The whole-tree view is the daily
-      # `freshness` job in security-audit.yml. Policy: docs/DEPENDENCY_POLICY.md.
+      # report in dependency-freshness.yml. Policy: docs/DEPENDENCY_POLICY.md.
       - name: Dependency freshness — dependency PRs only (CTL-081, SEC-197)
         env:
           BASE_REF: origin/${{ github.base_ref }}

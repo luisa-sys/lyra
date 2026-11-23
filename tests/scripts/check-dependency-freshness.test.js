@@ -374,6 +374,33 @@ describe('CTL-081 — the PR gate (--pr) blocks only what a PR introduces', () =
     expect(code).toBe(1);
   });
 
+  test('a NEW vulnerable copy of a package that is already vulnerable elsewhere in the tree is blocked', () => {
+    // Base: node_modules/a/node_modules/vulnpkg carries GHSA-aaaa. The PR adds
+    // node_modules/newdep with its own nested copy carrying the SAME GHSA.
+    // Judged per lockfile node, the new copy is a new vulnerable install.
+    const OLD_COPY = 'node_modules/a/node_modules/vulnpkg';
+    const NEW_COPY = 'node_modules/newdep/node_modules/vulnpkg';
+    const baseVuln = { ...LOW_VULN, nodes: [OLD_COPY] };
+    const headVuln = { ...LOW_VULN, nodes: [OLD_COPY, NEW_COPY] };
+    const w = world({ vulns: { vulnpkg: headVuln }, baseVulns: { vulnpkg: baseVuln } });
+    w.lock.packages['node_modules/newdep'] = { version: '1.0.0' };
+    const head = write('head-lock.json', w.lock);
+    const base = JSON.parse(JSON.stringify(w.lock));
+    delete base.packages['node_modules/newdep'];
+    delete base.packages[NEW_COPY];
+    const lockIdx = w.args.indexOf('--lockfile');
+    const args = [...w.args];
+    args[lockIdx + 1] = head;
+    const { code, out } = run([
+      '--pr', ...args,
+      '--changed-files', changed(['package-lock.json']),
+      '--base-lockfile', write('base-lock.json', base),
+    ]);
+    expect(out).toMatch(/VULNERABLE\s+vulnpkg\s+low\s+GHSA-aaaa-bbbb-cccc\s/);
+    expect(out).toContain('introduces 1 out-of-policy');
+    expect(code).toBe(1);
+  });
+
   test('bumping a direct dependency that stays >90 days old but is NEWER than base passes', () => {
     // eslint 9.39.3 -> 9.39.4 while 10.x is latest: both out of the age rule,
     // and the PR moves toward compliance.

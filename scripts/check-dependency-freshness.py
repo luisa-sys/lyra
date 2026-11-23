@@ -421,26 +421,43 @@ def changed_lock_paths(base_lock, head_lock: dict) -> set:
     }
 
 
-def _vuln_pairs(findings_vuln: list) -> set:
-    """(package, advisory) pairs; a finding npm reports without any id keys on None."""
-    return {(f["package"], a) for f in findings_vuln for a in (f["advisories"] or [None])}
+def _vuln_node_pairs(findings_vuln: list) -> set:
+    """(lockfile node path, advisory) pairs; a finding npm reports without any id keys on None.
+
+    Keyed on the lockfile NODE, not the package name: a second, new copy of a
+    package somewhere else in the tree is a new vulnerable install even when
+    another copy was already vulnerable to the same advisory on the base.
+    """
+    return {
+        (node, a)
+        for f in findings_vuln
+        for node in f["nodes"]
+        for a in (f["advisories"] or [None])
+    }
 
 
 def introduced(findings_vuln: list, direct: dict, changed: set, base_findings_vuln=None):
     """(vulnerability findings the PR introduced, direct deps the PR changed).
 
-    A head finding counts only if one of its nodes was added or re-versioned
-    by the PR AND it carries a (package, advisory) pair the BASE tree's audit
-    does not already report. Only the introduced advisories are kept on it.
+    Judged per lockfile node the PR added or re-versioned: an advisory on a
+    NEW node path is introduced; on a re-versioned path it is introduced only
+    if the BASE audit did not already report that advisory at that same path.
+    Only the introduced advisories (and the nodes carrying them) are kept.
     """
-    at_base = _vuln_pairs(base_findings_vuln or [])
+    at_base = _vuln_node_pairs(base_findings_vuln or [])
     vulns = []
     for f in findings_vuln:
-        if not set(f["nodes"]) & changed:
+        hit_nodes = sorted(set(f["nodes"]) & changed)
+        if not hit_nodes:
             continue
-        new = [a for a in (f["advisories"] or [None]) if (f["package"], a) not in at_base]
-        if new:
-            vulns.append({**f, "advisories": [a for a in new if a is not None]})
+        new_adv, new_nodes = [], []
+        for a in (f["advisories"] or [None]):
+            nodes = [n for n in hit_nodes if (n, a) not in at_base]
+            if nodes:
+                new_adv.append(a)
+                new_nodes.extend(n for n in nodes if n not in new_nodes)
+        if new_adv:
+            vulns.append({**f, "advisories": [a for a in new_adv if a is not None], "nodes": sorted(new_nodes)})
     touched = {n: i for n, i in direct.items() if i["path"] in changed}
     return vulns, touched
 
@@ -934,6 +951,14 @@ def self_test() -> int:
     child_two = [{**child_f, "advisories": ["GHSA-dddd-eeee-ffff", "GHSA-gggg-hhhh-jjjj"]}]
     iv, _ = introduced(child_two, {}, {"node_modules/child"}, v)
     check("...but a NEW advisory on that re-versioned package is", [f["advisories"] for f in iv], [["GHSA-gggg-hhhh-jjjj"]])
+
+    old_copy, new_copy = "node_modules/a/node_modules/child", "node_modules/new/node_modules/child"
+    base_copy = [{**child_f, "nodes": [old_copy]}]
+    head_copy = [{**child_f, "nodes": [old_copy, new_copy]}]
+    iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy)
+    check("a NEW vulnerable copy of a package already vulnerable elsewhere is introduced", [f["nodes"] for f in iv], [[new_copy]])
+    iv, _ = introduced(head_copy, {}, {old_copy}, base_copy)
+    check("re-versioning the OLD copy that stays vulnerable to the same advisory is not introduced", iv, [])
 
     # --- PR scope: age judged against the base version ------------------------
     adoc = lambda _n: {"dist-tags": {"latest": "10.0.0"}, "time": {"9.0.3": "2026-03-06", "9.0.2": "2026-02-01", "9.0.4": "2026-08-01", "10.0.0": "2026-11-01"}}
