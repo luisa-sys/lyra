@@ -46,6 +46,7 @@ The discipline of re-verifying matters more than the speed. A six-month-old "yes
 - [ ] **Secret scanning + push protection on** (`luisa-sys/lyra` AND `luisa-sys/lyra-mcp-server`)
   - Settings → Code security and analysis
 - [ ] **Dependabot alerts enabled** with auto-PRs targeting `develop` (per `.github/dependabot.yml`)
+- [ ] **Dependency freshness policy in force** (`docs/DEPENDENCY_POLICY.md`, SEC-197): the open *"Dependency freshness — out-of-policy dependencies (SEC-197)"* issue is being worked down, and `security/dependency-freshness-waivers.json` holds no expired entries
 - [ ] **Code scanning (CodeQL) enabled** — `.github/workflows/codeql.yml` runs on every PR
 
 ## Vercel

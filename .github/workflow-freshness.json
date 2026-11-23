@@ -13,7 +13,7 @@
     },
     "security-audit.yml": {
       "max_age_hours": 192,
-      "reason": "Weekly (Wednesday 07:00 UTC), and since SEC-105 rescoped the npm-audit gate it is the ONLY place the full dev+prod tree is audited at all — the four deploy workflows no longer audit anything. 192h = 8 days, one cadence plus a day of slack, so a single skipped week is a finding and a late run is not."
+      "reason": "Weekly (Wednesday 07:00 UTC), and since SEC-105 rescoped the npm-audit gate it is the ONLY place the full dev+prod tree is audited at all — the four deploy workflows no longer audit anything. 192h = 8 days, one cadence plus a day of slack, so a single skipped week is a finding and a late run is not. SEC-197 (2026-11-23): this workflow also runs a DAILY `freshness` job (06:20 UTC), and on non-Wednesday scheduled runs the weekly `audit` job is skipped by its `if:` guard — so a daily success now proves the workflow fires, not that the weekly audit job ran. The window is deliberately left at 192h rather than tightened to the daily cadence, so this entry keeps meaning 'the workflow has succeeded within one weekly cycle'; the Wednesday-only guard itself is pinned by tests/scripts/check-dependency-freshness.test.js."
     }
   }
 }

@@ -397,4 +397,10 @@ export const SEEDED_PATHS = [
   // the key would vanish on the next regeneration and `execFileSync(undefined)`
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-snapshot-regeneration.py',
+
+  // CTL-081 / SEC-197 — dependency freshness (vulnerable or >90 days old means
+  // upgrade). tests/scripts/check-dependency-freshness.test.js reaches the
+  // checker only through `SRC`, so without this literal the key would vanish on
+  // the next regeneration (gotcha #31).
+  'scripts/check-dependency-freshness.py',
 ] as const;

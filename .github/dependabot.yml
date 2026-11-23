@@ -8,6 +8,21 @@ updates:
   # workflow bump takes effect, not for WHERE its PR is based — a bump
   # entering at develop still reaches main via the normal promote chain,
   # just one promote cycle later. See BUGS-79.
+  #
+  # SEC-197 (2026-11-23) — dependency freshness policy, docs/DEPENDENCY_POLICY.md:
+  # anything vulnerable (any severity) or >90 days old with a newer release is
+  # upgraded on develop. Weekly cadence for both ecosystems keeps every bump far
+  # inside that 90-day window; minor/patch are grouped, majors come singly (they
+  # are still in policy — a major upgrade is still an upgrade). The daily
+  # `freshness` job in security-audit.yml (CTL-081) catches anything Dependabot
+  # misses or that sits unmerged.
+  #
+  # ⚠️ SEC-190: `target-branch` governs VERSION updates only. GitHub always opens
+  # Dependabot SECURITY updates against the default branch (main), where
+  # main-chain-guard.yml blocks every PR. Policy answer: such a PR is a signal,
+  # not a route — the same upgrade lands on develop (via the matching version
+  # update below, or by hand), is promoted through the chain, and the
+  # main-targeted PR is then closed. Never merge it.
   - package-ecosystem: "npm"
     directory: "/"
     target-branch: "develop"

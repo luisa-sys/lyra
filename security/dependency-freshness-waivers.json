@@ -1,0 +1,33 @@
+{
+  "_why": [
+    "SEC-197. Dated exceptions to the dependency-freshness policy (docs/DEPENDENCY_POLICY.md).",
+    "",
+    "Founder rule, 2026-11-23: always upgrade external software when it has a",
+    "vulnerability or is more than 3 months old. An entry here is the ONLY way to",
+    "carry a dependency that breaks that rule, and it is allowed only when no fixed",
+    "version exists or the upgrade is genuinely blocked.",
+    "",
+    "Shape (validated by scripts/check-dependency-freshness.py, CTL-081):",
+    "  package      npm package name ('node' for the Node.js runtime pin)",
+    "  kind         'age' or 'vulnerability'",
+    "  advisory     the GHSA id for kind=vulnerability; null for kind=age",
+    "  reason       why it was not upgraded AND what mitigates the risk meanwhile",
+    "  jira         the ticket tracking the upgrade (KAN-/SEC-/BUGS-n)",
+    "  expires      YYYY-MM-DD, at most 90 days after the day the check runs.",
+    "               A lapsed waiver FAILS the check. Renew only with a fresh reason.",
+    "  approved_by  who approved it, e.g. 'founder 2026-11-23 standing policy'",
+    "",
+    "A waiver covers ONE package and, for vulnerabilities, ONE advisory. A waiver",
+    "that matches nothing is STALE and is reported so it can be removed.",
+    "",
+    "This file is separate from security/npm-audit-waivers.json (SEC-105 / CTL-052,",
+    "hygiene by CTL-025). That file waives the blocking prod-tree HIGH/CRITICAL",
+    "audit gate; this one waives the broader freshness policy. A package that is",
+    "both unfixable-HIGH in the prod tree and out of freshness policy needs an",
+    "entry in BOTH files. See docs/DEPENDENCY_POLICY.md section 6.",
+    "",
+    "EMPTY IS THE CORRECT STEADY STATE."
+  ],
+  "ticket": "SEC-197",
+  "waivers": []
+}

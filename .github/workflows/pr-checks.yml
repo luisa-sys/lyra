@@ -758,6 +758,22 @@ jobs:
           set -euo pipefail
           python3 scripts/check-npm-audit-gate.py --self-test
           python3 scripts/check-npm-audit-gate.py --scope prod
+      # SEC-197 / CTL-081. Blocking, but ONLY for a PR that changes package.json,
+      # package-lock.json or security/dependency-freshness-waivers.json — every
+      # other PR is "not applicable" and makes no network call. On a dependency
+      # PR it fails only on what the PR INTRODUCES: a re-versioned/new lockfile
+      # entry that is vulnerable (any severity), or a changed direct dependency
+      # already >90 days old with a newer release. A vulnerable package the PR
+      # did not touch never blocks it, so a third-party advisory cannot freeze
+      # unrelated work (the SEC-88 lesson). The whole-tree view is the daily
+      # `freshness` job in security-audit.yml. Policy: docs/DEPENDENCY_POLICY.md.
+      - name: Dependency freshness — dependency PRs only (CTL-081, SEC-197)
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-dependency-freshness.py --self-test
+          python3 scripts/check-dependency-freshness.py --pr --base "$BASE_REF"
       - name: Check for lint/type bypasses without Jira reference
         run: |
           set -euo pipefail

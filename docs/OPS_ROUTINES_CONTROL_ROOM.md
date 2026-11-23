@@ -57,6 +57,7 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 | Scheduled Health Checks | `.github/workflows/health-check.yml` | **liveness** (owner) | `0 */6 * * *` | this repo | — (opens a GitHub issue on failure) |
 | Weekly Status Report | `.github/workflows/weekly-report.yml` | **reporting** (cites the owners above) | `0 7 * * 1` — Mon 07:00 | this repo | — |
 | Weekly Security Audit | `.github/workflows/security-audit.yml` | **belt-and-braces** `npm audit` only | `0 7 * * 3` — Wed 07:00 | this repo | — (authoritative sweep = Daily Security) |
+| Dependency freshness (SEC-197 / CTL-081) | `.github/workflows/security-audit.yml` job `freshness` | **dependency freshness** (owner) — vulnerable or >90-day-old dependencies, per `docs/DEPENDENCY_POLICY.md` | `20 6 * * *` — daily 06:20 | this repo | — (one tracking GitHub issue, label `dependencies`) |
 
 ### Concern → single owner (KAN-361)
 
