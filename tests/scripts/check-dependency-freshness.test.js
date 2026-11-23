@@ -436,6 +436,25 @@ describe('CTL-081 — the PR gate (--pr) blocks only what a PR introduces', () =
     expect(code).toBe(1);
   });
 
+  test('a NEWER vulnerable version added beside an UNTOUCHED vulnerable copy is blocked', () => {
+    // Base: vulnpkg@1.0.0 at OLD_COPY. The PR leaves OLD_COPY as it is and adds
+    // newdep with a nested vulnpkg@1.0.5 carrying the SAME GHSA. 1.0.5 is newer,
+    // but no base copy went away, so there is no bump to excuse it: the untouched
+    // 1.0.0 copy is still installed and must not be counted as departed.
+    const w = world({
+      vulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY, NEW_COPY] } },
+      baseVulns: { vulnpkg: { ...LOW_VULN, nodes: [OLD_COPY] } },
+    });
+    const { code, out } = gate(
+      w,
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0', 'node_modules/newdep': '1.0.0', [NEW_COPY]: '1.0.5' },
+      { 'node_modules/a': '1.0.0', [OLD_COPY]: '1.0.0' },
+    );
+    expect(out).toMatch(/VULNERABLE\s+vulnpkg\s+low\s+GHSA-aaaa-bbbb-cccc\s/);
+    expect(out).toContain('introduces 1 out-of-policy');
+    expect(code).toBe(1);
+  });
+
   test('a pure HOIST (same name, version and advisory at a new path) is not introduced', () => {
     // A lockfile regeneration moves the already-vulnerable vulnpkg@1.0.0 from
     // a nested path to the top level. Judged by path this looked like a new

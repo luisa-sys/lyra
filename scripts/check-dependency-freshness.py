@@ -1007,6 +1007,8 @@ def self_test() -> int:
     b_lock = lk({old_copy: "1.0.0"})
     iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy, lk({old_copy: "1.0.0", new_copy: "0.9.0"}), b_lock)
     check("a NEW vulnerable VERSION alongside one already vulnerable elsewhere is introduced", [f["nodes"] for f in iv], [[new_copy]])
+    iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy, lk({old_copy: "1.0.0", new_copy: "1.0.5"}), b_lock)
+    check("a NEWER vulnerable version beside an UNTOUCHED vulnerable copy is introduced (no copy departed)", [f["nodes"] for f in iv], [[new_copy]])
     iv, _ = introduced(head_copy, {}, {"node_modules/new", new_copy}, base_copy, lk({old_copy: "1.0.0", new_copy: "1.0.0"}), b_lock)
     check("a second copy of the SAME vulnerable version (same advisory) is not introduced", iv, [])
     iv, _ = introduced(head_copy, {}, {old_copy}, head_copy, lk({old_copy: "1.0.1", new_copy: "1.0.0"}), lk({old_copy: "1.0.0", new_copy: "1.0.0"}))
