@@ -324,7 +324,10 @@ describe('KAN-458: causes is its own section, never a favourites group', () => {
     expect(readSource(SRC.publicViewModel)).toContain("causes: titles(state, 'causes')");
     const sections = readSource(SRC.publicProfileSections);
     expect(sections).toContain('Causes close to my heart');
-    expect(sections).toContain('<TitleList titles={section.causes} />');
+    // Calm layout (founder design, 2026-11-23): causes render as quiet sage
+    // tags under their own label. Old expected value:
+    //   expect(sections).toContain('<TitleList titles={section.causes} />');
+    expect(sections).toContain('<Chips titles={section.causes} />');
   });
 });
 

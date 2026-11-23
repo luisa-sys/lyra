@@ -126,11 +126,17 @@ export default async function PublicProfilePage({ params }: Props) {
         </nav>
 
         <main className="bg-[#fdfcf8]">
-          <div className="max-w-[760px] mx-auto px-5 pt-9 pb-24">
+          {/* Calm layout: a pale sage cover band, full width. The profile
+              header in PublicProfileSections pulls itself up over it. */}
+          <div
+            aria-hidden="true"
+            className="h-[168px] bg-gradient-to-b from-[#e3eadf] to-[var(--color-lyra-sage-50)] border-b border-[#ece7df]"
+          />
+          <div className="max-w-[760px] mx-auto px-5 pb-24">
             <PublicProfileSections view={view} />
 
             {/* Footer */}
-            <div className="pt-10 text-center space-y-3">
+            <div className="pt-14 text-center space-y-3">
               <p className="text-sm text-[var(--color-muted)]">
                 This is a <Link href="/" className="text-[var(--color-sage)] hover:underline">Lyra</Link> profile
               </p>

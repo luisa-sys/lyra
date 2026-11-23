@@ -127,8 +127,13 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // is unaffected — see the left-rule test immediately below, which is
   // untouched. Founder-signed-off 2026-08-06.
 
-  test('section headings use the sage left-rule (border-l-[3px])', () => {
-    expect(content).toContain('border-l-[3px]');
-    expect(content).toContain('border-[var(--color-sage)]');
+  // Calm public-profile layout (founder design, Lyra website canvas,
+  // 2026-11-23): section headings swap the 3px sage left-rule for a
+  // pale-sage hairline beneath the heading. Old expected values:
+  //   expect(content).toContain('border-l-[3px]');
+  //   expect(content).toContain('border-[var(--color-sage)]');
+  test('section headings use the pale-sage hairline beneath (border-b)', () => {
+    expect(content).toContain('border-b border-[var(--color-lyra-sage-light)]');
+    expect(content).not.toContain('border-l-[3px]');
   });
 });
