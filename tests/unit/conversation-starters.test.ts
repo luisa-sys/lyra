@@ -78,12 +78,17 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
     expect(src).toMatch(/export\s+async\s+function\s+removeConversationStarter/);
   });
 
-  test('server-actions file uses sanitiseText and a 500-char cap', () => {
+  // KAN-486 (spec v0.8, founder-approved 2026-11-23): answers now go through
+  // validateFreeText (reject over-limit, keep line breaks, contact filter)
+  // instead of sanitiseText (which truncated). This used to match /sanitiseText/.
+  // Comments are stripped first so prose cannot satisfy it (CTL-039).
+  test('server-actions file validates answers with validateFreeText and a 500-char cap', () => {
     const src = readFileSync(
       resolve(ROOT, SRC.conversationStartersActions),
       'utf-8',
     );
-    expect(src).toMatch(/sanitiseText/);
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    expect(code).toMatch(/validateFreeText\(/);
     expect(src).toMatch(/500/);
   });
 

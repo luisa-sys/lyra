@@ -5,11 +5,11 @@
  *
  * THE INVARIANT, IN WORDS
  * -----------------------
- * `media_uploads` is scoped to "Profile photo & file/media uploads". When an
- * admin revokes it, BOTH upload entrypoints must refuse — `uploadProfileFile`
- * AND `uploadAvatar` — and each must refuse BEFORE touching storage. A revoke
- * that stops only one path is a half-effective admin action, and the half that
- * still works is the one nobody tests.
+ * `media_uploads` is scoped to file/media uploads. When an admin revokes it,
+ * `uploadProfileFile` must refuse BEFORE touching storage. KAN-486 (spec v0.8)
+ * took the profile photo (`uploadAvatar`) out of the gate's scope: a photo is
+ * required to publish, so the uploadAvatar block below now pins that the gate
+ * does NOT apply there.
  *
  * WHAT THE OLD TEST DID, AND WHY THIS IS STRONGER
  * ----------------------------------------------
@@ -119,22 +119,23 @@ describe('media_uploads gate — uploadProfileFile (behavioural)', () => {
 });
 
 describe('media_uploads gate — uploadAvatar (behavioural)', () => {
-  // The second entrypoint. The text scan this replaces covered BOTH, so
-  // omitting this would quietly halve the coverage while looking like a
-  // modernisation.
+  // KAN-486 (spec v0.8, founder-approved 2026-11-23): the profile photo is
+  // REQUIRED to publish, so the media_uploads gate no longer applies to
+  // uploadAvatar — a revoked gate would make publishing impossible. It still
+  // gates uploadProfileFile (above). Previously this case asserted the
+  // opposite: revoked → 'Media uploads are not enabled for your account.'
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('refuses when media_uploads is revoked, before touching storage', async () => {
+  it('does NOT apply the media_uploads gate to the profile photo (v0.8: photo required to publish)', async () => {
     mockedEntitlements.mockResolvedValue(REVOKED);
 
+    // Empty FormData: with no gate, the action reaches file validation and
+    // fails there — never with the gate's message.
     const result = await uploadAvatar(new FormData());
 
-    expect(result).toEqual({
-      success: false,
-      error: 'Media uploads are not enabled for your account.',
-    });
+    expect(result).toEqual({ success: false, error: 'No file provided' });
     expect(storageFrom).not.toHaveBeenCalled();
   });
 

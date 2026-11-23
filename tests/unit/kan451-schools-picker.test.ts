@@ -461,19 +461,36 @@ describe('KAN-451: addSchoolAffiliation persists the description', () => {
     expect(mockInsertCapture).not.toHaveBeenCalled();
   });
 
-  test('the description is capped like every other public field', async () => {
-    // Varied words rather than a repeated character, so the length cap is what
-    // is being measured and not the spam heuristic.
+  // KAN-486 (spec v0.8 §02/§3, founder-approved 2026-11-23): the description
+  // limit is 250 and an over-limit note is REJECTED, not cut. This case used to
+  // assert a 1,120-character note was stored capped to ≤ 200.
+  test('an over-limit description is rejected and nothing is written', async () => {
+    // Varied words rather than a repeated character, so the length limit is
+    // what is being measured and not the spam heuristic.
     const longNote = 'Year two teacher and reading lead for the lower school. '.repeat(20);
     expect(longNote.length).toBeGreaterThan(400);
-    await addSchoolAffiliation({
+    const res = await addSchoolAffiliation({
       school_name: 'Greenfield Primary',
       school_location: 'SW1A 1AA',
       description: longNote,
       affiliation_type: 'school',
     });
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error).toMatch(/^Description is too long: \d+ characters \(limit 250, including spaces\)\.$/);
+    expect(mockInsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('a description of exactly 250 characters is stored whole', async () => {
+    const note = 'Reading lead. '.repeat(18).slice(0, 250).replace(/ $/, '.');
+    expect(note.length).toBe(250);
+    await addSchoolAffiliation({
+      school_name: 'Greenfield Primary',
+      school_location: 'SW1A 1AA',
+      description: note,
+      affiliation_type: 'school',
+    });
     const written = mockInsertCapture.mock.calls[0][0] as { description: string };
-    expect(written.description.length).toBeLessThanOrEqual(200);
+    expect(written.description).toBe(note);
   });
 });
 
