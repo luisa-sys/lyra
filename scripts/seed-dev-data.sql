@@ -27,8 +27,10 @@
 -- only part of the file; any failure RAISEs and nothing is written):
 --   1. every email in the target list below must match the reserved pattern;
 --   2. every profile actually resolved must belong to an auth user whose
---      email matches the reserved pattern (re-checked from auth.users, not
---      taken from the list);
+--      email matches the reserved pattern. Today targets are resolved
+--      through that same email join, so this is defence in depth, not an
+--      independent check: it keeps guard 1's promise if the resolution step
+--      is ever changed (e.g. to look targets up by slug or id);
 --   3. no target may be a homepage example;
 --   4. at least one target account must exist (otherwise it RAISEs with the
 --      set-up instructions below). A missing account is reported with a
@@ -54,7 +56,8 @@
 -- WHAT IT WRITES (v0.8-valid, idempotent — safe to rerun)
 --   * profile text: only fills EMPTY fields, never overwrites;
 --   * profile_items in v0.8 categories only (gift_ideas, gifts_to_avoid,
---     favourites, causes, quotes, proud_of, life_hacks, current_problems);
+--     favourite_books, favourite_media, causes, quotes, proud_of,
+--     life_hacks, current_problems);
 --     every insert is "where not exists (same profile + category + title)",
 --     because profile_items has no unique key to conflict on;
 --   * manual-of-me prompts: only fills empty prompts;
@@ -66,6 +69,14 @@
 --
 -- The sample content that earlier runs wrote into the two real dev accounts
 -- is NOT touched by this script; whether to remove it is the founder's call.
+-- What is still there (read-only count on dev, 2026-11-23; matched on the
+-- exact sample titles/text the old script wrote, so a member's own entry with
+-- an identical title would be counted too):
+--     account A: 7 of its 28 items, 2 school affiliations, 2 profile text
+--                fields (headline/bio/billboard), 0 manual-of-me prompts;
+--     account B: 10 of its 17 items, 1 school affiliation, 3 profile text
+--                fields, 0 manual-of-me prompts.
+--   No seed.dev.* accounts existed on dev at that date (count 0).
 
 DO $seed$
 DECLARE

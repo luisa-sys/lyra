@@ -130,7 +130,14 @@ describe('KAN-490 seed-dev-data — structure (comment-stripped)', () => {
     const write = firstRealWrite(s);
     const before = s.slice(0, write);
     expect((before.match(/raise exception/g) || []).length).toBe(4);
-    // Guard 2 re-checks the resolved profile against auth.users, not the list.
+    // Guard 1 refuses any listed email OUTSIDE the pattern (`!~`, not `~`:
+    // flipping it would refuse exactly the reserved accounts and nothing else).
+    expect(before).toMatch(
+      /from _seed_targets where lower\(email\) !~ c_pattern; if v_bad is not null then raise exception/,
+    );
+    // Guard 2 (defence in depth) re-checks the resolved profile against its
+    // owner in auth.users, so a future change to how targets are resolved
+    // (e.g. by slug) still cannot reach an account outside the pattern.
     expect(before).toMatch(/join auth\.users u on u\.id = p\.user_id where lower\(coalesce\(u\.email, ''\)\) !~ c_pattern/);
     // Guard 3 refuses homepage examples.
     expect(before).toMatch(/where p\.is_homepage_example; if v_bad is not null then raise exception/);
@@ -143,6 +150,26 @@ describe('KAN-490 seed-dev-data — structure (comment-stripped)', () => {
     expect(statements).toHaveLength(4);
     for (const st of statements) {
       expect(st).toContain('join _seed_targets t on t.seed_key = v.seed_key');
+    }
+  });
+
+  test('the profile UPDATE is constrained to the target row (p.id = t.profile_id)', () => {
+    // Without this predicate, UPDATE ... FROM (VALUES) JOIN _seed_targets is a
+    // cross join with every profile on the database: it would fill empty
+    // fields on real members' accounts — the exact spec §3 violation.
+    const upd = statementsOf(sql()).filter((x) => x.startsWith('update public.profiles'));
+    expect(upd).toHaveLength(1);
+    expect(upd[0]).toMatch(/ where p\.id = t\.profile_id$/);
+    // Exactly one top-level WHERE, so no OR / extra clause can widen it.
+    expect(upd[0].split(' where ').length).toBe(2);
+    expect(upd[0]).not.toMatch(/ where [^']* or /);
+  });
+
+  test('every INSERT writes the resolved seed profile id, never another id', () => {
+    const inserts = statementsOf(sql()).filter((x) => x.startsWith('insert into public.'));
+    expect(inserts).toHaveLength(3);
+    for (const st of inserts) {
+      expect(st).toMatch(/^insert into public\.[a-z_]+ \(profile_id, [^)]*\) select t\.profile_id, /);
     }
   });
 
