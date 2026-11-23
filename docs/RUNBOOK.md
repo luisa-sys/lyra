@@ -216,23 +216,20 @@ with it (`tests/scripts/check-dependency-rules.test.js`,
 `check-edge-safe.test.js`, `check-module-api.test.js` and
 `check-module-layering.test.js` — CTL-051, CTL-053, CTL-054 and KAN-425, all of
 which shell out to dependency-cruiser), and `scripts/check-edge-safe.py` exits 2.
-That is the gate working, not a regression: run it on Node 24 (what CI uses).
-The repo pins that for you: `.nvmrc` says `24` (`nvm use` / `fnm use`) and
+That is the gate failing closed, not a code regression — but it is not a
+green run either: do not merge on a local Node-25 result; run the suite on
+Node 24 (what CI uses). The repo pins that for you: `.nvmrc` says `24`
+(`nvm use` / `fnm use`), every workflow's `setup-node` uses `'24'`, and
 `package.json` declares `"engines": {"node": "24.x"}`, so `npm ci` on any other
-major prints an `EBADENGINE` warning (a warning only — no `engine-strict`).
-**Jest now refuses to start on any other major** (SEC-174 round 2):
-`jest.config.js` runs `scripts/check-node-version.cjs` as `globalSetup`, which
-compares the running Node major with `.nvmrc` and fails the whole run with one
-"use Node 24" message and the install command, instead of ten red cases that
-look unrelated to the runtime. There is deliberately no bypass variable — an
-expected red is a switched-off control (CLAUDE.md catalogue #7). **Machine
-step on a Homebrew-Node-25 Mac:** `brew install node@24 && export
-PATH="$(brew --prefix node@24)/bin:$PATH"` (add the export to your shell
-profile), then `rm -rf node_modules && npm ci`. Node 25 is an odd-numbered,
-short-lived release, so it is outside SEC-197 anyway. `engines.node` `24.x`
-matches the Vercel project's existing Node setting (already 24.x, checked
-read-only 2026-11-23), so it changes nothing at deploy time; it only makes the
-setting visible in the repo, next to CI's `node-version: '24'`. **The lesson stands: a dev-tool major can carry an
+major prints an `EBADENGINE` warning naming the mismatch (a warning only — no
+`engine-strict`). **Machine step on a Homebrew-Node-25 Mac:** `brew install
+node@24 && export PATH="$(brew --prefix node@24)/bin:$PATH"`, then
+`rm -rf node_modules && npm ci`. There is deliberately **no jest-level Node
+preflight**: a `globalSetup` guard was tried on the SEC-174 branch and removed,
+because changing `jest.config.js` in a way that affects how tests run needs
+founder sign-off under the Test Integrity Policy. `engines.node` `24.x` matches
+the Vercel project's existing Node setting (already 24.x, checked read-only
+2026-11-23), so it changes nothing at deploy time. **The lesson stands: a dev-tool major can carry an
 engines bump, and every step in a job (lint, type-check, unit tests, build,
 audit) shares that runtime** — move the CI Node version first, as its own
 change.
