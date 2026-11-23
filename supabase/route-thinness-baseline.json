@@ -24,9 +24,9 @@
   ],
   "ticket": "KAN-415",
   "_totals": {
-    "routeFiles": 99,
+    "routeFiles": 103,
     "filesWithCalls": 48,
-    "calls": 217
+    "calls": 215
   },
   "routes": {
     "src/app/[slug]/page.tsx": 8,
@@ -67,7 +67,7 @@
     "src/app/dashboard/profile/files-actions.ts": 8,
     "src/app/dashboard/profile/legacy/page.tsx": 8,
     "src/app/dashboard/profile/manual-of-me-actions.ts": 2,
-    "src/app/dashboard/profile/page.tsx": 8,
+    "src/app/dashboard/profile/page.tsx": 6,
     "src/app/dashboard/settings/actions.ts": 36,
     "src/app/dashboard/settings/discoverability-actions.ts": 4,
     "src/app/dashboard/widgets/actions.ts": 2,

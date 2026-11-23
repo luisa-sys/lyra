@@ -409,10 +409,19 @@ describe('the public profile filters its recommendations by the dismissals', () 
 describe('the editor offers the suggestions with their dismissed state', () => {
   const page = stripComments(fs.readFileSync(path.join(ROOT, SRC.profilePage), 'utf-8'));
 
+  // KAN-487 (spec v0.8 §03; plan §A "Loader changes"): the v0.8 editor has
+  // no auto-generated suggestion list — §03's AI slot (step 6) replaces the
+  // KAN-443 editor block, so the editor page no longer reads dismissals.
+  // The dismissal actions and the public-page filtering above are unchanged.
+  // Old expected values:
+  //   expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/)
+  //   expect(page).toMatch(/keyForRecommendation\(/)
+  //   expect(page).toMatch(/dismissed: dismissedKeys\.has\(key\)/)
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
   test('it reads the dismissals and marks each suggestion', () => {
-    expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
-    expect(page).toMatch(/keyForRecommendation\(/);
-    expect(page).toMatch(/dismissed: dismissedKeys\.has\(key\)/);
+    expect(page).not.toMatch(/gift_suggestion_dismissals/);
+    expect(page).not.toMatch(/getRecommendations\(/);
+    expect(page).toMatch(/<EditProfileForm/);
   });
 });
 

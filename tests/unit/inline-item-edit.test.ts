@@ -44,14 +44,23 @@ describe('KAN-404 (#12): ItemsStep inline edit', () => {
 describe('KAN-404 (#12): editor wires updateProfileItem into ItemsStep', () => {
   const src = readFileSync(resolve(PROFILE, 'edit-profile-form.tsx'), 'utf-8');
 
-  test('imports updateProfileItem', () => {
-    expect(src).toMatch(/updateProfileItem/);
+  // KAN-487 (spec v0.8 §1: edits stay in the editor until one atomic save).
+  // Inline edits no longer call updateProfileItem per row; every change goes
+  // out in the single save payload (saveProfileChanges / saveProfileDraft).
+  // Old expected values:
+  //   toMatch /updateProfileItem/
+  //   toMatch /onEdit=\{async \(id, data\) =>/
+  //   toMatch /await updateProfileItem\(id, data\)/
+  //   toMatch /return \{ success: res\.success/
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('no longer imports updateProfileItem; saves through saveProfileChanges', () => {
+    expect(src).not.toMatch(/updateProfileItem/);
+    expect(src).toMatch(/import \{[^}]*\bsaveProfileChanges\b[^}]*\} from '\.\/editor-actions'/);
   });
 
   test('passes an onEdit that calls updateProfileItem and returns the result', () => {
-    expect(src).toMatch(/onEdit=\{async \(id, data\) =>/);
-    expect(src).toMatch(/await updateProfileItem\(id, data\)/);
-    expect(src).toMatch(/return \{ success: res\.success/);
+    expect(src).not.toMatch(/onEdit=/);
+    expect(src).toMatch(/return saveProfileChanges\(a\.payload\)/);
   });
 });
 
