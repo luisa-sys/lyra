@@ -22,13 +22,13 @@ one that is *edited* and *reviewed*, and every other surface is a mirror of it.
 | **Work / tickets** | **Jira** | — | Jira is the source of truth for *what* each ticket means and its status. Never close a ticket without completing the work. |
 | **Code / deploy state** | **git + CI** | — | The live state of code and what is deployed is `git`/CI, never a doc. Docs describe intent; `git` describes reality. |
 | **System-documentation index** | **Confluence "Lyra — System Documentation"** (TWC/19922947) | repo `CLAUDE.md` pointer | The wiki index is the navigational source of truth read first before architecture/ops/security work (KAN-360). |
-| **Design-change process** (KAN-441) | **the `lyra-design-system` repo's BUILD-LOOP.md** | repo `docs/DESIGN_CHANGE_WORKFLOW.md` (this repo) | The process is *executed* against the design repo — the state manifest, the cards and the gate runner all live there, so the spec is edited and reviewed beside the code that enforces it. The repo mirror exists so the process is readable from the app repo, in CI and offline. **If they differ, BUILD-LOOP.md wins and this mirror is regenerated.** |
+| **Design-change process** (KAN-441) | **the `lyra-design-system` repo's BUILD-LOOP.md** | repo `docs/DESIGN_CHANGE_WORKFLOW.md` (this repo) | The process is *executed* against the design repo — the state manifest, the card backups and the gate runner all live there, so the spec is edited and reviewed beside the code that enforces it. The repo mirror exists so the process is readable from the app repo, in CI and offline. **If they differ, BUILD-LOOP.md wins and this mirror is regenerated.** |
 
 **No document may contradict this table.** If a repo doc or a wiki page states a
 different authority for its class, that statement is the bug — fix it to point
 here.
 
-> **Open — Luisa decides (KAN-441).** The design-change row above records what is
+> **Open — Luisa decides (KAN-441; tracked on KAN-465).** The design-change row above records what is
 > true today: the canonical spec is in a *second git repository*. Be precise
 > about what is new here. **`git + CI` is already a canonical surface in this
 > table** — it is what the *Code / deploy state* row names — so the novelty is
@@ -43,7 +43,7 @@ here.
 > surfaces for one process. That is the same "third source of truth" failure the
 > modularisation plan already flags for design tokens (§E-3, KAN-427). The row
 > stands as written until Luisa chooses otherwise. Related and also open: whether
-> `lyra-design-system` folds into this monorepo at all (**KAN-427**, **KAN-457**).
+> `lyra-design-system` folds into this monorepo at all (**KAN-427**; the design repo's own CI is **KAN-457**).
 
 ## Mirror manifest
 
