@@ -25,6 +25,7 @@ import {
   initialCrop,
   minCropSize,
   moveCrop,
+  safeObjectUrl,
   needsDownscale,
   preCheckPhotoFile,
   resizeCrop,
@@ -244,5 +245,23 @@ describe('KAN-487 upload downscaling — under 4 MB, never below 400 px', () => 
   });
   test('the downscaled upload is cropped to the whole square', () => {
     expect(downscaledUploadCrop(1536)).toEqual({ x: 0, y: 0, size: 1536 });
+  });
+});
+
+describe('KAN-487 safeObjectUrl (CodeQL js/xss-through-dom)', () => {
+  test('accepts a blob: object URL unchanged', () => {
+    expect(safeObjectUrl('blob:https://dev.checklyra.com/1b4e28ba-2fa1-11d2-883f-0016d3cca427')).toBe(
+      'blob:https://dev.checklyra.com/1b4e28ba-2fa1-11d2-883f-0016d3cca427',
+    );
+  });
+  test.each(['javascript:alert(1)', 'data:text/html,<b>x</b>', 'https://evil.example/x.png', '', '"><img src=x>'])(
+    'refuses %j',
+    (u) => {
+      expect(safeObjectUrl(u)).toBeNull();
+    },
+  );
+  test('refuses null / undefined', () => {
+    expect(safeObjectUrl(null)).toBeNull();
+    expect(safeObjectUrl(undefined)).toBeNull();
   });
 });

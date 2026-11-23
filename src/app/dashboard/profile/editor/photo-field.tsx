@@ -44,6 +44,7 @@ import {
   needsDownscale,
   preCheckPhotoFile,
   resizeCrop,
+  safeObjectUrl,
   type CropBox,
 } from '@/modules/profile/editor/photo-crop';
 import { PUBLISHED_PHOTO_ERROR } from '@/modules/profile/editor/validate-save-payload';
@@ -124,6 +125,7 @@ async function prepareUpload(p: Pending, crop: CropBox): Promise<{ file: File; c
 
 export function PhotoField({ photo, isPublished, dispatch, error, readOnly = false }: PhotoFieldProps) {
   const [pending, setPending] = useState<Pending | null>(null);
+  const pendingSrc = safeObjectUrl(pending?.url);
   const [crop, setCrop] = useState<CropBox | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -164,7 +166,8 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
       setLocalError(typeOrSize);
       return;
     }
-    const url = URL.createObjectURL(file);
+    const url = safeObjectUrl(URL.createObjectURL(file));
+    if (!url) return;
     const img = await loadImage(url);
     const dims = img ? checkPhotoDimensions(img.naturalWidth, img.naturalHeight) : PHOTO_UNREADABLE_ERROR;
     if (!img || dims) {
@@ -298,13 +301,13 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
         </div>
       </div>
 
-      {pending && crop && overlay && preview && (
+      {pending && pendingSrc && crop && overlay && preview && (
         <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] p-4 space-y-3">
           <div className="flex flex-wrap items-start gap-4">
             <div className="relative inline-block max-w-full overflow-hidden cursor-crosshair select-none" onClick={onImageClick}>
               {/* eslint-disable-next-line @next/next/no-img-element -- KAN-487: local object URL of the picked file, shown only while cropping. */}
               <img
-                src={pending.url}
+                src={pendingSrc}
                 alt=""
                 draggable={false}
                 className="block max-w-full max-h-[320px] w-auto h-auto"
@@ -332,7 +335,7 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- KAN-487: crop preview of the local object URL. */}
               <img
-                src={pending.url}
+                src={pendingSrc}
                 alt=""
                 className="absolute max-w-none"
                 style={{ width: preview.width, height: preview.height, left: preview.left, top: preview.top }}

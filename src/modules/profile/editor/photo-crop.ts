@@ -240,3 +240,14 @@ export function downscaleSide(cropSize: number, attempt: number): number | null 
 export function downscaledUploadCrop(side: number): CropBox {
   return { x: 0, y: 0, size: side };
 }
+
+/**
+ * KAN-487 — only a same-document object URL (`blob:`) created from the picked
+ * file may be used as an <img> src while cropping. Anything else is refused,
+ * so text from the DOM can never be reinterpreted as markup (CodeQL
+ * js/xss-through-dom).
+ */
+export function safeObjectUrl(url: string | null | undefined): string | null {
+  if (typeof url !== 'string' || !url.startsWith('blob:')) return null;
+  return url;
+}
