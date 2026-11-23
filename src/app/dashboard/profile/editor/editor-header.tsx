@@ -8,7 +8,7 @@
  * link when its flag is on, kept from the previous editor), "View public
  * profile ↗" only while the profile is
  * published, and "Back to dashboard". The "Use legacy wizard" link is
- * retired: the wizard stays reachable by URL until PR3 deletes it.
+ * retired, and KAN-487 part 3 deleted the wizard itself.
  */
 
 import Image from 'next/image';

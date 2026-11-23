@@ -6,8 +6,10 @@
  * projects) but each environment that touches it in TS needs to
  * acknowledge it explicitly:
  *
- *   - dashboard wizard categoryLabels (so the user sees a label)
- *   - dashboard wizard step-9 `categories` array (so the user can add)
+ *   - the editor's list table (so the user can add one)
+ *   - the editor's §08 section (so the list is rendered)
+ *   (KAN-487 part 3: these were the legacy wizard's categoryLabels and
+ *   step-9 `categories` array until the wizard was deleted.)
  *   - public profile categoryLabels (so it has a heading)
  *   - public profile categoryIcons (so it has an icon)
  *   - public profile categoryOrder (so it renders in the right place)
@@ -25,21 +27,29 @@ import { SRC } from '../support/source-paths';
 const ROOT = resolve(__dirname, '../..');
 
 describe('KAN-182 current_problems category — surface-area regression guards', () => {
-  test('dashboard items-step has a categoryLabel for current_problems', () => {
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy wizard
+  // (`steps/items-step.tsx`, `wizard.tsx`) is deleted. These two guards are
+  // repointed to the live v0.8 editor, which carries the same two properties.
+  // Old expected values:
+  //   items-step: /current_problems\s*:\s*['"`][^'"`]+['"`]/   (a label)
+  //   wizard:     /categories\s*=\s*\{[^}]*current_problems/  (addable)
+  test('the editor list table reads and adds current_problems items', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
+      resolve(ROOT, SRC.editorState),
       'utf-8',
     );
-    expect(src).toMatch(/current_problems\s*:\s*['"`][^'"`]+['"`]/);
+    expect(src).toMatch(
+      /current_problems:\s*\{\s*categories:\s*\['current_problems'\],\s*newCategory:\s*'current_problems'\s*\}/,
+    );
   });
 
-  test('dashboard wizard step 9 lists current_problems', () => {
+  test('the editor §08 section renders the current_problems list', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.wizard),
+      resolve(ROOT, SRC.profile, 'editor/section-problems.tsx'),
       'utf-8',
     );
-    // The categories prop on step 9's ItemsStep — match the array entry.
-    expect(src).toMatch(/categories\s*=\s*\{[^}]*current_problems/);
+    expect(src).toContain('listKey="current_problems"');
+    expect(src).toContain('rows={state.lists.current_problems}');
   });
 
   test('public profile [slug]/page.tsx renders current_problems with a warm heading', () => {

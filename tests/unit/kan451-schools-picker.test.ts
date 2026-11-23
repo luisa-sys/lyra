@@ -4,8 +4,9 @@
  *
  * Three subjects, all driven for real:
  *
- *   1. `src/modules/profile/geo/places-schools.ts` (pure picker logic) and its sibling
- *      `places-schools-lookup.ts` (the Places call). Every decision the React
+ *   1. `src/modules/profile/geo/places-schools.ts` (pure picker logic). (Its
+ *      sibling `places-schools-lookup.ts`, the Places call, was deleted in
+ *      KAN-487 part 3 — see section 2.) Every decision the React
  *      component makes lives in the pure module on purpose: the repo's jest
  *      environment is `node` with no DOM, and changing that is a Test-Integrity
  *      sign-off matter, so behaviour that would otherwise be untestable inside
@@ -26,6 +27,7 @@
  *     `buildSuggestionOptions`                               → 4 failures
  *   - making `lookupPlaceSuggestions` rethrow instead of
  *     returning [] when the provider fails                   → 2 failures
+ *     (that module and its tests were deleted in KAN-487 part 3)
  *   - letting `resolvePickedLocation` overwrite a postcode
  *     the member typed themselves                            → 1 failure
  *   - removing the auth check from `suggestAffiliations`     → 1 failure
@@ -98,7 +100,6 @@ import {
   shouldSuggest,
   type PlaceSuggestion,
 } from '@/modules/profile/geo/places-schools';
-import { lookupPlaceSuggestions } from '@/modules/profile/geo/places-schools-lookup';
 import { suggestAffiliations } from '@/app/dashboard/profile/affiliation-search-actions';
 import { addSchoolAffiliation } from '@/app/dashboard/profile/actions';
 import { isSchoolPostcodeValid } from '@/app/dashboard/profile/affiliation-fields';
@@ -283,96 +284,16 @@ describe('KAN-451: resolvePickedLocation', () => {
 
 // ───────────────── 2. the Places call itself ─────────────────
 
-describe('KAN-451: lookupPlaceSuggestions', () => {
-  const okResponse = (places: unknown[]) => ({ ok: true, json: async () => ({ places }) });
-
-  test('returns the suggestions from a provider response', async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValue(okResponse([place('Greenfield Primary', '1 High St', 'SW1A 1AA')]));
-    await expect(
-      lookupPlaceSuggestions('Greenfield', 'school', fetchMock as unknown as typeof fetch),
-    ).resolves.toEqual([
-      { name: 'Greenfield Primary', address: '1 High St', postcode: 'SW1A 1AA' },
-    ]);
-  });
-
-  test('asks only for name, address and address components (data minimisation)', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(okResponse([]));
-    await lookupPlaceSuggestions('Greenfield', 'school', fetchMock as unknown as typeof fetch);
-    const [, init] = fetchMock.mock.calls[0];
-    expect((init as RequestInit).headers).toMatchObject({
-      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents',
-    });
-  });
-
-  test('biases a school search towards schools, and leaves others unrestricted', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(okResponse([]));
-    await lookupPlaceSuggestions('Greenfield', 'school', fetchMock as unknown as typeof fetch);
-    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({
-      textQuery: 'Greenfield',
-      includedType: 'school',
-    });
-
-    fetchMock.mockClear();
-    await lookupPlaceSuggestions('Acme', 'organisation', fetchMock as unknown as typeof fetch);
-    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toMatchObject({ textQuery: 'Acme' });
-    expect(body).not.toHaveProperty('includedType');
-  });
-
-  test('no key configured → no call, empty list (feature simply absent)', async () => {
-    delete process.env.GOOGLE_PLACES_API_KEY;
-    const fetchMock = jest.fn();
-    await expect(
-      lookupPlaceSuggestions('Greenfield', 'school', fetchMock as unknown as typeof fetch),
-    ).resolves.toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  test('too-short query → no call', async () => {
-    const fetchMock = jest.fn();
-    await expect(
-      lookupPlaceSuggestions('Gr', 'school', fetchMock as unknown as typeof fetch),
-    ).resolves.toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  test('a provider error degrades to an empty list — it never throws', async () => {
-    const rejecting = jest.fn().mockRejectedValue(new Error('network'));
-    await expect(
-      lookupPlaceSuggestions('Greenfield', 'school', rejecting as unknown as typeof fetch),
-    ).resolves.toEqual([]);
-  });
-
-  test('a non-OK response degrades to an empty list', async () => {
-    const notOk = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
-    await expect(
-      lookupPlaceSuggestions('Greenfield', 'school', notOk as unknown as typeof fetch),
-    ).resolves.toEqual([]);
-  });
-
-  test('a malformed body degrades to an empty list', async () => {
-    const malformed = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => {
-        throw new Error('not json');
-      },
-    });
-    await expect(
-      lookupPlaceSuggestions('Greenfield', 'school', malformed as unknown as typeof fetch),
-    ).resolves.toEqual([]);
-  });
-
-  test('nameless provider rows are dropped rather than rendered blank', async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValue(okResponse([{ formattedAddress: '1 High St' }, place('Real School')]));
-    await expect(
-      lookupPlaceSuggestions('School', 'school', fetchMock as unknown as typeof fetch),
-    ).resolves.toEqual([{ name: 'Real School', address: null, postcode: null }]);
-  });
-});
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): "KAN-451:
+// lookupPlaceSuggestions" stood here (9 tests) and drove
+// the profile module's `geo/places-schools-lookup.ts`, the Google Places call.
+// KAN-487 (spec v0.8 §02, founder decision) replaced Places with Lyra's own
+// entries (`suggest_affiliation_names`, pinned in section 3 below), which left
+// the lookup module with no caller; part 3 deletes it, and these tests with
+// it: provider response mapping, the field mask (data minimisation), the
+// school type bias, no key → no call, too-short query → no call, and the
+// three degrade-to-empty cases (provider error, non-OK, malformed body), plus
+// nameless rows dropped.
 
 // ───────────────── 3. the server action ─────────────────
 
@@ -632,22 +553,34 @@ describe('KAN-451: the school postcode requirement survives the picker work', ()
 // The repo has no component test library, so these are comment-stripped
 // source assertions on the specific wiring whose removal is otherwise
 // invisible. Comments are stripped so no comment can satisfy them (KAN-459).
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): this describe read
+// `sections/affiliations-section.tsx`, which is deleted with the autosave
+// editor. The add form it guarded is live in the v0.8 editor's §02 section
+// (`editor/section-affiliations.tsx`), whose name field is the type-ahead
+// `AffiliationNameCombobox` (it replaced KAN-451's `AffiliationNamePicker`),
+// so the three tests are repointed there. v0.8 has no per-row add call: the
+// description is patched into the row and saved with everything else.
+// Old expected values, on affiliations-section.tsx:
+//   "from './affiliation-name-picker'", '<AffiliationNamePicker'
+//   /addSchoolAffiliation\([\s\S]{0,400}?description,/
+//   'setDescription'
 describe('KAN-451: the add form is wired to the picker and the description', () => {
   const ROOT = resolve(__dirname, '../..');
   const section = stripComments(
-    readFileSync(resolve(ROOT, SRC.profile, 'sections/affiliations-section.tsx'), 'utf-8'),
+    readFileSync(resolve(ROOT, SRC.profile, 'editor/section-affiliations.tsx'), 'utf-8'),
   );
 
   test('the picker component is imported AND rendered in the add form', () => {
-    expect(section).toContain("from './affiliation-name-picker'");
-    expect(section).toContain('<AffiliationNamePicker');
+    expect(section).toContain("import { AffiliationNameCombobox } from './affiliation-name-combobox'");
+    expect(section).toContain('<AffiliationNameCombobox');
   });
 
-  test('the add call passes the member-entered description through', () => {
-    expect(section).toMatch(/addSchoolAffiliation\([\s\S]{0,400}?description,/);
+  test('the member-entered description is kept on the row that is saved', () => {
+    expect(section).toContain('onChange={(v) => patch({ description: v })}');
   });
 
   test('the description input is present in the add form', () => {
-    expect(section).toContain('setDescription');
+    expect(section).toContain('value={row.description}');
+    expect(section).toContain('label={spec.descriptionLabel}');
   });
 });

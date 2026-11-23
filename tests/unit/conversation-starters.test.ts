@@ -120,9 +120,13 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
     expect(capRegex.test('Conversation-starter answer limit (10) reached')).toBe(true);
   });
 
-  test('wizard step component exists', () => {
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy wizard's
+  // `steps/conversation-starters-step.tsx` is deleted; the editor component
+  // that renders conversation starters is now the v0.8 §09 questions section.
+  // Was: existsSync(resolve(ROOT, SRC.conversationStartersStep))
+  test('editor questions component exists', () => {
     expect(existsSync(
-      resolve(ROOT, SRC.conversationStartersStep),
+      resolve(ROOT, SRC.profile, 'editor/section-questions.tsx'),
     )).toBe(true);
   });
 

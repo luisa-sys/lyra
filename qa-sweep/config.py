@@ -346,9 +346,11 @@ REQUIRED_UNSET_ENV: Dict[str, str] = {
         "console.warn no-op — the only recipient filter that actually exists."
     ),
     "GOOGLE_PLACES_API_KEY": (
-        "The city and school type-aheads call Google Places per keystroke. "
-        "Billed per request and rate-limited NOWHERE in our code. Unset "
-        "degrades cleanly to manual text entry."
+        "Google Places is billed per request and rate-limited NOWHERE in our "
+        "code. Since KAN-487 no live app path calls it (the school type-ahead "
+        "moved to suggest_affiliation_names and the city lookup was deleted), "
+        "but the dormant places-city client still reads the key, so a set "
+        "key stays refused as defence in depth."
     ),
 }
 

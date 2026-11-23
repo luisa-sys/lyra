@@ -21,11 +21,10 @@ const EMPTY_MANUAL_OF_ME: ManualOfMe = {
 };
 
 /**
- * KAN-220 — single-page profile editor. Replaces the 14-step wizard,
- * which is preserved one route over at `/dashboard/profile/legacy` for
- * one release as a rollback path. Data fetching duplicated across both
- * routes by design (small price for keeping each route independent —
- * also matches `conversation_starter_prompts` / `profile_conversation_starters`
+ * KAN-220 — single-page profile editor. Replaced the 14-step wizard, which
+ * was kept at `/dashboard/profile/legacy` as a rollback path until KAN-487
+ * part 3 deleted it (2026-11-23). The reads stay inline here (they match the
+ * `conversation_starter_prompts` / `profile_conversation_starters`
  * regression guard in `tests/unit/conversation-starters.test.ts`).
  *
  * KAN-487 (spec v0.8; plan §A "Loader changes") — the v0.8 editor holds all

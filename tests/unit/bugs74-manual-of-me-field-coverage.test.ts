@@ -57,10 +57,12 @@ const LOADERS = [
   // (CTL-056). Was: { label: 'public profile', path: SRC.slugPage }
   { label: 'public profile', path: SRC.loadPublicProfile },
   // BUGS-74 follow-up: the legacy step-by-step editor carried the identical
-  // four-column select and was missed by the original fix. It is the live
-  // rollback path, so leaving it drifted meant a rollback would resume the
-  // data loss. Every loader belongs in this list, not just the default one.
-  { label: 'legacy profile editor', path: SRC.legacyPage },
+  // four-column select and was missed by the original fix, so it was listed
+  // here too. KAN-487 part 3 (founder sign-off 2026-11-23, chat) deleted that
+  // editor (`/dashboard/profile/legacy`), so its entry is gone. Every loader
+  // that still exists belongs in this list, not just the default one —
+  // partial-write-safety.test.ts discovers them by scanning the tree.
+  // Was: { label: 'legacy profile editor', path: SRC.legacyPage },
 ];
 
 describe('BUGS-74 — profile_manual_of_me loaders cover the full allowlist', () => {

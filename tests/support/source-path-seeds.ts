@@ -217,6 +217,10 @@ export const SEEDED_PATHS = [
   // ...and the two profile-module files the public page now renders through.
   'src/modules/profile/editor/editor-state.ts',
   'src/modules/profile/editor/public-view-model.ts',
+  // KAN-487 part 3: profile-item-url.test.ts was repointed from the deleted
+  // legacy items step to the v0.8 save-payload validator, which it reaches
+  // only via SRC — seeded so the key survives a regeneration (gotcha #31).
+  'src/modules/profile/editor/validate-save-payload.ts',
   // CTL-049 / SEC-137. Both are reached ONLY through `SRC` — the test routes
   // every path through the manifest so the F4 raw-literal ratchet (shrink-only)
   // is not raised by a new file, which would have been the easy wrong move.

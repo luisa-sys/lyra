@@ -55,7 +55,7 @@ describe('KAN-135: Upload action exists with validation', () => {
 });
 
 describe('KAN-135: WizardProfile includes avatar_url', () => {
-  const typesPath = path.join(root, SRC.profileTypes);
+  const typesPath = path.join(root, SRC.types);
   let content;
 
   beforeAll(() => {
@@ -67,36 +67,59 @@ describe('KAN-135: WizardProfile includes avatar_url', () => {
   });
 });
 
-describe('KAN-135: Identity step has photo upload UI', () => {
-  const identityPath = path.join(root, SRC.identityStep);
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): this describe read the
+// legacy wizard's `steps/identity-step.tsx`, which is deleted. The photo
+// upload UI it guarded is live in the v0.8 editor's `editor/photo-field.tsx`,
+// so the five tests are repointed there (comments stripped, so the file's own
+// header — which quotes `<input type="file" …>` — cannot satisfy them).
+// Old expected values, on identity-step.tsx:
+//   'onUploadAvatar'
+//   'type="file"', 'accept="image/jpeg,image/png,image/webp,image/gif"'
+//   'preview', 'readAsDataURL'
+//   'image/jpeg', 'Please choose a JPEG'
+//   '5 * 1024 * 1024', 'under 5MB'
+// v0.8 §01 accepts JPG, PNG or WebP only (no GIF) up to 5 MB; the accept
+// value itself is pinned as a literal in kan487-photo-crop.test.ts.
+describe('KAN-135: Editor has photo upload UI', () => {
+  const { stripComments } = require('../support/strip-comments');
+  const {
+    preCheckPhotoFile,
+    PHOTO_TYPE_ERROR,
+    PHOTO_SIZE_ERROR,
+  } = require('@/modules/profile/editor/photo-crop');
+  const photoFieldPath = path.join(root, SRC.profile, 'editor/photo-field.tsx');
   let content;
 
   beforeAll(() => {
-    content = fs.readFileSync(identityPath, 'utf8');
+    content = stripComments(fs.readFileSync(photoFieldPath, 'utf8'));
   });
 
-  test('accepts onUploadAvatar prop', () => {
-    expect(content).toContain('onUploadAvatar');
+  test('uploads the picked photo through stageProfilePhoto', () => {
+    expect(content).toContain("import { stageProfilePhoto } from '../editor-actions'");
+    expect(content).toContain('await stageProfilePhoto(fd)');
   });
 
   test('has file input for images', () => {
     expect(content).toContain('type="file"');
-    expect(content).toContain('accept="image/jpeg,image/png,image/webp,image/gif"');
+    expect(content).toContain('accept={PHOTO_ACCEPT}');
   });
 
   test('shows image preview', () => {
-    expect(content).toContain('preview');
-    expect(content).toContain('readAsDataURL');
+    expect(content).toContain('URL.createObjectURL(file)');
+    expect(content).toContain('<canvas ref={previewCanvasRef}');
   });
 
   test('validates file type client-side', () => {
-    expect(content).toContain('image/jpeg');
-    expect(content).toContain('Please choose a JPEG');
+    expect(content).toContain('const typeOrSize = preCheckPhotoFile(file);');
+    expect(content).toContain('setLocalError(typeOrSize);');
+    expect(preCheckPhotoFile({ type: 'image/gif', size: 1024 })).toBe(PHOTO_TYPE_ERROR);
+    expect(PHOTO_TYPE_ERROR).toBe('Photos must be JPG, PNG or WebP.');
   });
 
   test('validates file size client-side', () => {
-    expect(content).toContain('5 * 1024 * 1024');
-    expect(content).toContain('under 5MB');
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 })).toBeNull();
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 })).toBe(PHOTO_SIZE_ERROR);
+    expect(PHOTO_SIZE_ERROR).toBe('Photos must be 5 MB or smaller.');
   });
 });
 

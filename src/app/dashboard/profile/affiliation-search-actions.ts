@@ -8,8 +8,8 @@
  * own entries via `public.suggest_affiliation_names` (SECURITY INVOKER — RLS
  * limits it to affiliations the member can already see), through
  * `src/modules/profile/affiliation-suggest.ts`. The KAN-451 Google Places
- * lookup is no longer called; `places-schools-lookup.ts` stays on disk until
- * the PR3 clean-up. The export name, its arguments and its result shape are
+ * lookup is no longer called, and `places-schools-lookup.ts` was deleted in
+ * KAN-487 part 3. The export name, its arguments and its result shape are
  * unchanged, so the picker keeps working: a suggestion is a name only
  * (`address` / `postcode` are null — the member types the postcode).
  *

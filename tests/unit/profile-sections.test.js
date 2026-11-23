@@ -20,12 +20,12 @@ const NEW_CATEGORIES = [
 // in the Q&A section with everything else.
 //
 // This is a SEPARATE list rather than a deletion from NEW_CATEGORIES, and the
-// distinction is the whole point: NEW_CATEGORIES also drives the items-step
-// label check above, which is still correct — the legacy wizard continues to
-// offer a Billboard label (retiring it is KAN-453). Removing the entry from
-// the shared list would have quietly weakened that assertion too, which is
-// the failure mode this repo keeps re-learning: a list edited to make one
-// caller green stops guarding its other callers without saying so.
+// distinction was the whole point: NEW_CATEGORIES also drove the items-step
+// label check, which offered a Billboard label until KAN-487 part 3 deleted
+// the legacy wizard (and that check with it). Removing the entry from the
+// shared list would have quietly weakened that assertion too, which is the
+// failure mode this repo keeps re-learning: a list edited to make one caller
+// green stops guarding its other callers without saying so.
 //
 // KAN-488: 'questions' joins it. The legacy "questions" items are a pre-v0.8
 // category the v0.8 editor cannot show (KAN-490 migrates them), so the public
@@ -34,73 +34,14 @@ const NEW_CATEGORIES = [
 // Was: NEW_CATEGORIES.filter((c) => c !== 'billboard')
 const PUBLIC_PAGE_CATEGORIES = NEW_CATEGORIES.filter((c) => c !== 'billboard' && c !== 'questions');
 
-describe('KAN-137: Wizard supports new section categories', () => {
-  const wizardPath = path.join(root, SRC.wizard);
-  let wizardContent;
-
-  beforeAll(() => {
-    wizardContent = fs.readFileSync(wizardPath, 'utf8');
-  });
-
-  test('wizard file exists', () => {
-    expect(fs.existsSync(wizardPath)).toBe(true);
-  });
-
-  test('wizard has 14 steps (was 13; KAN-181 added Things to ask me)', () => {
-    // KAN-154 took this from 11 → 12 (Manual of Me).
-    // KAN-142 took it from 12 → 13 (Files & media).
-    // KAN-181 took it from 13 → 14 (Things to ask me / conversation
-    // starters). Each is a deliberate user-facing addition, not a
-    // regression — update the assertion to match. If a future refactor
-    // drops a step accidentally, this test catches it.
-    const stepMatches = wizardContent.match(/\{ id: '/g);
-    expect(stepMatches).not.toBeNull();
-    expect(stepMatches.length).toBe(14);
-  });
-
-  test('wizard includes Files & media step (KAN-142)', () => {
-    expect(wizardContent).toContain("'files'");
-    expect(wizardContent).toContain('Files & media');
-  });
-
-  test('wizard includes Things to ask me step (KAN-181)', () => {
-    expect(wizardContent).toContain("'starters'");
-    expect(wizardContent).toContain('Things to ask me');
-  });
-
-  test('wizard includes Books & Media step', () => {
-    expect(wizardContent).toContain("'favourite_books'");
-    expect(wizardContent).toContain("'favourite_media'");
-    expect(wizardContent).toContain('Books & Media');
-  });
-
-  test('wizard includes Causes & Quotes step', () => {
-    expect(wizardContent).toContain("'causes'");
-    expect(wizardContent).toContain("'quotes'");
-    expect(wizardContent).toContain('Causes & Quotes');
-  });
-
-  test('wizard includes More about you step', () => {
-    expect(wizardContent).toContain("'proud_of'");
-    expect(wizardContent).toContain("'life_hacks'");
-    expect(wizardContent).toContain("'questions'");
-    expect(wizardContent).toContain("'billboard'");
-    expect(wizardContent).toContain('More about you');
-  });
-});
-
-describe('KAN-137: ItemsStep has labels for all categories', () => {
-  const itemsStepPath = path.join(root, SRC.itemsStep);
-  let content;
-
-  beforeAll(() => {
-    content = fs.readFileSync(itemsStepPath, 'utf8');
-  });
-
-  test.each(NEW_CATEGORIES)('itemsStep has label for category: %s', (cat) => {
-    expect(content).toContain(`${cat}:`);
-  });
-});
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): two describes stood
+// here and are deleted with the code they read. "KAN-137: Wizard supports new
+// section categories" (7 tests) read `wizard.tsx`: the step count, and the
+// Files & media, Things to ask me, Books & Media, Causes & Quotes and More
+// about you steps. "KAN-137: ItemsStep has labels for all categories" (one
+// case per NEW_CATEGORIES entry, 8) read `steps/items-step.tsx`. Both files
+// are deleted; the v0.8 editor's section/category table is pinned in the
+// kan487 suites. The public-page guards below are unchanged.
 
 describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', () => {
   // The June-2026 redesign (KAN-265) replaced the categoryLabels / categoryIcons /

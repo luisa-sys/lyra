@@ -517,8 +517,14 @@ describe('KAN-445: every read site and the write-your-own surface', () => {
   // KAN-488: the public page's starters read moved into the public-profile
   // loader (CTL-056); same expected values, new location. Was: src(SRC.slugPage)
   const publicPage = src(SRC.loadPublicProfile);
-  const legacyPage = src(SRC.legacyPage);
-  const step = src(SRC.conversationStartersStep);
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy editor
+  // (`/dashboard/profile/legacy`) and its `conversation-starters-step.tsx`
+  // are deleted. The two assertions that read them are repointed to the live
+  // v0.8 editor — its loader (`page.tsx`) and its §09 questions section —
+  // which carry the same two properties. Was: src(SRC.legacyPage) and
+  // src(SRC.conversationStartersStep).
+  const editorPage = src(SRC.profilePage);
+  const step = src(`${SRC.profile}/editor/section-questions.tsx`);
 
   // select('*') tolerates a missing column; naming it does not.
   it('the public profile reads starters with select(*), never a column list naming custom_prompt', () => {
@@ -526,18 +532,21 @@ describe('KAN-445: every read site and the write-your-own surface', () => {
     expect(publicPage).not.toMatch(/select\('[^']*custom_prompt/);
   });
 
-  it('the legacy editor reads starters with select(*) too', () => {
-    expect(legacyPage).toContain("select('*, prompt:conversation_starter_prompts");
-    expect(legacyPage).not.toMatch(/select\('[^']*custom_prompt/);
+  it('the editor reads starters with select(*) too', () => {
+    expect(editorPage).toContain("select('*, prompt:conversation_starter_prompts");
+    expect(editorPage).not.toMatch(/select\('[^']*custom_prompt/);
   });
 
   it('the public profile prefers the member-written question over the seeded one', () => {
     expect(publicPage).toMatch(/customPrompt\s*\?\?\s*joined\?\.prompt/);
   });
 
+  // Old expected values (legacy step): 'Write your own question', 'ownOpen'.
+  // The v0.8 §09 section's button reads "Add your own question" and adds a
+  // member-written row to the editor state.
   it('the write-your-own UI exists in the editor', () => {
-    expect(step).toContain('Write your own question');
-    expect(step).toContain('ownOpen');
+    expect(step).toMatch(/>\s*Add your own question\s*</);
+    expect(step).toContain("dispatch({ type: 'addCustomQuestion', key })");
   });
 });
 
