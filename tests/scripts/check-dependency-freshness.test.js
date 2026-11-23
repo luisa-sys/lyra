@@ -16,8 +16,13 @@
  *            that changes no dependency is "not applicable" and makes NO
  *            measurement at all — proven by pointing it at fixtures that do
  *            not exist, which would exit 2 if they were read.
+ *   COVERED  "introduces" is judged against the BASE tree: a bump that leaves
+ *            a package vulnerable to the same advisory, or old but newer than
+ *            before, passes; a new advisory, a new old dependency or a
+ *            downgrade does not. An expired waiver fails a dependency PR.
  *   COVERED  the wiring: the PR gate runs in pr-checks.yml, the daily report
- *            runs in security-audit.yml without disturbing the Wednesday audit,
+ *            runs in its OWN workflow (dependency-freshness.yml) with its own
+ *            CTL-072 freshness entry, security-audit.yml is left as it was,
  *            and dependabot covers npm + github-actions against develop.
  *
  *   NOT      the live feeds (npm audit, registry.npmjs.org, nodejs.org). They
@@ -78,7 +83,13 @@ const advisory = (sev, ghsa) => ({
  * {version, published, latest, latestPublished}; `vulns` is an npm-audit
  * vulnerabilities map; `node` is the pinned major in the only workflow.
  */
-function world({ deps = {}, vulns = {}, waivers = [], node = null, index = null } = {}) {
+const auditReport = (vulns) => {
+  const counts = { info: 0, low: 0, moderate: 0, high: 0, critical: 0 };
+  for (const v of Object.values(vulns)) counts[v.severity] += 1;
+  return { vulnerabilities: vulns, metadata: { vulnerabilities: { ...counts, total: Object.keys(vulns).length } } };
+};
+
+function world({ deps = {}, vulns = {}, baseVulns = {}, waivers = [], node = null, index = null } = {}) {
   n += 1;
   const pj = { name: 'fixture', dependencies: {} };
   const lock = { lockfileVersion: 3, packages: { '': { name: 'fixture' } } };
@@ -94,7 +105,7 @@ function world({ deps = {}, vulns = {}, waivers = [], node = null, index = null 
       path.join(regDir, `${name.replace('/', '__')}.json`),
       JSON.stringify({
         'dist-tags': { latest: d.latest },
-        time: { [d.version]: d.published, [d.latest]: d.latestPublished || TODAY },
+        time: { ...(d.times || {}), [d.version]: d.published, [d.latest]: d.latestPublished || TODAY },
       }),
     );
   }
@@ -104,8 +115,6 @@ function world({ deps = {}, vulns = {}, waivers = [], node = null, index = null 
   const wfDir = path.join(dir, `${n}-workflows`);
   fs.mkdirSync(wfDir);
   if (node) fs.writeFileSync(path.join(wfDir, 'ci.yml'), `      - uses: x\n        with:\n          node-version: '${node}'\n`);
-  const counts = { info: 0, low: 0, moderate: 0, high: 0, critical: 0 };
-  for (const v of Object.values(vulns)) counts[v.severity] += 1;
   return {
     pj,
     lock,
@@ -113,10 +122,9 @@ function world({ deps = {}, vulns = {}, waivers = [], node = null, index = null 
       '--today', TODAY,
       '--package-json', write('package.json', pj),
       '--lockfile', write('package-lock.json', lock),
-      '--audit-json', write('audit.json', {
-        vulnerabilities: vulns,
-        metadata: { vulnerabilities: { ...counts, total: Object.keys(vulns).length } },
-      }),
+      '--audit-json', write('audit.json', auditReport(vulns)),
+      // The PR gate audits the base tree too; the daily report ignores this.
+      '--base-audit-json', write('base-audit.json', auditReport(baseVulns)),
       '--registry-dir', regDir,
       '--node-index-json', write('index.json', index || [
         { version: 'v24.5.0', date: '2026-11-10', lts: 'Krypton' },
@@ -159,7 +167,7 @@ describe('CTL-081 — the checker itself', () => {
     expect(`${code}: ${out.trim()}`).toContain('Self-test passed');
     expect(code).toBe(0);
     const cases = Number(/Self-test passed \((\d+) cases\)/.exec(out)?.[1] ?? 0);
-    expect(cases).toBeGreaterThanOrEqual(58);
+    expect(cases).toBeGreaterThanOrEqual(67);
   });
 });
 
@@ -335,10 +343,98 @@ describe('CTL-081 — the PR gate (--pr) blocks only what a PR introduces', () =
     expect(code).toBe(0);
   });
 
+  test('re-versioning a package that STAYS vulnerable to the same advisory is an improvement, not a block', () => {
+    // glob 10.4.5 -> 10.4.6 while the fix needs a parent's major: same GHSA on
+    // base and head. Blocking it would force a waiver for a step forward.
+    const w = world({ vulns: { vulnpkg: LOW_VULN }, baseVulns: { vulnpkg: LOW_VULN } });
+    const base = JSON.parse(JSON.stringify(w.lock));
+    base.packages['node_modules/vulnpkg'] = { version: '0.9.0' };
+    const { code, out } = run([
+      '--pr', ...w.args,
+      '--changed-files', changed(['package-lock.json']),
+      '--base-lockfile', write('base-lock.json', base),
+    ]);
+    expect(`${code}: ${out}`).toContain('already vulnerable to the same advisory on the base');
+    expect(out).toContain('Nothing out of policy introduced');
+    expect(code).toBe(0);
+  });
+
+  test('...but a NEW advisory on that re-versioned package is blocked, naming only the new one', () => {
+    const head = { ...LOW_VULN, via: [...LOW_VULN.via, advisory('moderate', 'GHSA-mmmm-nnnn-pppp')], severity: 'moderate' };
+    const w = world({ vulns: { vulnpkg: head }, baseVulns: { vulnpkg: LOW_VULN } });
+    const base = JSON.parse(JSON.stringify(w.lock));
+    base.packages['node_modules/vulnpkg'] = { version: '0.9.0' };
+    const { code, out } = run([
+      '--pr', ...w.args,
+      '--changed-files', changed(['package-lock.json']),
+      '--base-lockfile', write('base-lock.json', base),
+    ]);
+    expect(out).toMatch(/VULNERABLE\s+vulnpkg\s+moderate\s+GHSA-mmmm-nnnn-pppp\s/);
+    expect(out).not.toMatch(/VULNERABLE.*GHSA-aaaa-bbbb-cccc/);
+    expect(code).toBe(1);
+  });
+
+  test('bumping a direct dependency that stays >90 days old but is NEWER than base passes', () => {
+    // eslint 9.39.3 -> 9.39.4 while 10.x is latest: both out of the age rule,
+    // and the PR moves toward compliance.
+    const dep = { ...OLD, version: '1.0.1', times: { '1.0.0': '2026-05-01', '1.0.2': '2026-07-01' } };
+    const w = world({ deps: { oldpkg: dep } });
+    const base = JSON.parse(JSON.stringify(w.lock));
+    base.packages['node_modules/oldpkg'] = { version: '1.0.0' };
+    const ok = run([
+      '--pr', ...w.args,
+      '--changed-files', changed(['package.json', 'package-lock.json']),
+      '--base-lockfile', write('base-lock.json', base),
+    ]);
+    expect(`${ok.code}: ${ok.out}`).toContain('Nothing out of policy introduced');
+    expect(ok.code).toBe(0);
+    // The same change in REVERSE (a downgrade that stays old) is blocked.
+    base.packages['node_modules/oldpkg'] = { version: '1.0.2' };
+    const back = run([
+      '--pr', ...w.args,
+      '--changed-files', changed(['package.json', 'package-lock.json']),
+      '--base-lockfile', write('base-lock-down.json', base),
+    ]);
+    expect(back.out).toMatch(/OUTDATED\s+oldpkg/);
+    expect(back.code).toBe(1);
+  });
+
+  test('an EXPIRED waiver fails a dependency PR even when nothing out of policy is introduced', () => {
+    const w = world({ deps: { fresh: FRESH }, waivers: [{ ...WAIVER, expires: '2026-11-22' }] });
+    const base = JSON.parse(JSON.stringify(w.lock));
+    base.packages['node_modules/fresh'] = { version: '0.9.0' };
+    const { code, out } = run([
+      '--pr', ...w.args,
+      '--changed-files', changed(['package.json', 'package-lock.json']),
+      '--base-lockfile', write('base-lock.json', base),
+    ]);
+    expect(out).toContain('EXPIRED waiver: vulnpkg');
+    // It measured the PR (and found nothing introduced) — the expiry alone fails it.
+    expect(out).toMatch(/1 lockfile entry changed/);
+    expect(out).not.toMatch(/OUTDATED|VULNERABLE/);
+    expect(code).toBe(1);
+  });
+
+  test('an EXPIRED waiver fails a PR that changes only the waiver file', () => {
+    const w = world({ waivers: [{ ...WAIVER, expires: '2026-11-22' }] });
+    const { code, out } = run(['--pr', ...w.args, '--changed-files', changed([WAIVERS])]);
+    expect(out).toContain('EXPIRED waiver: vulnpkg');
+    expect(out).toContain('No lockfile entry was added or re-versioned');
+    expect(code).toBe(1);
+  });
+
   test('a PR that edits the waiver file into a malformed state is blocked', () => {
     const w = world({ waivers: [{ ...WAIVER, jira: 'none' }] });
     const { code, out } = run(['--pr', ...w.args, '--changed-files', changed([WAIVERS])]);
     expect(out).toContain('malformed waiver');
+    expect(code).toBe(1);
+  });
+
+  test('an unhashable advisory is reported as malformed, not a crash', () => {
+    const w = world({ waivers: [{ ...WAIVER, advisory: ['GHSA-aaaa-bbbb-cccc'] }] });
+    const { code, out } = run(['--pr', ...w.args, '--changed-files', changed([WAIVERS])]);
+    expect(out).toContain('malformed waiver');
+    expect(out).not.toContain('Traceback');
     expect(code).toBe(1);
   });
 });
@@ -353,11 +449,15 @@ describe('CTL-081 — the real repo', () => {
     expect(code).toBe(0);
   });
 
-  // source-scan-ok: SEC-197 — WHERE a gate runs is configuration, not behaviour; a
-  // correct script wired nowhere is the SEC-79 defect, and YAML is the only witness.
+  // WHERE a gate runs is configuration, not behaviour; a correct script wired
+  // nowhere is the SEC-79 defect, and YAML is the only witness. Counted in the
+  // CTL-077 baseline rather than annotated, so a later convertible block in
+  // this file still trips the ratchet.
   describe('wiring', () => {
     const prChecks = yaml.load(fs.readFileSync(path.join(ROOT, SRC.prChecks), 'utf-8'));
     const audit = yaml.load(fs.readFileSync(path.join(ROOT, SRC.securityAudit), 'utf-8'));
+    const freshWf = yaml.load(fs.readFileSync(path.join(ROOT, SRC.dependencyFreshness), 'utf-8'));
+    const watched = JSON.parse(fs.readFileSync(path.join(ROOT, SRC.workflowFreshness), 'utf-8')).watched;
     const dependabot = yaml.load(fs.readFileSync(path.join(ROOT, SRC.dependabot), 'utf-8'));
     const runs = (job) => (job.steps || []).map((s) => s.run || '').join('\n');
 
@@ -371,21 +471,33 @@ describe('CTL-081 — the real repo', () => {
       expect(step.env.BASE_REF).toBe('origin/${{ github.base_ref }}');
     });
 
-    test('security-audit runs the daily report, keeps the Wednesday audit weekly, and files an issue', () => {
-      const crons = audit.on.schedule.map((s) => s.cron);
-      expect(crons[0]).toBe('0 7 * * 3');
-      const daily = crons.filter((c) => / \* \* \*$/.test(c));
-      expect(daily).toHaveLength(1);
-      // The weekly npm audit must not start running (and emailing) daily: its
-      // job is gated to the Wednesday cron or a manual run.
-      expect(audit.jobs.audit.if).toContain(`github.event.schedule == '${crons[0]}'`);
-      expect(audit.jobs.audit.if).toContain("github.event_name != 'schedule'");
-      const fresh = audit.jobs.freshness;
-      expect(fresh).toBeDefined();
-      expect(fresh.if).toBeUndefined();
-      const script = runs(fresh);
+    test('the daily report runs in its OWN workflow, with its own CTL-072 freshness entry', () => {
+      // Not a job in security-audit.yml: CTL-072 counts ANY successful run, so a
+      // daily job there would mask a weekly audit that stopped succeeding.
+      expect(freshWf.on.schedule.map((s) => s.cron)).toEqual(['40 5 * * *']);
+      expect(freshWf.on).toHaveProperty('workflow_dispatch');
+      const script = runs(freshWf.jobs.freshness);
       expect(script).toContain(`python3 ${SRC.checkDependencyFreshness} --report --report-only`);
       expect(script).toContain('gh issue');
+      expect(watched[path.basename(SRC.dependencyFreshness)].max_age_hours).toBeLessThanOrEqual(36);
+      expect(watched[path.basename(SRC.securityAudit)].max_age_hours).toBe(192);
+    });
+
+    test('the issue step still runs when the measure step fails on an expired waiver', () => {
+      const steps = freshWf.jobs.freshness.steps;
+      const measure = steps.find((st) => st.id === 'fresh');
+      const issue = steps.find((st) => (st.run || '').includes('gh issue create'));
+      expect(measure).toBeDefined();
+      expect(issue.if).toContain('always()');
+      // ...and an expired or malformed waiver keeps the issue open.
+      expect(issue.env.EXPIRED).toBe('${{ steps.fresh.outputs.expired }}');
+      expect(issue.env.MALFORMED).toBe('${{ steps.fresh.outputs.malformed }}');
+    });
+
+    test('security-audit.yml is left as the weekly belt-and-braces audit (KAN-361)', () => {
+      expect(audit.on.schedule.map((s) => s.cron)).toEqual(['0 7 * * 3']);
+      expect(Object.keys(audit.jobs)).toEqual(['audit']);
+      expect(runs(audit.jobs.audit)).not.toContain(SRC.checkDependencyFreshness);
     });
 
     test('dependabot covers npm and github-actions, targets develop, at most weekly', () => {

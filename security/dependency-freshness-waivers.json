@@ -12,7 +12,7 @@
     "  kind         'age' or 'vulnerability'",
     "  advisory     the GHSA id for kind=vulnerability; null for kind=age",
     "  reason       why it was not upgraded AND what mitigates the risk meanwhile",
-    "  jira         the ticket tracking the upgrade (KAN-/SEC-/BUGS-n)",
+    "  jira         the ticket tracking the upgrade (any Jira key, e.g. SEC-194)",
     "  expires      YYYY-MM-DD, at most 90 days after the day the check runs.",
     "               A lapsed waiver FAILS the check. Renew only with a fresh reason.",
     "  approved_by  who approved it, e.g. 'founder 2026-11-23 standing policy'",

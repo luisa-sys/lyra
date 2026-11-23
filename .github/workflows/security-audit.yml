@@ -8,19 +8,9 @@ name: Weekly Security Audit
 # into a second security sweep; add new security coverage to the Daily Security
 # routine instead. See docs/OPS_ROUTINES_CONTROL_ROOM.md for the owner map.
 
-#
-# SEC-197 / CTL-081 — this workflow ALSO carries the daily dependency-freshness
-# report (`freshness` job below). It is the same concern — "are our external
-# dependencies vulnerable or out of date?" — so it lives here rather than in a
-# second workflow that would duplicate the checkout/setup and the
-# dependency-advisory issue plumbing. The founder rule (2026-11-23) is in
-# docs/DEPENDENCY_POLICY.md: vulnerable (any severity) or >90 days old with a
-# newer release means upgrade on develop, or carry a dated waiver.
-
 on:
   schedule:
-    - cron: '0 7 * * 3'  # Wednesday 07:00 UTC — the weekly npm audit (job `audit`)
-    - cron: '20 6 * * *'  # Daily 06:20 UTC — dependency freshness (job `freshness`, SEC-197)
+    - cron: '0 7 * * 3'  # Wednesday 07:00 UTC
   workflow_dispatch:
 
 defaults:
@@ -33,10 +23,6 @@ permissions:
 
 jobs:
   audit:
-    # The weekly audit stays WEEKLY. The daily cron above exists for the
-    # freshness job; without this guard the audit (and its email) would start
-    # firing every day. Manual dispatch still runs both jobs.
-    if: github.event_name != 'schedule' || github.event.schedule == '0 7 * * 3'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -240,92 +226,3 @@ jobs:
           echo "A red scheduled run is the signal the routine watchdog reads; the issue"
           echo "opened above is the work item. Triage both."
           exit 1
-
-  # SEC-197 / CTL-081 — daily dependency freshness. Measures the WHOLE tree:
-  # every advisory at any severity (npm audit, full tree), every direct
-  # dependency >90 days old with a newer release (npm registry `time`), and
-  # every Node.js major pinned by `node-version:` in a workflow.
-  #
-  # Deliberately NOT a red-every-day job. Out-of-policy findings go into ONE
-  # tracking issue (opened, updated, closed when clean) and the job stays green,
-  # because a red you have learned to expect is a switched-off control
-  # (CLAUDE.md catalogue #7) and it would also break CTL-072's freshness watch
-  # on this workflow. The job DOES go red when:
-  #   - a waiver has EXPIRED or is malformed (exit 1) — a decision falling due,
-  #   - the measurement itself failed (exit 2) — never reported as clean.
-  # The blocking half of this control is the --pr gate in pr-checks.yml, which
-  # fires only on PRs that change package.json / package-lock.json.
-  freshness:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with:
-          persist-credentials: false # read-only job; issue writes go through GH_TOKEN below
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          # 22, not the '20' used elsewhere: Node 20 is itself out of policy
-          # under SEC-197 (no release since 2026-03-24), and a new job should
-          # not add another out-of-policy pin. Moving the rest is the deps work.
-          node-version: '22'
-
-      - name: Self-test the freshness checker (CTL-081)
-        run: |
-          set -euo pipefail
-          python3 scripts/check-dependency-freshness.py --self-test
-
-      - name: Measure dependency freshness
-        id: fresh
-        run: |
-          set -euo pipefail
-          # npm audit reads package-lock.json; no install is needed for either feed.
-          # --report-only: findings are reported (and filed below), not failed.
-          # Expired/malformed waivers still exit 1 and a failed measurement exits 2,
-          # so `set -e` stops the job on exactly those.
-          python3 scripts/check-dependency-freshness.py --report --report-only \
-            --markdown /tmp/freshness.md --github-output "$GITHUB_OUTPUT" \
-            | tee /tmp/freshness.txt
-          {
-            echo "## Dependency freshness (SEC-197)"
-            echo
-            cat /tmp/freshness.md
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Open, update or close the dependency-freshness issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OUT_OF_POLICY: ${{ steps.fresh.outputs.out_of_policy }}
-          STALE: ${{ steps.fresh.outputs.stale }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          TITLE="Dependency freshness — out-of-policy dependencies (SEC-197)"
-          if [ -z "$OUT_OF_POLICY" ] || [ -z "$STALE" ]; then
-            echo "::error::freshness counts missing from the measure step — refusing to guess"
-            exit 1
-          fi
-          {
-            cat /tmp/freshness.md
-            echo
-            echo "- Run: $RUN_URL"
-          } > /tmp/freshness-issue.md
-
-          # One running issue per ongoing condition, matched on a deterministic
-          # title — the same idempotency pattern as the weekly audit above.
-          EXISTING="$(gh issue list --search "in:title \"$TITLE\"" --state open --label dependencies --json number --jq '.[0].number')"
-          if [ "$OUT_OF_POLICY" = "0" ] && [ "$STALE" = "0" ]; then
-            if [ -n "$EXISTING" ]; then
-              gh issue comment "$EXISTING" --body "All dependencies are within policy as of this run. Closing. $RUN_URL"
-              gh issue close "$EXISTING"
-            fi
-            echo "All dependencies within policy."
-            exit 0
-          fi
-          if [ -n "$EXISTING" ]; then
-            echo "Updating issue #$EXISTING ($OUT_OF_POLICY out of policy, $STALE stale waiver(s))"
-            gh issue edit "$EXISTING" --body-file /tmp/freshness-issue.md
-          else
-            echo "Opening the dependency-freshness issue"
-            gh issue create --title "$TITLE" --label dependencies --body-file /tmp/freshness-issue.md
-          fi

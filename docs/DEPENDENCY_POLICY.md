@@ -25,7 +25,7 @@ This page turns that rule into definitions, deadlines and an exception process, 
 |---|---|---|
 | npm packages | **direct and transitive** (anything in `package-lock.json`) | **direct** dependencies only (`dependencies`, `devDependencies`, `optionalDependencies`) |
 | GitHub Actions (`uses:` pins) | yes | yes |
-| Node.js runtime (`node-version:` in workflows, `engines`, `.nvmrc`) | yes | yes (see the runtime definition below) |
+| Node.js runtime (`node-version:` in workflows, `engines`, `.nvmrc`) | yes | yes (see the runtime definition below; the control reads only simple `node-version:` major pins — see §7) |
 | Base images, service images and CLIs pinned in the repo (for example `postgres:17` in a workflow, `python-version: '3.12'`, `vercel@…`) | yes | yes |
 
 Transitive npm packages are outside the age rule on purpose. Their versions are chosen by their parents, and the fix is to upgrade the direct dependency that pulls them in. Vulnerabilities are different: a vulnerable transitive package is in scope, and an `overrides` pin may be the right fix (see CLAUDE.md gotcha #23 for how to scope an override safely).
@@ -99,9 +99,11 @@ If **no fixed version exists**, or an upgrade is **genuinely blocked**, add an e
 | `kind` | `vulnerability` or `age` |
 | `advisory` | One GHSA id for `vulnerability` (one entry per advisory). `null` for `age`. |
 | `reason` | Why it isn't upgraded **and** what mitigates the risk in the meantime. At least 40 characters. |
-| `jira` | The ticket tracking the upgrade (`KAN-`/`SEC-`/`BUGS-n`). |
+| `jira` | The ticket tracking the upgrade: any Jira key, e.g. `SEC-194`. |
 | `expires` | `YYYY-MM-DD`, **no more than 90 days** after the day the check runs. |
 | `approved_by` | Who approved it, for example `founder 2026-11-23 standing policy`. |
+
+**File shape.** The file is `{"waivers": [...]}` with exactly the entry fields above. It also carries two top-level documentation keys, `_why` (the rules, in the file itself) and `ticket` (`SEC-197`). That is a deliberate deviation from the bare `{"waivers": [...]}` shape, copied from `security/npm-audit-waivers.json` so both waiver files read the same way. The validator ignores top-level keys other than `waivers`; inside an entry, unknown fields are malformed.
 
 Rules the control enforces:
 
@@ -126,8 +128,17 @@ If a package has an unfixable HIGH in the production tree, it needs an entry in 
 
 | Where | Mode | Blocking? |
 |---|---|---|
-| `security-audit.yml`, job `freshness`, **daily 06:20 UTC** | `--report --report-only`: the whole tree (all advisories, all direct-dependency ages, pinned Node majors) | **No.** It opens, updates or closes **one** GitHub issue, *"Dependency freshness — out-of-policy dependencies (SEC-197)"* (label `dependencies`). It goes red only for an **expired or malformed waiver** or a **failed measurement**. |
-| `pr-checks.yml`, step *"Dependency freshness — dependency PRs only"* | `--pr --base origin/<base>` | **Yes, but only** when the PR changes `package.json`, `package-lock.json` or the waiver file. Even then, it fails only on what the PR **introduces**: a new or re-versioned lockfile entry that is vulnerable, or a changed direct dependency that is already out of the age rule. |
+| `dependency-freshness.yml`, **daily 05:40 UTC** (its own workflow) | `--report --report-only`: the whole tree (all advisories, all direct-dependency ages, pinned Node majors) | **No.** It opens, updates or closes **one** GitHub issue, *"Dependency freshness — out-of-policy dependencies (SEC-197)"* (label `dependencies`). It goes red only for an **expired or malformed waiver** or a **failed measurement**. |
+| `pr-checks.yml`, step *"Dependency freshness — dependency PRs only"* | `--pr --base origin/<base>` | **Yes, but only** when the PR changes `package.json`, `package-lock.json` or the waiver file. Even then, it fails only on an expired or malformed waiver, or on what the PR **introduces relative to its base** (below). |
+
+**What "introduces" means in the PR gate.** The gate audits both the PR's tree and the base tree (the base from its lockfile alone, `npm audit --package-lock-only`), then fails on:
+
+- a **(package, advisory) pair** on a new or re-versioned lockfile entry that the **base audit does not already report**. Re-resolving a subtree that stays vulnerable to the same advisory (for example `glob` 10.4.5 → 10.4.6 while the fix needs a parent's major) is not introducing anything, so it passes. A *new* advisory on that entry fails.
+- a **changed direct dependency that is out of the age rule**, unless the base version was **also** out of it and the PR doesn't move it backwards. `eslint` 9.39.3 → 9.39.4 while 10.x is latest is a step toward compliance and passes. A new dependency that is already old, a version that was in policy at base, or a downgrade, fails.
+
+Improvements therefore never need a waiver first. The daily issue still lists what remains out of policy.
+
+**The PR gate is time- and feed-dependent.** Re-running an unchanged dependency PR can turn red: a new advisory may be published against a version it introduces, or an introduced version may cross 90 days while the PR sits open. That is accepted because only dependency PRs are exposed, and the answer is the same as any finding: upgrade further, or waive.
 
 **Why it is built this way (the SEC-88 lesson).** A gate driven by a third-party feed, sitting in front of every PR, froze the pipeline for about 11 days in SEC-88. Twelve tested security fixes were held out of production. CTL-081 can't repeat that:
 
@@ -138,6 +149,7 @@ If a package has an unfixable HIGH in the production tree, it needs an entry in 
 **Not measured by the control yet.** These are still in policy scope (§1) and get checked by hand, or by Dependabot where noted:
 
 - GitHub Actions versions. Dependabot opens weekly grouped PRs against `develop`.
+- Node.js pins the runtime check can't read: `engines` in `package.json`, `.nvmrc`, `node-version-file:`, `node-version:` given as a matrix list, as a full `x.y.z` pin, or as an alias such as `lts/*`. Only single-major `node-version: '20'` / `20.x` pins in workflows are measured.
 - Python versions, service images and CLIs pinned in workflows (`postgres:17`, `python-version`).
 - The other three repos.
 

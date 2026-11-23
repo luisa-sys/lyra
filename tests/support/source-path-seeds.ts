@@ -403,4 +403,6 @@ export const SEEDED_PATHS = [
   // checker only through `SRC`, so without this literal the key would vanish on
   // the next regeneration (gotcha #31).
   'scripts/check-dependency-freshness.py',
+  // ...and its daily workflow, read by the same suite's wiring tests.
+  '.github/workflows/dependency-freshness.yml',
 ] as const;

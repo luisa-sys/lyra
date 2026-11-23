@@ -31,7 +31,7 @@ SEC-88 froze the pipeline for ~11 days because a gate keyed on a THIRD-PARTY
 FEED sat in front of every PR and every deploy: an advisory published overnight
 turned an unchanged repo red. This control is built so that cannot happen.
 
-  --report (daily, security-audit.yml)   measures the whole tree and opens or
+  --report (daily, dependency-freshness.yml)   measures the whole tree and opens or
       updates ONE tracking issue. With --report-only, out-of-policy findings
       and stale waivers are reported, not failed: the issue is the work item.
       It still exits 1 on an EXPIRED or malformed waiver — a lapse is a
@@ -39,11 +39,20 @@ turned an unchanged repo red. This control is built so that cannot happen.
       measure.
   --pr (pr-checks.yml)   blocking, but ONLY when the PR changes package.json,
       package-lock.json or the waiver file. It then fails only on what the PR
-      itself INTRODUCES: a lockfile entry whose version changed (or is new) and
-      is vulnerable, or a direct dependency whose version changed (or is new)
-      and is already out of the age rule. A vulnerable package the PR did not
-      touch never blocks it. Every other PR is "not applicable" and makes no
+      itself INTRODUCES, judged against the BASE tree, not in the abstract:
+        - a (package, advisory) pair on a new or re-versioned lockfile entry
+          that the base tree's audit does NOT already report. Re-resolving a
+          still-vulnerable subtree (e.g. glob 10.4.5 -> 10.4.6, same GHSA, fix
+          only via a parent's major) is not "introducing" anything;
+        - a changed direct dependency that is out of the age rule, unless the
+          base version was ALSO out of it and the PR does not downgrade it
+          (eslint 9.39.3 -> 9.39.4 while 10.x is latest is an improvement).
+      A vulnerable package the PR did not touch never blocks it. An expired or
+      malformed waiver does. Every other PR is "not applicable" and makes no
       network call at all.
+      Time- and feed-dependent by nature: re-running an UNCHANGED dependency PR
+      can flip red when a new advisory lands on a version it introduces or an
+      introduced version crosses 90 days. Only dependency PRs are exposed.
 
 NETWORK IS ISOLATED
 -------------------
@@ -62,8 +71,8 @@ USAGE
     python3 scripts/check-dependency-freshness.py --self-test
 
   Fixture flags (tests): --package-json --lockfile --base-lockfile
-  --changed-files --audit-json --registry-dir --node-index-json --workflows-dir
-  --waivers --today
+  --changed-files --audit-json --base-audit-json --registry-dir
+  --node-index-json --workflows-dir --waivers --today
 
 EXIT CODES
     0  clean / not applicable / --report-only with findings
@@ -80,6 +89,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -106,7 +116,8 @@ PR_TRIGGER_FILES = (
 WAIVER_KEYS = ("package", "kind", "advisory", "reason", "jira", "expires", "approved_by")
 WAIVER_KINDS = ("age", "vulnerability")
 GHSA_RE = re.compile(r"^GHSA(-[0-9a-z]{4}){3}$")
-JIRA_RE = re.compile(r"^(KAN|SEC|BUGS)-\d+$")
+# Any Jira-style key (the waiver shape says <KEY-n>); same pattern CTL-042 uses.
+JIRA_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 NODE_VERSION_RE = re.compile(r"""^\s*-?\s*node-version:\s*['"]?(\d+)(?:\.x)?['"]?\s*(?:#.*)?$""", re.M)
 
@@ -204,7 +215,7 @@ def validate_waivers(data, today: date):
                 f"(at least {MIN_REASON_CHARS} characters)"
             )
         if not isinstance(w.get("jira"), str) or not JIRA_RE.match(w.get("jira", "")):
-            problems.append("'jira' must be a KAN-/SEC-/BUGS-n key")
+            problems.append("'jira' must be a Jira key such as SEC-197")
         if not isinstance(w.get("approved_by"), str) or not w.get("approved_by", "").strip():
             problems.append("'approved_by' must be a non-empty string")
         lapsed = False
@@ -220,7 +231,9 @@ def validate_waivers(data, today: date):
                 )
             if expires < today:
                 lapsed = True
-        key = (w.get("package"), kind, advisory)
+        # repr() so an unhashable value (e.g. "advisory": ["GHSA-..."]) is reported
+        # as malformed above instead of crashing the run with a TypeError here.
+        key = tuple(repr(x) for x in (w.get("package"), kind, advisory))
         if key in seen:
             problems.append("duplicates an earlier waiver for the same package/kind/advisory")
         seen.add(key)
@@ -408,11 +421,59 @@ def changed_lock_paths(base_lock, head_lock: dict) -> set:
     }
 
 
-def introduced(findings_vuln: list, direct: dict, changed: set):
-    """(vulnerability findings the PR introduced, direct deps the PR changed)."""
-    vulns = [f for f in findings_vuln if set(f["nodes"]) & changed]
+def _vuln_pairs(findings_vuln: list) -> set:
+    """(package, advisory) pairs; a finding npm reports without any id keys on None."""
+    return {(f["package"], a) for f in findings_vuln for a in (f["advisories"] or [None])}
+
+
+def introduced(findings_vuln: list, direct: dict, changed: set, base_findings_vuln=None):
+    """(vulnerability findings the PR introduced, direct deps the PR changed).
+
+    A head finding counts only if one of its nodes was added or re-versioned
+    by the PR AND it carries a (package, advisory) pair the BASE tree's audit
+    does not already report. Only the introduced advisories are kept on it.
+    """
+    at_base = _vuln_pairs(base_findings_vuln or [])
+    vulns = []
+    for f in findings_vuln:
+        if not set(f["nodes"]) & changed:
+            continue
+        new = [a for a in (f["advisories"] or [None]) if (f["package"], a) not in at_base]
+        if new:
+            vulns.append({**f, "advisories": [a for a in new if a is not None]})
     touched = {n: i for n, i in direct.items() if i["path"] in changed}
     return vulns, touched
+
+
+def age_regressions(age_found: list, touched: dict, base_lock, fetch_doc, today: date) -> list:
+    """Keep only age findings the PR made worse.
+
+    A changed direct dependency that is out of the age rule is NOT introduced
+    when the base version was also out of it and the PR does not move it
+    backwards — that PR is a step toward compliance, and blocking it would
+    push people to file waivers for improvements. New dependencies, versions
+    that were in policy at base, and downgrades still count.
+    """
+    base_pkgs = (base_lock or {}).get("packages") or {}
+    out = []
+    for f in age_found:
+        info = touched.get(f["package"])
+        base_entry = base_pkgs.get(info["path"]) if info else None
+        base_version = base_entry.get("version") if isinstance(base_entry, dict) else None
+        if not base_version or parse_semver(base_version) is None:
+            out.append(f)  # new direct dependency (or unparseable base): judged on its own
+            continue
+        if is_newer(base_version, f["installed"]):
+            out.append({**f, "downgrade_from": base_version})
+            continue
+        doc = fetch_doc(info["lookup"])
+        times = doc.get("time") or {}
+        if base_version not in times:
+            raise MeasureError(f"registry metadata for {f['package']} has no publish time for base version {base_version}")
+        base_age = (today - _date_of(times[base_version])).days
+        if not (base_age > MAX_AGE_DAYS and is_newer(f["latest"], base_version)):
+            out.append(f)  # base version was in policy: this PR made it out of policy
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -471,6 +532,33 @@ def _fetchers(args):
             except gate.AuditError as exc:
                 raise MeasureError(str(exc)) from exc
 
+    if args.base_audit_json:
+        def fetch_base_audit(_base_pj, _base_lock):
+            try:
+                return gate.parse_audit(Path(args.base_audit_json).read_text(encoding="utf-8"))
+            except FileNotFoundError as exc:
+                raise MeasureError(f"base audit fixture not found: {args.base_audit_json}") from exc
+            except gate.AuditError as exc:
+                raise MeasureError(str(exc)) from exc
+    elif args.audit_json:
+        def fetch_base_audit(_base_pj, _base_lock):
+            raise MeasureError("--audit-json was given without --base-audit-json; refusing to reach the network from a fixture run")
+    else:
+        def fetch_base_audit(base_pj, base_lock):
+            # Audit the BASE tree from its lockfile alone, in a scratch directory,
+            # through the same bounded-retry runner as the head audit.
+            with tempfile.TemporaryDirectory(prefix="sec197-base-") as tmp:
+                Path(tmp, "package.json").write_text(json.dumps(base_pj), encoding="utf-8")
+                Path(tmp, "package-lock.json").write_text(json.dumps(base_lock), encoding="utf-8")
+
+                def runner(cmd):
+                    return subprocess.run([*cmd, "--package-lock-only"], cwd=tmp, capture_output=True, text=True, timeout=600)
+
+                try:
+                    return gate.run_audit("full", runner=runner)
+                except gate.AuditError as exc:
+                    raise MeasureError(f"base tree: {exc}") from exc
+
     if args.registry_dir:
         def fetch_doc(name):
             return _read_json(Path(args.registry_dir) / (name.replace("/", "__") + ".json"), f"registry fixture for {name}")
@@ -485,6 +573,7 @@ def _fetchers(args):
         def fetch_node_index():
             return http_get_json(NODE_INDEX_URL)
 
+    fetch_audit.base = fetch_base_audit
     return fetch_audit, fetch_doc, fetch_node_index, gate.advisory_ids
 
 
@@ -511,7 +600,7 @@ def _due(f) -> str:
 
 def render_markdown(result: dict, today: date) -> str:
     lines = [
-        f"Raised automatically by `security-audit.yml` (SEC-197 / CTL-081), {today.isoformat()}.",
+        f"Raised automatically by `dependency-freshness.yml` (SEC-197 / CTL-081), {today.isoformat()}.",
         "Policy: `docs/DEPENDENCY_POLICY.md`. **Upgrade on `develop`, or add a dated waiver to**",
         "`security/dependency-freshness-waivers.json`. This issue blocks no release; the PR check",
         "blocks only PRs that change dependencies and introduce an out-of-policy version.",
@@ -653,6 +742,7 @@ def run_pr(args, today: date) -> int:
         failed = True
 
     package_json, lock = _load_inputs(args)
+    base_pj = package_json
     if args.base_lockfile:
         base_lock = _read_json(Path(args.base_lockfile), "base package-lock.json")
     elif args.changed_files:
@@ -664,6 +754,11 @@ def run_pr(args, today: date) -> int:
             base_lock = {}  # no lockfile on the base: everything is new
         except json.JSONDecodeError as exc:
             raise MeasureError(f"base package-lock.json is not valid JSON: {exc}") from exc
+        if base_lock:
+            try:
+                base_pj = json.loads(_git("show", f"{args.base}:package.json"))
+            except json.JSONDecodeError as exc:
+                raise MeasureError(f"base package.json is not valid JSON: {exc}") from exc
 
     changed = changed_lock_paths(base_lock, lock)
     if not changed:
@@ -672,9 +767,15 @@ def run_pr(args, today: date) -> int:
 
     fetch_audit, fetch_doc, _node, advisory_ids = _fetchers(args)
     direct = direct_dependencies(package_json, lock)
-    vulns, touched = introduced(vulnerability_findings(fetch_audit(), advisory_ids), direct, changed)
+    head_vulns = vulnerability_findings(fetch_audit(), advisory_ids)
+    base_vulns = vulnerability_findings(fetch_audit.base(base_pj, base_lock), advisory_ids) if base_lock.get("packages") else []
+    vulns, touched = introduced(head_vulns, direct, changed, base_vulns)
     ages, notes = age_findings(touched, fetch_doc, today)
+    ages = age_regressions(ages, touched, base_lock, fetch_doc, today)
     unwaived, waived, _stale = apply_waivers(vulns + ages, valid)
+    improved = len([f for f in head_vulns if set(f["nodes"]) & changed]) - len(vulns)
+    if improved > 0:
+        print(f"  {improved} re-versioned vulnerable package(s) were already vulnerable to the same advisory on the base — not introduced by this PR (the daily report still lists them).")
 
     print(f"{len(changed)} lockfile entr{'y' if len(changed) == 1 else 'ies'} changed; {len(touched)} direct dependenc{'y' if len(touched) == 1 else 'ies'} changed.")
     for w in waived:
@@ -794,6 +895,9 @@ def self_test() -> int:
     check("an unknown field is malformed (the shape is fixed)", len(validate_waivers({"waivers": [{**good, "owner": "x"}]}, today)[1]) > 0, True)
     check("a duplicate waiver is malformed", len(validate_waivers({"waivers": [good, good]}, today)[1]) > 0, True)
     check("a file with no waivers array is malformed", len(validate_waivers({}, today)[1]), 1)
+    check("an unhashable advisory is malformed, not a crash", len(validate_waivers({"waivers": [{**good, "advisory": ["GHSA-dddd-eeee-ffff"]}]}, today)[1]) > 0, True)
+    check("any Jira project key is accepted", validate_waivers({"waivers": [{**good, "jira": "OPS2-7"}]}, today)[1], [])
+    check("a non-key jira is malformed", len(validate_waivers({"waivers": [{**good, "jira": "sec 197"}]}, today)[1]) > 0, True)
     check("an empty list is valid", validate_waivers({"waivers": []}, today), ([], [], []))
 
     # --- waivers: matching ----------------------------------------------------
@@ -825,6 +929,23 @@ def self_test() -> int:
     check("only direct deps the PR changed are age-checked", sorted(it), ["a"])
     iv, _ = introduced(v, {}, {"node_modules/child"})
     check("a PR that re-versions a vulnerable package is caught", [f["package"] for f in iv], ["child"])
+    iv, _ = introduced(v, {}, {"node_modules/child"}, v)
+    check("re-versioning a package already vulnerable to the SAME advisory on base is not introduced", iv, [])
+    child_two = [{**child_f, "advisories": ["GHSA-dddd-eeee-ffff", "GHSA-gggg-hhhh-jjjj"]}]
+    iv, _ = introduced(child_two, {}, {"node_modules/child"}, v)
+    check("...but a NEW advisory on that re-versioned package is", [f["advisories"] for f in iv], [["GHSA-gggg-hhhh-jjjj"]])
+
+    # --- PR scope: age judged against the base version ------------------------
+    adoc = lambda _n: {"dist-tags": {"latest": "10.0.0"}, "time": {"9.0.3": "2026-03-06", "9.0.2": "2026-02-01", "9.0.4": "2026-08-01", "10.0.0": "2026-11-01"}}
+    t_info = {"eslint": {"version": "9.0.3", "path": "node_modules/eslint", "lookup": "eslint", "registry": True}}
+    head_age, _ = age_findings(t_info, adoc, today)
+    blk = lambda bv: age_regressions(head_age, t_info, {"packages": {"node_modules/eslint": {"version": bv}}}, adoc, today)
+    check("an out-of-policy bump from an OLDER out-of-policy version is an improvement, not a regression", blk("9.0.2"), [])
+    check("a downgrade that stays out of policy IS a regression", [f.get("downgrade_from") for f in blk("9.0.4")], ["9.0.4"])
+    check("a new direct dependency already out of policy is a regression", len(age_regressions(head_age, t_info, {"packages": {}}, adoc, today)), 1)
+    young = lambda _n: {**adoc(_n), "time": {**adoc(_n)["time"], "9.0.2": "2026-11-01"}}
+    check("moving from an in-policy version to an out-of-policy one is a regression",
+          len(age_regressions(head_age, t_info, {"packages": {"node_modules/eslint": {"version": "9.0.2"}}}, young, today)), 1)
 
     # --- runtime --------------------------------------------------------------
     texts = {"a.yml": "      - uses: x\n        with:\n          node-version: '20'\n", "b.yml": "node-version: 22\n# node-version: '18'\n"}
@@ -900,7 +1021,7 @@ def main(argv=None) -> int:
     ap.add_argument("--base", help="--pr: the base ref to diff against, e.g. origin/develop")
     ap.add_argument("--markdown", help="--report: write the tracking-issue body here")
     ap.add_argument("--github-output", help="--report: append key=value counts here")
-    for flag in ("--package-json", "--lockfile", "--base-lockfile", "--changed-files", "--audit-json",
+    for flag in ("--package-json", "--lockfile", "--base-lockfile", "--changed-files", "--audit-json", "--base-audit-json",
                  "--registry-dir", "--node-index-json", "--workflows-dir", "--waivers", "--today"):
         ap.add_argument(flag, help="fixture override (tests)")
     args = ap.parse_args(argv)

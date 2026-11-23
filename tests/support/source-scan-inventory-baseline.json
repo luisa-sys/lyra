@@ -6,8 +6,8 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 149,
-    "blocks": 339
+    "files": 150,
+    "blocks": 340
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -15,6 +15,7 @@
     "tests/scripts/audit-summary.test.js": 4,
     "tests/scripts/check-action-pinning.test.js": 1,
     "tests/scripts/check-comment-only-assertions.test.js": 2,
+    "tests/scripts/check-dependency-freshness.test.js": 1,
     "tests/scripts/check-dependency-rules.test.js": 3,
     "tests/scripts/check-design-baseline.test.js": 2,
     "tests/scripts/check-doc-mirror-content.test.js": 1,

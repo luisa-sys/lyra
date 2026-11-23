@@ -7,13 +7,17 @@
       "max_age_hours": 36,
       "reason": "SEC-106 §3 item 3 names this one by name. It is the live backstop for the migration-privilege rules (gotcha #26) — migrations reach a database via the Supabase MCP without passing through a PR, which is exactly how SEC-42 happened, so a daily sweep that quietly stopped firing would take the only detector of an out-of-band grant with it. 36h rather than 24h so a single missed cron or a GitHub Actions incident is not a red."
     },
+    "dependency-freshness.yml": {
+      "max_age_hours": 36,
+      "reason": "SEC-197 / CTL-081. Daily (05:40 UTC) whole-tree dependency-freshness report; its tracking issue is the only place moderate/low and dev-tree advisories and >90-day-old direct dependencies are listed at all. It stays green on findings and goes red only on an expired/malformed waiver or a failed measurement, so a missing success is a real signal. Its own workflow (not a job in security-audit.yml) precisely so that this daily success cannot mask a weekly audit run that stopped succeeding. 36h, like the other daily entries, so one missed cron or an Actions incident is not a red."
+    },
     "health-check.yml": {
       "max_age_hours": 36,
       "reason": "The liveness owner under KAN-361's one-concern-one-owner rule, and half of the SEC-79 incident: it sat disabled_manually for over a month while the estate still reported green. CTL-042 now asserts it is not disabled; this asserts it actually fired. A workflow can be enabled and still never run, which is why both exist."
     },
     "security-audit.yml": {
       "max_age_hours": 192,
-      "reason": "Weekly (Wednesday 07:00 UTC), and since SEC-105 rescoped the npm-audit gate it is the ONLY place the full dev+prod tree is audited at all — the four deploy workflows no longer audit anything. 192h = 8 days, one cadence plus a day of slack, so a single skipped week is a finding and a late run is not. SEC-197 (2026-11-23): this workflow also runs a DAILY `freshness` job (06:20 UTC), and on non-Wednesday scheduled runs the weekly `audit` job is skipped by its `if:` guard — so a daily success now proves the workflow fires, not that the weekly audit job ran. The window is deliberately left at 192h rather than tightened to the daily cadence, so this entry keeps meaning 'the workflow has succeeded within one weekly cycle'; the Wednesday-only guard itself is pinned by tests/scripts/check-dependency-freshness.test.js."
+      "reason": "Weekly (Wednesday 07:00 UTC), and since SEC-105 rescoped the npm-audit gate it is the ONLY place the full dev+prod tree is audited at all — the four deploy workflows no longer audit anything. 192h = 8 days, one cadence plus a day of slack, so a single skipped week is a finding and a late run is not."
     }
   }
 }

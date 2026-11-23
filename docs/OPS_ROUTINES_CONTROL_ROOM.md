@@ -57,7 +57,7 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 | Scheduled Health Checks | `.github/workflows/health-check.yml` | **liveness** (owner) | `0 */6 * * *` | this repo | — (opens a GitHub issue on failure) |
 | Weekly Status Report | `.github/workflows/weekly-report.yml` | **reporting** (cites the owners above) | `0 7 * * 1` — Mon 07:00 | this repo | — |
 | Weekly Security Audit | `.github/workflows/security-audit.yml` | **belt-and-braces** `npm audit` only | `0 7 * * 3` — Wed 07:00 | this repo | — (authoritative sweep = Daily Security) |
-| Dependency freshness (SEC-197 / CTL-081) | `.github/workflows/security-audit.yml` job `freshness` | **dependency freshness** (owner) — vulnerable or >90-day-old dependencies, per `docs/DEPENDENCY_POLICY.md` | `20 6 * * *` — daily 06:20 | this repo | — (one tracking GitHub issue, label `dependencies`) |
+| Dependency Freshness (SEC-197 / CTL-081) | `.github/workflows/dependency-freshness.yml` | **dependency freshness** (owner) — vulnerable or >90-day-old dependencies, per `docs/DEPENDENCY_POLICY.md` | `40 5 * * *` — daily 05:40 | this repo | — (one tracking GitHub issue, label `dependencies`) |
 
 ### Concern → single owner (KAN-361)
 
@@ -70,6 +70,8 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
 - **Security / pen-test of record** = the **Daily Security routine** +
   `docs/DAILY_SECURITY_CHECK.md`. `security-audit.yml` is demoted to an
   explicit thin belt-and-braces `npm audit` (fail-on-high/critical only);
+  it stays that way — SEC-197's whole-tree freshness report was deliberately
+  given its own workflow (`dependency-freshness.yml`) rather than grown into it;
   `weekly-report.yml` Section 5 keeps the Dependabot/CodeQL counts but cites the
   Daily Security routine as the source of record.
 - **Test / release of record** = the **Weekly Health + Regression routine** +
@@ -91,6 +93,11 @@ to a weekly slot and trigger #3 to `15 8 * * 1-5`).
   The gap is **expected to recur** — the review is deliberately human and
   cannot be given from a phone — so the requirement is that someone is *told*,
   not that it never happens.
+- **Dependency freshness of record** (SEC-197) = `dependency-freshness.yml`
+  (daily) + `docs/DEPENDENCY_POLICY.md`: every advisory at any severity and every
+  direct dependency >90 days old with a newer release, in ONE tracking issue.
+  It is a narrower concern than the Daily Security routine's security sweep
+  (it measures dependency versions, nothing else) and does not replace it.
 - **Doc-sync of record** = the Doc-Sync Health-Check routine, watching the
   KAN-249 producer.
 - **Staging-soak of record** = the **Staging Soak routine** +
