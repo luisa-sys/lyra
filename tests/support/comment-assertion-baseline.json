@@ -196,12 +196,6 @@
     },
     {
       "test": "tests/unit/conversation-starters.test.ts",
-      "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
-      "assertion": "/sanitiseText/",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/conversation-starters.test.ts",
       "subject": "src/app/dashboard/profile/page.tsx",
       "assertion": "/conversation_starter_prompts/",
       "severity": "comment-shadowed"

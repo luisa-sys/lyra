@@ -21,17 +21,22 @@ describe('KAN-135: Upload action exists with validation', () => {
     expect(content).toMatch(/export async function uploadAvatar/);
   });
 
+  // KAN-486 (spec v0.8 §01, founder-approved 2026-11-23): JPG, PNG or WebP
+  // only — GIF is no longer accepted (this case used to assert 'image/gif' was
+  // present). Behaviour is pinned in upload-avatar-limits-wiring.test.ts.
   test('validates MIME type server-side', () => {
     expect(content).toContain('ALLOWED_IMAGE_TYPES');
-    expect(content).toContain('image/jpeg');
-    expect(content).toContain('image/png');
-    expect(content).toContain('image/webp');
-    expect(content).toContain('image/gif');
+    expect(content).toContain("'image/jpeg'");
+    expect(content).toContain("'image/png'");
+    expect(content).toContain("'image/webp'");
+    expect(content).not.toContain("'image/gif'");
   });
 
+  // KAN-486: the 5 MB cap now comes from the photo pipeline
+  // (src/modules/profile/photo-processing.ts, PHOTO_MAX_BYTES = 5 * 1024 * 1024);
+  // this case used to look for a local MAX_FILE_SIZE constant.
   test('validates file size (5MB max)', () => {
-    expect(content).toContain('MAX_FILE_SIZE');
-    expect(content).toContain('5 * 1024 * 1024');
+    expect(content).toContain('maxBytes: PHOTO_MAX_BYTES');
   });
 
   test('uploads to profile-photos bucket', () => {

@@ -238,17 +238,23 @@ describe('KAN-219: surface-area regression guards', () => {
     expect(src).toMatch(/rel="noopener noreferrer"/);
   });
 
-  test('actions.ts addProfileItem accepts url param and uses sanitiseUrl', () => {
+  // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): item URLs now go
+  // through parseMemberUrl (shared with external_links; rejects rather than
+  // truncates). This used to match /sanitiseUrl\(data\.url\)/ and the literal
+  // 'Invalid URL' in actions.ts — that copy now lives in member-url.ts and the
+  // action returns the parser's message. The behaviour is pinned by the
+  // 'REJECTS a javascript: URL with a clear error' case above.
+  test('actions.ts addProfileItem accepts url param and uses parseMemberUrl', () => {
     const src = readFileSync(
       resolve(ROOT, SRC.profileActions),
       'utf-8',
     );
     // url is an optional param on the addProfileItem data type
     expect(src).toMatch(/url\?:\s*string/);
-    // url is sanitised via sanitiseUrl (same helper external_links uses)
-    expect(src).toMatch(/sanitiseUrl\(data\.url\)/);
-    // The rejection path returns a clear error rather than silently dropping
-    expect(src).toMatch(/Invalid URL/);
+    // url is validated via parseMemberUrl (same helper external_links uses)
+    expect(src).toMatch(/parseMemberUrl\(data\.url\)/);
+    // The rejection path returns the parser's clear error rather than silently dropping
+    expect(src).toMatch(/return \{ success: false, error: parsed\.error \}/);
   });
 
   test('public profile [slug]/page.tsx renders item URLs as clickable links', () => {

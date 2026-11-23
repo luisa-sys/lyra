@@ -64,10 +64,22 @@ beforeEach(() => {
 });
 
 describe('KAN-484 per-question answer limits', () => {
-  it('caps a preset answer at THAT preset’s limit on ADD (200, not 500)', async () => {
-    const res = await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(600) });
+  // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): over-limit answers
+  // are REJECTED, not cut. The three "caps" cases below used to assert the
+  // stored answer was truncated to the limit (200 / 500 / 200).
+  it('rejects a preset answer over THAT preset’s limit on ADD (200, not 500)', async () => {
+    const res = await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(201) });
+    expect(res).toEqual({
+      success: false,
+      error: 'Your answer is too long: 201 characters (limit 200, including spaces).',
+    });
+    expect(calls.some((c) => c.table === 'profile_conversation_starters' && c.op === 'insert')).toBe(false);
+  });
+
+  it('accepts a preset answer at exactly its limit on ADD', async () => {
+    const res = await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(200) });
     expect(res.success).toBe(true);
-    expect(String(writePayload('insert').answer)).toHaveLength(200);
+    expect(writePayload('insert').answer).toBe('a'.repeat(200));
   });
 
   it('allows a long answer when the preset’s limit is higher (perfect day = 1000)', async () => {
@@ -84,15 +96,24 @@ describe('KAN-484 per-question answer limits', () => {
     expect(calls.some((c) => c.table === 'profile_conversation_starters' && c.op === 'insert')).toBe(false);
   });
 
-  it('caps a member-written question’s answer at 500 without reading the presets', async () => {
-    await addConversationStarter({ customPrompt: 'My own?', answer: 'c'.repeat(700) });
-    expect(String(writePayload('insert').answer)).toHaveLength(500);
+  it('limits a member-written question’s answer to 500 without reading the presets', async () => {
+    const over = await addConversationStarter({ customPrompt: 'My own?', answer: 'c'.repeat(501) });
+    expect(over).toEqual({
+      success: false,
+      error: 'Your answer is too long: 501 characters (limit 500, including spaces).',
+    });
+    await addConversationStarter({ customPrompt: 'My own?', answer: 'c'.repeat(500) });
+    expect(writePayload('insert').answer).toBe('c'.repeat(500));
     expect(calls.some((c) => c.table === 'conversation_starter_prompts')).toBe(false);
   });
 
   it('applies the preset’s limit on UPDATE when the preset is named', async () => {
-    await updateConversationStarter('answer-1', 'd'.repeat(600), undefined, PROMPT_ID);
-    expect(String(writePayload('update').answer)).toHaveLength(200);
+    const res = await updateConversationStarter('answer-1', 'd'.repeat(201), undefined, PROMPT_ID);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your answer is too long: 201 characters (limit 200, including spaces).',
+    });
+    expect(calls.some((c) => c.table === 'profile_conversation_starters' && c.op === 'update')).toBe(false);
   });
 
   it('keeps the UPDATE scoped to the caller’s own profile', async () => {

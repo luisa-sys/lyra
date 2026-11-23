@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // KAN-486: profile photos may be up to 5 MB (spec v0.8 §01) and are sent to
+  // the uploadAvatar server action; Next's default action body limit is 1 MB.
+  // Vercel's platform request cap (4.5 MB) still applies on top of this, so
+  // the step-4 editor downscales large photos in the browser before upload.
+  experimental: {
+    serverActions: { bodySizeLimit: '5mb' },
+  },
   // KAN-88: OAuth 2.1 well-known discovery endpoints. Next.js doesn't route
   // folder names starting with '.' reliably, so we serve the canonical
   // /.well-known/* paths via internal /api/well-known/* routes.

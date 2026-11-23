@@ -220,18 +220,35 @@ describe('KAN-445 the member-written question is public text — BOTH paths', ()
     expect(String(writePayload('update').custom_prompt)).not.toContain('<i>');
   });
 
-  it('caps the question at 180 characters on ADD', async () => {
-    await addConversationStarter({ customPrompt: 'q'.repeat(400), answer: 'A kettle.' });
+  // KAN-486 (spec v0.8 §3/§09, founder-approved 2026-11-23): a question over
+  // 180 characters is REJECTED with a message, never cut. These two cases used
+  // to assert a 400-character question was truncated to exactly 180.
+  it('rejects a question over 180 characters on ADD, writing nothing', async () => {
+    const res = await addConversationStarter({ customPrompt: 'q'.repeat(181), answer: 'A kettle.' });
 
-    // Mirrors `pcs_custom_prompt_length`; an uncapped path fails with a raw
-    // 23514 instead of a clean truncation.
-    expect(String(writePayload('insert').custom_prompt)).toHaveLength(180);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your question is too long: 181 characters (limit 180, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'insert')).toBe(false);
   });
 
-  it('caps the question at 180 characters on UPDATE', async () => {
-    await updateConversationStarter('a1', 'A kettle.', 'q'.repeat(400));
+  it('rejects a question over 180 characters on UPDATE, writing nothing', async () => {
+    const res = await updateConversationStarter('a1', 'A kettle.', 'q'.repeat(181));
 
-    expect(String(writePayload('update').custom_prompt)).toHaveLength(180);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your question is too long: 181 characters (limit 180, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'update')).toBe(false);
+  });
+
+  it('stores a question of exactly 180 characters whole, on both paths', async () => {
+    await addConversationStarter({ customPrompt: 'q'.repeat(180), answer: 'A kettle.' });
+    await updateConversationStarter('a1', 'A kettle.', 'r'.repeat(180));
+
+    expect(writePayload('insert').custom_prompt).toBe('q'.repeat(180));
+    expect(writePayload('update').custom_prompt).toBe('r'.repeat(180));
   });
 
   it('refuses a question that is empty once stripped, writing nothing', async () => {
