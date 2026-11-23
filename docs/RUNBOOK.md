@@ -191,18 +191,25 @@ Only these three rules live here. The other six from the modularisation plan
 `modules.json` and land in KAN-415 C2. `tests/scripts/check-dependency-rules.test.js`
 asserts they are absent, so they cannot creep in early.
 
-### Gotcha — `dependency-cruiser` is pinned to 17.x by CI's Node version
+### CI runs on Node 24 (SEC-174, 2026-11-23)
 
-The `PR Quality Gate` job runs on **Node 20** (`node-version: '20'` in
-`pr-checks.yml`). `dependency-cruiser` 18 dropped Node 20 (`engines.node:
-^22||^24||>=26`) and refuses to start on it, so the pin is `^17.4.3`
-(`^20.12||^22||>=24`). Local dev on Node 22 runs either happily, which is exactly
-how this got missed until CI — the first run of this gate failed for that reason,
-and correctly failed *closed* rather than skipping.
+Every workflow's `actions/setup-node` step now pins `node-version: '24'`
+(was a mix of `'20'` and `'22'`). Node 20 left support in April 2026, and
+two upgrades required by the dependency-freshness policy (SEC-197) refuse to
+start below Node 22: `@lhci/cli` 0.16 (`engines.node: >=22.19.0`) and
+`dependency-cruiser` 18 (`^22||^24||>=26`). Node 24 is an LTS line
+supported by the Vercel runtime; 26 is newer, and is the
+next step once the Vercel runtime and the toolchain are confirmed on it.
 
-**Do not bump to 18+ without moving the CI job to Node 22 first**, and treat that
-as its own change: every step in the job (lint, type-check, unit tests, build,
-audit) shares that runtime.
+**History — why `dependency-cruiser` used to be pinned to 17.x.** The
+`PR Quality Gate` job ran on Node 20, and `dependency-cruiser` 18 dropped
+Node 20 and refused to start on it, so the pin was `^17.4.3`. Local dev on
+Node 22 ran either happily, which is exactly how it was missed until CI — the
+first run of this gate failed for that reason, and correctly failed *closed*
+rather than skipping. **The lesson stands: a dev-tool major can carry an
+engines bump, and every step in a job (lint, type-check, unit tests, build,
+audit) shares that runtime** — move the CI Node version first, as its own
+change.
 
 ### Gotcha — segment names contain regex metacharacters
 
