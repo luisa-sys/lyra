@@ -1,6 +1,10 @@
 /** @type {import('jest').Config} */
 const config = {
   testEnvironment: 'node',
+  // SEC-174: refuse to run on a Node major other than .nvmrc's, with one clear
+  // "use Node 24" error, instead of letting runtime-sensitive suites (e.g.
+  // dependency-cruiser 18, which refuses Node 25) fail looking unrelated.
+  globalSetup: '<rootDir>/scripts/check-node-version.cjs',
   transform: {
     '^.+\\.(ts|tsx)$': ['@swc/jest'],
   },

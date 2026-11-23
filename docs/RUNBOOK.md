@@ -219,10 +219,20 @@ which shell out to dependency-cruiser), and `scripts/check-edge-safe.py` exits 2
 That is the gate working, not a regression: run it on Node 24 (what CI uses).
 The repo pins that for you: `.nvmrc` says `24` (`nvm use` / `fnm use`) and
 `package.json` declares `"engines": {"node": "24.x"}`, so `npm ci` on any other
-major prints an `EBADENGINE` warning naming the mismatch (a warning, not a
-failure — there is no `engine-strict`). Note Vercel also reads `engines.node`
-to pick the build/runtime Node, so `24.x` pins the deployed runtime to 24 too —
-the same version every CI workflow uses. **The lesson stands: a dev-tool major can carry an
+major prints an `EBADENGINE` warning (a warning only — no `engine-strict`).
+**Jest now refuses to start on any other major** (SEC-174 round 2):
+`jest.config.js` runs `scripts/check-node-version.cjs` as `globalSetup`, which
+compares the running Node major with `.nvmrc` and fails the whole run with one
+"use Node 24" message and the install command, instead of ten red cases that
+look unrelated to the runtime. There is deliberately no bypass variable — an
+expected red is a switched-off control (CLAUDE.md catalogue #7). **Machine
+step on a Homebrew-Node-25 Mac:** `brew install node@24 && export
+PATH="$(brew --prefix node@24)/bin:$PATH"` (add the export to your shell
+profile), then `rm -rf node_modules && npm ci`. Node 25 is an odd-numbered,
+short-lived release, so it is outside SEC-197 anyway. `engines.node` `24.x`
+matches the Vercel project's existing Node setting (already 24.x, checked
+read-only 2026-11-23), so it changes nothing at deploy time; it only makes the
+setting visible in the repo, next to CI's `node-version: '24'`. **The lesson stands: a dev-tool major can carry an
 engines bump, and every step in a job (lint, type-check, unit tests, build,
 audit) shares that runtime** — move the CI Node version first, as its own
 change.
