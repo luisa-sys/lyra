@@ -1500,6 +1500,72 @@ export type Database = {
           },
         ]
       }
+      profile_items_legacy_archive: {
+        Row: {
+          approved: boolean | null
+          archived_at: string
+          category: string
+          description: string | null
+          group_label: string | null
+          id: string
+          item_created_at: string | null
+          kan490_action: string
+          origin: string | null
+          profile_id: string
+          sort_order: number | null
+          title: string | null
+          url: string | null
+          visibility: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          archived_at?: string
+          category: string
+          description?: string | null
+          group_label?: string | null
+          id: string
+          item_created_at?: string | null
+          kan490_action: string
+          origin?: string | null
+          profile_id: string
+          sort_order?: number | null
+          title?: string | null
+          url?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          archived_at?: string
+          category?: string
+          description?: string | null
+          group_label?: string | null
+          id?: string
+          item_created_at?: string | null
+          kan490_action?: string
+          origin?: string | null
+          profile_id?: string
+          sort_order?: number | null
+          title?: string | null
+          url?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_items_legacy_archive_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_items_legacy_archive_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_manual_of_me: {
         Row: {
           boundaries: string | null
@@ -1546,6 +1612,42 @@ export type Database = {
             foreignKeyName: "profile_manual_of_me_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: true
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_slug_history: {
+        Row: {
+          created_at: string
+          old_slug: string
+          old_slug_key: string | null
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          old_slug_key?: string | null
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          old_slug_key?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_slug_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_slug_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
@@ -2321,6 +2423,11 @@ export type Database = {
       }
       insert_ai_gift_suggestions: { Args: { p_items: Json }; Returns: Json }
       is_reserved_lyra_id: { Args: { p_id: string }; Returns: boolean }
+      lyra_id_from_legacy: {
+        Args: { p_profile_id: string; p_slug: string }
+        Returns: string
+      }
+      lyra_slugify: { Args: { p_text: string }; Returns: string }
       moderation_log_row_hash: {
         Args: {
           p_action: string

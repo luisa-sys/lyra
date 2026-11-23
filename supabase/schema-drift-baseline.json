@@ -98,6 +98,106 @@
           "line": "function:profile_item_rule",
           "ticket": "KAN-485",
           "note": "v0.8 profile data model (epic KAN-482): migration 20261123090000_kan485_profile_model_v08.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.approved",
+          "ticket": "KAN-490",
+          "note": "v0.8 data migration (epic KAN-482): migration 20261123130000_kan490_v08_data_migration.sql, applied on dev only for the founder's first-draft review. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.archived_at",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.category",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.description",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.group_label",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.id",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.item_created_at",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.kan490_action",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.origin",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.profile_id",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.sort_order",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.title",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.url",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_items_legacy_archive.visibility",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_slug_history.created_at",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_slug_history.old_slug",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_slug_history.old_slug_key",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "column:profile_slug_history.profile_id",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "function:lyra_id_from_legacy",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "function:lyra_slugify",
+          "ticket": "KAN-490",
+          "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
         }
       ],
       "only_in_second": [

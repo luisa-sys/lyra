@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/modules/platform/supabase-server';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { getAdminServiceClient } from '@/modules/admin/admin';
 import { getAccountStanding, shouldRefuseIssuance } from '@/modules/access/account-status';
 import { redirect } from 'next/navigation';
@@ -230,15 +229,11 @@ export async function exportUserData(): Promise<string> {
 
   // KAN-490: the member's pre-v0.8 profile addresses (old slugs kept so old
   // links redirect) and the archive copy of their pre-v0.8 list items. Both
-  // are unreadable by the member's own client (RLS on, no policies). Neither
-  // table is in the generated types until the KAN-490 migration is applied to
-  // dev and `npm run gen:db-types` is re-run; until then these two reads go
-  // through the untyped client. Remove the cast after regeneration.
-  const untypedAdmin = admin as unknown as SupabaseClient;
-  const { data: slugHistory, error: slugHistErr } = await untypedAdmin
+  // are unreadable by the member's own client (RLS on, no policies).
+  const { data: slugHistory, error: slugHistErr } = await admin
     .from('profile_slug_history').select('old_slug, created_at').eq('profile_id', profileId);
   record('profile_slug_history', slugHistErr);
-  const { data: legacyItemArchive, error: legacyArchErr } = await untypedAdmin
+  const { data: legacyItemArchive, error: legacyArchErr } = await admin
     .from('profile_items_legacy_archive').select('*').eq('profile_id', profileId);
   record('profile_items_legacy_archive', legacyArchErr);
 

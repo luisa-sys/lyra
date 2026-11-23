@@ -51,7 +51,7 @@
 -- items 2 -> profiles.billboard (both empty), helpful_to_know 3 ->
 -- manual_of_me.good_to_know, boundaries 3 -> manual_of_me.boundaries (one new
 -- manual_of_me row). All archived first; nothing deleted; caps hold (gift
--- ideas end at 20 and 7 of 25). The full old -> new table is pinned in
+-- ideas end at 19 and 7 of 25). The full old -> new table is pinned in
 -- tests/unit/kan490-lyra-id-convert.test.ts (src/modules/profile/lyra-id-convert.ts
 -- is the TypeScript mirror of lyra_slugify + lyra_id_from_legacy).
 --

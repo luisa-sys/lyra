@@ -40,7 +40,6 @@ import {
 } from '@/modules/profile/editor/editor-state';
 import type { ManualOfMe } from '@/modules/profile/manual-of-me-fields';
 import type { Database } from '@/types/database';
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 type ViewRow = Database['public']['Views']['public_profiles']['Row'];
 
@@ -117,12 +116,7 @@ export async function resolveLegacySlug(slug: string): Promise<string | null> {
     }
   }
 
-  // `profile_slug_history` is not in the generated types until the KAN-490
-  // migration is applied to dev and `npm run gen:db-types` is re-run; until
-  // then this one read goes through the untyped client. Remove the cast after
-  // regeneration (same pattern as KAN-489).
-  const untyped = supabase as unknown as SupabaseClient;
-  const { data: history, error: historyError } = await untyped
+  const { data: history, error: historyError } = await supabase
     .from('profile_slug_history')
     .select('profile_id')
     .eq('old_slug_key', key)
