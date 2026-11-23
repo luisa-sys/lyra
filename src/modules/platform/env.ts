@@ -56,5 +56,18 @@ export const env = {
    * splitting and canonicalisation, since that is policy rather than plumbing.
    */
   oauthAllowedResources: () => optionalEnv('OAUTH_ALLOWED_RESOURCES', '').trim(),
+
+  /**
+   * KAN-488 — gate for the unauthenticated recommendation APIs
+   * (/api/recommendations/[slug] and /api/recommendations/v2/[slug]).
+   *
+   * Spec v0.8 §3/§03: "never publish an unapproved suggestion" and the public
+   * profile "must not expose … unapproved AI content in APIs". Those routes
+   * return gift/product suggestions the member never approved, so they are OFF
+   * unless this is exactly '1'. Off = 404, before any database read. Turning it
+   * back on is a founder decision against the spec, not a config tweak.
+   */
+  publicRecommendationsApiEnabled: () =>
+    optionalEnv('LYRA_PUBLIC_RECOMMENDATIONS_API', '').trim() === '1',
 };
 // Force rebuild 20260329011858

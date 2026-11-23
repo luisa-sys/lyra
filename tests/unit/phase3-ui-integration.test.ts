@@ -244,8 +244,11 @@ describe('KAN-234: surface-area regression guards', () => {
   });
 
   test('[slug]/page.tsx uses the hybrid filter (isItemVisibleUnderHybridModel)', () => {
+    // KAN-488: the page's item read and its hybrid filter moved into the
+    // public-profile loader (CTL-056). Same expected values, new location.
+    // Was: readFileSync(resolve(ROOT, SRC.slugPage), 'utf-8')
     const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
+      resolve(ROOT, SRC.loadPublicProfile),
       'utf-8',
     );
     expect(src).toMatch(/isItemVisibleUnderHybridModel/);
@@ -257,8 +260,9 @@ describe('KAN-234: surface-area regression guards', () => {
   });
 
   test('[slug]/page.tsx removes the .in("visibility", [...]) query filter (hybrid model needs NULL rows too)', () => {
+    // KAN-488: retargeted to the loader, as above. Was: SRC.slugPage
     const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
+      resolve(ROOT, SRC.loadPublicProfile),
       'utf-8',
     );
     // The previous query had `.in('visibility', allowedVisibility)` — that

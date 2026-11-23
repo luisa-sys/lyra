@@ -7,7 +7,7 @@
   },
   "_totals": {
     "files": 149,
-    "blocks": 342
+    "blocks": 339
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -91,7 +91,7 @@
     "tests/unit/convene/organise-ui.test.ts": 1,
     "tests/unit/convene/post-event.test.ts": 4,
     "tests/unit/convene/twilio-send.test.ts": 2,
-    "tests/unit/conversation-starters.test.ts": 4,
+    "tests/unit/conversation-starters.test.ts": 3,
     "tests/unit/current-problems-category.test.ts": 3,
     "tests/unit/dependabot-target-branch.test.js": 1,
     "tests/unit/doc-dod.test.js": 1,
@@ -133,7 +133,7 @@
     "tests/unit/profile-rate-limit-wiring.test.ts": 1,
     "tests/unit/profile-sections.test.js": 1,
     "tests/unit/public-profile-suspended-gating.test.ts": 1,
-    "tests/unit/public-profile.test.js": 4,
+    "tests/unit/public-profile.test.js": 2,
     "tests/unit/pwa-manifest.test.ts": 2,
     "tests/unit/pwa-service-worker.test.ts": 4,
     "tests/unit/rate-limit.test.js": 1,

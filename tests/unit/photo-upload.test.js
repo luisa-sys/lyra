@@ -101,20 +101,28 @@ describe('KAN-135: Identity step has photo upload UI', () => {
 });
 
 describe('KAN-135: Public profile shows avatar', () => {
-  const profilePath = path.join(root, SRC.slugPage);
-  let content;
+  // KAN-488: the public page's read moved into the public-profile loader and
+  // its header into the section renderer. Was: one file, SRC.slugPage.
+  let loader;
+  let sections;
 
   beforeAll(() => {
-    content = fs.readFileSync(profilePath, 'utf8');
+    loader = fs.readFileSync(path.join(root, SRC.loadPublicProfile), 'utf8');
+    sections = fs.readFileSync(path.join(root, SRC.publicProfileSections), 'utf8');
   });
 
+  // The photo reaches the renderer through the v0.8 view model; the rendered
+  // photo is asserted in kan488-public-profile-page.test.tsx.
   test('ProfileData interface includes avatar_url', () => {
-    expect(content).toContain('avatar_url: string | null');
+    // Was: expect(content).toContain('avatar_url: string | null');
+    expect(loader).toContain('avatar_url: row.avatar_url');
   });
 
   test('profile header conditionally shows avatar image', () => {
-    expect(content).toContain('typedProfile.avatar_url');
-    expect(content).toContain('object-cover');
+    // Was: expect(content).toContain('typedProfile.avatar_url');
+    //      expect(content).toContain('object-cover');
+    expect(sections).toContain('section.photoUrl ?');
+    expect(sections).toContain('object-cover');
   });
 });
 

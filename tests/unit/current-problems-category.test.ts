@@ -43,14 +43,19 @@ describe('KAN-182 current_problems category — surface-area regression guards',
   });
 
   test('public profile [slug]/page.tsx renders current_problems with a warm heading', () => {
+    // KAN-488: the page renders the v0.8 view model, whose §08 section is built
+    // from the current_problems list under the spec heading (curly apostrophe).
+    // The rendered heading is asserted in kan488-public-profile-page.test.tsx.
+    // Old expected values (on SRC.slugPage):
+    //   expect(src).toMatch(/groupedItems\['current_problems'\]/);
+    //   expect(src).toMatch(/Problems I'm trying to solve/);
+    // (founder standing approval 2026-11-23: v0.8 contradicts the heading)
     const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
+      resolve(ROOT, SRC.publicViewModel),
       'utf-8',
     );
-    // KAN-265 redesign: rendered via an explicit <CardSection> (grouped items +
-    // a warm heading) rather than the old categoryLabels / categoryOrder maps.
-    expect(src).toMatch(/groupedItems\['current_problems'\]/);
-    expect(src).toMatch(/Problems I'm trying to solve/);
+    expect(src).toMatch(/listSection\(state, 'current_problems', 'problems'/);
+    expect(src).toMatch(/Problems I’m trying to solve — ideas welcome/);
   });
 
   test('migration file exists and adds the enum value', () => {

@@ -26,7 +26,13 @@ const NEW_CATEGORIES = [
 // the shared list would have quietly weakened that assertion too, which is
 // the failure mode this repo keeps re-learning: a list edited to make one
 // caller green stops guarding its other callers without saying so.
-const PUBLIC_PAGE_CATEGORIES = NEW_CATEGORIES.filter((c) => c !== 'billboard');
+//
+// KAN-488: 'questions' joins it. The legacy "questions" items are a pre-v0.8
+// category the v0.8 editor cannot show (KAN-490 migrates them), so the public
+// page no longer fetches them; the exact category set the page reads is
+// asserted as literals in kan488-public-profile-loader.test.ts.
+// Was: NEW_CATEGORIES.filter((c) => c !== 'billboard')
+const PUBLIC_PAGE_CATEGORIES = NEW_CATEGORIES.filter((c) => c !== 'billboard' && c !== 'questions');
 
 describe('KAN-137: Wizard supports new section categories', () => {
   const wizardPath = path.join(root, SRC.wizard);
@@ -113,7 +119,15 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   const profilePath = path.join(root, SRC.slugPage);
   // Built from the manifest's profile-directory entry rather than a raw repo
   // path, so this adds no new path coupling to the KAN-414 F4 ratchet.
-  const favouritesPath = path.join(root, SRC.favourites);
+  //
+  // KAN-488: the render path changed again. The page now renders the v0.8
+  // view model, so the files a public category passes through are the
+  // editor's category table, the view model and the section renderer — not
+  // the favourites module, which the page no longer imports.
+  // Was: const favouritesPath = path.join(root, SRC.favourites);
+  const renderPathFiles = [SRC.editorState, SRC.publicViewModel, SRC.publicProfileSections].map((p) =>
+    path.join(root, p),
+  );
   let pageContent;
   let content;
 
@@ -124,12 +138,18 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // documenting a fix is what conceals its removal — same shape as SEC-100.
   beforeAll(() => {
     pageContent = stripComments(fs.readFileSync(profilePath, 'utf8'));
-    content = pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'));
+    // Was: pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'))
+    content = pageContent + renderPathFiles.map((f) => stripComments(fs.readFileSync(f, 'utf8'))).join('\n');
   });
 
   test('public page renders favourites through the shared groups module (KAN-444)', () => {
-    expect(pageContent).toContain("from '@/modules/profile/favourites'");
-    expect(pageContent).toContain('groupFavourites(typedItems)');
+    // KAN-488: the shared module is now the v0.8 view model, which the editor's
+    // Preview draws too — the same parity KAN-444 wanted, one level up.
+    // Old expected values:
+    //   expect(pageContent).toContain("from '@/modules/profile/favourites'");
+    //   expect(pageContent).toContain('groupFavourites(typedItems)');
+    expect(pageContent).toContain("from '@/modules/profile/editor/public-view-model'");
+    expect(pageContent).toContain('buildPublicProfileView(initialEditorState(loaded)');
   });
 
   test.each(PUBLIC_PAGE_CATEGORIES)('page renders category: %s', (cat) => {
@@ -137,16 +157,24 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   });
 
   test('favourites render in a dedicated favourites grid', () => {
-    expect(pageContent).toContain('A few of my favourite things');
+    // KAN-488: the heading is the view model's §06 label (in `content`); the
+    // rendered heading is asserted in kan488-public-profile-page.test.tsx.
+    // Was: expect(pageContent).toContain('A few of my favourite things');
+    expect(content).toContain('A few of my favourite things');
     expect(content).toContain("['favourite_books'");
     expect(content).toContain("['favourite_media'");
     expect(content).toContain("['quotes'");
   });
 
   test('questions + conversation starters render as a Q&A section', () => {
-    expect(content).toContain("groupedItems['questions']");
-    // KAN-445 renamed the heading to the founder's wording.
-    expect(content).toContain('A bit more about me');
+    // KAN-488: legacy "questions" items are no longer read (see
+    // PUBLIC_PAGE_CATEGORIES above); answered questions render under the v0.8
+    // §09 heading. Old expected values:
+    //   expect(content).toContain("groupedItems['questions']");
+    //   expect(content).toContain('A bit more about me');
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(content).not.toContain("groupedItems['questions']");
+    expect(content).toContain('Random Questions & Answers');
   });
 
   // KAN-469: two tests stood here — one asserting the standalone billboard

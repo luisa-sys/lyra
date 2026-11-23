@@ -40,11 +40,11 @@
   "ticket": "KAN-415",
   "_concentration": {
     "$comment": "Computed at --write-baseline, never typed. Files contributing the most pairs. A single file with a large share is usually a legitimate cross-cutting concern (erasure, export, admin) rather than N separate boundary breaks \u2014 read the count here before proposing a cleanup.",
-    "pairs": 57,
+    "pairs": 55,
     "writes": 12,
     "topFiles": {
       "src/app/dashboard/settings/actions.ts": 29,
-      "src/app/[slug]/page.tsx": 7,
+      "src/modules/public-profile/load-public-profile.ts": 3,
       "src/app/admin/moderation/page.tsx": 2
     }
   },
@@ -439,7 +439,7 @@
     "profile -> conversation_starter_prompts": {
       "mode": "read",
       "basis": "select-call",
-      "sites": 3,
+      "sites": 4,
       "owner": [
         "admin"
       ],
@@ -448,25 +448,9 @@
     "profile -> gift_suggestion_dismissals": {
       "mode": "write",
       "basis": "mutation-call",
-      "sites": 3,
+      "sites": 2,
       "owner": null,
       "example": "src/app/dashboard/profile/actions.ts"
-    },
-    "public-profile -> external_links": {
-      "mode": "read",
-      "basis": "select-call",
-      "sites": 1,
-      "owner": [
-        "profile"
-      ],
-      "example": "src/app/[slug]/page.tsx"
-    },
-    "public-profile -> gift_suggestion_dismissals": {
-      "mode": "read",
-      "basis": "select-call",
-      "sites": 1,
-      "owner": null,
-      "example": "src/app/[slug]/page.tsx"
     },
     "public-profile -> profile_conversation_starters": {
       "mode": "read",
@@ -475,7 +459,7 @@
       "owner": [
         "profile"
       ],
-      "example": "src/app/[slug]/page.tsx"
+      "example": "src/modules/public-profile/load-public-profile.ts"
     },
     "public-profile -> profile_items": {
       "mode": "read",
@@ -484,7 +468,7 @@
       "owner": [
         "profile"
       ],
-      "example": "src/app/[slug]/page.tsx"
+      "example": "src/modules/public-profile/load-public-profile.ts"
     },
     "public-profile -> profile_manual_of_me": {
       "mode": "read",
@@ -493,14 +477,14 @@
       "owner": [
         "profile"
       ],
-      "example": "src/app/[slug]/page.tsx"
+      "example": "src/modules/public-profile/load-public-profile.ts"
     },
     "public-profile -> public_profiles": {
       "mode": "read",
       "basis": "select-call",
-      "sites": 3,
+      "sites": 2,
       "owner": null,
-      "example": "src/app/[slug]/page.tsx"
+      "example": "src/app/search/page.tsx"
     },
     "public-profile -> school_affiliations": {
       "mode": "read",
@@ -509,7 +493,7 @@
       "owner": [
         "profile"
       ],
-      "example": "src/app/[slug]/page.tsx"
+      "example": "src/app/search/page.tsx"
     },
     "recommendations -> profile_items": {
       "mode": "read",

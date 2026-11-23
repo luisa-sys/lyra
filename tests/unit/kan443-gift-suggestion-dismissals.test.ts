@@ -383,26 +383,43 @@ describe('the comment stripper used below actually strips', () => {
   });
 });
 
-describe('the public profile filters its recommendations by the dismissals', () => {
+// KAN-488 (spec v0.8 §03, §3): the public profile no longer shows the
+// recommender's suggestions at all — v0.8 publishes only gifts the member
+// wrote or approved, so the whole dismissal pipeline left the page.
+// (founder standing approval 2026-11-23: v0.8 contradicts.) The four
+// assertions below are inverted; each records its old expected value.
+// Titles renamed to match (KAN-488 review minor 4); old title kept above each.
+// Was: describe('the public profile filters its recommendations by the dismissals', ...
+describe('the public profile shows no recommender suggestions, so needs no dismissal filter (v0.8)', () => {
   const page = stripComments(fs.readFileSync(path.join(ROOT, SRC.slugPage), 'utf-8'));
 
-  test('it reads the member’s dismissals', () => {
-    expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
-    expect(page).toMatch(/dismissedKeys/);
+  // Was: test('it reads the member’s dismissals', ...
+  test('it no longer reads the member’s dismissals', () => {
+    // Old: expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
+    //      expect(page).toMatch(/dismissedKeys/);
+    expect(page).not.toMatch(/gift_suggestion_dismissals/);
+    expect(page).not.toMatch(/dismissedKeys/);
   });
 
-  test('the V1 concept list is filtered BEFORE the pipeline runs', () => {
-    // Filtering before the pipeline is what lets the next-best concept take the
-    // freed slot instead of the member simply losing a suggestion.
-    expect(page).toMatch(/withoutDismissedRecommendations\(\s*getRecommendations\(/);
+  // Was: test('the V1 concept list is filtered BEFORE the pipeline runs', ...
+  test('the V1 concept list is no longer computed on the page', () => {
+    // Old: expect(page).toMatch(/withoutDismissedRecommendations\(\s*getRecommendations\(/);
+    expect(page).not.toMatch(/getRecommendations/);
   });
 
-  test('the pipeline OUTPUT is filtered too, for the evergreen fallbacks', () => {
-    expect(page).toMatch(/withoutDismissedV2\(v2Result\.recommendations, dismissedKeys\)/);
+  // Was: test('the pipeline OUTPUT is filtered too, for the evergreen fallbacks', ...
+  test('the V2 pipeline no longer runs on the page', () => {
+    // Old: expect(page).toMatch(/withoutDismissedV2\(v2Result\.recommendations, dismissedKeys\)/);
+    expect(page).not.toMatch(/buildV2Recommendations/);
   });
 
   test('the voucher hint is rendered', () => {
-    expect(page).toMatch(/gift_voucher_hint/);
+    // KAN-488: the hint is now §03's general preference, read by the loader
+    // and rendered from the view model (asserted with its line break in
+    // kan488-public-profile-page.test.tsx). Was: expect(page).toMatch(/gift_voucher_hint/);
+    expect(stripComments(fs.readFileSync(path.join(ROOT, SRC.loadPublicProfile), 'utf-8'))).toMatch(
+      /gift_voucher_hint/,
+    );
   });
 });
 

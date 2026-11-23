@@ -291,12 +291,6 @@
       "severity": "comment-shadowed"
     },
     {
-      "test": "tests/unit/kan351-public-profile-data-integrity.test.ts",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "/sectionReadErrors/",
-      "severity": "comment-shadowed"
-    },
-    {
       "test": "tests/unit/mcp-discoverability.test.js",
       "subject": "src/app/page.tsx",
       "assertion": "checklyra.com",
@@ -342,12 +336,6 @@
       "test": "tests/unit/profile-items-visibility-migration.test.js",
       "subject": "src/app/dashboard/profile/actions.ts",
       "assertion": "coerceVisibility",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/public-profile.test.js",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "notFound",
       "severity": "comment-shadowed"
     },
     {

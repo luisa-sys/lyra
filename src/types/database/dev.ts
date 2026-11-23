@@ -2144,6 +2144,7 @@ export type Database = {
       public_profiles: {
         Row: {
           avatar_url: string | null
+          billboard: string | null
           bio_short: string | null
           city: string | null
           country: string | null
@@ -2163,6 +2164,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           country?: string | null
@@ -2182,6 +2184,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           country?: string | null

@@ -258,14 +258,16 @@ describe('KAN-219: surface-area regression guards', () => {
   });
 
   test('public profile [slug]/page.tsx renders item URLs as clickable links', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
-      'utf-8',
-    );
-    // The ProfileItem interface declares the url column
-    expect(src).toMatch(/url:\s*string\s*\|\s*null/);
-    // KAN-265: the card renderer branches on the item's url (it.url) to show a chip.
-    expect(src).toMatch(/it\.url &&/);
+    // KAN-488: the page renders the v0.8 view model through the public-profile
+    // section renderer; links are rendered (and asserted behaviourally, incl.
+    // a dropped javascript: URL) in kan488-public-profile-page.test.tsx.
+    // Was: all three read SRC.slugPage, and the branch was /it\.url &&/.
+    const model = readFileSync(resolve(ROOT, SRC.publicViewModel), 'utf-8');
+    const src = readFileSync(resolve(ROOT, SRC.publicProfileSections), 'utf-8');
+    // The public entry declares the (validated) url
+    expect(model).toMatch(/url:\s*string\s*\|\s*null/);
+    // The renderer branches on the entry's url to show a chip.
+    expect(src).toMatch(/e\.url &&/);
     // Outbound links use rel="noopener noreferrer" to prevent tab-nabbing
     expect(src).toMatch(/rel="noopener noreferrer"/);
   });

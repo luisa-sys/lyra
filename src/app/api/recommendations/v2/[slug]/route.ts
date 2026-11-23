@@ -14,7 +14,6 @@
  *     "displayName": "Luisa",
  *     "version": "v2",
  *     "buyerCountry": "GB",
- *     "recipientCountry": "GB",
  *     "recommendations": [
  *       {
  *         "concept": { categoryKey, conceptTitle, ... },
@@ -27,7 +26,8 @@
  *     ]
  *   }
  *
- * Read-only, no auth. The underlying profile data is already public.
+ * Read-only, no auth. KAN-488: OFF (404) unless LYRA_PUBLIC_RECOMMENDATIONS_API=1
+ * — spec v0.8 forbids unapproved suggestions in unauthenticated APIs.
  *
  * Buyer country detection (per docs/GEO_SIGNAL_DESIGN.md, KAN-185):
  *   1. ?buyer_country=XX query param (highest priority — explicit caller override)
@@ -35,11 +35,14 @@
  *   3. GB fallback
  *
  * Recipient country: from profiles.delivery_country_code (KAN-186); falls
- * back to buyer country if NULL.
+ * back to buyer country if NULL. Used for geo only and NOT returned: the
+ * delivery country is not shown on the public profile, so echoing it to an
+ * unauthenticated caller leaked hidden data (KAN-488 review).
  */
 
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 import { getRecommendations } from '@/modules/recommendations/recommend';
 import { buildV2Recommendations } from '@/modules/recommendations/recommender/v2/pipeline';
 import type { ConceptInput } from '@/modules/recommendations/recommender/v2/types';
@@ -86,6 +89,14 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
+  // KAN-488: these suggestions were never approved by the member, and spec
+  // v0.8 forbids unapproved suggestions in unauthenticated APIs. Off unless
+  // LYRA_PUBLIC_RECOMMENDATIONS_API=1; checked before any database read so a
+  // gated request learns nothing, not even whether the slug exists.
+  if (!env.publicRecommendationsApiEnabled()) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+
   const { slug } = await context.params;
   const url = new URL(request.url);
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? '5') || 5, 1), 20);
@@ -113,7 +124,9 @@ export async function GET(
     .from('profile_items')
     .select('category, title, description')
     .eq('profile_id', profile.id)
-    .eq('visibility', 'public');
+    .eq('visibility', 'public')
+    // KAN-488: an unapproved AI gift suggestion is never public (spec v0.8 §3).
+    .eq('approved', true);
 
   if (itemsError) {
     return NextResponse.json({ error: 'items_lookup_failed' }, { status: 500 });
@@ -165,7 +178,8 @@ export async function GET(
       displayName: profile.display_name,
       version: 'v2',
       buyerCountry,
-      recipientCountry,
+      // KAN-488: `recipientCountry` (from the hidden delivery_country_code)
+      // used to be echoed here; it is no longer part of the public response.
       recommendations: result.recommendations,
       // The recommender's evergreen fallback (KAN-recommender) substitutes
       // safe-default concepts when the buyer's own concepts produce zero

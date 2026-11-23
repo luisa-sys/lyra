@@ -325,9 +325,16 @@ describe('KAN-458: causes is its own section, never a favourites group', () => {
   });
 
   test('causes renders under its own heading on the public profile', () => {
-    const page = readSource(SRC.slugPage);
-    expect(page).toContain("groupedItems['causes']");
-    expect(page).toContain('Causes close to my heart');
+    // KAN-488: the public page renders the v0.8 view model, where causes is
+    // About Me's own list (never a favourites group), drawn by the section
+    // renderer under its own heading. Behaviour asserted in
+    // kan488-public-profile-page.test.tsx. Old expected values:
+    //   expect(readSource(SRC.slugPage)).toContain("groupedItems['causes']");
+    //   expect(readSource(SRC.slugPage)).toContain('Causes close to my heart');
+    expect(readSource(SRC.publicViewModel)).toContain("causes: titles(state, 'causes')");
+    const sections = readSource(SRC.publicProfileSections);
+    expect(sections).toContain('Causes close to my heart');
+    expect(sections).toContain('<TitleList titles={section.causes} />');
   });
 });
 
@@ -463,8 +470,12 @@ describe('KAN-444 → v0.8: legacy member-named groups render under Others', () 
 describe('KAN-444: both surfaces render from the shared grouping', () => {
   test('the public profile groups via groupFavourites and keeps no list of its own', () => {
     const page = readSource(SRC.slugPage);
-    expect(page).toContain("from '@/modules/profile/favourites'");
-    expect(page).toContain('groupFavourites(typedItems)');
+    // KAN-488: the public page now renders through the v0.8 view model (the
+    // editor's Preview draws the same one), not groupFavourites. Old values:
+    //   expect(page).toContain("from '@/modules/profile/favourites'");
+    //   expect(page).toContain('groupFavourites(typedItems)');
+    expect(page).toContain("from '@/modules/profile/editor/public-view-model'");
+    expect(page).toContain("buildPublicProfileView(initialEditorState(loaded), { audience: 'public' })");
     // The old per-surface table is gone; if a future change re-hardcodes the
     // categories here, the two surfaces can drift again.
     expect(page).not.toContain('FAV_DEFS');

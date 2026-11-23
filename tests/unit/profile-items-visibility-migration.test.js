@@ -76,6 +76,11 @@ describe('KAN-143 — profile_items visibility migration', () => {
 describe('KAN-143 — public profile page filters by visibility', () => {
   const pagePath = path.join(root, SRC.slugPage);
   const content = fs.readFileSync(pagePath, 'utf8');
+  // KAN-488: the item read and its hybrid filter moved into the public-profile
+  // loader (CTL-056); the viewer's auth check stays in the page. The three
+  // hybrid-filter assertions read the loader, expected values unchanged.
+  // Was: all four read `content` (SRC.slugPage).
+  const loaderContent = fs.readFileSync(path.join(root, SRC.loadPublicProfile), 'utf8');
 
   // KAN-234: filter helper switched to `isItemVisibleUnderHybridModel`
   // (resolves item.visibility against the section default before applying
@@ -85,7 +90,7 @@ describe('KAN-143 — public profile page filters by visibility', () => {
   // the hybrid model needs to fetch NULL-visibility rows too (they inherit
   // from the section default).
   test('imports the hybrid visibility filter (KAN-234 replaces KAN-143 filter)', () => {
-    expect(content).toMatch(/import\s*{[^}]*isItemVisibleUnderHybridModel[^}]*}/);
+    expect(loaderContent).toMatch(/import\s*{[^}]*isItemVisibleUnderHybridModel[^}]*}/);
   });
 
   test('checks viewer auth state before fetching items', () => {
@@ -99,11 +104,11 @@ describe('KAN-143 — public profile page filters by visibility', () => {
     // exclusively through isItemVisibleUnderHybridModel, which resolves each
     // item's visibility (incl. NULL → section default) against the viewer's
     // auth state. Guard that the enforcement helper is present.
-    expect(content).toContain('isItemVisibleUnderHybridModel');
+    expect(loaderContent).toContain('isItemVisibleUnderHybridModel');
   });
 
   test('applies application-level filter via the hybrid helper (defence in depth, KAN-234)', () => {
-    expect(content).toMatch(/isItemVisibleUnderHybridModel\(/);
+    expect(loaderContent).toMatch(/isItemVisibleUnderHybridModel\(/);
   });
 });
 
