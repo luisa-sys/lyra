@@ -54,6 +54,7 @@ jest.mock('@/modules/platform/supabase-server', () => {
 });
 
 import Page, { generateMetadata } from '@/app/[slug]/page';
+import { stripHtml } from '@/modules/guards/sanitise';
 import { statementLog, onlyStatement } from '../support/supabase-statement-mock';
 import { aliceProfileRow, aliceRows, SECRET_TOKENS } from '../support/kan488-public-profile-fixture';
 
@@ -63,13 +64,12 @@ async function render(): Promise<string> {
   return renderToStaticMarkup(await Page(params('alice')));
 }
 
+// Tag stripping reuses the loop-until-stable stripHtml, and entities are
+// decoded in ONE pass so "&amp;quot;" can never become '"' (CodeQL
+// js/incomplete-multi-character-sanitization, js/double-escaping).
+const ENTITIES: Record<string, string> = { '&amp;': '&', '&#x27;': "'", '&quot;': '"' };
 function decode(s: string): string {
-  return s
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&#x27;/g, "'")
-    .replace(/&quot;/g, '"')
-    .trim();
+  return stripHtml(s).replace(/&amp;|&#x27;|&quot;/g, (e) => ENTITIES[e]).trim();
 }
 
 function h2Texts(html: string): string[] {
