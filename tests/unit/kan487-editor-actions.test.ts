@@ -329,9 +329,11 @@ describe('KAN-487 editor actions: photo resolution', () => {
     const photo = rpcPayload().photo as { action: string; avatar_url?: string; staged_path?: string };
     expect(photo.action).toBe('set');
     expect(photo.staged_path).toBeUndefined();
-    expect(photo.avatar_url).toMatch(
-      new RegExp(`^https://cdn\\.example\\.test/profile-photos/${uid}/${name.replace(/\./g, '\\.')}\\?v=\\d+$`),
-    );
+    // Literal prefix + static pattern for the version suffix, not an
+    // interpolated RegExp (CodeQL js/incomplete-sanitization).
+    const prefix = `https://cdn.example.test/profile-photos/${uid}/${name}?v=`;
+    expect(photo.avatar_url?.startsWith(prefix)).toBe(true);
+    expect(photo.avatar_url?.slice(prefix.length)).toMatch(/^\d+$/);
     expect(mockRemove).toHaveBeenCalledWith([`${uid}/avatar.jpg`]);
   });
 

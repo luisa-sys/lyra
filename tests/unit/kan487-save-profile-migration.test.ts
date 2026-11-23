@@ -143,12 +143,14 @@ describe('KAN-487 save_profile — body rules (plan §B)', () => {
   ];
 
   it.each(DELETES)('the %s delete is owner-scoped and checks its row count', (_label, table, scope) => {
-    const re = new RegExp(
-      `delete from public\\.${table}\\s+where profile_id = v_pid and ${scope}id = any\\(v_ids\\);\\s*` +
-        `get diagnostics v_n = row_count;\\s*` +
-        `if v_n <> cardinality\\(v_ids\\) then\\s*raise exception '${MISSING_ROWS.replace(/\./g, '\\.')}'`,
-    );
-    expect(save).toMatch(re);
+    // Compared as whitespace-collapsed literal text rather than an
+    // interpolated RegExp (CodeQL js/incomplete-sanitization).
+    const flat = save.replace(/\s+/g, ' ');
+    const expected =
+      `delete from public.${table} where profile_id = v_pid and ${scope}id = any(v_ids); ` +
+      `get diagnostics v_n = row_count; ` +
+      `if v_n <> cardinality(v_ids) then raise exception '${MISSING_ROWS}'`;
+    expect(flat).toContain(expected);
   });
 
   it('an item update may not change origin or leave its cap group', () => {

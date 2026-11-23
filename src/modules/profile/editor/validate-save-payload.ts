@@ -537,8 +537,15 @@ export function validatePayloadForServer(payload: SavePayload, ctx: ServerValida
     if (payload.manual_of_me === null) {
       out.manual_of_me = null;
     } else {
-      const mom: Record<string, string | null> = {};
-      for (const [k, v] of Object.entries(payload.manual_of_me)) mom[k] = checkManualOfMeField(errors, k, v);
+      // Iterate the fixed allowlist, never the client's keys: a property name
+      // written here must not come from user input (CodeQL
+      // js/remote-property-injection). Unknown keys are already refused by
+      // isSavePayloadShape.
+      const src = payload.manual_of_me as Partial<Record<(typeof MANUAL_OF_ME_FIELDS)[number], string | null>>;
+      const mom = {} as Record<(typeof MANUAL_OF_ME_FIELDS)[number], string | null>;
+      for (const f of MANUAL_OF_ME_FIELDS) {
+        if (Object.prototype.hasOwnProperty.call(src, f)) mom[f] = checkManualOfMeField(errors, f, src[f]);
+      }
       out.manual_of_me = mom as unknown as SavePayload['manual_of_me'];
     }
   }
