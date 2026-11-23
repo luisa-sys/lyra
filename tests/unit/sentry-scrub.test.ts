@@ -6,7 +6,9 @@
 import {
   scrubSentryEvent,
   scrubSentryBreadcrumb,
+  scrubSentryTransaction,
   scrubUrl,
+  WEB_SCRUB_OPTIONS,
 } from '@/modules/observability/sentry-scrub';
 
 const SENSITIVE_KEYS = [
@@ -225,5 +227,141 @@ describe('robustness', () => {
     const event = { message: 'boom', level: 'error' };
     expect(() => scrubSentryEvent(event)).not.toThrow();
     expect(scrubSentryEvent(event)).toBe(event);
+  });
+});
+
+/**
+ * KAN-482 — DPIA §2a AD-6: the public search term (`/search?q=`) is free text
+ * that names people and schools; it must not reach Sentry by any route
+ * (request URL, query_string, navigation / fetch breadcrumbs, transactions).
+ */
+describe('KAN-482 /search term redaction', () => {
+  const TERM = 'Zebedee Primary Uniquename';
+  const enc = encodeURIComponent(TERM);
+  const notLeaked = (v: unknown) => {
+    const out = JSON.stringify(v).toLowerCase();
+    expect(out).not.toContain('zebedee');
+    expect(out).not.toContain('uniquename');
+  };
+
+  it.each([
+    [`https://checklyra.com/search?q=${enc}`, 'https://checklyra.com/search?[Filtered]'],
+    [`/search?q=${enc}`, '/search?[Filtered]'],
+    [`/search/?q=${enc}&page=2`, '/search/?[Filtered]'],
+    [`/search?q=${enc}&_rsc=abc`, '/search?[Filtered]'],
+  ])('scrubUrl(%s) → %s', (input, expected) => {
+    expect(scrubUrl(input, WEB_SCRUB_OPTIONS)).toBe(expected);
+  });
+
+  it('is opt-in: the SEC-55 defaults (shared with the MCP server copy) keep q on /search', () => {
+    // The MCP server copy has no /search route; the rule lives in WEB_SCRUB_OPTIONS.
+    expect(scrubUrl('/search?q=keep')).toBe('/search?q=keep');
+  });
+
+  it('leaves non-search paths that merely contain "search" alone', () => {
+    // Positive control: the rule is the /search route, not any URL with q=.
+    expect(scrubUrl('/dashboard/searchable?q=keep', WEB_SCRUB_OPTIONS)).toBe('/dashboard/searchable?q=keep');
+    expect(scrubUrl('/research?q=keep', WEB_SCRUB_OPTIONS)).toBe('/research?q=keep');
+  });
+
+  it('redacts request.url and every query_string shape on a /search event', () => {
+    for (const qs of [`q=${enc}`, { q: TERM }, [['q', TERM]]]) {
+      const ev = scrubSentryEvent({
+        request: { url: `https://checklyra.com/search?q=${enc}`, query_string: qs },
+      }, WEB_SCRUB_OPTIONS);
+      notLeaked(ev);
+      expect(ev.request.url).toBe('https://checklyra.com/search?[Filtered]');
+      expect(ev.request.query_string).toBe('[Filtered]');
+    }
+  });
+
+  it('redacts navigation breadcrumbs (data.from / data.to)', () => {
+    const bc = scrubSentryBreadcrumb({
+      category: 'navigation',
+      data: { from: `/search?q=${enc}`, to: `/search?q=${encodeURIComponent('Uniquename two')}` },
+    }, WEB_SCRUB_OPTIONS);
+    notLeaked(bc);
+    expect(bc.data.from).toBe('/search?[Filtered]');
+  });
+
+  it('redacts fetch breadcrumbs for the RSC request and breadcrumbs carried on an event', () => {
+    const fetchCrumb = scrubSentryBreadcrumb(
+      { category: 'fetch', data: { url: `/search?q=${enc}&_rsc=1` } },
+      WEB_SCRUB_OPTIONS,
+    );
+    expect(fetchCrumb.data.url).toBe('/search?[Filtered]');
+    notLeaked(
+      scrubSentryBreadcrumb({ category: 'fetch', data: { url: `/search?q=${enc}&_rsc=1` } }, WEB_SCRUB_OPTIONS),
+    );
+    notLeaked(
+      scrubSentryEvent({
+        breadcrumbs: [{ category: 'navigation', data: { from: '/', to: `/search?q=${enc}` } }],
+      }, WEB_SCRUB_OPTIONS),
+    );
+  });
+
+  it('redacts a transaction: request, trace context and span URL / bare-query attributes', () => {
+    const tx = scrubSentryTransaction({
+      type: 'transaction',
+      transaction: 'GET /search',
+      request: { url: `https://checklyra.com/search?q=${enc}`, query_string: `q=${enc}` },
+      contexts: { trace: { data: { 'http.target': `/search?q=${enc}`, 'url.query': `q=${enc}` } } },
+      spans: [
+        { description: `GET /search?q=${enc}`, data: { 'url.path': '/search', 'url.query': `?q=${enc}` } },
+        { data: { 'http.url': `https://checklyra.com/search?q=${enc}` } },
+      ],
+    }, WEB_SCRUB_OPTIONS);
+    notLeaked(tx);
+    // Positive control: the route name survives, so traces stay useful.
+    expect(tx.transaction).toBe('GET /search');
+    expect(tx.spans[0].data['url.query']).toBe('[Filtered]');
+  });
+
+  it('redacts the Referer header (document.referrer after a second native-GET search)', () => {
+    // /search is a plain GET form, so the second search is a full page load
+    // whose Referer is the FIRST search URL. Both header spellings/cases.
+    for (const key of ['Referer', 'referer', 'Referrer']) {
+      const ev = scrubSentryEvent({
+        request: {
+          url: 'https://checklyra.com/search?q=Second',
+          headers: { [key]: `https://checklyra.com/search?q=${enc}`, 'User-Agent': 'jest' },
+        },
+      }, WEB_SCRUB_OPTIONS);
+      notLeaked(ev);
+      expect(ev.request.headers[key]).toBe('https://checklyra.com/search?[Filtered]');
+      // Positive control: unrelated headers survive.
+      expect(ev.request.headers['User-Agent']).toBe('jest');
+    }
+  });
+
+  it('a Referer from another page keeps benign params and drops sensitive ones', () => {
+    const ev = scrubSentryEvent({
+      request: { headers: { Referer: 'https://checklyra.com/dashboard?page=2&code=AUTHCODE' } },
+    }, WEB_SCRUB_OPTIONS);
+    expect(ev.request.headers.Referer).toBe('https://checklyra.com/dashboard?page=2');
+  });
+
+  it('redacts the http.request.header.referer span attribute without over-redacting the span query', () => {
+    const tx = scrubSentryTransaction({
+      contexts: { trace: { data: { 'http.request.header.referer': `https://checklyra.com/search?q=${enc}` } } },
+      spans: [{
+        data: {
+          'http.request.header.referer': `/search?q=${enc}`,
+          'url.path': '/dashboard',
+          'url.query': 'page=2',
+        },
+      }],
+    }, WEB_SCRUB_OPTIONS);
+    notLeaked(tx);
+    expect(tx.spans[0].data['http.request.header.referer']).toBe('/search?[Filtered]');
+    // The referer names the previous page; the span's own query is kept.
+    expect(tx.spans[0].data['url.query']).toBe('page=2');
+  });
+
+  it('a bare url.query on another route keeps benign params and drops sensitive ones', () => {
+    const tx = scrubSentryTransaction({
+      spans: [{ data: { 'url.path': '/dashboard', 'url.query': 'page=2&token=SECRET' } }],
+    }, WEB_SCRUB_OPTIONS);
+    expect(tx.spans[0].data['url.query']).toBe('page=2');
   });
 });

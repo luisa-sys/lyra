@@ -66,7 +66,7 @@ import {
 } from '@/modules/profile/photo-staging';
 import { publishProfile } from './actions';
 
-// Proposed copy (plan §D; not in the spec).
+// Not in the spec: plan §D copy, founder-approved 2026-11-23 (PR #1238 list).
 const PUBLISHED_PHOTO_REMOVE_BLOCK = 'Add a new photo to save your changes — a published profile needs a photo.';
 const SAVE_FAILED = 'We couldn’t save your changes. Your edits are still here.';
 const PUBLISH_BLOCKED_HEADING = 'Before you can publish:';

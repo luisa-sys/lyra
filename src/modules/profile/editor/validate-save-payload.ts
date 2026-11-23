@@ -99,7 +99,7 @@ export const PUBLISHED_PHOTO_ERROR = 'A published profile needs a photo. Add a n
 export const LYRA_ID_LOCKED_ERROR = 'Your CheckLyra ID can’t be changed after publishing.';
 export const SCHOOL_POSTCODE_ERROR =
   'Schools need a postcode (full or partial) so people can tell schools with the same name apart.';
-// Proposed copy (not in the spec):
+// Not in the spec; founder-approved 2026-11-23 with the PR #1238 error messages:
 export const NO_URL_ERROR = 'Links can’t be added to this section.';
 export const COUNTRY_ERROR = 'Choose a country from the list.';
 export const INVALID_ENTRY_ERROR = 'This entry can’t be saved here. Reload to continue.';

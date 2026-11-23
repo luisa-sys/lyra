@@ -25,7 +25,12 @@
  */
 import * as Sentry from '@sentry/nextjs';
 // SEC-55: strip OAuth secrets / PII from events + breadcrumbs before they ship.
-import { scrubSentryEvent, scrubSentryBreadcrumb } from '@/modules/observability/sentry-scrub';
+import {
+  scrubSentryEvent,
+  scrubSentryBreadcrumb,
+  scrubSentryTransaction,
+  WEB_SCRUB_OPTIONS,
+} from '@/modules/observability/sentry-scrub';
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -41,8 +46,10 @@ if (dsn) {
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
     sendDefaultPii: false,
-    beforeSend: (event) => scrubSentryEvent(event),
-    beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
+    beforeSend: (event) => scrubSentryEvent(event, WEB_SCRUB_OPTIONS),
+    beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb, WEB_SCRUB_OPTIONS),
+    // KAN-482: transactions skip beforeSend but carry URLs (e.g. /search?q=).
+    beforeSendTransaction: (event) => scrubSentryTransaction(event, WEB_SCRUB_OPTIONS),
     release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
   });
 }

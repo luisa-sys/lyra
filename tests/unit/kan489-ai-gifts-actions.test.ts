@@ -37,7 +37,7 @@ import { dismissAiGift, generateAiGifts } from '@/app/dashboard/profile/ai-gifts
 const KEY = 'sk-ant-test-actions-SECRET';
 const SESSION = '3f2b8c1e-9d4a-4b6e-8f10-2a3b4c5d6e7f';
 const ROW = '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a';
-const CONSENT = 'draft-2026-11-23';
+const CONSENT = 'v1-2026-11-23';
 const savedKey = process.env.ANTHROPIC_API_KEY;
 const savedSwitch = process.env.LYRA_AI_GIFTS_ENABLED;
 

@@ -101,7 +101,7 @@ export function rowLabel(title: string, description = ''): string {
   return t !== '' ? t : oneLine(description, SUMMARY_TITLE_MAX);
 }
 
-/** Proposed copy (plan §D): "Removed '‹title›'." */
+/** Plan §D copy (not in the spec; founder-approved 2026-11-23): "Removed '‹title›'." */
 export function undoMessage(label: string): string {
   const l = oneLine(label, SUMMARY_TITLE_MAX);
   return l === '' ? 'Removed an empty entry.' : `Removed '${l}'.`;

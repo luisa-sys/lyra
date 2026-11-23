@@ -11,8 +11,8 @@
  *     pending or approved — stay visible and actionable, and nothing is ever
  *     deleted by switching it off.
  *   - The first time it is switched on in a session, the data-sharing note is
- *     shown and Generate appears only after "Got it". The note is DRAFT copy
- *     for founder approval (spec v0.8 §03 OPEN DECISION). Every Generate
+ *     shown and Generate appears only after "Got it". The note's text was
+ *     approved by the founder on 2026-11-23 (spec v0.8 §03). Every Generate
  *     sends AI_CONSENT_VERSION; the server refuses any other version and
  *     records it on the claim row.
  *   - "Generate suggestions" with "n of 5 left this session". The server

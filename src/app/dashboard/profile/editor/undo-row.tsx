@@ -3,7 +3,8 @@
 /**
  * KAN-487 — v0.8 profile editor: the undo row shown in place of a removed
  * entry (plan §C "Remove takes the row out and shows an undo row…";
- * plan §D proposed copy "Removed '‹title›'." / "Undo").
+ * plan §D copy "Removed '‹title›'." / "Undo" — not in the spec,
+ * founder-approved 2026-11-23).
  *
  *   - On mount, focus moves to Undo, and the `role="status"` region
  *     announces "Removed '‹title›'." (also Undo's description, so the

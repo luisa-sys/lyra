@@ -158,7 +158,7 @@ describe('Generate', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Generate suggestions' }));
     });
     // Was `toHaveBeenCalledWith(SESSION)` before the review fix sent the consent version.
-    expect(mockGenerate).toHaveBeenCalledWith(SESSION, 'draft-2026-11-23');
+    expect(mockGenerate).toHaveBeenCalledWith(SESSION, 'v1-2026-11-23');
     expect(screen.getByText('2 of 5 left this session')).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('Added 2 suggestions. Some suggestions were filtered out.');
     const list = screen.getByRole('list', { name: 'AI suggestions' });

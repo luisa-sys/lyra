@@ -1,7 +1,7 @@
 /**
  * KAN-487 — About Me photo helpers (spec v0.8 §01 "JPG, PNG or WebP; maximum
  * 5 MB; square crop; minimum 400 × 400 pixels"; plan §B "Photo", §C row 01,
- * §D proposed copy). Expected values are literals from the spec / plan.
+ * §D copy, founder-approved 2026-11-23). Expected values are literals from the spec / plan.
  */
 import {
   DOWNSCALE_MAX_SIDE,

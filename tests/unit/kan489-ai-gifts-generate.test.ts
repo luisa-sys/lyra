@@ -16,7 +16,7 @@ import type { AiSuggestion } from '@/modules/profile/ai-gifts/types';
 const SESSION = '3f2b8c1e-9d4a-4b6e-8f10-2a3b4c5d6e7f';
 // The current consent-note version, as a literal (failure mode 10): changing
 // AI_CONSENT_VERSION must turn these tests red until they are updated.
-const CONSENT = 'draft-2026-11-23';
+const CONSENT = 'v1-2026-11-23';
 
 function source(over: Partial<LoadedAiGiftSource> = {}): LoadedAiGiftSource {
   return {
@@ -204,7 +204,7 @@ describe('generateAiGiftSuggestions — the server-side claim gates the model', 
   it('the claim records the consent version the member accepted', async () => {
     const t = setup({});
     await generateAiGiftSuggestions(t.deps, { userId: 'u', sessionId: SESSION, consentVersion: CONSENT });
-    expect(t.claim.mock.calls[0][2]).toBe('draft-2026-11-23');
+    expect(t.claim.mock.calls[0][2]).toBe('v1-2026-11-23');
   });
 });
 

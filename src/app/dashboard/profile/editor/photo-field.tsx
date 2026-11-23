@@ -4,7 +4,7 @@
  * KAN-487 — v0.8 profile editor, §01 "Profile photo" (spec v0.8 §01 "JPG,
  * PNG or WebP; maximum 5 MB; square crop; minimum 400 × 400 pixels"; spec
  * §1 "require explicit confirmation for removing a profile photo"; plan §B
- * "Photo", §C row 01, §D proposed copy).
+ * "Photo", §C row 01, §D copy — not in the spec, founder-approved 2026-11-23).
  *
  *   1. Pick: `<input type="file" accept="image/jpeg,image/png,image/webp">`.
  *      Type/size are pre-checked, then the image is decoded for the ≥ 400 px

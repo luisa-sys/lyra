@@ -12,10 +12,11 @@
  * editor/ai-gifts-ui.ts) the member accepts before Generate. The editor sends
  * it with every request; the server refuses any other value
  * (`consent_required`) and records it on the claim row
- * (`ai_gift_generations.consent_version`). BUMP IT WHENEVER THE COPY CHANGES,
- * including on founder approval of the draft.
+ * (`ai_gift_generations.consent_version`). BUMP IT WHENEVER THE COPY CHANGES.
+ * History: 'draft-2026-11-23' (draft for founder review) → 'v1-2026-11-23'
+ * (the same text, approved by the founder in chat on 2026-11-23, KAN-489).
  */
-export const AI_CONSENT_VERSION = 'draft-2026-11-23';
+export const AI_CONSENT_VERSION = 'v1-2026-11-23';
 
 /** One labelled piece of MEMBER-AUTHORED profile text sent to the model. */
 export interface AiGiftSourceField {
