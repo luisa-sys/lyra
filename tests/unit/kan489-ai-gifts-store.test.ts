@@ -57,13 +57,13 @@ function client(opts: {
 
 describe('claimGeneration', () => {
   it('calls claim_ai_gift_generation with p_session + p_consent_version and maps a success', async () => {
-    const c = client({ rpc: () => ({ data: { ok: true, generation_id: 'g', session_remaining: 4, daily_remaining: 19 }, error: null }) });
-    expect(await claimGeneration(c.supabase, 'sess', 'v-1')).toEqual({ ok: true, sessionRemaining: 4, dailyRemaining: 19 });
+    const c = client({ rpc: () => ({ data: { ok: true, generation_id: 'g', session_remaining: 4, monthly_remaining: 19 }, error: null }) });
+    expect(await claimGeneration(c.supabase, 'sess', 'v-1')).toEqual({ ok: true, sessionRemaining: 4, monthlyRemaining: 19 });
     // Was `args: { p_session: 'sess' }` before the review fix recorded consent.
     expect(c.rpcs).toEqual([{ fn: 'claim_ai_gift_generation', args: { p_session: 'sess', p_consent_version: 'v-1' } }]);
   });
 
-  it.each(['session_limit', 'daily_limit', 'cooldown'])('maps the refusal %s with the session count', async (reason) => {
+  it.each(['session_limit', 'monthly_limit', 'cooldown'])('maps the refusal %s with the session count', async (reason) => {
     const c = client({ rpc: () => ({ data: { ok: false, reason, session_remaining: 2 }, error: null }) });
     expect(await claimGeneration(c.supabase, 's', 'v-1')).toEqual({ ok: false, reason, sessionRemaining: 2 });
   });
@@ -78,7 +78,7 @@ describe('claimGeneration', () => {
       { data: null, error: { message: 'x' } },
       { data: null, error: null },
       { data: { ok: false, reason: 'something_else' }, error: null },
-      { data: { ok: true, session_remaining: 'four', daily_remaining: 3 }, error: null },
+      { data: { ok: true, session_remaining: 'four', monthly_remaining: 3 }, error: null },
       { data: { ok: 'yes' }, error: null },
     ]) {
       const c = client({ rpc: () => r });
