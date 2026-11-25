@@ -8,7 +8,7 @@
  *   3. session id is a UUID?
  *   4. load the member-authored source; nothing usable → `no_content`
  *   5. already 10 AI suggestions held → `cap_full`
- *   6. claim a generation (server-side limits: 5 per session, 20 per 24 h,
+ *   6. claim a generation (server-side limits: 10 per session, 30 per rolling 30 days (KAN-492),
  *      10 s cooldown; suspended accounts refused). The claim records the
  *      consent version. A refusal is returned as is; a claim ERROR is
  *      `failed` and the model is NOT called (fail closed).
@@ -93,7 +93,7 @@ export async function generateAiGiftSuggestions(
       droppedForCap: stored.droppedForCap,
       droppedByFilter: filtered.droppedByFilter,
       sessionRemaining,
-      dailyRemaining: claimed.dailyRemaining,
+      monthlyRemaining: claimed.monthlyRemaining,
     };
   } catch {
     // The claim is spent (no refund by design): report the real allowance.

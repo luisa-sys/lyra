@@ -14,14 +14,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AiSuggestion, GeneratedSuggestion } from './types';
 
-type ClaimRefusal = 'session_limit' | 'daily_limit' | 'cooldown' | 'suspended';
+type ClaimRefusal = 'session_limit' | 'monthly_limit' | 'cooldown' | 'suspended';
 
 export type ClaimResult =
-  | { ok: true; sessionRemaining: number; dailyRemaining: number }
+  | { ok: true; sessionRemaining: number; monthlyRemaining: number }
   | { ok: false; reason: ClaimRefusal; sessionRemaining: number | null }
   | { ok: false; reason: 'error' };
 
-const CLAIM_REFUSALS: ReadonlySet<string> = new Set<ClaimRefusal>(['session_limit', 'daily_limit', 'cooldown', 'suspended']);
+const CLAIM_REFUSALS: ReadonlySet<string> = new Set<ClaimRefusal>(['session_limit', 'monthly_limit', 'cooldown', 'suspended']);
 
 function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
@@ -44,9 +44,9 @@ export async function claimGeneration(
   const d = data as Record<string, unknown>;
   if (d.ok === true) {
     const sessionRemaining = num(d.session_remaining);
-    const dailyRemaining = num(d.daily_remaining);
-    if (sessionRemaining === null || dailyRemaining === null) return { ok: false, reason: 'error' };
-    return { ok: true, sessionRemaining, dailyRemaining };
+    const monthlyRemaining = num(d.monthly_remaining);
+    if (sessionRemaining === null || monthlyRemaining === null) return { ok: false, reason: 'error' };
+    return { ok: true, sessionRemaining, monthlyRemaining };
   }
   if (d.ok === false && typeof d.reason === 'string' && CLAIM_REFUSALS.has(d.reason)) {
     return {

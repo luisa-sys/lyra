@@ -8,9 +8,10 @@
  * messages and the not-configured line are from the KAN-489 plan approved
  * against spec v0.8. The consent text was approved by the founder in chat on
  * 2026-11-23 (closing spec v0.8 §03 OPEN DECISION "Confirm AI
- * data-sharing/consent copy"). The session / daily / cooldown / rate-limit
- * lines are still proposed copy (not in the spec or the plan, and not part
- * of the 2026-11-23 approvals).
+ * data-sharing/consent copy"). The limits (10 per editing session, 30 in any
+ * 30 days) and the note telling members about them are a founder decision of
+ * 2026-11-25 (KAN-492). The cooldown / rate-limit lines are still proposed
+ * copy (not in the spec or the plan).
  *
  * PURE: no `'use client'`, no Supabase, no SDK.
  */
@@ -18,8 +19,15 @@
 import { AI_GIFT_RULE } from '@/modules/profile/profile-rules';
 import type { GenerateResult } from '@/modules/profile/ai-gifts/types';
 
-/** Generations allowed per editing session (spec v0.8 §03; enforced server-side too). */
-export const AI_SESSION_GENERATIONS = 5;
+/** Generations allowed per editing session (KAN-492; enforced server-side too). */
+export const AI_SESSION_GENERATIONS = 10;
+
+/** Generations allowed per member in any rolling 30 days (KAN-492; enforced server-side). */
+export const AI_MONTHLY_GENERATIONS = 30;
+
+/** Shown beside Generate so members know the limits (KAN-492, founder 2026-11-25). */
+export const AI_LIMITS_NOTE =
+  `You can generate suggestions up to ${AI_SESSION_GENERATIONS} times each time you edit your profile, and up to ${AI_MONTHLY_GENERATIONS} times in any 30 days.`;
 
 export const AI_TOGGLE_LABEL = 'Suggest gift ideas with AI';
 export const AI_GENERATE_LABEL = 'Generate suggestions';
@@ -42,9 +50,9 @@ export const AI_FILTERED_COPY = 'Some suggestions were filtered out.';
 export const AI_REFUSED_COPY = 'We couldn’t generate suggestions from this profile.';
 export const AI_FAILED_COPY = 'Something went wrong, try again later.';
 export const AI_NO_CONTENT_COPY = 'Add a few things about yourself first.';
+export const AI_SESSION_LIMIT_COPY = `You’ve used all ${AI_SESSION_GENERATIONS} generations for this session.`;
+export const AI_MONTHLY_LIMIT_COPY = `You’ve used all ${AI_MONTHLY_GENERATIONS} generations for the last 30 days. Please try again later.`;
 // Proposed copy (not in the spec or the plan).
-export const AI_SESSION_LIMIT_COPY = 'You’ve used all 5 generations for this session.';
-export const AI_DAILY_LIMIT_COPY = 'You’ve reached today’s limit for AI suggestions. Please try again tomorrow.';
 export const AI_COOLDOWN_COPY = 'Please wait a few seconds before generating again.';
 export const AI_RATE_LIMITED_COPY = 'You’re going a little fast. Please wait a moment and try again.';
 export const AI_SIGNED_OUT_COPY = 'Please sign in again to generate suggestions.';
@@ -53,7 +61,7 @@ export const AI_SUSPENDED_COPY = 'AI gift suggestions aren’t available for thi
 export const AI_APPROVED_ELSEWHERE_COPY =
   'This suggestion is already approved, possibly in another tab. Reload the editor to see its current state.';
 
-/** "n of 5 left this session" (never below 0 or above 5). */
+/** "n of 10 left this session" (never below 0 or above 10). */
 export function aiCounterText(remaining: number): string {
   const n = Math.max(0, Math.min(AI_SESSION_GENERATIONS, Math.floor(remaining)));
   return `${n} of ${AI_SESSION_GENERATIONS} left this session`;
@@ -104,8 +112,8 @@ export function aiResultMessage(r: GenerateResult): string {
       return AI_CAP_FULL_COPY;
     case 'session_limit':
       return AI_SESSION_LIMIT_COPY;
-    case 'daily_limit':
-      return AI_DAILY_LIMIT_COPY;
+    case 'monthly_limit':
+      return AI_MONTHLY_LIMIT_COPY;
     case 'cooldown':
       return AI_COOLDOWN_COPY;
     case 'refused':
@@ -131,13 +139,13 @@ export function aiResultMessage(r: GenerateResult): string {
 
 /**
  * The counter after a result: the server's figure when it sent one. After a
- * success it is the SMALLER of the session and the rolling daily allowance,
+ * success it is the SMALLER of the session and the rolling 30-day allowance,
  * so the counter never promises a generation the server will refuse; the
- * session or daily limit refusals set it to 0.
+ * session or 30-day limit refusals set it to 0.
  */
 export function aiRemainingAfter(previous: number, r: GenerateResult): number {
-  if (r.ok) return Math.min(r.sessionRemaining, r.dailyRemaining);
-  if (r.reason === 'session_limit' || r.reason === 'daily_limit') return 0;
+  if (r.ok) return Math.min(r.sessionRemaining, r.monthlyRemaining);
+  if (r.reason === 'session_limit' || r.reason === 'monthly_limit') return 0;
   if (r.sessionRemaining !== undefined) return r.sessionRemaining;
   return previous;
 }
