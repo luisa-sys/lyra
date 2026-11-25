@@ -111,7 +111,7 @@ describe('toggle and consent', () => {
     consent();
     expect(screen.queryByText(CONSENT)).toBeNull();
     expect(screen.getByRole('button', { name: 'Generate suggestions' })).toBeTruthy();
-    expect(screen.getByText('5 of 5 left this session')).toBeTruthy();
+    expect(screen.getByText('10 of 10 left this session')).toBeTruthy();
   });
 
   it('switching OFF hides Generate but keeps approved AND pending suggestions, with their buttons', () => {
@@ -149,7 +149,7 @@ describe('Generate', () => {
       droppedForCap: 0,
       droppedByFilter: 1,
       sessionRemaining: 2,
-      dailyRemaining: 10,
+      monthlyRemaining: 10,
     });
     render(<Harness initial={[]} />);
     switchOn();
@@ -159,7 +159,7 @@ describe('Generate', () => {
     });
     // Was `toHaveBeenCalledWith(SESSION)` before the review fix sent the consent version.
     expect(mockGenerate).toHaveBeenCalledWith(SESSION, 'v1-2026-11-23');
-    expect(screen.getByText('2 of 5 left this session')).toBeTruthy();
+    expect(screen.getByText('2 of 10 left this session')).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('Added 2 suggestions. Some suggestions were filtered out.');
     const list = screen.getByRole('list', { name: 'AI suggestions' });
     expect(within(list).getAllByText('AI suggestion').length).toBe(2);
@@ -173,7 +173,7 @@ describe('Generate', () => {
       droppedForCap: 3,
       droppedByFilter: 0,
       sessionRemaining: 4,
-      dailyRemaining: 19,
+      monthlyRemaining: 19,
     });
     render(<Harness initial={[]} />);
     switchOn();
@@ -187,10 +187,10 @@ describe('Generate', () => {
   });
 
   it.each([
-    [{ ok: false, reason: 'refused', sessionRemaining: 3 }, 'We couldn’t generate suggestions from this profile.', '3 of 5 left this session'],
-    [{ ok: false, reason: 'no_content' }, 'Add a few things about yourself first.', '5 of 5 left this session'],
-    [{ ok: false, reason: 'busy', sessionRemaining: 1 }, 'Something went wrong, try again later.', '1 of 5 left this session'],
-    [{ ok: false, reason: 'session_limit', sessionRemaining: 0 }, 'You’ve used all 5 generations for this session.', '0 of 5 left this session'],
+    [{ ok: false, reason: 'refused', sessionRemaining: 3 }, 'We couldn’t generate suggestions from this profile.', '3 of 10 left this session'],
+    [{ ok: false, reason: 'no_content' }, 'Add a few things about yourself first.', '10 of 10 left this session'],
+    [{ ok: false, reason: 'busy', sessionRemaining: 1 }, 'Something went wrong, try again later.', '1 of 10 left this session'],
+    [{ ok: false, reason: 'session_limit', sessionRemaining: 0 }, 'You’ve used all 10 generations for this session.', '0 of 10 left this session'],
   ])('a failure shows its message and the server count (%o)', async (result, message, counter) => {
     mockGenerate.mockResolvedValue(result);
     render(<Harness initial={[]} />);
@@ -224,14 +224,14 @@ describe('Generate', () => {
     expect(slot.getAttribute('aria-busy')).toBe('false');
   });
 
-  it('review fix — the counter never shows more than the daily allowance left', async () => {
+  it('review fix — the counter never shows more than the 30-day allowance left', async () => {
     mockGenerate.mockResolvedValue({
       ok: true,
       inserted: [{ id: 'n1', title: 'Kite', description: null }],
       droppedForCap: 0,
       droppedByFilter: 0,
       sessionRemaining: 4,
-      dailyRemaining: 1,
+      monthlyRemaining: 1,
     });
     render(<Harness initial={[]} />);
     switchOn();
@@ -239,7 +239,7 @@ describe('Generate', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Generate suggestions' }));
     });
-    expect(screen.getByText('1 of 5 left this session')).toBeTruthy();
+    expect(screen.getByText('1 of 10 left this session')).toBeTruthy();
   });
 
   it('at 0 left the button is disabled', async () => {
