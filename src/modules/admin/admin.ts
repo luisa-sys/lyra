@@ -61,7 +61,13 @@ export type ModerationAction =
   | 'set_age_status'
   // KAN-408: environment-scoped global feature switch (env recorded in metadata)
   | 'enable_global_feature'
-  | 'disable_global_feature';
+  | 'disable_global_feature'
+  // KAN-484: question bank (v0.8 §09). There is deliberately no delete action.
+  | 'add_question'
+  | 'update_question'
+  | 'activate_question'
+  | 'deactivate_question'
+  | 'reorder_question';
 
 export interface AdminUser {
   userId: string;

@@ -133,14 +133,26 @@ describe('KAN-444: addProfileItem — the member’s custom group name', () => {
   // Replacing sanitiseText() with a bare .trim() previously left the whole
   // suite green, because the only assertion checked the moderated value, which
   // an unsanitised string satisfies identically.
-  test('an over-long group name is capped, not stored whole', async () => {
-    await addProfileItem({
+  // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): an over-long group
+  // name is REJECTED, not cut. This case used to assert a 200-character name
+  // was stored capped to ≤ 60.
+  test('an over-long group name is rejected, and nothing is stored', async () => {
+    const res = await addProfileItem({
       category: CUSTOM_FAVOURITE_CATEGORY,
       title: 'Wingspan',
-      groupLabel: 'B'.repeat(200),
+      groupLabel: 'B'.repeat(61),
     });
+    expect(res).toEqual({
+      success: false,
+      error: 'Group name is too long: 61 characters (limit 60, including spaces).',
+    });
+    expect(mockInsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('a group name of exactly 60 characters is stored whole', async () => {
+    await addProfileItem({ category: CUSTOM_FAVOURITE_CATEGORY, title: 'Wingspan', groupLabel: 'B'.repeat(60) });
     const payload = mockInsertCapture.mock.calls[0][0] as Record<string, unknown>;
-    expect((payload.group_label as string).length).toBeLessThanOrEqual(60);
+    expect(payload.group_label).toBe('B'.repeat(60));
   });
 
   test('HTML in a group name is stripped before it becomes a public heading', async () => {

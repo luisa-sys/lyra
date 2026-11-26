@@ -1,6 +1,12 @@
 /**
  * Profile Wizard unit tests
  * KAN-5: Profile Wizard (Web App)
+ *
+ * KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy wizard
+ * (`wizard.tsx`, `/dashboard/profile/legacy`) is deleted, so the two tests
+ * that pinned it — "wizard client component exists" and "wizard has all 8
+ * steps defined" — are deleted with it. The three that describe live
+ * behaviour (the profile route, the CRUD actions, the dashboard link) stay.
  */
 
 const fs = require('fs');
@@ -12,22 +18,6 @@ const root = path.join(__dirname, '../..');
 describe('Profile Wizard', () => {
   test('wizard page exists', () => {
     expect(fs.existsSync(path.join(root, SRC.profilePage))).toBe(true);
-  });
-
-  test('wizard client component exists', () => {
-    expect(fs.existsSync(path.join(root, SRC.wizard))).toBe(true);
-  });
-
-  test('wizard has all 8 steps defined', () => {
-    const content = fs.readFileSync(path.join(root, SRC.wizard), 'utf8');
-    expect(content).toContain("id: 'identity'");
-    expect(content).toContain("id: 'school'");
-    expect(content).toContain("id: 'bio'");
-    expect(content).toContain("id: 'likes'");
-    expect(content).toContain("id: 'gifts'");
-    expect(content).toContain("id: 'boundaries'");
-    expect(content).toContain("id: 'links'");
-    expect(content).toContain("id: 'preview'");
   });
 
   test('profile actions file exists with all CRUD operations', () => {

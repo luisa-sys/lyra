@@ -33,8 +33,9 @@ The workflow merged stderr into the JSON:
 
 With `--json`, npm writes the report to stdout and warnings to stderr, so ANY
 npm warning corrupts the document. npm emits them routinely — deprecation
-notices, engine mismatches, config warnings — and this workflow pins Node 20,
-which this repo already surfaces a deprecation warning for. Demonstrated:
+notices, engine mismatches, config warnings — and when this was written the
+workflow pinned Node 20, which this repo surfaced a deprecation warning for
+(every workflow is on Node 24 since SEC-174; the hazard is the same). Demonstrated:
 a clean run parsed fine; prepending one realistic `npm warn config …` line
 produced JSONDecodeError, and the old code turned that into `0`.
 

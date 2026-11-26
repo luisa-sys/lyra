@@ -29,7 +29,9 @@ export const ALLOWED_PROFILE_FIELDS = [
   // is retained nullable + scrubbed by the KAN-339 migration; it is no longer
   // user-editable, so it is intentionally absent from this allowlist.
   'country',
-  'avatar_url',
+  // KAN-486: `avatar_url` REMOVED. It let a caller point their profile photo
+  // at any URL, skipping the v0.8 photo pipeline (real-type check, ≥ 400 px,
+  // EXIF/GPS strip). uploadAvatar is now the only writer of avatar_url.
   // ⚠️ `is_published` is DELIBERATELY ABSENT — KAN-415 D-6.
   //
   // It used to be here, which made `updateProfileFields` a SECOND publish path
@@ -52,6 +54,9 @@ export const ALLOWED_PROFILE_FIELDS = [
   // gets the same sanitise + moderation treatment as every other string field
   // in updateProfileFields. See giftVoucherHintPayload below before writing it.
   'gift_voucher_hint',
+  // KAN-486: v0.8 §10 Billboard — one multiline statement, ≤ 200 (validated
+  // in updateProfileFields via PROFILE_FIELD_SPECS; the DB CHECK is the backstop).
+  'billboard',
 ] as const;
 
 export type AllowedProfileField = typeof ALLOWED_PROFILE_FIELDS[number];

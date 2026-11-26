@@ -19,7 +19,11 @@ const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 describe('KAN-342 gift visibility is not gated by paid_gift_links', () => {
   it('the public profile renders the recommendations section with no paid_gift_links visibility gate', () => {
     const page = read(SRC.slugPage);
-    expect(page).toMatch(/RecommendationsSection/);
+    // KAN-488 (spec v0.8 §03): the public profile no longer renders the
+    // recommender block — v0.8 shows only member-written or approved gifts.
+    // Old expected value: expect(page).toMatch(/RecommendationsSection/);
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(page).not.toMatch(/RecommendationsSection/);
     // Visibility must not reference the monetisation entitlement.
     expect(page).not.toMatch(/paid_gift_links/);
   });

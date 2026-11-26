@@ -120,22 +120,48 @@ describe('updateManualOfMe — allowlist + sanitisation', () => {
     });
   });
 
-  test('truncates a too-long working_preferences to MANUAL_OF_ME_MAX_LENGTHS', async () => {
-    const long = 'A'.repeat(MANUAL_OF_ME_MAX_LENGTHS.working_preferences + 250);
-    await updateManualOfMe({ working_preferences: long });
-    const [payload] = mockUpsertCapture.mock.calls[0];
-    expect(payload.working_preferences.length).toBe(
-      MANUAL_OF_ME_MAX_LENGTHS.working_preferences
-    );
+  // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): limits are ENFORCED,
+  // not truncated. These two cases used to assert the text was cut to the
+  // limit (1000 / 500). Limits are literals from spec v0.8 §05, not read from
+  // MANUAL_OF_ME_MAX_LENGTHS (CLAUDE.md failure mode 10).
+  test('REJECTS working_preferences over 1000 characters — no write, nothing cut', async () => {
+    const result = await updateManualOfMe({ working_preferences: 'A'.repeat(1001) });
+    expect(result).toEqual({
+      success: false,
+      error: 'If you ever come to my house is too long: 1001 characters (limit 1000, including spaces).',
+    });
+    expect(mockUpsertCapture).not.toHaveBeenCalled();
   });
 
-  test('truncates a too-long communication_style to its specific limit', async () => {
-    const long = 'B'.repeat(MANUAL_OF_ME_MAX_LENGTHS.communication_style + 50);
-    await updateManualOfMe({ communication_style: long });
+  test('accepts working_preferences at exactly 1000 characters, stored whole', async () => {
+    await updateManualOfMe({ working_preferences: 'A'.repeat(1000) });
     const [payload] = mockUpsertCapture.mock.calls[0];
-    expect(payload.communication_style.length).toBe(
-      MANUAL_OF_ME_MAX_LENGTHS.communication_style
-    );
+    expect(payload.working_preferences).toBe('A'.repeat(1000));
+  });
+
+  test('REJECTS communication_style over 500 characters — no write, nothing cut', async () => {
+    const result = await updateManualOfMe({ communication_style: 'B'.repeat(501) });
+    expect(result).toEqual({
+      success: false,
+      error: 'How I find communication easier is too long: 501 characters (limit 500, including spaces).',
+    });
+    expect(mockUpsertCapture).not.toHaveBeenCalled();
+  });
+
+  test('KAN-486: keeps intentional line breaks', async () => {
+    await updateManualOfMe({ energises_me: 'Sea swims\nGood coffee' });
+    const [payload] = mockUpsertCapture.mock.calls[0];
+    expect(payload.energises_me).toBe('Sea swims\nGood coffee');
+  });
+
+  test('KAN-486: refuses contact details in section 05 with a correction message', async () => {
+    const result = await updateManualOfMe({ boundaries: 'Email me at sam[at]gmail[dot]com first' });
+    expect(result).toEqual({
+      success: false,
+      error:
+        'My boundaries: please remove personal information such as contact details (email, phone number or postal address). Your profile is public.',
+    });
+    expect(mockUpsertCapture).not.toHaveBeenCalled();
   });
 
   test('REJECTS a non-allowlisted field with a clear error AND no DB write', async () => {

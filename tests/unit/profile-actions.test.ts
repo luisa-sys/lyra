@@ -223,12 +223,13 @@ describe('ALLOWED_PROFILE_FIELDS — allowlist contents', () => {
   });
 
   test('includes the fields the wizard actually uses', () => {
-    // Source: src/app/dashboard/profile/steps/identity-step.tsx onSave
+    // Source: the legacy wizard's identity step (deleted in KAN-487 part 3);
+    // updateProfileFields still accepts these for its remaining callers.
     expect(ALLOWED_PROFILE_FIELDS).toContain('display_name');
     expect(ALLOWED_PROFILE_FIELDS).toContain('headline');
     expect(ALLOWED_PROFILE_FIELDS).toContain('city');
     expect(ALLOWED_PROFILE_FIELDS).toContain('country');
-    // Source: src/app/dashboard/profile/steps/bio-step.tsx onSave
+    // Source: the legacy wizard's bio step (deleted in KAN-487 part 3).
     expect(ALLOWED_PROFILE_FIELDS).toContain('bio_short');
   });
 });

@@ -15,6 +15,24 @@ also recorded with a `[bootstrap]` label.
 Commits on `develop` not yet promoted to staging or production. See
 `git log origin/main..origin/develop` for the live list.
 
+### Added
+
+- **KAN-489** AI gift suggestions in the profile editor (spec v0.8 §03): a
+  "Suggest gift ideas with AI" switch (OFF by default), a data-sharing note
+  (draft copy, founder approval pending), "Generate suggestions" with an
+  "n of 5 left this session" counter enforced server-side
+  (`claim_ai_gift_generation`: 5 per session, 20 per 24 h, 10 s cooldown),
+  up to 10 retained suggestions each approved or deleted individually,
+  approved ones published under "AI suggested" on Save. Suggestions come
+  from member-authored text only, are moderated and contact/URL-filtered,
+  and never carry links (V1). New dependency `@anthropic-ai/sdk` 1.12.0;
+  new optional env `ANTHROPIC_API_KEY` (absent = "not available yet") and a
+  second switch `LYRA_AI_GIFTS_ENABLED` (only `1` turns the feature on;
+  founder sign-off required first). The consent-note version is checked
+  server-side and recorded per generation; suspended accounts are refused;
+  a trigger stops forged or edited AI rows; the avoid list is enforced on
+  output. Migration `20261123120000_kan489_ai_gift_generations.sql`.
+
 ## [0.1.46] — 2026-05-16
 
 Big shipping day: recommendation engine, admin tools, Sentry activation,

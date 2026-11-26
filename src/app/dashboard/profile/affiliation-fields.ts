@@ -7,26 +7,33 @@
  * action-invocation time — see BUGS-12. Constants, types, and synchronous
  * coercion helpers must live outside the action file.
  *
- * The allowlist mirrors the DB-side CHECK constraint:
- *   check (affiliation_type in ('school', 'organisation', 'community'))
- *
- * Anything not in this list is coerced to 'school' on write rather than
- * reaching the DB and triggering a constraint violation.
+ * KAN-487: the pure rules now live in src/modules/profile/affiliation-rules.ts
+ * (so modules can use them without importing from src/app). This file keeps
+ * every export name it had: the rules are re-exported from there, and the
+ * labels below stay here.
  */
 
-export const ALLOWED_AFFILIATION_TYPES = ['school', 'organisation', 'community'] as const;
+import {
+  ALLOWED_AFFILIATION_TYPES as RULES_ALLOWED_AFFILIATION_TYPES,
+  coerceAffiliationType as rulesCoerceAffiliationType,
+  isAffiliationType as rulesIsAffiliationType,
+  type AffiliationType,
+} from '@/modules/profile/affiliation-rules';
 
-export type AffiliationType = typeof ALLOWED_AFFILIATION_TYPES[number];
+export type { AffiliationType } from '@/modules/profile/affiliation-rules';
+export { requiresPostcode, isSchoolPostcodeValid } from '@/modules/profile/affiliation-rules';
+
+// Thin delegations (rather than a bare `export { … } from`) keep the
+// declarations visible here for the KAN-220 export-surface guard in
+// tests/unit/affiliations-and-autosave.test.ts.
+export const ALLOWED_AFFILIATION_TYPES = RULES_ALLOWED_AFFILIATION_TYPES;
 
 export function isAffiliationType(v: string): v is AffiliationType {
-  return (ALLOWED_AFFILIATION_TYPES as readonly string[]).includes(v);
+  return rulesIsAffiliationType(v);
 }
 
 export function coerceAffiliationType(v: string | undefined): AffiliationType {
-  if (v && isAffiliationType(v)) {
-    return v;
-  }
-  return 'school';
+  return rulesCoerceAffiliationType(v);
 }
 
 // Human-readable labels for each type. Used as section headings in the
@@ -43,32 +50,3 @@ export const AFFILIATION_SINGULAR: Record<AffiliationType, string> = {
   organisation: 'organisation',
   community: 'community',
 };
-
-/**
- * KAN-404: schools MUST carry a postcode (full or partial) so people can
- * tell schools with the same name apart. Organisations and communities
- * keep location optional. This helper says which affiliation types require
- * a postcode.
- */
-export function requiresPostcode(type: string): boolean {
-  return type === 'school';
-}
-
-/**
- * KAN-404: permissive / international postcode validator. We are NOT
- * validating against any single country's format — Lyra has an international
- * user base — so we only require enough structure to be a plausible
- * postcode: a short-ish token that contains at least one letter AND at least
- * one digit.
- *
- * Accepts: 'SW1A', 'M1', 'SW1A 1AA', 'B33 8TH' (UK full/partial),
- * and other alphanumeric international codes.
- * Rejects: '' (empty), 'London' (letters only, no digit),
- * '12345' (digits only — no way to disambiguate a US-style all-numeric ZIP
- * from a house number here; the letter+digit rule is the disambiguating
- * signal we chose for this permissive check).
- */
-export function isSchoolPostcodeValid(v: string | undefined | null): boolean {
-  const s = (v || '').trim();
-  return s.length >= 2 && s.length <= 12 && /[a-z]/i.test(s) && /\d/.test(s);
-}

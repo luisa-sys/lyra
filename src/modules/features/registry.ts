@@ -85,7 +85,8 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   media_uploads: {
     key: 'media_uploads',
     label: 'Media uploads',
-    description: 'Profile photo & file/media uploads.',
+    // KAN-486: the profile photo is no longer gated (v0.8: required to publish).
+    description: 'File/media uploads on the profile (not the profile photo).',
     defaultEnabled: true,
     tier: 'ga',
     envPrerequisite: null,

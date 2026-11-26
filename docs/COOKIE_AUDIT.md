@@ -1,6 +1,6 @@
 # Cookie audit (KAN-193)
 
-> Enumerates every cookie set on a Lyra visitor's browser, who sets it, on which domain, what changes (if anything) when affiliate links land. This is the canonical reference for the public `/cookies` and `/privacy` pages — keep it in sync when behaviour changes.
+> Enumerates every cookie set on a Lyra visitor's browser, who sets it, on which domain, what changes (if anything) when affiliate links land. This is the canonical reference for the Cookies section of the public `/privacy` page (`/privacy#cookies`; the old `/cookies` page was folded in by KAN-493 and redirects there) — keep it in sync when behaviour changes.
 
 Last audit: 2026-05-16. Reconciled 2026-07-03 (SEC-72 — analytics now consent-gated).
 
@@ -63,6 +63,4 @@ For internal analytics (per-merchant EPC, monthly reconciliation against Sovrn's
 
 - UK ICO guidance on cookies: <https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/online/cookies-and-similar-technologies/>
 - PECR Regulation 6 (cookies & similar): <https://www.legislation.gov.uk/uksi/2003/2426/regulation/6>
-- Public-facing Lyra cookie policy: `src/app/(legal)/cookies/page.tsx`
-- Public-facing Lyra privacy policy: `src/app/(legal)/privacy/page.tsx`
-- Affiliate-partners disclosure: `src/app/(legal)/partners/page.tsx` (KAN-184)
+- Public-facing Lyra privacy policy, including the cookie policy (`#cookies`) and the affiliate-partners disclosure (`#affiliate-partners`): `src/app/(legal)/privacy/page.tsx` (KAN-493 folded in the former `cookies` and `partners` pages)

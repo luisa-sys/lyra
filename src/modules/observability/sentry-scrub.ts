@@ -20,8 +20,23 @@
  * - `/oauth/*` and `/api/convene/oauth/*` URLs have their ENTIRE query string
  *   redacted, because the auth code / state / token live there and enumerating
  *   every possible param name is fragile.
+ * - With `WEB_SCRUB_OPTIONS` (every lyra web init), `/search` URLs — the
+ *   public "Find someone" page — also have their ENTIRE query string
+ *   redacted (KAN-482, DPIA §2a AD-6): `?q=` is free text that routinely
+ *   names a third party or a school. It is an option, not a default, so the
+ *   SEC-55 defaults stay identical to the MCP server's copy (no /search).
+ * - `Referer` / `Referrer` request headers and the
+ *   `http.request.header.referer` span attribute are URLs too (the browser SDK
+ *   fills them from `document.referrer`), so they get the same URL scrub
+ *   (KAN-482). This also applies with the defaults — a web-side addition the
+ *   MCP server copy does not have yet.
  * - All other URLs only drop the enumerated sensitive params, preserving
  *   benign query context (pagination, etc.) for debugging.
+ * - Navigation breadcrumbs carry URLs in `data.from` / `data.to`, and
+ *   performance spans in `data.url` / `http.url` / `url.full` /
+ *   `http.target` (+ a bare `url.query` / `http.query`), so those are scrubbed
+ *   too; `scrubSentryTransaction` covers transaction events, which do not go
+ *   through `beforeSend`.
  */
 
 /** Parameter / body-field / header names whose values must never reach Sentry. */
@@ -45,6 +60,35 @@ const SENSITIVE_HEADERS: ReadonlySet<string> = new Set([
 
 /** Paths whose query string is redacted in full (auth code / state / token live here). */
 const OAUTH_PATH_RE = /\/(?:oauth|api\/convene\/oauth)(?:\/|$|\?)/i;
+
+/**
+ * Per-app additions to the always-on rules. The defaults (no options) are the
+ * SEC-55 behaviour shared with the MCP server's copy of this module.
+ */
+export interface ScrubOptions {
+  /** Extra paths whose ENTIRE query string is redacted, like `/oauth/*`. */
+  readonly fullyRedactedPaths?: readonly RegExp[];
+}
+
+/** KAN-482: the public search page; its `?q=` is free text naming people / schools. */
+export const SEARCH_PATH_RE = /\/search\/?$/i;
+
+/**
+ * The options every web (lyra) Sentry init passes — server, edge and browser.
+ * KAN-482 / DPIA §2a AD-6: `/search?q=` must never reach Sentry.
+ */
+export const WEB_SCRUB_OPTIONS: ScrubOptions = { fullyRedactedPaths: [SEARCH_PATH_RE] };
+
+/** True when a URL / path's query string must be redacted in full. */
+function isFullyRedactedPath(path: string, opts: ScrubOptions): boolean {
+  if (OAUTH_PATH_RE.test(path)) return true;
+  return (opts.fullyRedactedPaths ?? []).some((re) => re.test(path));
+}
+
+/** Path part of a URL or path string (before `?` / `#`). */
+function pathOf(url: string): string {
+  return url.split(/[?#]/, 1)[0];
+}
 
 const FILTERED = '[Filtered]';
 const MAX_DEPTH = 8;
@@ -89,13 +133,13 @@ function scrubQueryStringValue(qs: string): string {
  * Redact a URL string. OAuth paths lose their whole query; every other URL
  * only loses the enumerated sensitive params. Fragment/host/path are kept.
  */
-export function scrubUrl(url: string): string {
+export function scrubUrl(url: string, opts: ScrubOptions = {}): string {
   const qIdx = url.indexOf('?');
   if (qIdx === -1) return url;
   const path = url.slice(0, qIdx);
   const query = url.slice(qIdx + 1);
 
-  if (OAUTH_PATH_RE.test(path)) {
+  if (isFullyRedactedPath(path, opts)) {
     return `${path}?${FILTERED}`;
   }
 
@@ -112,12 +156,24 @@ export function scrubUrl(url: string): string {
   return rebuilt ? `${path}?${rebuilt}` : path;
 }
 
-function scrubHeaders(headers: Record<string, unknown>): void {
+/**
+ * Header names whose value is a URL (KAN-482, DPIA §2a AD-6). The browser SDK
+ * copies `document.referrer` into `request.headers.Referer`, and the server
+ * request data carries the inbound `Referer`; after a second native-GET search
+ * that header is the previous `/search?q=<term>` URL, so it gets the same URL
+ * scrub as `request.url`.
+ */
+const URL_HEADERS: ReadonlySet<string> = new Set(['referer', 'referrer']);
+
+function scrubHeaders(headers: Record<string, unknown>, opts: ScrubOptions): void {
   for (const key of Object.keys(headers)) {
     const lower = key.toLowerCase();
     if (SENSITIVE_HEADERS.has(lower) || SENSITIVE_KEYS.has(lower)) {
       delete headers[key];
+      continue;
     }
+    const val = headers[key];
+    if (URL_HEADERS.has(lower) && typeof val === 'string') headers[key] = scrubUrl(val, opts);
   }
 }
 
@@ -139,10 +195,13 @@ function scrubJsonString(body: string): string {
   return body;
 }
 
-function scrubRequest(req: Record<string, unknown>): void {
-  if (typeof req.url === 'string') req.url = scrubUrl(req.url);
+function scrubRequest(req: Record<string, unknown>, opts: ScrubOptions): void {
+  const fullyRedacted = typeof req.url === 'string' && isFullyRedactedPath(pathOf(req.url), opts);
+  if (typeof req.url === 'string') req.url = scrubUrl(req.url, opts);
 
-  if (typeof req.query_string === 'string') {
+  if (fullyRedacted && req.query_string !== undefined) {
+    req.query_string = FILTERED;
+  } else if (typeof req.query_string === 'string') {
     req.query_string = scrubQueryStringValue(req.query_string);
   } else if (isPlainObject(req.query_string)) {
     scrubObjectInPlace(req.query_string, 0);
@@ -160,24 +219,61 @@ function scrubRequest(req: Record<string, unknown>): void {
   if (isPlainObject(req.data)) scrubObjectInPlace(req.data, 0);
   else if (typeof req.data === 'string') req.data = scrubJsonString(req.data);
 
-  if (isPlainObject(req.headers)) scrubHeaders(req.headers);
+  if (isPlainObject(req.headers)) scrubHeaders(req.headers, opts);
   if (isPlainObject(req.cookies)) scrubObjectInPlace(req.cookies, 0);
 }
 
 /** Redact any URL-shaped tokens embedded in a breadcrumb message. */
-function scrubMessageUrls(message: string): string {
+function scrubMessageUrls(message: string, opts: ScrubOptions): string {
   return message
     .split(' ')
-    .map((token) => (token.includes('?') ? scrubUrl(token) : token))
+    .map((token) => (token.includes('?') ? scrubUrl(token, opts) : token))
     .join(' ');
 }
 
-function scrubBreadcrumbInPlace(bc: Record<string, unknown>): void {
+/** URL-bearing keys in breadcrumb / span `data`. */
+const URL_DATA_KEYS = [
+  'url',
+  'from',
+  'to',
+  'http.url',
+  'url.full',
+  'http.target',
+  // KAN-482 AD-6: the browser httpContext integration copies the Referer
+  // (document.referrer, e.g. a previous /search?q=) into this span attribute.
+  'http.request.header.referer',
+] as const;
+/** Bare query-string keys in span `data` (OpenTelemetry semantic conventions). */
+const QUERY_DATA_KEYS = ['url.query', 'http.query'] as const;
+/** Path-only keys that tell us which route a bare query belongs to. */
+const PATH_DATA_KEYS = ['url.path', 'http.route', 'next.route'] as const;
+
+/** Scrub URL-shaped values (and bare query strings) in a breadcrumb/span `data` bag. */
+function scrubUrlDataInPlace(data: Record<string, unknown>, opts: ScrubOptions): void {
+  let redactBareQuery = false;
+  for (const key of [...URL_DATA_KEYS, ...PATH_DATA_KEYS]) {
+    // The referer names the PREVIOUS page, not the one a bare query belongs to.
+    if (key === 'http.request.header.referer') continue;
+    const v = data[key];
+    if (typeof v === 'string' && isFullyRedactedPath(pathOf(v), opts)) redactBareQuery = true;
+  }
+  for (const key of URL_DATA_KEYS) {
+    const v = data[key];
+    if (typeof v === 'string') data[key] = scrubUrl(v, opts);
+  }
+  for (const key of QUERY_DATA_KEYS) {
+    const v = data[key];
+    if (typeof v !== 'string') continue;
+    data[key] = redactBareQuery ? FILTERED : scrubQueryStringValue(v.replace(/^\?/, ''));
+  }
+}
+
+function scrubBreadcrumbInPlace(bc: Record<string, unknown>, opts: ScrubOptions): void {
   if (typeof bc.message === 'string' && bc.message.includes('?')) {
-    bc.message = scrubMessageUrls(bc.message);
+    bc.message = scrubMessageUrls(bc.message, opts);
   }
   if (isPlainObject(bc.data)) {
-    if (typeof bc.data.url === 'string') bc.data.url = scrubUrl(bc.data.url);
+    scrubUrlDataInPlace(bc.data, opts);
     scrubObjectInPlace(bc.data, 0);
   }
 }
@@ -186,16 +282,16 @@ function scrubBreadcrumbInPlace(bc: Record<string, unknown>): void {
  * `beforeSend` hook. Scrubs request URL/query/body/headers/cookies and any
  * breadcrumbs carried on the event. Mutates in place and returns the event.
  */
-export function scrubSentryEvent<T>(event: T): T {
+export function scrubSentryEvent<T>(event: T, opts: ScrubOptions = {}): T {
   if (!isPlainObject(event)) return event;
 
-  if (isPlainObject(event.request)) scrubRequest(event.request);
+  if (isPlainObject(event.request)) scrubRequest(event.request, opts);
 
   const bc = event.breadcrumbs;
   if (Array.isArray(bc)) {
-    for (const crumb of bc) if (isPlainObject(crumb)) scrubBreadcrumbInPlace(crumb);
+    for (const crumb of bc) if (isPlainObject(crumb)) scrubBreadcrumbInPlace(crumb, opts);
   } else if (isPlainObject(bc) && Array.isArray(bc.values)) {
-    for (const crumb of bc.values) if (isPlainObject(crumb)) scrubBreadcrumbInPlace(crumb);
+    for (const crumb of bc.values) if (isPlainObject(crumb)) scrubBreadcrumbInPlace(crumb, opts);
   }
 
   return event;
@@ -205,7 +301,31 @@ export function scrubSentryEvent<T>(event: T): T {
  * `beforeSendBreadcrumb` hook. Scrubs a single breadcrumb's message + data URL.
  * Mutates in place and returns the breadcrumb.
  */
-export function scrubSentryBreadcrumb<T>(breadcrumb: T): T {
-  if (isPlainObject(breadcrumb)) scrubBreadcrumbInPlace(breadcrumb);
+export function scrubSentryBreadcrumb<T>(breadcrumb: T, opts: ScrubOptions = {}): T {
+  if (isPlainObject(breadcrumb)) scrubBreadcrumbInPlace(breadcrumb, opts);
   return breadcrumb;
+}
+
+/**
+ * `beforeSendTransaction` hook (KAN-482). Transaction events skip `beforeSend`,
+ * yet carry the request URL and per-span URL attributes. Applies the event
+ * scrub, then the URL scrub to the trace context and every span's `data`.
+ * Mutates in place and returns the event.
+ */
+export function scrubSentryTransaction<T>(event: T, opts: ScrubOptions = {}): T {
+  scrubSentryEvent(event, opts);
+  if (!isPlainObject(event)) return event;
+  const contexts = event.contexts;
+  if (isPlainObject(contexts) && isPlainObject(contexts.trace) && isPlainObject(contexts.trace.data)) {
+    scrubUrlDataInPlace(contexts.trace.data, opts);
+  }
+  if (Array.isArray(event.spans)) {
+    for (const span of event.spans) {
+      if (isPlainObject(span) && isPlainObject(span.data)) scrubUrlDataInPlace(span.data, opts);
+      if (isPlainObject(span) && typeof span.description === 'string' && span.description.includes('?')) {
+        span.description = scrubMessageUrls(span.description, opts);
+      }
+    }
+  }
+  return event;
 }

@@ -109,18 +109,26 @@ describe('KAN-469: the editor no longer offers "A couple of extras"', () => {
     expect(labels.some((l) => /couple of extras/i.test(l))).toBe(false);
   });
 
-  test('the editor declares no section carrying the billboard category', () => {
-    // The categories array is what wired the removed section to item rows.
-    // A section re-added under a different id or label would still need this.
-    expect(sectionsLiteral).not.toContain("'billboard'");
+  // KAN-487 (spec v0.8 §10 "Billboard"): Billboard is a section again, but
+  // as its own profile field (`profiles.billboard`), not the legacy
+  // `billboard` ITEM category KAN-469 removed. Old expected value:
+  //   expect(sectionsLiteral).not.toContain("'billboard'")
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // New: the literal holds the §10 section id 'billboard', and no section
+  // wires item categories any more (no `categories:` key at all).
+  test('the editor declares a billboard section id, and no section wires item categories', () => {
+    expect(sectionsLiteral).toContain("'billboard'");
+    expect(sectionsLiteral).not.toMatch(/categories:/);
   });
 
+  // KAN-487 (spec v0.8): ten sections, Links retired, §10 Billboard last.
+  // Old expected value: expect(ids[ids.length - 1]).toBe('links')
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
   test('the sections the prompt moved to and from are both still there', () => {
-    // 'starters' is "A bit more about me" — where the billboard prompt now
-    // lives, added as a conversation starter rather than in code. 'links'
-    // stayed last when the removed section was spliced out from above it.
+    // 'starters' is "Random Questions & Answers" (v0.8 §09).
     expect(ids).toContain('starters');
-    expect(ids[ids.length - 1]).toBe('links');
+    expect(ids[ids.length - 1]).toBe('billboard');
+    expect(ids.length).toBe(10);
   });
 });
 
@@ -133,7 +141,9 @@ describe('KAN-469: the public profile no longer renders a standalone billboard',
 
   test('the public page source is non-trivial — the read actually found it', () => {
     expect(page.length).toBeGreaterThan(1000);
-    expect(page).toContain('groupedItems');
+    // KAN-488: the page no longer groups items itself; it renders the v0.8
+    // view model. Was: expect(page).toContain('groupedItems');
+    expect(page).toContain('buildPublicProfileView');
   });
 
   test('nothing on the public page reads the billboard category', () => {
@@ -144,8 +154,16 @@ describe('KAN-469: the public profile no longer renders a standalone billboard',
   test('the Q&A section that absorbs the prompt is untouched', () => {
     // The billboard block sat between the Q&A section and Links. Removing it
     // must not have taken either neighbour with it.
-    expect(page).toContain("groupedItems['questions']");
-    expect(page).toContain('A bit more about me');
-    expect(page).toContain('typedLinks');
+    // KAN-488 (spec v0.8): Q&A is §09 "Random Questions & Answers" built by
+    // the view model from answered questions only; legacy "questions" items
+    // are no longer read and the Links section is retired. The rendered Q&A
+    // is asserted in kan488-public-profile-page.test.tsx. Old expected values:
+    //   expect(page).toContain("groupedItems['questions']");
+    //   expect(page).toContain('A bit more about me');
+    //   expect(page).toContain('typedLinks');
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(page).not.toContain("groupedItems['questions']");
+    expect(page).not.toContain('A bit more about me');
+    expect(page).not.toContain('typedLinks');
   });
 });

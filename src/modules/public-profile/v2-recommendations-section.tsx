@@ -65,7 +65,7 @@ export default function V2RecommendationsSection({
         </h2>
         <p className="text-sm text-[var(--color-muted)] mt-2">
           {subhead}
-          <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
+          <Link href="/privacy#affiliate-partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
             see how this works
           </Link>
           .
@@ -111,7 +111,7 @@ export default function V2RecommendationsSection({
 
       <p className="text-xs text-[var(--color-muted)] mt-6">
         Suggestions are auto-generated &mdash; not endorsements. Read the{' '}
-        <Link href="/partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
+        <Link href="/privacy#affiliate-partners" className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline">
           partners disclosure
         </Link>{' '}
         for details on how Lyra works with affiliate networks.

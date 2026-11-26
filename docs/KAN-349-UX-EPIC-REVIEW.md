@@ -77,7 +77,7 @@ Current `/dashboard` hub (KAN-326): inline next-steps hub, profile-summary card,
 
 ## 5. KAN-339 — postcode removal (approach; not coded tonight)
 
-Surfaces: `profiles.postcode_prefix`; inputs in `dashboard/profile/profile-fields.ts` + `steps/types.tsx`; **discovery** in `dashboard/settings/discoverability-*`. **Phone search is separate and stays.** **Affiliate geo-signal uses country, not postcode (verified)** so the scrub is safe.
+Surfaces: `profiles.postcode_prefix`; inputs in `dashboard/profile/profile-fields.ts` + `steps/types.tsx` (note 2026-11-23: `steps/` was deleted with the legacy wizard in KAN-487 part 3; the item type now lives in `src/modules/profile/types.ts`); **discovery** in `dashboard/settings/discoverability-*`. **Phone search is separate and stays.** **Affiliate geo-signal uses country, not postcode (verified)** so the scrub is safe.
 Plan: remove the input + the postcode discovery query/UI, scrub `postcode_prefix = NULL` (migration), drop from MCP schema. **Needs:** Q3 (KAN-153 test sign-off — `discoverability-{helpers,actions}.test.ts`), Q4 (privacy-policy/ROPA edit), and sequencing with KAN-341 so discovery isn't dark.
 
 ---

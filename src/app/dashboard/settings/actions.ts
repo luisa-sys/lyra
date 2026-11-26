@@ -220,6 +220,23 @@ export async function exportUserData(): Promise<string> {
     .from('gift_suggestion_dismissals').select('*').eq('profile_id', profileId);
   record('gift_suggestion_dismissals', dismissalsErr);
 
+  // KAN-489: the AI gift suggestion requests the member made (timestamps,
+  // random editor-session ids and the consent-note version; no content). Unreadable by the member's own
+  // client by design (no RLS policy), so only this service-role export shows it.
+  const { data: aiGiftGenerations, error: aiGenErr } = await admin
+    .from('ai_gift_generations').select('id, session_id, consent_version, created_at').eq('profile_id', profileId);
+  record('ai_gift_generations', aiGenErr);
+
+  // KAN-490: the member's pre-v0.8 profile addresses (old slugs kept so old
+  // links redirect) and the archive copy of their pre-v0.8 list items. Both
+  // are unreadable by the member's own client (RLS on, no policies).
+  const { data: slugHistory, error: slugHistErr } = await admin
+    .from('profile_slug_history').select('old_slug, created_at').eq('profile_id', profileId);
+  record('profile_slug_history', slugHistErr);
+  const { data: legacyItemArchive, error: legacyArchErr } = await admin
+    .from('profile_items_legacy_archive').select('*').eq('profile_id', profileId);
+  record('profile_items_legacy_archive', legacyArchErr);
+
   // Venue visits hang off the user's own gatherings.
   let venueVisits: unknown[] = [];
   if (gatheringIds.length) {
@@ -272,6 +289,9 @@ export async function exportUserData(): Promise<string> {
     venue_visits: venueVisits,
     oauth_scopes_granted: oauthScopes,
     gift_suggestion_dismissals: giftDismissals || [],
+    ai_gift_generations: aiGiftGenerations || [],
+    profile_slug_history: slugHistory || [],
+    profile_items_legacy_archive: legacyItemArchive || [],
     // Present only when one or more sections failed to fetch — the export is
     // then known-incomplete and must not be treated as a full SAR response.
     ...(fetchErrors.length ? { export_incomplete_errors: fetchErrors } : {}),
@@ -344,11 +364,13 @@ export async function deleteAccount() {
 
   // Best-effort: remove now-orphaned storage objects (the DB cascade
   // doesn't touch storage). Non-fatal — the account and all rows are gone.
+  // One bucket handle per bucket, used for both the list and the remove.
   for (const bucket of ['profile-photos', 'profile-files']) {
     try {
-      const { data: files } = await admin.storage.from(bucket).list(userId);
+      const store = admin.storage.from(bucket);
+      const { data: files } = await store.list(userId);
       if (files?.length) {
-        await admin.storage.from(bucket).remove(files.map((f) => `${userId}/${f.name}`));
+        await store.remove(files.map((f) => `${userId}/${f.name}`));
       }
     } catch {
       // ignore — orphaned-object cleanup isn't worth failing the flow

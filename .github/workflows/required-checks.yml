@@ -46,7 +46,7 @@ jobs:
     name: Branch protection matches the committed expectation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Compare live branch protection with .github/expected-protection.json
         env:
@@ -73,7 +73,7 @@ jobs:
     name: Watched scheduled workflows have actually run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # zizmor `artipacked`: this job reads tracked files and calls the
           # Actions API with GH_TOKEN from env. It runs no git command, so the

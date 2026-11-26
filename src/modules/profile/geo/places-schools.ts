@@ -4,9 +4,9 @@
  *
  * CLIENT-SAFE BY CONSTRUCTION. This module imports nothing — in particular not
  * `src/modules/platform/env.ts` — so the picker component can use it without dragging the
- * environment accessor (or the Places client) into the browser bundle. The
- * network call lives next door in `places-schools-lookup.ts`, which only the
- * server action imports.
+ * environment accessor into the browser bundle. (The KAN-451 Places call that
+ * lived next door in `places-schools-lookup.ts` was deleted in KAN-487 part 3;
+ * suggestions now come from `suggest_affiliation_names`.)
  *
  * DEGRADE, NEVER BLOCK. A member whose school is not in any list must always be
  * able to add it, which is why `buildSuggestionOptions` always ends with an

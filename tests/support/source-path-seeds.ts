@@ -208,6 +208,19 @@ export const SEEDED_PATHS = [
   'src/modules/public-profile/v2-recommendations-section.tsx',
   'src/modules/public-profile/slug-utils.ts',
   'src/modules/public-profile/v2-recommendations-helpers.ts',
+  // KAN-488: the public page's data access, metadata and section renderer
+  // moved out of src/app/[slug]/page.tsx. Tests that pin the loader's query
+  // shape reach these only via SRC, so they are seeded here.
+  'src/modules/public-profile/load-public-profile.ts',
+  'src/modules/public-profile/public-profile-meta.ts',
+  'src/modules/public-profile/public-profile-sections.tsx',
+  // ...and the two profile-module files the public page now renders through.
+  'src/modules/profile/editor/editor-state.ts',
+  'src/modules/profile/editor/public-view-model.ts',
+  // KAN-487 part 3: profile-item-url.test.ts was repointed from the deleted
+  // legacy items step to the v0.8 save-payload validator, which it reaches
+  // only via SRC — seeded so the key survives a regeneration (gotcha #31).
+  'src/modules/profile/editor/validate-save-payload.ts',
   // CTL-049 / SEC-137. Both are reached ONLY through `SRC` — the test routes
   // every path through the manifest so the F4 raw-literal ratchet (shrink-only)
   // is not raised by a new file, which would have been the easy wrong move.
@@ -388,4 +401,17 @@ export const SEEDED_PATHS = [
   // the key would vanish on the next regeneration and `execFileSync(undefined)`
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-snapshot-regeneration.py',
+
+  // CTL-081 / SEC-197 — dependency freshness (vulnerable or >90 days old means
+  // upgrade). tests/scripts/check-dependency-freshness.test.js reaches the
+  // checker only through `SRC`, so without this literal the key would vanish on
+  // the next regeneration (gotcha #31).
+  'scripts/check-dependency-freshness.py',
+  // ...and its daily workflow, read by the same suite's wiring tests.
+  '.github/workflows/dependency-freshness.yml',
+
+  // BUGS-134 — the liveness smoke checks. tests/scripts/smoke-tests-access-gate.test.js
+  // reaches the script only through `SRC`, so without this literal the key
+  // would vanish on the next regeneration (gotcha #31).
+  'scripts/smoke-tests.sh',
 ] as const;

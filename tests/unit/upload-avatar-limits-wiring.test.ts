@@ -41,6 +41,7 @@
  *   * pass a hardcoded allow-list instead of the constant -> cases 1 and 3 redden
  * Under every one, photo-upload.test.js stays 6/6 green.
  */
+import sharp from 'sharp';
 import { uploadAvatar } from '@/app/dashboard/profile/actions';
 import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 
@@ -95,6 +96,20 @@ const GRANTED = {
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // %PDF-
 
+// KAN-486 — v0.8 §01 needs a DECODABLE image of at least 400 × 400, so the
+// acceptance cases use a genuine 500 × 500 PNG (the 8-byte header above is
+// still enough for the refusal cases, which never reach decoding).
+let REAL_PNG: Uint8Array;
+let SMALL_PNG: Uint8Array;
+beforeAll(async () => {
+  const make = (side: number) =>
+    sharp({ create: { width: side, height: side, channels: 3, background: { r: 1, g: 2, b: 3 } } })
+      .png()
+      .toBuffer();
+  REAL_PNG = new Uint8Array(await make(500));
+  SMALL_PNG = new Uint8Array(await make(300));
+});
+
 function fileOf(bytes: Uint8Array, type: string, padTo = 0): File {
   // Build on a concrete ArrayBuffer: a plain Uint8Array is typed over
   // ArrayBufferLike, which is not assignable to BlobPart under TS 5.7+.
@@ -145,7 +160,7 @@ describe('uploadAvatar — the limits are WIRED, not merely declared', () => {
   });
 
   it('accepts a genuine PNG and upserts it into profile-photos', async () => {
-    const res = await uploadAvatar(form(fileOf(PNG, 'image/png')));
+    const res = await uploadAvatar(form(fileOf(REAL_PNG, 'image/png')));
 
     expect(res.success).toBe(true);
     expect(storageFrom).toHaveBeenCalledWith('profile-photos');
@@ -157,11 +172,57 @@ describe('uploadAvatar — the limits are WIRED, not merely declared', () => {
   });
 
   it('stores the avatar under the caller’s own user id', async () => {
-    await uploadAvatar(form(fileOf(PNG, 'image/png')));
+    await uploadAvatar(form(fileOf(REAL_PNG, 'image/png')));
 
     // Path scoping is what the storage RLS policy keys on
     // (storage.foldername(name)[1] = auth.uid()), so a wrong prefix would let
     // one member overwrite another's avatar.
     expect(String(upload.mock.calls[0][0])).toMatch(/^user-1\//);
+  });
+});
+
+describe('uploadAvatar — KAN-486 photo pipeline is wired (spec v0.8 §01)', () => {
+  it('uploads a re-encoded JPEG, not the bytes it was given', async () => {
+    const res = await uploadAvatar(form(fileOf(REAL_PNG, 'image/png')));
+
+    expect(res.success).toBe(true);
+    const [path, body, opts] = upload.mock.calls[0];
+    expect(path).toBe('user-1/avatar.jpg');
+    expect(opts).toEqual(expect.objectContaining({ upsert: true, contentType: 'image/jpeg' }));
+    const meta = await sharp(body as Buffer).metadata();
+    expect(meta.format).toBe('jpeg');
+    expect([meta.width, meta.height]).toEqual([500, 500]);
+    expect(Buffer.compare(body as Buffer, Buffer.from(REAL_PNG))).not.toBe(0);
+  });
+
+  it('refuses a real image under 400 × 400 and writes nothing', async () => {
+    const res = await uploadAvatar(form(fileOf(SMALL_PNG, 'image/png')));
+
+    expect(res).toEqual({ success: false, error: 'Photos must be at least 400 × 400 pixels.' });
+    expect(upload).not.toHaveBeenCalled();
+    expect(profileUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a GIF (no longer an accepted type)', async () => {
+    const GIF = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]); // GIF89a
+    const res = await uploadAvatar(form(fileOf(GIF, 'image/gif')));
+
+    expect(res.success).toBe(false);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('still uploads when media_uploads is revoked (a photo is required to publish)', async () => {
+    (getMyFeatureEntitlements as jest.Mock).mockResolvedValue({ ...GRANTED, media_uploads: false });
+    const res = await uploadAvatar(form(fileOf(REAL_PNG, 'image/png')));
+
+    expect(res.success).toBe(true);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it('sets avatar_url with a cache-busting version', async () => {
+    await uploadAvatar(form(fileOf(REAL_PNG, 'image/png')));
+
+    const written = (profileUpdate.mock.calls[0] as unknown[])[0] as { avatar_url: string };
+    expect(written.avatar_url).toMatch(/^https:\/\/cdn\/x\.png\?v=\d+$/);
   });
 });

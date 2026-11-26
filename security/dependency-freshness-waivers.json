@@ -1,0 +1,70 @@
+{
+  "_why": [
+    "SEC-197. Dated exceptions to the dependency-freshness policy (docs/DEPENDENCY_POLICY.md).",
+    "",
+    "Founder rule, 2026-11-23: always upgrade external software when it has a",
+    "vulnerability or is more than 3 months old. An entry here is the ONLY way to",
+    "carry a dependency that breaks that rule, and it is allowed only when no fixed",
+    "version exists or the upgrade is genuinely blocked.",
+    "",
+    "Shape (validated by scripts/check-dependency-freshness.py, CTL-081):",
+    "  package      npm package name ('node' for the Node.js runtime pin)",
+    "  kind         'age' or 'vulnerability'",
+    "  advisory     the GHSA id for kind=vulnerability; null for kind=age",
+    "  reason       why it was not upgraded AND what mitigates the risk meanwhile",
+    "  jira         the ticket tracking the upgrade (any Jira key, e.g. SEC-194)",
+    "  expires      YYYY-MM-DD, at most 90 days after the day the check runs.",
+    "               A lapsed waiver FAILS the check. Renew only with a fresh reason.",
+    "  approved_by  who approved it, e.g. 'founder 2026-11-23 standing policy'",
+    "",
+    "A waiver covers ONE package and, for vulnerabilities, ONE advisory. A waiver",
+    "that matches nothing is STALE and is reported so it can be removed.",
+    "",
+    "This file is separate from security/npm-audit-waivers.json (SEC-105 / CTL-052,",
+    "hygiene by CTL-025). That file waives the blocking prod-tree HIGH/CRITICAL",
+    "audit gate; this one waives the broader freshness policy. A package that is",
+    "both unfixable-HIGH in the prod tree and out of freshness policy needs an",
+    "entry in BOTH files. See docs/DEPENDENCY_POLICY.md section 6.",
+    "",
+    "EMPTY IS THE CORRECT STEADY STATE."
+  ],
+  "ticket": "SEC-197",
+  "waivers": [
+    {
+      "package": "jose",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Installed 5.10.0 (published 2025-02-17, latest 5.x); 6.2.18 not taken. jose 6 is ESM-only and the jest suite runs CommonJS through @swc/jest, so 6 suites (oauth/*, admin/cf-access, admin) fail with 'Must use import to load ES Module'. The app code needs NO change (tsc clean on 6.2.18: importSPKI/importPKCS8/SignJWT/jwtVerify/createRemoteJWKSet/decodeJwt/exportJWK unchanged). The fix is a jest.config.js change, which the Test Integrity Policy reserves for founder sign-off: add transform '^.+/node_modules/jose/.+\\.js$' -> @swc/jest and transformIgnorePatterns ['/node_modules/(?!jose/)']; verified on a scratch config: those 19 suites pass 214/214 with jose 6. Mitigation: no advisories against 5.10.0. Follow-up: founder approves the two-line jest.config change, then bump jose.",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "Claude under the SEC-197 policy, 2026-11-23 (upgrade blocked; founder decision pending in SEC-198)"
+    },
+    {
+      "package": "eslint",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Installed 9.39.5 (latest 9.x, published 2026-07-10, >90 days); 10.15.0 not taken. END OF LIFE: npm marks every eslint 9.x release deprecated ('This version is no longer supported', see eslint.org/version-support) and prints it at install, so 9.x will receive no further security fixes; that is why this waiver is short. eslint-config-next 16.4.6 (latest) bundles eslint-plugin-react 7.37.5, eslint-plugin-import 2.32.0 and eslint-plugin-jsx-a11y 6.10.2, none of which declare ESLint 10 in their peer range and none of which has a release that does; installing eslint 10 makes npm override three peer dependencies and `npm ls` reports the tree invalid. Tested on a throwaway tree: the lint output was byte-identical to 9.x (37 warnings, 0 errors) and probe violations for react/jsx-key, react/no-unescaped-entities, react-hooks/rules-of-hooks, jsx-a11y/alt-text, import/no-anonymous-default-export and @next/next/no-img-element all still fired, so it is workable, but only by forcing peers. Mitigation: no advisories against 9.39.5 today (npm audit 0); eslint is dev/CI-only and never ships in the app bundle; any new eslint 9 advisory voids this waiver immediately because no 9.x fix will come. Follow-up: upgrade when eslint-config-next's bundled plugins declare ESLint 10 support, or by the expiry date with peer overrides if they still have not (the throwaway-tree test above shows that works).",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "Claude under the SEC-197 policy, 2026-11-23 (upgrade blocked; founder decision pending in SEC-198)"
+    },
+    {
+      "package": "typescript",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Upgraded 5.9.3 -> 6.0.3 (latest 6.x, published 2026-04-16, so itself >90 days old) in SEC-174; 7.0.2 not taken. TypeScript 7 is the native (Go) compiler: its package exports only ./lib/version.cjs and unstable/* entry points, with no require('typescript') compiler API. typescript-eslint 8.73 (peer typescript >=4.8.4 <6.1.0), ts-jest 29.4 (peer <7) and next 16.4.6's build-time type check (resolves typescript/lib/typescript.js) all need that API. Mitigation: no advisories against 6.0.3; tsc, lint and next build are clean on it. Follow-up: re-evaluate when typescript-eslint and Next.js declare TS 7 support (or adopt @typescript/native-preview alongside 6.x for tsc only).",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "Claude under the SEC-197 policy, 2026-11-23 (upgrade blocked; founder decision pending in SEC-198)"
+    },
+    {
+      "package": "dependency-cruiser",
+      "kind": "age",
+      "advisory": null,
+      "reason": "Held at 17.4.3 (latest 17.x, published 2026-05-29, >90 days); 18.9.0 not taken. dependency-cruiser 18 declares engines.node ^22||^24||>=26, which skips Node 25; 17.4.3 declares ^20.12||^22||>=24. On a Node 25 developer machine 18 refuses to start ('Your node version (25.x) is not supported'), failing CLOSED: 10 cases in 4 unit suites (check-dependency-rules, check-edge-safe, check-module-api, check-module-layering; CTL-051/053/054, KAN-425) and scripts/check-dependency-rules.sh, check-edge-safe.py, check-module-api.py, check-module-layering.py go red. 18.9.0 was tried on the SEC-174 branch and reverted for this reason. .dependency-cruiser.cjs needed no change for 18 (no violations on 383 modules under Node 24 semantics). Mitigation: no advisories against 17.4.3 (npm audit 0); dev/CI-only, never shipped. Follow-up: upgrade once local dev standardises on Node 24/26 (outside 25) or 18 adds Node 25 to its range.",
+      "jira": "SEC-198",
+      "expires": "2026-12-23",
+      "approved_by": "Claude under the SEC-197 policy, 2026-11-23 (upgrade blocked; founder decision pending in SEC-198)"
+    }
+  ]
+}

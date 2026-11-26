@@ -133,21 +133,32 @@ test.describe('KAN-271 — authenticated profile editor (was test.fixme)', () =>
     const marker = `E2E manual note ref-${Date.now().toString(36)}`;
 
     await page.goto('/dashboard/profile', { waitUntil: 'load' });
-    // The "Good to know about me" textarea is located by its placeholder (the
-    // MoMField has no stable id; placeholder is stable copy — KAN-266).
-    const goodToKnow = page.getByPlaceholder(/I'm a slow texter/);
+    // KAN-487 (spec v0.8 §1, §05): edits stay private until Save Changes, then
+    // the editor shows exactly "Changes saved successfully". Old flow: fill the
+    // box located by placeholder /I'm a slow texter/, blur, wait for the
+    // autosave label /Saved|Saving/, then expect the marker on /<slug>.
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    // The §05 textarea is located by its label (spec v0.8 §05 wording).
+    const goodToKnow = page.getByLabel('Good to know about me / Things I’m into');
     await expect(goodToKnow).toBeVisible();
     await goodToKnow.fill(marker);
-    // Autosave debounces ~800ms after the last keystroke; blur + wait for the
-    // section's save to settle, then confirm via the public profile.
     await goodToKnow.blur();
-    await expect(page.getByText(/Saved|Saving/).first()).toBeVisible();
 
-    // The edit === published content (June-2026 spec): it must show on /<slug>.
+    // Before Save Changes the public profile must NOT show the edit. A second
+    // tab, so the editor (and its unsaved edit) stays open.
+    const publicPage = await page.context().newPage();
+    await publicPage.goto(`/${slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+    await expect(publicPage.getByText(marker)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
+
+    // After Save Changes the edit is on /<slug>.
     await expect(async () => {
-      await page.goto(`/${slug}?cb=${Date.now()}`, { waitUntil: 'load' });
-      await expect(page.getByText(marker)).toBeVisible();
+      await publicPage.goto(`/${slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+      await expect(publicPage.getByText(marker)).toBeVisible();
     }).toPass({ timeout: 20_000 });
+    await publicPage.close();
   });
 });
 
