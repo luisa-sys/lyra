@@ -6,8 +6,8 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 147,
-    "blocks": 328
+    "files": 148,
+    "blocks": 330
   },
   "files": {
     "tests/e2e/authed/journey.authed.spec.ts": 1,
@@ -108,6 +108,7 @@
     "tests/unit/kan443-gift-voucher-hint.test.ts": 1,
     "tests/unit/kan444-favourites-groups.test.ts": 1,
     "tests/unit/kan451-schools-picker.test.ts": 1,
+    "tests/unit/kan493-simplified-footer.test.tsx": 2,
     "tests/unit/legal-pages.test.js": 4,
     "tests/unit/lockdown-inventory-consistency.test.js": 1,
     "tests/unit/maintenance-page.test.js": 6,

@@ -146,7 +146,7 @@ describe('KAN-272 E: support pages', () => {
   // KAN-493: Guidelines, Keeping people safe and Help are sections of About.
   for (const [id, heading] of [
     ['guidelines', 'Guidelines'],
-    ['safety', 'Keeping people safe'],
+    ['safety', 'How Lyra keeps you safe'],
     ['help', 'Help'],
   ]) {
     test(`about page has the ${heading} section (#${id})`, () => {

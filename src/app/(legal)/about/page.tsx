@@ -60,48 +60,86 @@ export default function AboutPage() {
 
         {/* KAN-493: Guidelines, Keeping people safe and Help moved here from their
             own pages; /guidelines, /safe and /help 308-redirect to these anchors. */}
+        {/* KAN-493: Guidelines (KAN-495 copy, approved 2026-11-26) and "How Lyra
+            keeps you safe" moved here from /guidelines; /guidelines and /safe
+            308-redirect to these anchors. */}
         <section id="guidelines" className="mb-10 scroll-mt-6">
           <h2 className="text-lg font-semibold mb-2">Guidelines</h2>
-          <p className="mb-3">A few simple rules:</p>
-          <ul className="list-disc pl-5 space-y-2 mb-4">
-            <li><strong>It&rsquo;s your page, in your own words.</strong> Write about <em>you</em> &mdash; your loves, your story, your questions.</li>
-            <li><strong>Keep it about you.</strong> Don&rsquo;t write about other people &mdash; named or not, famous or not. Anything about someone else is removed.</li>
-            <li><strong>No contact details.</strong> Please don&rsquo;t put phone numbers or email addresses on your profile &mdash; Lyra isn&rsquo;t for being contacted here, and it keeps you safe.</li>
-            <li><strong>No abuse, harassment or hate.</strong></li>
-            <li><strong>Nothing harmful, illegal, sexual or violent</strong> &mdash; that includes photos.</li>
-          </ul>
+          <p className="mb-6">
+            Lyra works because every page is honest, kind and written by the person it&rsquo;s
+            about. A few things to keep in mind:
+          </p>
+
+          <h3 className="font-semibold mb-1">Keep it about you</h3>
+          <p className="mb-5">
+            Your page is your story, in your own words: what you love, what you&rsquo;d rather skip,
+            how you like to be thanked. Please don&rsquo;t write about other people, whether
+            that&rsquo;s a partner, a child, a colleague or someone famous, and whether you name them
+            or not. If they haven&rsquo;t chosen to have a page, that choice is theirs. Saying
+            you&rsquo;re a mum of two or that you love walking your dog is fine. Describing someone
+            else, their habits or their private life isn&rsquo;t.
+          </p>
+          <h3 className="font-semibold mb-1">Be kind</h3>
+          <p className="mb-5">
+            Write the way you&rsquo;d talk to someone you respect. No insults, threats, bullying or
+            aggressive language towards anyone.
+          </p>
+          <h3 className="font-semibold mb-1">No hate</h3>
+          <p className="mb-5">
+            Nothing that attacks or demeans people for who they are. That covers race, ethnicity,
+            nationality, religion, sex, gender identity, sexual orientation, disability, age and
+            anything else.
+          </p>
+          <h3 className="font-semibold mb-1">Keep it suitable for everyone</h3>
+          <p className="mb-5">
+            Colleagues, teachers, neighbours and family all read Lyra pages. So no sexual content,
+            nudity, or sexually suggestive words or photos.
+          </p>
+          <h3 className="font-semibold mb-1">Nothing harmful or illegal</h3>
+          <p className="mb-5">
+            No violence or graphic content, nothing that encourages self-harm, nothing illegal, and
+            no spam or advertising.
+          </p>
+          <h3 className="font-semibold mb-1">Keep your private details private</h3>
+          <p className="mb-5">
+            Please don&rsquo;t add phone numbers, home addresses or email addresses. Lyra isn&rsquo;t
+            a place for being contacted, and leaving them off keeps you safe.
+          </p>
+          <h3 className="font-semibold mb-1">What happens if something breaks these guidelines</h3>
+          <p className="mb-5">
+            We use a mix of automated checks and human review. Anything that breaks these guidelines
+            will be deleted. If it keeps happening, or if something is seriously harmful, we may
+            suspend the account.
+          </p>
           <p>
-            See something that breaks these? Tell us via{" "}
-            <Link href="/contact" className="text-[var(--color-sage)] underline underline-offset-2 hover:no-underline">Contact</Link>. We use a mix of
-            automated checks and human review, and we remove anything that crosses the line.
+            See something that doesn&rsquo;t belong? Let us know via{" "}
+            <Link href="/contact" className="text-[var(--color-sage)] underline underline-offset-2 hover:no-underline">Contact</Link>.
           </p>
         </section>
 
         <section id="safety" className="mb-10 scroll-mt-6">
-          <h2 className="text-lg font-semibold mb-2">Keeping people safe</h2>
-          <p className="mb-3">Your safety comes first.</p>
-          <ul className="list-disc pl-5 space-y-2 mb-4">
+          <h2 className="text-lg font-semibold mb-2">How Lyra keeps you safe</h2>
+          <ul className="list-disc pl-6 mb-4 space-y-1">
             <li>
-              <strong>Sensitive details are private by default.</strong> The schools, organisations and
-              communities you belong to help people <em>find</em> you in search, but they&rsquo;re hidden
-              on your public profile unless you choose to show them &mdash; so things like where you (or your
-              children) study aren&rsquo;t on display.
+              We never show your email address. It&rsquo;s only used to sign you in.
+            </li>
+            <li>There are no messages, so no one can contact you through Lyra.</li>
+            <li>
+              The schools and groups you add can be found through search. They&rsquo;re hidden on your
+              page unless you choose to show them, but someone searching for a school can still see
+              that you&rsquo;re connected to it. If you&rsquo;d rather keep that private, the safest
+              choice is to leave it off. Many people, like teachers, are happy to share where they
+              work, just as they would on LinkedIn.
             </li>
             <li>
-              <strong>No contact details on show.</strong> We don&rsquo;t allow phone numbers or emails on
-              profiles, and there are no messages &mdash; so no one can contact you through Lyra.
-            </li>
-            <li>
-              <strong>No exact locations.</strong> We don&rsquo;t show addresses. If you add a school, we
-              keep its postcode so we can tell schools with the same name apart, but it is never shown
-              on your profile.
+              For your own safety and privacy, we recommend not posting personal information.
             </li>
           </ul>
-          <p>
-            Worried about something, or seen content about you that shouldn&rsquo;t be there?{" "}
-            <Link href="/contact" className="text-[var(--color-sage)] underline underline-offset-2 hover:no-underline">Contact us</Link> and we&rsquo;ll
-            act quickly.
+          <p className="mb-4">
+            Seen something about you that shouldn&rsquo;t be there?{" "}
+            <Link href="/contact" className="text-[var(--color-sage)] underline underline-offset-2 hover:no-underline">Contact us</Link> and we&rsquo;ll act quickly.
           </p>
+          <p className="font-medium">Thank you for helping keep Lyra a kind place.</p>
         </section>
 
         <section id="help" className="mb-10 scroll-mt-6">

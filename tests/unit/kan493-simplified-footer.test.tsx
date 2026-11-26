@@ -30,6 +30,7 @@ jest.mock('@/app/(legal)/contact/contact-form', () => ({
 }));
 jest.mock('@/modules/guards/turnstile', () => ({ turnstileSiteKey: () => null }));
 
+import { SRC } from '../support/source-paths';
 import { Footer, FOOTER_LINKS } from '@/app/footer';
 import { LEGAL_PAGE_REDIRECTS } from '@/modules/marketing-legal/legal-redirects';
 import AboutPage from '@/app/(legal)/about/page';
@@ -83,7 +84,7 @@ describe('KAN-493 redirects', () => {
 
   test('the removed pages are gone, so the redirect is what answers', () => {
     for (const name of REMOVED) {
-      expect(fs.existsSync(path.join(root, 'src/app/(legal)', name))).toBe(false);
+      expect(fs.existsSync(path.join(root, SRC.app, '(legal)', name))).toBe(false);
     }
   });
 
@@ -115,13 +116,14 @@ describe('KAN-493 About holds Guidelines, Keeping people safe and Help', () => {
   });
 
   test('keeps the no-contact-details rule and the report route', () => {
-    expect(html).toContain('No contact details.');
-    expect(html).toContain('See something that breaks these?');
+    expect(html).toContain('Keep your private details private');
+    expect(html).toContain('See something that doesn');
     expect(html).toContain('href="/contact"');
   });
 
   test('states the corrected facts', () => {
-    expect(html).toContain('keep its postcode so we can tell schools with the same name apart, but it is never shown');
+    expect(html).toContain('someone searching for a school can still see');
+    expect(html).toContain('What happens if something breaks these guidelines');
     expect(html).toContain('To publish, you need a photo, your name and a CheckLyra ID');
     expect(html).toContain('a public school or organisation');
     expect(html).toContain('href="/dashboard/settings"');
