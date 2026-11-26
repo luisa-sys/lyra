@@ -15,7 +15,8 @@ const { SRC } = require('../support/source-paths.json');
 
 const root = path.join(__dirname, '../..');
 const privacyPath = path.join(root, SRC.privacyPage);
-const complaintsPath = path.join(root, SRC.complaintsPage);
+// KAN-493: the complaints page was folded into Contact (#complaints).
+const complaintsPath = path.join(root, SRC.contactPage);
 const footerPath = path.join(root, SRC.footer);
 
 describe('KAN-283: privacy notice — ICO registration reference', () => {
@@ -52,23 +53,24 @@ describe('KAN-283: privacy notice — DUAA complaints section', () => {
     expect(content).toContain('Wycliffe House');
   });
 
-  test('links to the dedicated complaints page', () => {
-    expect(content).toContain('/complaints');
+  test('links to the complaints section of the contact page (KAN-493)', () => {
+    expect(content).toContain('/contact#complaints');
   });
 });
 
-describe('KAN-283: dedicated /complaints page', () => {
+describe('KAN-283 / KAN-493: complaints section on the contact page', () => {
   let content;
   beforeAll(() => {
     content = fs.readFileSync(complaintsPath, 'utf8');
   });
 
-  test('the complaints page file exists', () => {
+  test('the contact page file exists', () => {
     expect(fs.existsSync(complaintsPath)).toBe(true);
   });
 
-  test('has a "Data protection complaints" heading', () => {
-    expect(content).toContain('Data protection complaints');
+  test('has a "Complaints" section with the #complaints anchor', () => {
+    expect(content).toContain('id="complaints"');
+    expect(content).toContain('>Complaints</h2>');
   });
 
   test('carries the same DUAA 30-day commitment + statute cite', () => {
@@ -86,9 +88,9 @@ describe('KAN-283: dedicated /complaints page', () => {
   });
 });
 
-describe('KAN-283: footer links to the complaints page', () => {
-  test('footer contains a /complaints link', () => {
+describe('KAN-283 / KAN-493: footer reaches the complaints section', () => {
+  test('footer contains the /contact link (complaints live on the contact page)', () => {
     const content = fs.readFileSync(footerPath, 'utf8');
-    expect(content).toContain('/complaints');
+    expect(content).toContain('href: "/contact"');
   });
 });

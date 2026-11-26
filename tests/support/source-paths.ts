@@ -13,7 +13,7 @@
 // cannot drift from reality — a hand-maintained list is what let BUGS-74's
 // first fix miss the legacy editor.
 //
-// 253 entries.
+// 248 entries.
 
 export const SRC = {
   codeowners: '.github/CODEOWNERS',
@@ -123,15 +123,10 @@ export const SRC = {
   signupPage: 'src/app/(auth)/signup/page.tsx',
   signupForm: 'src/app/(auth)/signup/signup-form.tsx',
   socialLoginButtons: 'src/app/(auth)/social-login-buttons.tsx',
+  legal: 'src/app/(legal)',
   aboutPage: 'src/app/(legal)/about/page.tsx',
-  accessibilityPage: 'src/app/(legal)/accessibility/page.tsx',
-  complaintsPage: 'src/app/(legal)/complaints/page.tsx',
   contactActions: 'src/app/(legal)/contact/actions.ts',
   contactPage: 'src/app/(legal)/contact/page.tsx',
-  cookiesPage: 'src/app/(legal)/cookies/page.tsx',
-  guidelinesPage: 'src/app/(legal)/guidelines/page.tsx',
-  helpPage: 'src/app/(legal)/help/page.tsx',
-  partnersPage: 'src/app/(legal)/partners/page.tsx',
   privacyPage: 'src/app/(legal)/privacy/page.tsx',
   termsPage: 'src/app/(legal)/terms/page.tsx',
   notFound: 'src/app/[slug]/not-found.tsx',

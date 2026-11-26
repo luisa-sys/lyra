@@ -61,8 +61,8 @@ describe('KAN-193: privacy policy — Affiliate partners section', () => {
     expect(content).toContain('Art. 6(1)(f)');
   });
 
-  test('links to the /partners page for the long-form disclosure', () => {
-    expect(content).toMatch(/href=["']\/partners["']/);
+  test('the section carries the #affiliate-partners anchor (KAN-493: /partners was folded in)', () => {
+    expect(content).toContain('id="affiliate-partners"');
   });
 
   test('links to Sovrn\'s own privacy policy', () => {
@@ -73,12 +73,14 @@ describe('KAN-193: privacy policy — Affiliate partners section', () => {
     // KAN-407: bumped when the age section was rewritten for the 18+
     // self-declaration. The privacy notice's date must move whenever its
     // substance does — that is the point of this assertion.
-    expect(content).toContain('20 July 2026');
+    // KAN-493: bumped again when the cookie policy was folded in.
+    expect(content).toContain('26 November 2026');
   });
 });
 
-describe('KAN-193: cookie policy — Affiliate links section', () => {
-  const filePath = path.join(root, SRC.cookiesPage);
+// KAN-493: the cookie policy is now the #cookies section of the privacy page.
+describe('KAN-193 / KAN-493: cookie policy (Privacy #cookies) — Affiliate links section', () => {
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -103,17 +105,10 @@ describe('KAN-193: cookie policy — Affiliate links section', () => {
     expect(content).toContain('sovrn.com/legal/privacy-policy');
   });
 
-  test('links to the /partners disclosure page', () => {
-    expect(content).toMatch(/href=["']\/partners["']/);
-  });
-
   test('clarifies that retailer cookies are governed by retailer policy', () => {
     expect(content.toLowerCase()).toMatch(/retailer/);
   });
 
-  test('Last updated date reflects this PR', () => {
-    expect(content).toContain('17 June 2026');
-  });
 });
 
 describe('KAN-193: cookie audit doc', () => {
@@ -152,8 +147,9 @@ describe('KAN-193: cookie audit doc', () => {
   });
 
   test('points at the public-facing pages for the human-readable disclosure', () => {
-    expect(content).toContain(SRC.cookiesPage);
+    // KAN-493: cookies + partners were folded into the privacy page.
     expect(content).toContain(SRC.privacyPage);
-    expect(content).toContain(SRC.partnersPage);
+    expect(content).toContain('/privacy#cookies');
+    expect(content).toContain('#affiliate-partners');
   });
 });

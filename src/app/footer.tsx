@@ -6,31 +6,23 @@ import Link from "next/link";
  * Companies Act 2006 requirement and must be present on every page, which is
  * exactly why this lives in the root layout rather than per-page.
  *
- * Content + ordering mirror the June-2026 mock-up footer:
- *   About · Privacy · Cookies · Terms · Guidelines ·
- *   Accessibility · Help · Contact
+ * KAN-493 (founder decision 2026-11-25): four links only. The other legal
+ * pages were folded into About, Privacy and Contact, or removed; their old
+ * URLs 308-redirect to the new sections (LEGAL_PAGE_REDIRECTS in
+ * src/modules/marketing-legal/legal-redirects.ts).
  *
  * Styling: warm paper background, muted body text, sage links — using the
  * shared tokens (KAN-268/272) so it stays in step with the rest of the app.
  */
 
-const LINKS: { href: string; label: string }[] = [
-  // The mock-up footer links, in order ("Keeping people safe" was folded
-  // into /guidelines in Nov 2026; /safe now redirects there).
+export const FOOTER_LINKS: { href: string; label: string }[] = [
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
-  { href: "/cookies", label: "Cookies" },
   { href: "/terms", label: "Terms" },
-  { href: "/guidelines", label: "Guidelines" },
-  { href: "/accessibility", label: "Accessibility" },
-  { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },
-  { href: "/complaints", label: "Complaints" },
-  // KAN-184: the affiliate "Partners" link must stay reachable from the
-  // footer — Sovrn's crawler follows it to verify Lyra owns checklyra.com.
-  // Not in the mock-up's nine, appended here to preserve that verification.
-  { href: "/partners", label: "Partners" },
 ];
+
+const LINKS = FOOTER_LINKS;
 
 export function Footer() {
   return (

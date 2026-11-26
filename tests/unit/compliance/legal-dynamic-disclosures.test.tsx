@@ -29,7 +29,6 @@ jest.mock('@/modules/features/global-switches-service', () => ({
 }));
 
 import PrivacyPolicyPage from '@/app/(legal)/privacy/page';
-import CookiePolicyPage from '@/app/(legal)/cookies/page';
 
 type Switches = { mcp: boolean; convene: boolean; paid_gift_links: boolean; age_verification: boolean };
 const withPaid = (on: boolean): Switches => ({
@@ -45,9 +44,11 @@ async function privacyHtml(paidOn: boolean): Promise<string> {
   mockGetGlobalSwitches.mockResolvedValue(withPaid(paidOn));
   return renderToStaticMarkup(await PrivacyPolicyPage());
 }
+// KAN-493: the cookie policy is now the #cookies section of the privacy page,
+// so its affiliate-cookies note is checked on the rendered privacy page.
 async function cookiesHtml(paidOn: boolean): Promise<string> {
   mockGetGlobalSwitches.mockResolvedValue(withPaid(paidOn));
-  return renderToStaticMarkup(await CookiePolicyPage());
+  return renderToStaticMarkup(await PrivacyPolicyPage());
 }
 
 describe('privacy policy — affiliate disclosure driven by the global switch (KAN-408)', () => {
@@ -68,7 +69,7 @@ describe('privacy policy — affiliate disclosure driven by the global switch (K
   });
 });
 
-describe('cookie policy — affiliate section driven by the global switch (KAN-408)', () => {
+describe('cookie policy (Privacy #cookies) — affiliate section driven by the global switch (KAN-408 / KAN-493)', () => {
   it('paid referrals ON → Sovrn affiliate-cookies section present', async () => {
     const html = await cookiesHtml(true);
     expect(html).toContain('Affiliate links');
