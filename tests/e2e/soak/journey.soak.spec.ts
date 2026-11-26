@@ -95,7 +95,14 @@ test('C3.3 drafted — publish widget appears', async ({ page }) => {
 
 test('C3.4 publish — profile publishes and the public page renders', async ({ page }) => {
   const admin = adminClient();
-  const { error } = await admin.from('profiles').update({ is_published: true }).eq('id', soak.profileId);
+  // KAN-485: the profiles_v08_identity trigger requires a photo, a display name
+  // and a CONFIRMED CheckLyra ID to publish, even for service-role writes. Same
+  // fields as seed-user.ts's published states: the photo is a static asset of
+  // the app itself (no upload), and the placeholder ID is confirmed as-is.
+  const { error } = await admin
+    .from('profiles')
+    .update({ is_published: true, avatar_url: '/lyra-icon-512.png', slug_confirmed: true })
+    .eq('id', soak.profileId);
   expect(error, error?.message).toBeNull();
 
   await assertDashboardHardLoad(page);
