@@ -78,12 +78,17 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
     expect(src).toMatch(/export\s+async\s+function\s+removeConversationStarter/);
   });
 
-  test('server-actions file uses sanitiseText and a 500-char cap', () => {
+  // KAN-486 (spec v0.8, founder-approved 2026-11-23): answers now go through
+  // validateFreeText (reject over-limit, keep line breaks, contact filter)
+  // instead of sanitiseText (which truncated). This used to match /sanitiseText/.
+  // Comments are stripped first so prose cannot satisfy it (CTL-039).
+  test('server-actions file validates answers with validateFreeText and a 500-char cap', () => {
     const src = readFileSync(
       resolve(ROOT, SRC.conversationStartersActions),
       'utf-8',
     );
-    expect(src).toMatch(/sanitiseText/);
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    expect(code).toMatch(/validateFreeText\(/);
     expect(src).toMatch(/500/);
   });
 
@@ -115,24 +120,38 @@ describe('KAN-181 conversation starters — surface-area regression guards', () 
     expect(capRegex.test('Conversation-starter answer limit (10) reached')).toBe(true);
   });
 
-  test('wizard step component exists', () => {
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy wizard's
+  // `steps/conversation-starters-step.tsx` is deleted; the editor component
+  // that renders conversation starters is now the v0.8 §09 questions section.
+  // Was: existsSync(resolve(ROOT, SRC.conversationStartersStep))
+  test('editor questions component exists', () => {
     expect(existsSync(
-      resolve(ROOT, SRC.conversationStartersStep),
+      resolve(ROOT, SRC.profile, 'editor/section-questions.tsx'),
     )).toBe(true);
   });
 
   test('public profile page references the conversation starters table', () => {
+    // KAN-488: the public page's reads moved into the public-profile loader
+    // (CTL-056), so the table is read there. Was: SRC.slugPage for this read.
+    const loader = readFileSync(
+      resolve(ROOT, SRC.loadPublicProfile),
+      'utf-8',
+    );
+    expect(loader).toMatch(/profile_conversation_starters/);
     const src = readFileSync(
       resolve(ROOT, SRC.slugPage),
       'utf-8',
     );
-    expect(src).toMatch(/profile_conversation_starters/);
     // KAN-265 named the public heading; KAN-445 renamed it again, to the
     // founder's wording. The old literal also appeared in the JSX comment two
     // lines above the heading, which is why CTL-039 had this assertion
     // baselined as comment-shadowed — the comment no longer repeats the
     // heading, so this now matches the rendered text and nothing else.
-    expect(src).toMatch(/A bit more about me/);
+    // KAN-488: v0.8 §09 names the section "Random Questions & Answers"; the
+    // rendered heading is asserted in kan488-public-profile-page.test.tsx.
+    // Old expected value: expect(src).toMatch(/A bit more about me/)
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(src).not.toMatch(/A bit more about me/);
   });
 
   test('dashboard profile page fetches conversation starter data', () => {

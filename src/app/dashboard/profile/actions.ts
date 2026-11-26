@@ -3,11 +3,10 @@
 import { createClient } from '@/modules/platform/supabase-server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, sanitiseUrl, type ActionResult } from '@/modules/guards/sanitise';
+import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
-import type { WizardItem } from './steps/types';
+import type { WizardItem } from '@/modules/profile/types';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { getMyFeatureEntitlements } from '@/modules/features/entitlements';
 import { isProviderAgeCheckActive, passedProviderAgeCheck, AGE_GATE_BLOCK_MESSAGE } from '@/modules/age/provider-gate';
 import { isAllowedProfileField } from '@/modules/profile/profile-fields';
 import { coerceVisibility } from '@/modules/profile/visibility';
@@ -20,6 +19,18 @@ import {
 import { preflightUpload } from '@/modules/guards/file-magic-bytes';
 import { MAX_SUGGESTION_KEY_LENGTH } from '@/modules/recommendations/recommend/dismissals';
 import { dbErrorFor } from '@/modules/profile/db-error-copy';
+import { parseMemberUrl } from '@/modules/profile/member-url';
+import { validateFreeText } from '@/modules/profile/free-text';
+import {
+  validateProfileField,
+  validateItemTitle,
+  validateItemDescription,
+  validateGroupLabel,
+  validateAffiliationName,
+  validateAffiliationLocation,
+  validateAffiliationDescription,
+} from '@/modules/profile/field-validation';
+import { processProfilePhoto, parseCrop, PHOTO_MAX_BYTES } from '@/modules/profile/photo-processing';
 
 async function getAuthenticatedUser() {
   const supabase = await createClient();
@@ -80,7 +91,16 @@ export async function updateProfileFields(data: Record<string, string | boolean 
     // Guarded by scripts/check-partial-write-safety.py + the runtime contract
     // cases in tests/unit/partial-write-safety.test.ts.
     if (val === undefined) continue;
-    sanitised[key] = typeof val === 'string' ? sanitiseText(val) : val;
+    if (typeof val !== 'string') {
+      sanitised[key] = val;
+      continue;
+    }
+    // KAN-486 — v0.8 limits are enforced (rejected), not truncated; multiline
+    // fields keep line breaks; contact details are refused. An empty value
+    // stays '' as before (it clears the field).
+    const checked = validateProfileField(key, val);
+    if (!checked.ok) return { success: false, error: checked.error };
+    sanitised[key] = checked.value ?? '';
   }
 
   if (rejected.length > 0) {
@@ -91,7 +111,7 @@ export async function updateProfileFields(data: Record<string, string | boolean 
   }
 
   // KAN-241 — content moderation, KAN-244 — audit-log every flagged event.
-  // Runs AFTER sanitiseText so the moderator sees the post-strip text
+  // Runs AFTER validation so the moderator sees the post-strip text
   // (a profanity inside <script>profanity</script> gets stripped to plain
   // `profanity` first, then caught). All `profiles` fields are 'public'.
   const profile = await getUserProfile(supabase, user!.id);
@@ -152,17 +172,14 @@ export async function addProfileItem(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
-  // KAN-219 — optional URL on items (Python `lyra-app` parity). If absent or
-  // empty, insert NULL. If provided, `sanitiseUrl` returns '' on anything
-  // that's not http(s) — surface that as an error rather than silently
-  // dropping the field so the user knows their input was rejected.
+  // KAN-219 — optional URL on items. If absent or empty, insert NULL.
+  // KAN-486 — otherwise it must pass parseMemberUrl (http/https, ≤ 2,048,
+  // rejected rather than cut) and the member sees why.
   let sanitisedUrl: string | null = null;
   if (data.url && data.url.trim() !== '') {
-    const cleaned = sanitiseUrl(data.url);
-    if (!cleaned) {
-      return { success: false, error: 'Invalid URL — must start with http:// or https://' };
-    }
-    sanitisedUrl = cleaned;
+    const parsed = parseMemberUrl(data.url);
+    if (!parsed.ok) return { success: false, error: parsed.error };
+    sanitisedUrl = parsed.url;
   }
 
   // KAN-234: empty / null / undefined visibility → NULL in the DB, which
@@ -173,11 +190,16 @@ export async function addProfileItem(data: {
     ? coerceVisibility(data.visibility)
     : null;
 
+  // KAN-486 — v0.8 per-category limits (rejected, not cut) + contact filter.
+  const category = sanitiseText(data.category, 50);
+  const titleCheck = validateItemTitle(category, data.title);
+  if (!titleCheck.ok) return { success: false, error: titleCheck.error };
+  const descCheck = validateItemDescription(category, data.description);
+  if (!descCheck.ok) return { success: false, error: descCheck.error };
+  const sanitisedTitle = titleCheck.value as string; // required → non-null when ok
+  const sanitisedDesc = descCheck.value;
+
   // KAN-241 + KAN-244 — content moderation + audit log on item text fields.
-  const sanitisedTitle = sanitiseText(data.title, 200);
-  const sanitisedDesc = data.description
-    ? sanitiseText(data.description, 1000)
-    : null;
   const titleMod = await moderateAndAudit(supabase, {
     text: sanitisedTitle,
     fieldType: 'public',
@@ -200,9 +222,9 @@ export async function addProfileItem(data: {
   // KAN-444 — a member-named favourites group. The heading is shown on the
   // public profile, so it goes through the same sanitise + moderation path
   // as the item's own text rather than straight into the row.
-  const sanitisedGroupLabel = data.groupLabel && data.groupLabel.trim() !== ''
-    ? sanitiseText(data.groupLabel, 60)
-    : null;
+  const groupCheck = validateGroupLabel(data.groupLabel);
+  if (!groupCheck.ok) return { success: false, error: groupCheck.error };
+  const sanitisedGroupLabel = groupCheck.value;
   if (sanitisedGroupLabel) {
     const groupMod = await moderateAndAudit(supabase, {
       text: sanitisedGroupLabel,
@@ -217,7 +239,7 @@ export async function addProfileItem(data: {
   // Only send group_label when there is one. PostgREST builds the INSERT
   // column list from the payload keys, so an unknown key fails the WHOLE
   // request with PGRST204 even when the value is null — which would break
-  // every add path here (9 editor sections + 6 legacy wizard steps) on any
+  // every add path here on any
   // environment where 20260803114500_favourites_custom_group.sql has not run
   // yet. Omitting the key keeps existing adds byte-identical to before, so
   // only the new add-your-own path depends on the new column.
@@ -225,7 +247,7 @@ export async function addProfileItem(data: {
     .from('profile_items')
     .insert({
       profile_id: profile.id,
-      category: sanitiseText(data.category, 50),
+      category,
       title: sanitisedTitle,
       description: sanitisedDesc,
       url: sanitisedUrl,
@@ -305,11 +327,19 @@ export async function updateProfileItem(
   if (!profile) return { success: false, error: 'Profile not found' };
 
   // Build the partial update only from the fields the caller passed, matching
-  // addProfileItem's sanitise + per-field moderation exactly.
+  // addProfileItem's validation + per-field moderation exactly.
   const updates: Record<string, string | null> = {};
 
+  // KAN-486 — this path does not know the item's category, so text is checked
+  // against the highest limit any category allows (null = ceiling) plus the
+  // contact filter; the step-2 trigger enforces the exact per-category limit
+  // and db-error-copy turns it into member copy. No extra read: a second
+  // `.eq('profile_id')` on profile_items would mask the UPDATE's ownership
+  // filter (pooled-eq hazard).
   if (data.title !== undefined) {
-    const sanitisedTitle = sanitiseText(data.title, 200);
+    const titleCheck = validateItemTitle(null, data.title);
+    if (!titleCheck.ok) return { success: false, error: titleCheck.error };
+    const sanitisedTitle = titleCheck.value as string;
     const titleMod = await moderateAndAudit(supabase, {
       text: sanitisedTitle,
       fieldType: 'public',
@@ -323,9 +353,9 @@ export async function updateProfileItem(
 
   if (data.description !== undefined) {
     // Empty string clears the description to NULL (mirrors the add path).
-    const sanitisedDesc = data.description.trim() !== ''
-      ? sanitiseText(data.description, 1000)
-      : null;
+    const descCheck = validateItemDescription(null, data.description);
+    if (!descCheck.ok) return { success: false, error: descCheck.error };
+    const sanitisedDesc = descCheck.value;
     if (sanitisedDesc) {
       const descMod = await moderateAndAudit(supabase, {
         text: sanitisedDesc,
@@ -340,15 +370,13 @@ export async function updateProfileItem(
   }
 
   if (data.url !== undefined) {
-    // Empty → NULL; non-empty must pass sanitiseUrl (http(s) only), same as add.
+    // Empty → NULL; non-empty must pass parseMemberUrl, same as add.
     if (data.url.trim() === '') {
       updates.url = null;
     } else {
-      const cleaned = sanitiseUrl(data.url);
-      if (!cleaned) {
-        return { success: false, error: 'Invalid URL — must start with http:// or https://' };
-      }
-      updates.url = cleaned;
+      const parsed = parseMemberUrl(data.url);
+      if (!parsed.ok) return { success: false, error: parsed.error };
+      updates.url = parsed.url;
     }
   }
 
@@ -517,14 +545,18 @@ export async function addSchoolAffiliation(data: {
 
   // KAN-241 + KAN-244 — content moderation + audit log. Affiliations
   // show on the public profile.
-  const sanitisedName = sanitiseText(data.school_name, 200);
-  const sanitisedLoc = data.school_location
-    ? sanitiseText(data.school_location, 200)
-    : null;
-  // KAN-451 — same 200-char cap and empty-means-NULL rule as the edit path.
-  const sanitisedDesc = data.description && data.description.trim() !== ''
-    ? sanitiseText(data.description, 200)
-    : null;
+  // KAN-486 — v0.8 §02 limits (name 120, postcode 12 / location 120,
+  // description 250), rejected rather than cut; contact filter on name and
+  // description. Same rules as the edit path.
+  const nameCheck = validateAffiliationName(data.school_name);
+  if (!nameCheck.ok) return { success: false, error: nameCheck.error };
+  const locCheck = validateAffiliationLocation(requiresPostcode(affiliationType), data.school_location);
+  if (!locCheck.ok) return { success: false, error: locCheck.error };
+  const descCheck = validateAffiliationDescription(data.description);
+  if (!descCheck.ok) return { success: false, error: descCheck.error };
+  const sanitisedName = nameCheck.value as string;
+  const sanitisedLoc = locCheck.value;
+  const sanitisedDesc = descCheck.value;
   const nameMod = await moderateAndAudit(supabase, {
     text: sanitisedName,
     fieldType: 'public',
@@ -627,10 +659,11 @@ export async function updateSchoolAffiliation(
   const updates: Record<string, string | null> = {};
 
   if (data.school_name !== undefined) {
-    const sanitisedName = sanitiseText(data.school_name, 200);
-    if (sanitisedName.trim() === '') {
-      return { success: false, error: 'Name cannot be empty' };
+    const nameCheck = validateAffiliationName(data.school_name);
+    if (!nameCheck.ok) {
+      return { success: false, error: data.school_name.trim() === '' ? 'Name cannot be empty' : nameCheck.error };
     }
+    const sanitisedName = nameCheck.value as string;
     const nameMod = await moderateAndAudit(supabase, {
       text: sanitisedName,
       fieldType: 'public',
@@ -645,9 +678,9 @@ export async function updateSchoolAffiliation(
   if (data.school_location !== undefined) {
     // Empty string clears the location to NULL (mirrors the add path, where an
     // absent location is inserted as NULL).
-    const sanitisedLoc = data.school_location.trim() !== ''
-      ? sanitiseText(data.school_location, 200)
-      : null;
+    const locCheck = validateAffiliationLocation(requiresPostcode(affiliationType), data.school_location);
+    if (!locCheck.ok) return { success: false, error: locCheck.error };
+    const sanitisedLoc = locCheck.value;
     if (sanitisedLoc) {
       const locMod = await moderateAndAudit(supabase, {
         text: sanitisedLoc,
@@ -662,9 +695,9 @@ export async function updateSchoolAffiliation(
   }
 
   if (data.description !== undefined) {
-    const sanitisedDesc = data.description.trim() !== ''
-      ? sanitiseText(data.description, 200)
-      : null;
+    const descCheck = validateAffiliationDescription(data.description);
+    if (!descCheck.ok) return { success: false, error: descCheck.error };
+    const sanitisedDesc = descCheck.value;
     if (sanitisedDesc) {
       const descMod = await moderateAndAudit(supabase, {
         text: sanitisedDesc,
@@ -753,13 +786,17 @@ export async function addExternalLink(data: {
   const profile = await getUserProfile(supabase, user!.id);
   if (!profile) return { success: false, error: 'Profile not found' };
 
-  const sanitisedUrl = sanitiseUrl(data.url);
-  if (!sanitisedUrl) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
+  // KAN-486 — shared member-URL rule (http/https, ≤ 2,048, rejected not cut).
+  const parsedUrl = parseMemberUrl(data.url);
+  if (!parsedUrl.ok) return { success: false, error: parsedUrl.error };
+  const sanitisedUrl = parsedUrl.url;
 
   // KAN-241 + KAN-244 — content moderation + audit log on link title.
-  // The URL itself is already sanitiseUrl-restricted to http(s); only
-  // the user-visible title needs the wordlist + PII pass.
-  const sanitisedLinkTitle = sanitiseText(data.title, 200);
+  // KAN-486 — title/description keep their 200 limits (no v0.8 value), now
+  // enforced by rejection, with the contact filter.
+  const linkTitleCheck = validateFreeText(data.title, { label: 'Link title', max: 200, required: true });
+  if (!linkTitleCheck.ok) return { success: false, error: linkTitleCheck.error };
+  const sanitisedLinkTitle = linkTitleCheck.value as string;
   const linkTitleMod = await moderateAndAudit(supabase, {
     text: sanitisedLinkTitle,
     fieldType: 'public',
@@ -770,9 +807,9 @@ export async function addExternalLink(data: {
   if (!linkTitleMod.ok) return { success: false, error: linkTitleMod.error };
 
   // KAN-447 — the optional one-line description shown next to the title.
-  const sanitisedDesc = data.description && data.description.trim() !== ''
-    ? sanitiseText(data.description, 200)
-    : null;
+  const linkDescCheck = validateFreeText(data.description, { label: 'Link description', max: 200 });
+  if (!linkDescCheck.ok) return { success: false, error: linkDescCheck.error };
+  const sanitisedDesc = linkDescCheck.value;
   if (sanitisedDesc) {
     const descMod = await moderateAndAudit(supabase, {
       text: sanitisedDesc,
@@ -827,7 +864,9 @@ export async function updateExternalLink(
   const updates: Record<string, string | null> = {};
 
   if (data.title !== undefined) {
-    const sanitisedTitle = sanitiseText(data.title, 200);
+    const linkTitleCheck = validateFreeText(data.title, { label: 'Link title', max: 200, required: true });
+    if (!linkTitleCheck.ok && data.title.trim() !== '') return { success: false, error: linkTitleCheck.error };
+    const sanitisedTitle = linkTitleCheck.ok ? (linkTitleCheck.value as string) : '';
     if (sanitisedTitle.trim() === '') {
       return { success: false, error: 'Title cannot be empty' };
     }
@@ -843,9 +882,9 @@ export async function updateExternalLink(
   }
 
   if (data.description !== undefined) {
-    const sanitisedDesc = data.description.trim() !== ''
-      ? sanitiseText(data.description, 200)
-      : null;
+    const linkDescCheck = validateFreeText(data.description, { label: 'Link description', max: 200 });
+    if (!linkDescCheck.ok) return { success: false, error: linkDescCheck.error };
+    const sanitisedDesc = linkDescCheck.value;
     if (sanitisedDesc) {
       const descMod = await moderateAndAudit(supabase, {
         text: sanitisedDesc,
@@ -860,9 +899,9 @@ export async function updateExternalLink(
   }
 
   if (data.url !== undefined) {
-    const cleaned = sanitiseUrl(data.url);
-    if (!cleaned) return { success: false, error: 'Invalid URL — must start with http:// or https://' };
-    updates.url = cleaned;
+    const parsed = parseMemberUrl(data.url);
+    if (!parsed.ok) return { success: false, error: parsed.error };
+    updates.url = parsed.url;
   }
 
   // Empty-patch guard — no-op rather than firing an UPDATE with empty SET.
@@ -1033,19 +1072,16 @@ export async function publishProfile(): Promise<ActionResult> {
   return { success: true };
 }
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+// KAN-486 — spec v0.8 §01: JPG, PNG or WebP only (GIF dropped), ≤ 5 MB.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const { user, supabase, error: authError } = await getAuthenticatedUser();
   if (authError) return { success: false, error: authError };
 
-  // KAN-309 — per-user feature gate (media_uploads covers profile photos too;
-  // default on, an admin can revoke). Mirrors uploadProfileFile.
-  const features = await getMyFeatureEntitlements();
-  if (!features.media_uploads) {
-    return { success: false, error: 'Media uploads are not enabled for your account.' };
-  }
+  // KAN-486 — the KAN-309 `media_uploads` gate no longer applies to the
+  // profile photo: v0.8 makes a photo REQUIRED to publish, so a revoked gate
+  // would make publishing impossible. It still gates uploadProfileFile.
 
   // KAN-231 — profile-save rate limiting (avatars are user-driven writes too).
   const rl = await checkProfileWriteRateLimit(user!.id);
@@ -1054,47 +1090,47 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const file = formData.get('avatar') as File | null;
 
   // SEC-52 — shared preflight: presence, 5MB cap, allowed image MIME AND
-  // magic-byte signature. The declared MIME is browser-controlled and
-  // trivially spoofable, so a spoofed-MIME/polyglot must be rejected here
-  // before it reaches the world-readable profile-photos bucket. This is the
-  // SAME helper uploadProfileFile uses so the two paths can't drift.
+  // magic-byte signature, the same helper uploadProfileFile uses.
   const preflightError = await preflightUpload(file, {
     allowedMimes: ALLOWED_IMAGE_TYPES,
-    maxBytes: MAX_FILE_SIZE,
+    maxBytes: PHOTO_MAX_BYTES,
     emptyMessage: 'No file provided',
-    typeMessage: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF',
-    sizeMessage: 'File too large. Maximum size is 5MB',
+    typeMessage: 'Photos must be JPG, PNG or WebP.',
+    sizeMessage: 'Photos must be 5 MB or smaller.',
   });
   if (preflightError) return { success: false, error: preflightError };
   // preflightUpload guarantees a present, valid File past this point.
   const avatar = file as File;
 
-  // Determine extension from MIME type
-  const extMap: Record<string, string> = {
-    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
-  };
-  const ext = extMap[avatar.type] || 'jpg';
-  const filePath = `${user!.id}/avatar.${ext}`;
+  // KAN-486 — decode (real type), check ≥ 400 × 400, square crop (member's
+  // crop rectangle if sent, else centre), re-encode to JPEG without metadata
+  // so EXIF/GPS never reach the world-readable bucket.
+  const photo = await processProfilePhoto(await avatar.arrayBuffer(), parseCrop(formData));
+  if (!photo.ok) return { success: false, error: photo.error };
+
+  const filePath = `${user!.id}/avatar.${photo.ext}`;
 
   // Upload to Supabase Storage (upsert to overwrite existing)
   const { error: uploadError } = await supabase.storage
     .from('profile-photos')
-    .upload(filePath, avatar, { upsert: true, contentType: avatar.type });
+    .upload(filePath, photo.buffer, { upsert: true, contentType: photo.contentType });
 
-  if (uploadError) return { success: false, error: uploadError.message };
+  if (uploadError) return { success: false, error: dbErrorFor('upload-avatar', uploadError) };
 
-  // Get public URL
+  // Get public URL. The path is stable, so add a version parameter or a
+  // browser/CDN that cached the previous photo keeps showing it.
   const { data: urlData } = supabase.storage
     .from('profile-photos')
     .getPublicUrl(filePath);
+  const avatarUrl = `${urlData.publicUrl}?v=${Date.now()}`;
 
   // Update profile with avatar URL
   const { error: updateError } = await supabase
     .from('profiles')
-    .update({ avatar_url: urlData.publicUrl })
+    .update({ avatar_url: avatarUrl })
     .eq('user_id', user!.id);
 
-  if (updateError) return { success: false, error: updateError.message };
+  if (updateError) return { success: false, error: dbErrorFor('upload-avatar', updateError) };
 
   revalidatePath('/dashboard/profile');
   revalidatePath('/dashboard');

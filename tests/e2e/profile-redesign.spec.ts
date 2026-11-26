@@ -39,6 +39,8 @@ const PAPER_RGB = 'rgb(253, 252, 248)';
 // The actionable sage — --color-sage: #4a7359 → rgb(74, 115, 89) (retuned to the
 // mock-up green in KAN-272; was #5F7256 / rgb(95, 114, 86) before).
 const SAGE_RGB = 'rgb(74, 115, 89)';
+// --color-lyra-sage-light (#c5d1bc): the profile section-heading hairline.
+const SAGE_LIGHT_RGB = 'rgb(197, 209, 188)';
 
 /**
  * Assert the page's <body> paints the warm "paper" background. This is the
@@ -173,21 +175,22 @@ test.describe('Redesign — populated public profile structure', () => {
   test('shows the "To understand me a little better" humanised section', async ({
     page,
   }) => {
-    // KAN-264/265: the Manual-of-Me section heading, rendered by <SectionQ>
-    // with the 3px sage left-rule.
+    // KAN-264/265: the Manual-of-Me section heading, rendered by <SectionQ>.
+    // Calm layout (founder design, 2026-11-23): the heading now carries a
+    // 1px pale-sage hairline beneath it instead of the 3px sage left-rule.
+    // Old expected values: borderLeftWidth '3px', borderLeftColor SAGE_RGB.
     const heading = page.getByRole('heading', {
       name: /To understand me a little better/i,
     });
     await expect(heading).toBeVisible();
-    // Assert the 3px sage left-rule that defines a redesign section heading.
-    const borderLeftWidth = await heading.evaluate(
-      (el) => getComputedStyle(el).borderLeftWidth,
+    const borderBottomWidth = await heading.evaluate(
+      (el) => getComputedStyle(el).borderBottomWidth,
     );
-    const borderLeftColor = await heading.evaluate(
-      (el) => getComputedStyle(el).borderLeftColor,
+    const borderBottomColor = await heading.evaluate(
+      (el) => getComputedStyle(el).borderBottomColor,
     );
-    expect(borderLeftWidth).toBe('3px');
-    expect(borderLeftColor).toBe(SAGE_RGB);
+    expect(borderBottomWidth).toBe('1px');
+    expect(borderBottomColor).toBe(SAGE_LIGHT_RGB);
   });
 
   test('uses humanised, first-person section headings (not old field labels)', async ({

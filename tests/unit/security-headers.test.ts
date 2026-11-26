@@ -91,3 +91,15 @@ describe('buildCspReportOnly (SEC-63 target nonce CSP)', () => {
     expect(buildCspReportOnly('AAA')).not.toBe(buildCspReportOnly('BBB'));
   });
 });
+
+// KAN-496: the profile photo picker decodes the chosen file from a blob: URL
+// (photo-field.tsx loadImage). Without blob: in img-src the browser blocks it
+// and EVERY photo failed with "We couldn't open this photo" on dev.
+describe('img-src allows blob: for the photo picker (KAN-496)', () => {
+  it('enforced CSP in next.config.ts', () => {
+    expect(NEXT_CONFIG).toContain("img-src 'self' data: blob: https:");
+  });
+  it('Report-Only CSP from middleware', () => {
+    expect(buildCspReportOnly('n')).toContain("img-src 'self' data: blob: https:");
+  });
+});

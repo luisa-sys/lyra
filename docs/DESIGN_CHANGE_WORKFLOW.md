@@ -33,36 +33,33 @@ The loop makes each of those states detectable: a single ticket state, one
 manifest, and a checker that refuses to let a ticket close while the two sides
 disagree.
 
-## The two Claude Design projects
+## Where the design lives (moved into Claude, 2026-11-22)
 
-| Project | `projectId` | What it holds |
-|---|---|---|
-| **Lyra Design System** | `e4682889-26bd-4a88-a7ae-4a9be9cd1632` | Fonts, colours and CSS tokens for the whole site. Its `foundations/tokens.css` carries every token in `src/app/globals.css`, plus a trailing block of recurring inline literals that are **not** in `globals.css` and are candidates for promotion — so it is a superset, not a 1:1 copy. |
-| **Lyra Web Design** (the *cards* project) | `c179aa52-22a7-4dd2-bd9d-682f21d2a76c` | One **before/after card per change**, named `<TICKET>.dc.html` — e.g. `KAN-458.dc.html`. |
+Standalone Claude Design (claude.ai/design) closes by 14 December 2026. Both
+projects have moved into Claude as artifacts; the old `claude.ai/design/p/…`
+links and the `DesignSync` tool no longer write to them.
 
-Deep-link format — the `.dc.html` suffix is **part of the card's file name**, so
-it appears once, not twice:
+| Was (claude.ai/design) | Now (Claude artifact) | What it holds | In git |
+|---|---|---|---|
+| `e4682889…` Lyra Design System | **Lyra Design System**, <https://claude.ai/artifact/7RRnLnaTnWaELbDzTXnVmV> | Tokens, brand book, component and page previews | `lyra-design-system` → `claude-design/project/` (**canonical**) |
+| `c179aa52…` Lyra Web Design | **Lyra Web Design**, <https://claude.ai/artifact/FSRSD8jvTmi4SSr2r2esQS> | One before/after card per change, `project/<TICKET>.dc.html` | `lyra-design-system` → `rebuild/cards/` (backup) |
 
-```
-https://claude.ai/design/p/{projectId}?file=<TICKET>.dc.html
-```
+**Direction of truth (Luisa, 2026-11-22): app code → `lyra-design-system` → the
+artifact.** Token values follow this repo's `src/app/globals.css` and the
+Tailwind classes in `src/`. The design-system repo holds everything else, by PR.
+The artifact is published from it by a merge re-sync, and the page stays editable.
 
-Worked example, for `KAN-458` in the cards project:
+**How a coding agent uses it** (full handoff: `CLAUDE.md` in `lyra-design-system`):
+attach or clone `luisa-sys/lyra-design-system` (private), `git pull --ff-only`
+its `main` at the start of every session, read `claude-design/project/README.md`,
+`tokens.json` and `components/<Name>/`, and run the token-drift check below.
+Previews are specs, not code to copy. Drift means the **design system** needs
+re-syncing. Never edit `globals.css` to match it.
 
-```
-https://claude.ai/design/p/c179aa52-22a7-4dd2-bd9d-682f21d2a76c?file=KAN-458.dc.html
-```
-
-> Not every card follows the convention. `KAN-454`, the pilot, is filed as
-> `PR665+KAN-454+Waitlist.dc.html`. When in doubt read `card_url` from
-> `rebuild/sync-manifest.json` rather than composing the URL by hand.
-
-Both projects are **writable** via the `DesignSync` MCP tool (`finalize_plan`,
-then `write_files`). The cards project is of type `PROJECT_TYPE_PROJECT` rather
-than a design system, but `canEdit` is true and writes succeed. Cards are also
-mirrored into git at `lyra-design-system/rebuild/cards/`, so a card exists in
-two places by design: the Claude Design project (where it is viewed and
-approved) and git (where it is versioned).
+`card_url` in `rebuild/sync-manifest.json` still holds the old
+`claude.ai/design/p/{projectId}?file=<TICKET>.dc.html` links. The card is now the
+file `project/<TICKET>.dc.html` in the Lyra Web Design artifact. (`KAN-454`, the
+pilot, is `PR665 KAN-454 Waitlist.dc.html`.)
 
 ## Where the tooling lives
 
@@ -73,22 +70,25 @@ Everything below is in the **`lyra-design-system`** repo, not this one.
 | `BUILD-LOOP.md` | The canonical spec this file mirrors. |
 | `rebuild/sync-manifest.json` | **Where ticket state lives** — one entry per Jira ticket. |
 | `rebuild/cards/` | Git mirror of the `<TICKET>.dc.html` cards. |
-| `rebuild/check-design-sync.py` | The gate runner — G0 to G5 below. |
-| `rebuild/check-token-drift.py` | Diffs the Claude Design tokens against `src/app/globals.css` and can emit the `globals.css` fixes for an auto-PR. Takes `--design` and `--repo`; exits 2 without both. |
-| `foundations/tokens.css` | The design-system token file that mirrors `src/app/globals.css`. |
+| `CLAUDE.md` | **The coding-agent handoff**: where the design system is, how to use it to build this app, how to pull updates and how to change it. |
+| `claude-design/project/` | **The design system** (tokens.json, brand-book README, component and page previews). `claude-design/SNAPSHOT.json` records the last publish to the artifact; `claude-design/verify.py` checks it. |
+| `rebuild/check-design-sync.py` | The gate runner — G0 to G6 below. |
+| `rebuild/check-token-drift.py` | Diffs `claude-design/project/tokens.json` against `src/app/globals.css`. Drift is fixed in the **design system**, never in `globals.css`. Takes `--design` and `--repo`; exits 2 without both. |
+| `foundations/tokens.css` | Legacy pre-migration token file (superseded by `claude-design/project/tokens.json`). |
 
 Run the gate runner from the `lyra-design-system` checkout root:
 
 ```bash
-python3 rebuild/check-design-sync.py     # G0–G5 for every ticket in the manifest
+python3 rebuild/check-design-sync.py --design-repo . --app-repo <lyra>   # G0–G6
 ```
 
-The token-drift checker is **not** run the same way — it takes two mandatory
-file arguments, and the design-side token file has to be fetched live through
-`DesignSync` first, so it cannot be run unattended:
+The token-drift checker takes two file arguments. Since 2026-11-22 the design
+side is a file in git, so nothing has to be fetched live. From this repo's root:
 
 ```bash
-python3 rebuild/check-token-drift.py --design <fetched-tokens.css> --repo src/app/globals.css
+python3 ../lyra-design-system/rebuild/check-token-drift.py \
+  --design ../lyra-design-system/claude-design/project/tokens.json \
+  --repo src/app/globals.css
 ```
 
 > **This repo's CI cannot run either checker** — they are in a different
@@ -132,6 +132,7 @@ Enforced by `rebuild/check-design-sync.py`:
 | **G3** | Promote-verified | `PROMOTED` unless `main` = `beta` = `staging` **by TREE SHA**, and the ticket's `dev_paths` change is present on `main`. |
 | **G4** | Baseline current | `DONE` when a ticket is `PROMOTED` / `REIMPORT_VERIFIED` but its `baseline_ref` has not been updated. |
 | **G5** | No lost work | Raises alerts on uncommitted design changes, or design ahead of dev. |
+| **G6** | Published | Alerts when `claude-design/project/` differs from `claude-design/SNAPSHOT.json`, i.e. a design-system change merged but not yet published to the artifact. |
 
 > **G3 uses tree SHA, never ahead/behind counts — and this is a rule the design
 > loop introduces, not one it inherits.** The 2026-06-20 re-root leaves `main`
@@ -151,8 +152,9 @@ Enforced by `rebuild/check-design-sync.py`:
 1. **Ticket first.** A KAN ticket exists, with the six required sections
    (`docs/JIRA_TICKET_STANDARD.md`). Its manifest entry starts at `TODO`.
 2. **Design.** Build the before/after card as `<TICKET>.dc.html` in the **Lyra
-   Web Design** project via `DesignSync` (`finalize_plan` → `write_files`), and
-   commit the mirror to `lyra-design-system/rebuild/cards/`. State → `DESIGN`.
+   Web Design** artifact (`project/<TICKET>.dc.html`; until 2026-11-22 this was
+   the claude.ai/design project, written via `DesignSync`), and commit the backup
+   to `lyra-design-system/rebuild/cards/`. State → `DESIGN`.
 3. **Approval.** Luisa reviews the card and approves it. State →
    `DESIGN_APPROVED`. **G1 blocks any code before this point.**
 4. **Implement.** Branch off `origin/develop`, write the code and its tests, and
@@ -163,9 +165,10 @@ Enforced by `rebuild/check-design-sync.py`:
    those three; `develop` is ahead by design while work is in flight.)
 6. **Re-import and verify.** Re-import the shipped result and check it against
    the card. State → `REIMPORT_VERIFIED`.
-7. **Baseline.** Update the Claude Design baseline (and the tokens, if the change
-   touched them) so the design system describes what is now live. State →
-   `BASELINED`.
+7. **Baseline.** Update `lyra-design-system/claude-design/project/` by PR (re-sync
+   the tokens from `globals.css` if the change touched them), publish it to the
+   Lyra Design System artifact, and refresh `SNAPSHOT.json`, so the design system
+   describes what is now live. State → `BASELINED`.
 8. **Close.** Only now may the ticket go to Done. **G2** enforces it.
 
 ## How this connects to the existing controls

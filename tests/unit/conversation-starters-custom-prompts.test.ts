@@ -220,18 +220,35 @@ describe('KAN-445 the member-written question is public text — BOTH paths', ()
     expect(String(writePayload('update').custom_prompt)).not.toContain('<i>');
   });
 
-  it('caps the question at 140 characters on ADD', async () => {
-    await addConversationStarter({ customPrompt: 'q'.repeat(400), answer: 'A kettle.' });
+  // KAN-486 (spec v0.8 §3/§09, founder-approved 2026-11-23): a question over
+  // 180 characters is REJECTED with a message, never cut. These two cases used
+  // to assert a 400-character question was truncated to exactly 180.
+  it('rejects a question over 180 characters on ADD, writing nothing', async () => {
+    const res = await addConversationStarter({ customPrompt: 'q'.repeat(181), answer: 'A kettle.' });
 
-    // Mirrors `pcs_custom_prompt_length`; an uncapped path fails with a raw
-    // 23514 instead of a clean truncation.
-    expect(String(writePayload('insert').custom_prompt)).toHaveLength(140);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your question is too long: 181 characters (limit 180, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'insert')).toBe(false);
   });
 
-  it('caps the question at 140 characters on UPDATE', async () => {
-    await updateConversationStarter('a1', 'A kettle.', 'q'.repeat(400));
+  it('rejects a question over 180 characters on UPDATE, writing nothing', async () => {
+    const res = await updateConversationStarter('a1', 'A kettle.', 'q'.repeat(181));
 
-    expect(String(writePayload('update').custom_prompt)).toHaveLength(140);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your question is too long: 181 characters (limit 180, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'update')).toBe(false);
+  });
+
+  it('stores a question of exactly 180 characters whole, on both paths', async () => {
+    await addConversationStarter({ customPrompt: 'q'.repeat(180), answer: 'A kettle.' });
+    await updateConversationStarter('a1', 'A kettle.', 'r'.repeat(180));
+
+    expect(writePayload('insert').custom_prompt).toBe('q'.repeat(180));
+    expect(writePayload('update').custom_prompt).toBe('r'.repeat(180));
   });
 
   it('refuses a question that is empty once stripped, writing nothing', async () => {
@@ -300,7 +317,7 @@ describe('KAN-445 cap errors — the custom cap must be read BEFORE the general 
     // who filled their three own questions is told to delete one of their ten
     // answers — advice that does not fix anything.
     if (!res.success) {
-      expect(res.error).toMatch(/up to 3 of your own questions/i);
+      expect(res.error).toMatch(/up to 10 of your own questions/i);
       expect(res.error).not.toMatch(/up to 10 prompts/i);
     }
   });
@@ -323,7 +340,7 @@ describe('KAN-445 cap errors — the custom cap must be read BEFORE the general 
     const res = await updateConversationStarter('a1', 'x', 'A fourth?');
 
     expect(res.success).toBe(false);
-    if (!res.success) expect(res.error).toMatch(/up to 3 of your own questions/i);
+    if (!res.success) expect(res.error).toMatch(/up to 10 of your own questions/i);
   });
 });
 
@@ -455,9 +472,16 @@ describe('KAN-445 migration — the offered set, and what it must not touch', ()
     // page: the JSX comment above the heading repeated it word for word, so
     // deleting the heading left the guard green. Stripping comments first is
     // what makes this assertion about what a member reads.
-    expect(publicPage).toContain('A bit more about me');
+    // KAN-488 (step 5): the public page now uses the v0.8 §09 heading too,
+    // asserted on the rendered page in kan488-public-profile-page.test.tsx.
+    // Old expected value: expect(publicPage).toContain('A bit more about me')
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(publicPage).not.toContain('A bit more about me');
     expect(publicPage).not.toContain('A few more things about me');
-    expect(editor).toContain('A bit more about me');
+    // KAN-487 (spec v0.8 §09 heading "Random Questions & Answers").
+    // Old expected value: expect(editor).toContain('A bit more about me')
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(editor).toContain('Random Questions & Answers');
   });
 
   it('does NOT redefine enforce_pcs_cap — the total cap is out of scope', () => {
@@ -490,9 +514,17 @@ describe('KAN-445: every read site and the write-your-own surface', () => {
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const src = (rel: string) => noComments(readFileSync(resolve(root, rel), 'utf-8'));
-  const publicPage = src(SRC.slugPage);
-  const legacyPage = src(SRC.legacyPage);
-  const step = src(SRC.conversationStartersStep);
+  // KAN-488: the public page's starters read moved into the public-profile
+  // loader (CTL-056); same expected values, new location. Was: src(SRC.slugPage)
+  const publicPage = src(SRC.loadPublicProfile);
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): the legacy editor
+  // (`/dashboard/profile/legacy`) and its `conversation-starters-step.tsx`
+  // are deleted. The two assertions that read them are repointed to the live
+  // v0.8 editor — its loader (`page.tsx`) and its §09 questions section —
+  // which carry the same two properties. Was: src(SRC.legacyPage) and
+  // src(SRC.conversationStartersStep).
+  const editorPage = src(SRC.profilePage);
+  const step = src(`${SRC.profile}/editor/section-questions.tsx`);
 
   // select('*') tolerates a missing column; naming it does not.
   it('the public profile reads starters with select(*), never a column list naming custom_prompt', () => {
@@ -500,18 +532,21 @@ describe('KAN-445: every read site and the write-your-own surface', () => {
     expect(publicPage).not.toMatch(/select\('[^']*custom_prompt/);
   });
 
-  it('the legacy editor reads starters with select(*) too', () => {
-    expect(legacyPage).toContain("select('*, prompt:conversation_starter_prompts");
-    expect(legacyPage).not.toMatch(/select\('[^']*custom_prompt/);
+  it('the editor reads starters with select(*) too', () => {
+    expect(editorPage).toContain("select('*, prompt:conversation_starter_prompts");
+    expect(editorPage).not.toMatch(/select\('[^']*custom_prompt/);
   });
 
   it('the public profile prefers the member-written question over the seeded one', () => {
     expect(publicPage).toMatch(/customPrompt\s*\?\?\s*joined\?\.prompt/);
   });
 
+  // Old expected values (legacy step): 'Write your own question', 'ownOpen'.
+  // The v0.8 §09 section's button reads "Add your own question" and adds a
+  // member-written row to the editor state.
   it('the write-your-own UI exists in the editor', () => {
-    expect(step).toContain('Write your own question');
-    expect(step).toContain('ownOpen');
+    expect(step).toMatch(/>\s*Add your own question\s*</);
+    expect(step).toContain("dispatch({ type: 'addCustomQuestion', key })");
   });
 });
 

@@ -145,8 +145,8 @@ describe('KAN-272: Site-wide footer links (moved from homepage to the shared Foo
     expect(content).toContain('/terms');
   });
 
-  test('footer links to /cookies', () => {
-    expect(content).toContain('/cookies');
+  test('footer links to /contact (KAN-493: four links)', () => {
+    expect(content).toContain('/contact');
   });
 
   test('footer carries the Companies Act company line', () => {
@@ -160,8 +160,9 @@ describe('KAN-272: Site-wide footer links (moved from homepage to the shared Foo
   });
 });
 
-describe('KAN-144: Cookie policy page', () => {
-  const filePath = path.join(root, SRC.cookiesPage);
+// KAN-493: the cookie policy is now the #cookies section of the privacy page.
+describe('KAN-144 / KAN-493: Cookie policy (Privacy #cookies section)', () => {
+  const filePath = path.join(root, SRC.privacyPage);
   let content;
 
   beforeAll(() => {
@@ -172,13 +173,13 @@ describe('KAN-144: Cookie policy page', () => {
     expect(fs.existsSync(filePath)).toBe(true);
   });
 
-  test('exports metadata with title', () => {
-    expect(content).toContain('Cookie Policy');
-    expect(content).toContain('metadata');
+  test('has a Cookies section with the #cookies anchor', () => {
+    expect(content).toContain('id="cookies"');
+    expect(content).toContain('<h2>Cookies</h2>');
   });
 
   test('explains what cookies are', () => {
-    expect(content).toContain('What are cookies');
+    expect(content).toContain('Cookies are small text files');
   });
 
   test('lists specific cookies used', () => {
@@ -206,8 +207,7 @@ describe('KAN-144: Cookie policy page', () => {
     expect(content).toContain('privacy@checklyra.com');
   });
 
-  test('links to privacy policy and terms', () => {
-    expect(content).toContain('href="/privacy"');
+  test('links to the terms', () => {
     expect(content).toContain('href="/terms"');
   });
 });

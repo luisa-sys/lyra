@@ -34,6 +34,36 @@ gh workflow run e2e-authed.yml --repo luisa-sys/lyra -f base_url=https://e2e-dev
 gh run watch --repo luisa-sys/lyra
 ```
 
+## The aliases are gated by a harness secret (SEC-201, 2026-11-26)
+
+Because the e2e-* aliases are grey-cloud, their traffic never passes through
+Cloudflare, so the Cloudflare Access apps on `dev.checklyra.com` and
+`stage.checklyra.com` **cannot** protect them. Until SEC-201 both aliases served
+the full develop/staging app to anyone.
+
+Now the app's first pre-auth gate (`src/modules/access/gates/e2e-host.ts`)
+answers **404** on any `e2e-*.checklyra.com` host unless the request carries
+`x-lyra-e2e-gate: <E2E_HOST_GATE_SECRET>`. Fails closed: with the env var
+unset on the deployment, the aliases 404 for everyone.
+
+Where the secret lives:
+- **Vercel** project `lyra`, env `E2E_HOST_GATE_SECRET`, Preview scope (the
+  develop and staging builds). Not needed on Production or beta: the gate only
+  looks at e2e-* hosts, and those serve preview builds.
+- **GitHub** repo secret `E2E_HOST_GATE_SECRET`, passed by `e2e-authed.yml`,
+  `promote-to-staging.yml` (signup E2E) and `soak-journey.yml`.
+- **Staging-soak routine** (cloud Claude Code routine): its environment needs
+  `E2E_HOST_GATE_SECRET` too, or `scripts/staging-soak.sh` gets 404s on
+  e2e-stage.
+
+Sent by: `playwright.config.ts` (`buildE2eGateHeader`), `mint-session.ts`, and
+`scripts/staging-soak.sh`. `scripts/smoke-tests.sh` asserts that both aliases
+answer 404 to a request without the header.
+
+To rotate: generate a new value, set it in both Vercel (Preview) and GitHub,
+then redeploy develop and staging. The gate reads the env at request time, but
+Vercel only applies env changes to new deployments.
+
 ## Why NOT a Cloudflare WAF skip rule
 
 The first attempt was a WAF **Skip** rule keyed to a secret header the harness

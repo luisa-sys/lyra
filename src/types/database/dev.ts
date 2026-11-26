@@ -131,6 +131,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_gift_generations: {
+        Row: {
+          consent_version: string
+          created_at: string
+          id: string
+          profile_id: string
+          session_id: string
+        }
+        Insert: {
+          consent_version: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          session_id: string
+        }
+        Update: {
+          consent_version?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_gift_generations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_gift_generations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string | null
@@ -348,28 +387,34 @@ export type Database = {
       }
       conversation_starter_prompts: {
         Row: {
+          answer_max: number
           category: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
           prompt: string
           sort_order: number | null
+          updated_at: string
         }
         Insert: {
+          answer_max?: number
           category?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           prompt: string
           sort_order?: number | null
+          updated_at?: string
         }
         Update: {
+          answer_max?: number
           category?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           prompt?: string
           sort_order?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1397,11 +1442,13 @@ export type Database = {
       }
       profile_items: {
         Row: {
+          approved: boolean
           category: Database["public"]["Enums"]["item_category"]
           created_at: string | null
           description: string | null
           group_label: string | null
           id: string
+          origin: string
           profile_id: string
           sort_order: number | null
           title: string
@@ -1409,11 +1456,13 @@ export type Database = {
           visibility: Database["public"]["Enums"]["visibility_level"] | null
         }
         Insert: {
+          approved?: boolean
           category: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
           group_label?: string | null
           id?: string
+          origin?: string
           profile_id: string
           sort_order?: number | null
           title: string
@@ -1421,11 +1470,13 @@ export type Database = {
           visibility?: Database["public"]["Enums"]["visibility_level"] | null
         }
         Update: {
+          approved?: boolean
           category?: Database["public"]["Enums"]["item_category"]
           created_at?: string | null
           description?: string | null
           group_label?: string | null
           id?: string
+          origin?: string
           profile_id?: string
           sort_order?: number | null
           title?: string
@@ -1442,6 +1493,72 @@ export type Database = {
           },
           {
             foreignKeyName: "profile_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_items_legacy_archive: {
+        Row: {
+          approved: boolean | null
+          archived_at: string
+          category: string
+          description: string | null
+          group_label: string | null
+          id: string
+          item_created_at: string | null
+          kan490_action: string
+          origin: string | null
+          profile_id: string
+          sort_order: number | null
+          title: string | null
+          url: string | null
+          visibility: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          archived_at?: string
+          category: string
+          description?: string | null
+          group_label?: string | null
+          id: string
+          item_created_at?: string | null
+          kan490_action: string
+          origin?: string | null
+          profile_id: string
+          sort_order?: number | null
+          title?: string | null
+          url?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          archived_at?: string
+          category?: string
+          description?: string | null
+          group_label?: string | null
+          id?: string
+          item_created_at?: string | null
+          kan490_action?: string
+          origin?: string | null
+          profile_id?: string
+          sort_order?: number | null
+          title?: string | null
+          url?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_items_legacy_archive_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_items_legacy_archive_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "public_profiles"
@@ -1500,6 +1617,42 @@ export type Database = {
           },
         ]
       }
+      profile_slug_history: {
+        Row: {
+          created_at: string
+          old_slug: string
+          old_slug_key: string | null
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          old_slug_key?: string | null
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          old_slug_key?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_slug_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_slug_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           access_tier: Database["public"]["Enums"]["access_tier"]
@@ -1512,6 +1665,7 @@ export type Database = {
           avatar_url: string | null
           beta_approved_at: string | null
           beta_requested_at: string | null
+          billboard: string | null
           bio_short: string | null
           city: string | null
           completion_score: number | null
@@ -1522,6 +1676,7 @@ export type Database = {
           discoverable_by_phone: boolean
           discoverable_by_postcode: boolean
           display_name: string
+          first_published_at: string | null
           gift_voucher_hint: string | null
           headline: string | null
           homepage_example_order: number | null
@@ -1539,6 +1694,7 @@ export type Database = {
           section_visibility: Json
           share_availability_with_contacts: boolean
           slug: string
+          slug_confirmed: boolean
           suspended_at: string | null
           suspension_reason: string | null
           updated_at: string | null
@@ -1556,6 +1712,7 @@ export type Database = {
           avatar_url?: string | null
           beta_approved_at?: string | null
           beta_requested_at?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           completion_score?: number | null
@@ -1566,6 +1723,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name: string
+          first_published_at?: string | null
           gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
@@ -1583,6 +1741,7 @@ export type Database = {
           section_visibility?: Json
           share_availability_with_contacts?: boolean
           slug: string
+          slug_confirmed?: boolean
           suspended_at?: string | null
           suspension_reason?: string | null
           updated_at?: string | null
@@ -1600,6 +1759,7 @@ export type Database = {
           avatar_url?: string | null
           beta_approved_at?: string | null
           beta_requested_at?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           completion_score?: number | null
@@ -1610,6 +1770,7 @@ export type Database = {
           discoverable_by_phone?: boolean
           discoverable_by_postcode?: boolean
           display_name?: string
+          first_published_at?: string | null
           gift_voucher_hint?: string | null
           headline?: string | null
           homepage_example_order?: number | null
@@ -1627,6 +1788,7 @@ export type Database = {
           section_visibility?: Json
           share_availability_with_contacts?: boolean
           slug?: string
+          slug_confirmed?: boolean
           suspended_at?: string | null
           suspension_reason?: string | null
           updated_at?: string | null
@@ -1827,6 +1989,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      retired_lyra_ids: {
+        Row: {
+          id_key: string
+          retired_at: string
+        }
+        Insert: {
+          id_key: string
+          retired_at?: string
+        }
+        Update: {
+          id_key?: string
+          retired_at?: string
+        }
+        Relationships: []
       }
       school_affiliations: {
         Row: {
@@ -2123,6 +2300,7 @@ export type Database = {
       public_profiles: {
         Row: {
           avatar_url: string | null
+          billboard: string | null
           bio_short: string | null
           city: string | null
           country: string | null
@@ -2142,6 +2320,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           country?: string | null
@@ -2161,6 +2340,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          billboard?: string | null
           bio_short?: string | null
           city?: string | null
           country?: string | null
@@ -2234,6 +2414,10 @@ export type Database = {
         Args: { cutoff: string }
         Returns: number
       }
+      claim_ai_gift_generation: {
+        Args: { p_consent_version: string; p_session: string }
+        Returns: Json
+      }
       convene_vault_read_secret: {
         Args: { p_secret_id: string }
         Returns: string
@@ -2252,6 +2436,14 @@ export type Database = {
         Args: { p_end_at: string; p_start_at: string }
         Returns: Json
       }
+      insert_ai_gift_suggestions: { Args: { p_items: Json }; Returns: Json }
+      is_reserved_lyra_id: { Args: { p_id: string }; Returns: boolean }
+      lyra_id_availability: { Args: { p_id: string }; Returns: string }
+      lyra_id_from_legacy: {
+        Args: { p_profile_id: string; p_slug: string }
+        Returns: string
+      }
+      lyra_slugify: { Args: { p_text: string }; Returns: string }
       moderation_log_row_hash: {
         Args: {
           p_action: string
@@ -2268,6 +2460,15 @@ export type Database = {
         Returns: string
       }
       oauth_connect_state_purge_expired: { Args: never; Returns: number }
+      profile_item_rule: {
+        Args: { p_category: string; p_origin: string }
+        Returns: {
+          cap: number
+          cap_group: string
+          description_max: number
+          title_max: number
+        }[]
+      }
       rate_limit_hit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
         Returns: {
@@ -2285,6 +2486,7 @@ export type Database = {
         Returns: string
       }
       refresh_relationship_signals: { Args: never; Returns: undefined }
+      save_profile: { Args: { p_mode: string; p_payload: Json }; Returns: Json }
       search_by_contact_hash: {
         Args: { p_hash: string; p_kind: string }
         Returns: {
@@ -2298,6 +2500,12 @@ export type Database = {
           detail: string
           invariant: string
           object_name: string
+        }[]
+      }
+      suggest_affiliation_names: {
+        Args: { p_limit?: number; p_prefix: string; p_type: string }
+        Returns: {
+          name: string
         }[]
       }
       tribe_only_visible_tribes: {
@@ -2379,12 +2587,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2408,11 +2616,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2433,11 +2641,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2458,11 +2666,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2475,11 +2683,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2544,4 +2752,3 @@ export const Constants = {
     },
   },
 } as const
-

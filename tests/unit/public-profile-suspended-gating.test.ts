@@ -15,7 +15,10 @@ import path from 'path';
 import { SRC } from '../support/source-paths';
 
 const root = path.join(__dirname, '../..');
-const pagePath = SRC.slugPage;
+// KAN-488: the profile-row read moved from src/app/[slug]/page.tsx into the
+// public-profile module's loader (CTL-056). Was: const pagePath = SRC.slugPage;
+const pagePath = SRC.loadPublicProfile;
+const routePath = SRC.slugPage;
 
 describe('SEC-44: public profile page filters suspended profiles', () => {
   const content = fs.readFileSync(path.join(root, pagePath), 'utf8');
@@ -46,29 +49,21 @@ describe('SEC-44: public profile page filters suspended profiles', () => {
   });
 
   test('BOTH the metadata and page fetches use the constrained source', () => {
-    // The two service-role reads are distinguished by their select() shape:
-    // generateMetadata selects specific columns; the page fetch selects '*'.
-    // Checking each block separately is what catches a half-migration — the
-    // exact hazard that would otherwise leave one read on the raw table while
-    // the file as a whole still mentions the view.
-    const metaFetch = content.slice(
-      content.indexOf("select('display_name, headline, bio_short')"),
-    );
-    const pageFetch = content.slice(content.indexOf(".select('*')"));
+    // KAN-488: generateMetadata and the page no longer make two reads — both
+    // call the ONE cached `loadPublicProfileRow`, whose chain is checked here.
+    // Was: two blocks located by select('display_name, headline, bio_short')
+    // and select('*') in page.tsx, each required to read from('public_profiles').
+    const rowFnStart = content.indexOf('export const loadPublicProfileRow');
+    expect(rowFnStart).toBeGreaterThan(-1);
+    const rowFn = content.slice(rowFnStart, content.indexOf('.maybeSingle()', rowFnStart));
+    expect(rowFn).toContain("from('public_profiles')");
+    expect(rowFn).toContain(".select('*')");
+    expect(rowFn).not.toMatch(/\.from\(\s*['"]profiles['"]\s*\)/);
 
-    const metaBlock = metaFetch.slice(0, metaFetch.indexOf('.single()'));
-    const pageBlock = pageFetch.slice(0, pageFetch.indexOf('.single()'));
-
-    // The `.from()` precedes `.select()` in both chains, so look backwards from
-    // each select to the nearest from().
-    const metaSource = content.slice(0, content.indexOf("select('display_name, headline, bio_short')"));
-    const pageSource = content.slice(0, content.indexOf(".select('*')"));
-
-    expect(metaSource.lastIndexOf("from('public_profiles')")).toBeGreaterThan(-1);
-    expect(pageSource.lastIndexOf("from('public_profiles')")).toBeGreaterThan(-1);
-    // Neither block re-introduces a raw-table read after its from().
-    expect(metaBlock).not.toMatch(/\.from\(\s*['"]profiles['"]\s*\)/);
-    expect(pageBlock).not.toMatch(/\.from\(\s*['"]profiles['"]\s*\)/);
+    // Both route consumers go through it, and the route reads nothing itself.
+    const route = fs.readFileSync(path.join(root, routePath), 'utf8');
+    expect(route.match(/await loadPublicProfileRow\(slug\)/g)).toHaveLength(2);
+    expect(route).not.toMatch(/\.from\(\s*['"][a-z_]+['"]\s*\)/);
   });
 
   test('the page does not narrow the view back to the raw table by hand', () => {

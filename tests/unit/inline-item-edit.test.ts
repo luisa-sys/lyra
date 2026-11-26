@@ -11,47 +11,71 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 const ROOT = resolve(__dirname, '../..');
 const PROFILE = resolve(ROOT, SRC.profile);
 
-describe('KAN-404 (#12): ItemsStep inline edit', () => {
-  const src = readFileSync(resolve(PROFILE, 'steps/items-step.tsx'), 'utf-8');
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): this describe read the
+// legacy wizard's `steps/items-step.tsx`, which is deleted. Inline item
+// editing is live in the v0.8 editor's `editor/item-list-editor.tsx`, so the
+// four tests are repointed there. v0.8 changes the model (spec §1): a row edit
+// updates the editor state and goes out with the one Save, so there is no
+// per-row onEdit/Save/Cancel — the live counterparts are Edit (expand),
+// Done (collapse), errors shown in place, and every field patched into state.
+// Comments are stripped, so the file's own prose cannot satisfy them.
+// Old expected values, on items-step.tsx:
+//   /onEdit\?:/, /Promise<\{\s*success:\s*boolean;\s*error\?:\s*string\s*\}>/
+//   /onEdit && \(/, /onClick=\{\(\) => startEdit\(item\)\}/
+//   /saveEdit\(item\.id\)/, /onClick=\{cancelEdit\}/, /editError/
+//   /title:\s*editTitle\.trim\(\)/, /description:\s*editDesc/, /url:\s*editUrl\.trim\(\)/
+describe('KAN-404 (#12) / KAN-487: editor list rows edit inline', () => {
+  const src = stripComments(readFileSync(resolve(PROFILE, 'editor/item-list-editor.tsx'), 'utf-8'));
 
-  test('accepts an optional onEdit prop returning success/error', () => {
-    expect(src).toMatch(/onEdit\?:/);
-    expect(src).toMatch(/Promise<\{\s*success:\s*boolean;\s*error\?:\s*string\s*\}>/);
+  test('a row edit updates the editor state (no per-row save callback)', () => {
+    expect(src).toMatch(/dispatch\(\{ type: 'updateRow', listKey, key: row\.key, patch: p \}\)/);
+    expect(src).not.toMatch(/onEdit/);
   });
 
-  test('renders an Edit button only when onEdit is wired', () => {
-    expect(src).toMatch(/onEdit && \(/);
-    expect(src).toMatch(/onClick=\{\(\) => startEdit\(item\)\}/);
+  test('renders an Edit button that expands the row in place', () => {
+    expect(src).toMatch(/aria-label=\{`Edit \$\{label \|\| 'entry'\}`\}/);
+    expect(src).toMatch(/setOpen\(row\.key, true\);/);
   });
 
-  test('inline edit mode has Save + Cancel and surfaces editError in place', () => {
-    expect(src).toMatch(/saveEdit\(item\.id\)/);
-    expect(src).toMatch(/onClick=\{cancelEdit\}/);
-    expect(src).toMatch(/editError/);
+  test('inline edit mode has Done and surfaces field errors in place', () => {
+    expect(src).toMatch(/setOpen\(row\.key, false\);[\s\S]{0,200}?>\s*Done\s*</);
+    expect(src).toMatch(/error: errors\[`\$\{row\.key\}\.title`\]/);
+    expect(src).toMatch(/error=\{errors\[`\$\{row\.key\}\.description`\]\}/);
+    expect(src).toMatch(/error=\{errors\[`\$\{row\.key\}\.url`\]\}/);
   });
 
-  test('saveEdit sends title/description/url so a user can clear as well as edit', () => {
-    expect(src).toMatch(/title:\s*editTitle\.trim\(\)/);
-    expect(src).toMatch(/description:\s*editDesc/);
-    expect(src).toMatch(/url:\s*editUrl\.trim\(\)/);
+  test('title, description and url are each patched, so a member can clear as well as edit', () => {
+    expect(src).toMatch(/onChange: \(v: string\) => patch\(\{ title: v \}\)/);
+    expect(src).toMatch(/onChange=\{\(v\) => patch\(\{ description: v \}\)\}/);
+    expect(src).toMatch(/onChange=\{\(v\) => patch\(\{ url: v \}\)\}/);
   });
 });
 
 describe('KAN-404 (#12): editor wires updateProfileItem into ItemsStep', () => {
   const src = readFileSync(resolve(PROFILE, 'edit-profile-form.tsx'), 'utf-8');
 
-  test('imports updateProfileItem', () => {
-    expect(src).toMatch(/updateProfileItem/);
+  // KAN-487 (spec v0.8 §1: edits stay in the editor until one atomic save).
+  // Inline edits no longer call updateProfileItem per row; every change goes
+  // out in the single save payload (saveProfileChanges / saveProfileDraft).
+  // Old expected values:
+  //   toMatch /updateProfileItem/
+  //   toMatch /onEdit=\{async \(id, data\) =>/
+  //   toMatch /await updateProfileItem\(id, data\)/
+  //   toMatch /return \{ success: res\.success/
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('no longer imports updateProfileItem; saves through saveProfileChanges', () => {
+    expect(src).not.toMatch(/updateProfileItem/);
+    expect(src).toMatch(/import \{[^}]*\bsaveProfileChanges\b[^}]*\} from '\.\/editor-actions'/);
   });
 
   test('passes an onEdit that calls updateProfileItem and returns the result', () => {
-    expect(src).toMatch(/onEdit=\{async \(id, data\) =>/);
-    expect(src).toMatch(/await updateProfileItem\(id, data\)/);
-    expect(src).toMatch(/return \{ success: res\.success/);
+    expect(src).not.toMatch(/onEdit=/);
+    expect(src).toMatch(/return saveProfileChanges\(a\.payload\)/);
   });
 });
 

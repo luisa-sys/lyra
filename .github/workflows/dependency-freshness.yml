@@ -1,0 +1,134 @@
+name: Dependency Freshness
+
+# SEC-197 / CTL-081 — daily dependency-freshness report.
+#
+# Founder rule (2026-11-23), docs/DEPENDENCY_POLICY.md: vulnerable (any
+# severity) or >90 days old with a newer release means upgrade on develop, or
+# carry a dated waiver in security/dependency-freshness-waivers.json.
+#
+# Measures the WHOLE tree: every advisory at any severity (npm audit, full
+# tree), every direct dependency >90 days old with a newer release (npm
+# registry `time`), and every Node.js major pinned by `node-version:` in a
+# workflow. Out-of-policy findings go into ONE tracking issue (opened, updated,
+# closed when clean) and the job stays green, because a red you have learned to
+# expect is a switched-off control (CLAUDE.md catalogue #7). The job DOES go
+# red when:
+#   - a waiver has EXPIRED or is malformed (exit 1) — a decision falling due,
+#   - the measurement itself failed (exit 2) — never reported as clean.
+# The blocking half of this control is the --pr step in pr-checks.yml, which
+# fires only on PRs that change package.json / package-lock.json / the waiver
+# file, and then only on what the PR introduces relative to its base.
+#
+# WHY ITS OWN WORKFLOW (not a job in security-audit.yml): CTL-072
+# (.github/workflow-freshness.json) judges a workflow by "any successful run in
+# the window". A daily job sharing security-audit.yml would succeed six days a
+# week and so hide a weekly `audit` job that is permanently red or skipped.
+# Separate files give each cadence its own freshness entry. The issue plumbing
+# deliberately mirrors security-audit.yml (deterministic title, label
+# `dependencies`, open/update/close) rather than inventing a second pattern.
+
+on:
+  schedule:
+    - cron: '40 5 * * *'  # Daily 05:40 UTC — before required-checks.yml (06:20) reads CTL-072
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+  issues: write # the single tracking issue below
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false # read-only job; issue writes go through GH_TOKEN below
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # 22, not the '20' used elsewhere: Node 20 is itself out of policy
+          # under SEC-197 (no release since 2026-03-24), and a new workflow
+          # should not add another out-of-policy pin. Moving the rest is the
+          # deps work.
+          node-version: '22'
+
+      - name: Self-test the freshness checker (CTL-081)
+        run: |
+          set -euo pipefail
+          python3 scripts/check-dependency-freshness.py --self-test
+
+      - name: Measure dependency freshness
+        id: fresh
+        run: |
+          set -uo pipefail
+          # npm audit reads package-lock.json; no install is needed for either feed.
+          # --report-only: findings are reported (and filed below), not failed.
+          # Expired/malformed waivers still exit 1 and a failed measurement exits 2;
+          # the step keeps that exit code after writing the run summary.
+          python3 scripts/check-dependency-freshness.py --report --report-only \
+            --markdown /tmp/freshness.md --github-output "$GITHUB_OUTPUT" \
+            | tee /tmp/freshness.txt
+          rc="${PIPESTATUS[0]}"
+          if [ -s /tmp/freshness.md ]; then
+            {
+              echo "## Dependency freshness (SEC-197)"
+              echo
+              cat /tmp/freshness.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$rc"
+
+      - name: Open, update or close the dependency-freshness issue
+        # always(): an EXPIRED or malformed waiver makes the measure step exit 1,
+        # and that is exactly when the tracking issue most needs to say so.
+        if: always() && steps.fresh.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRESH_OUTCOME: ${{ steps.fresh.outcome }}
+          OUT_OF_POLICY: ${{ steps.fresh.outputs.out_of_policy }}
+          STALE: ${{ steps.fresh.outputs.stale }}
+          EXPIRED: ${{ steps.fresh.outputs.expired }}
+          MALFORMED: ${{ steps.fresh.outputs.malformed }}
+        run: |
+          set -euo pipefail
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          TITLE="Dependency freshness — out-of-policy dependencies (SEC-197)"
+          if [ -z "$OUT_OF_POLICY" ] || [ -z "$STALE" ] || [ -z "$EXPIRED" ] || [ -z "$MALFORMED" ]; then
+            if [ "$FRESH_OUTCOME" = "success" ]; then
+              echo "::error::freshness counts missing from a successful measure step — refusing to guess"
+              exit 1
+            fi
+            # The measurement itself failed (exit 2): nothing trustworthy to file.
+            # The red measure step above is the signal; leave the issue as it was.
+            echo "::warning::measurement failed — tracking issue left unchanged ($RUN_URL)"
+            exit 0
+          fi
+          {
+            cat /tmp/freshness.md
+            echo
+            echo "- Run: $RUN_URL"
+          } > /tmp/freshness-issue.md
+
+          # One running issue per ongoing condition, matched on a deterministic
+          # title — the same idempotency pattern as security-audit.yml.
+          EXISTING="$(gh issue list --search "in:title \"$TITLE\"" --state open --label dependencies --json number --jq '.[0].number')"
+          if [ "$OUT_OF_POLICY" = "0" ] && [ "$STALE" = "0" ] && [ "$EXPIRED" = "0" ] && [ "$MALFORMED" = "0" ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body "All dependencies are within policy as of this run. Closing. $RUN_URL"
+              gh issue close "$EXISTING"
+            fi
+            echo "All dependencies within policy."
+            exit 0
+          fi
+          if [ -n "$EXISTING" ]; then
+            echo "Updating issue #$EXISTING ($OUT_OF_POLICY out of policy, $STALE stale, $EXPIRED expired, $MALFORMED malformed waiver(s))"
+            gh issue edit "$EXISTING" --body-file /tmp/freshness-issue.md
+          else
+            echo "Opening the dependency-freshness issue"
+            gh issue create --title "$TITLE" --label dependencies --body-file /tmp/freshness-issue.md
+          fi

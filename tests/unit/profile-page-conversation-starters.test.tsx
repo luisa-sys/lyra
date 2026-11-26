@@ -184,6 +184,8 @@ describe('profile editor page — conversation starters (behavioural, KAN-414 F4
         answer: 'Middlemarch',
         prompt: 'What are you reading?',
         custom_prompt: null,
+        // KAN-484: the joined preset's answer limit (absent in this fixture).
+        answer_max: null,
       },
     ]);
   });

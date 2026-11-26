@@ -81,6 +81,8 @@ export const RATE_LIMITS = {
   auth: { limit: 10, windowSeconds: 900 },
   /** Profile updates: 30 per minute */
   profileWrite: { limit: 30, windowSeconds: 60 },
+  /** KAN-496: CheckLyra ID "Check availability" — 20 checks per minute per member. */
+  lyraIdCheck: { limit: 20, windowSeconds: 60 },
   /** General API: 60 per minute */
   api: { limit: 60, windowSeconds: 60 },
   /** OAuth Dynamic Client Registration: 5 new clients/hour per IP (SEC-19/F-05) */

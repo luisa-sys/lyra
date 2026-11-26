@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { SRC } = require('../support/source-paths.json');
+const { stripComments } = require('../support/strip-comments');
 
 const root = path.join(__dirname, '../..');
 
@@ -14,73 +15,33 @@ const NEW_CATEGORIES = [
   'proud_of', 'life_hacks', 'questions', 'billboard',
 ];
 
-describe('KAN-137: Wizard supports new section categories', () => {
-  const wizardPath = path.join(root, SRC.wizard);
-  let wizardContent;
+// KAN-469: the public profile no longer renders 'billboard' — the prompt it
+// existed for is now an ordinary conversation starter, so its answer appears
+// in the Q&A section with everything else.
+//
+// This is a SEPARATE list rather than a deletion from NEW_CATEGORIES, and the
+// distinction was the whole point: NEW_CATEGORIES also drove the items-step
+// label check, which offered a Billboard label until KAN-487 part 3 deleted
+// the legacy wizard (and that check with it). Removing the entry from the
+// shared list would have quietly weakened that assertion too, which is the
+// failure mode this repo keeps re-learning: a list edited to make one caller
+// green stops guarding its other callers without saying so.
+//
+// KAN-488: 'questions' joins it. The legacy "questions" items are a pre-v0.8
+// category the v0.8 editor cannot show (KAN-490 migrates them), so the public
+// page no longer fetches them; the exact category set the page reads is
+// asserted as literals in kan488-public-profile-loader.test.ts.
+// Was: NEW_CATEGORIES.filter((c) => c !== 'billboard')
+const PUBLIC_PAGE_CATEGORIES = NEW_CATEGORIES.filter((c) => c !== 'billboard' && c !== 'questions');
 
-  beforeAll(() => {
-    wizardContent = fs.readFileSync(wizardPath, 'utf8');
-  });
-
-  test('wizard file exists', () => {
-    expect(fs.existsSync(wizardPath)).toBe(true);
-  });
-
-  test('wizard has 14 steps (was 13; KAN-181 added Things to ask me)', () => {
-    // KAN-154 took this from 11 → 12 (Manual of Me).
-    // KAN-142 took it from 12 → 13 (Files & media).
-    // KAN-181 took it from 13 → 14 (Things to ask me / conversation
-    // starters). Each is a deliberate user-facing addition, not a
-    // regression — update the assertion to match. If a future refactor
-    // drops a step accidentally, this test catches it.
-    const stepMatches = wizardContent.match(/\{ id: '/g);
-    expect(stepMatches).not.toBeNull();
-    expect(stepMatches.length).toBe(14);
-  });
-
-  test('wizard includes Files & media step (KAN-142)', () => {
-    expect(wizardContent).toContain("'files'");
-    expect(wizardContent).toContain('Files & media');
-  });
-
-  test('wizard includes Things to ask me step (KAN-181)', () => {
-    expect(wizardContent).toContain("'starters'");
-    expect(wizardContent).toContain('Things to ask me');
-  });
-
-  test('wizard includes Books & Media step', () => {
-    expect(wizardContent).toContain("'favourite_books'");
-    expect(wizardContent).toContain("'favourite_media'");
-    expect(wizardContent).toContain('Books & Media');
-  });
-
-  test('wizard includes Causes & Quotes step', () => {
-    expect(wizardContent).toContain("'causes'");
-    expect(wizardContent).toContain("'quotes'");
-    expect(wizardContent).toContain('Causes & Quotes');
-  });
-
-  test('wizard includes More about you step', () => {
-    expect(wizardContent).toContain("'proud_of'");
-    expect(wizardContent).toContain("'life_hacks'");
-    expect(wizardContent).toContain("'questions'");
-    expect(wizardContent).toContain("'billboard'");
-    expect(wizardContent).toContain('More about you');
-  });
-});
-
-describe('KAN-137: ItemsStep has labels for all categories', () => {
-  const itemsStepPath = path.join(root, SRC.itemsStep);
-  let content;
-
-  beforeAll(() => {
-    content = fs.readFileSync(itemsStepPath, 'utf8');
-  });
-
-  test.each(NEW_CATEGORIES)('itemsStep has label for category: %s', (cat) => {
-    expect(content).toContain(`${cat}:`);
-  });
-});
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): two describes stood
+// here and are deleted with the code they read. "KAN-137: Wizard supports new
+// section categories" (7 tests) read `wizard.tsx`: the step count, and the
+// Files & media, Things to ask me, Books & Media, Causes & Quotes and More
+// about you steps. "KAN-137: ItemsStep has labels for all categories" (one
+// case per NEW_CATEGORIES entry, 8) read `steps/items-step.tsx`. Both files
+// are deleted; the v0.8 editor's section/category table is pinned in the
+// kan487 suites. The public-page guards below are unchanged.
 
 describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', () => {
   // The June-2026 redesign (KAN-265) replaced the categoryLabels / categoryIcons /
@@ -99,7 +60,15 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   const profilePath = path.join(root, SRC.slugPage);
   // Built from the manifest's profile-directory entry rather than a raw repo
   // path, so this adds no new path coupling to the KAN-414 F4 ratchet.
-  const favouritesPath = path.join(root, SRC.favourites);
+  //
+  // KAN-488: the render path changed again. The page now renders the v0.8
+  // view model, so the files a public category passes through are the
+  // editor's category table, the view model and the section renderer — not
+  // the favourites module, which the page no longer imports.
+  // Was: const favouritesPath = path.join(root, SRC.favourites);
+  const renderPathFiles = [SRC.editorState, SRC.publicViewModel, SRC.publicProfileSections].map((p) =>
+    path.join(root, p),
+  );
   let pageContent;
   let content;
 
@@ -108,54 +77,63 @@ describe('KAN-137 / KAN-265: Public profile renders all categories (redesign)', 
   // above the real heading, so the entire favourites grid could be disabled
   // and the heading renamed with this suite still fully green. The prose
   // documenting a fix is what conceals its removal — same shape as SEC-100.
-  const stripComments = (source) =>
-    source
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ') // JSX {/* ... */}
-      .replace(/\/\*[\s\S]*?\*\//g, ' ') //           block /* ... */
-      .replace(/(^|[^:])\/\/.*$/gm, '$1'); //         line   // ...
-
   beforeAll(() => {
     pageContent = stripComments(fs.readFileSync(profilePath, 'utf8'));
-    content = pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'));
+    // Was: pageContent + stripComments(fs.readFileSync(favouritesPath, 'utf8'))
+    content = pageContent + renderPathFiles.map((f) => stripComments(fs.readFileSync(f, 'utf8'))).join('\n');
   });
 
   test('public page renders favourites through the shared groups module (KAN-444)', () => {
-    expect(pageContent).toContain("from '@/modules/profile/favourites'");
-    expect(pageContent).toContain('groupFavourites(typedItems)');
+    // KAN-488: the shared module is now the v0.8 view model, which the editor's
+    // Preview draws too — the same parity KAN-444 wanted, one level up.
+    // Old expected values:
+    //   expect(pageContent).toContain("from '@/modules/profile/favourites'");
+    //   expect(pageContent).toContain('groupFavourites(typedItems)');
+    expect(pageContent).toContain("from '@/modules/profile/editor/public-view-model'");
+    expect(pageContent).toContain('buildPublicProfileView(initialEditorState(loaded)');
   });
 
-  test.each(NEW_CATEGORIES)('page renders category: %s', (cat) => {
+  test.each(PUBLIC_PAGE_CATEGORIES)('page renders category: %s', (cat) => {
     expect(content).toContain(`'${cat}'`);
   });
 
   test('favourites render in a dedicated favourites grid', () => {
-    expect(pageContent).toContain('A few of my favourite things');
+    // KAN-488: the heading is the view model's §06 label (in `content`); the
+    // rendered heading is asserted in kan488-public-profile-page.test.tsx.
+    // Was: expect(pageContent).toContain('A few of my favourite things');
+    expect(content).toContain('A few of my favourite things');
     expect(content).toContain("['favourite_books'");
     expect(content).toContain("['favourite_media'");
     expect(content).toContain("['quotes'");
   });
 
   test('questions + conversation starters render as a Q&A section', () => {
-    expect(content).toContain("groupedItems['questions']");
-    // KAN-445 renamed the heading to the founder's wording.
-    expect(content).toContain('A bit more about me');
+    // KAN-488: legacy "questions" items are no longer read (see
+    // PUBLIC_PAGE_CATEGORIES above); answered questions render under the v0.8
+    // §09 heading. Old expected values:
+    //   expect(content).toContain("groupedItems['questions']");
+    //   expect(content).toContain('A bit more about me');
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(content).not.toContain("groupedItems['questions']");
+    expect(content).toContain('Random Questions & Answers');
   });
 
-  test('billboard has special large-quote rendering', () => {
-    expect(content).toContain("groupedItems['billboard']");
-    expect(content).toContain('giant billboard');
-  });
+  // KAN-469: two tests stood here — one asserting the standalone billboard
+  // block existed, one asserting its sage background. Both are gone with the
+  // block, and the guard that replaced them is the stronger direction:
+  // tests/unit/kan469-extras-section-removed.test.ts asserts the public page
+  // reaches `groupedItems['billboard']` NOWHERE, so it goes red if the block
+  // ever returns rather than red because it left. Sage-on-this-page coverage
+  // is unaffected — see the left-rule test immediately below, which is
+  // untouched. Founder-signed-off 2026-08-06.
 
-  test('billboard renders with sage green background', () => {
-    const billboardSection = content.slice(
-      content.indexOf("groupedItems['billboard']"),
-      content.indexOf('Links */')
-    );
-    expect(billboardSection).toContain('bg-[var(--color-sage)]');
-  });
-
-  test('section headings use the sage left-rule (border-l-[3px])', () => {
-    expect(content).toContain('border-l-[3px]');
-    expect(content).toContain('border-[var(--color-sage)]');
+  // Calm public-profile layout (founder design, Lyra website canvas,
+  // 2026-11-23): section headings swap the 3px sage left-rule for a
+  // pale-sage hairline beneath the heading. Old expected values:
+  //   expect(content).toContain('border-l-[3px]');
+  //   expect(content).toContain('border-[var(--color-sage)]');
+  test('section headings use the pale-sage hairline beneath (border-b)', () => {
+    expect(content).toContain('border-b border-[var(--color-lyra-sage-light)]');
+    expect(content).not.toContain('border-l-[3px]');
   });
 });

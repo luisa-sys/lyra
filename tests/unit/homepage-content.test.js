@@ -170,16 +170,23 @@ describe('KAN-272: Marketing sections preserved as files', () => {
   });
 });
 
-describe('KAN-272: About page hosts the moved trio', () => {
+describe('About page copy (Nov 2026 rewrite; replaces the KAN-272 trio)', () => {
   let about;
 
   beforeAll(() => {
     about = fs.readFileSync(aboutPath, 'utf8');
   });
 
-  test('about page exists and renders AboutTrio', () => {
+  test('about page exists and carries the tagline and core sections', () => {
     expect(fs.existsSync(aboutPath)).toBe(true);
-    expect(about).toContain('AboutTrio');
+    expect(about).toContain('For gifts more personal than flowers and chocolates.');
+    expect(about).toContain('What Lyra isn&rsquo;t');
+    expect(about).toContain('Why it exists');
+    expect(about).toContain('We never share it.');
+  });
+
+  test('about page no longer renders the trio (it implied meeting the reader)', () => {
+    expect(about).not.toContain('<AboutTrio');
   });
 });
 

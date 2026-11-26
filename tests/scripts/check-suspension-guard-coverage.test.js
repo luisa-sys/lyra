@@ -174,7 +174,10 @@ describe('CTL-028 — public surfaces may not read the profiles base table', () 
     // The regression this control could NOT observe before the rewrite:
     // switching a public surface back to the base table. Asserted on the tree
     // rather than through the checker, so it holds even if the checker changes.
-    const sites = [SRC.slugPage, SRC.searchPage, SRC.sitemap, SRC.slugRoute, SRC.v2SlugRoute];
+    // KAN-488: the public profile's read moved from src/app/[slug]/page.tsx into
+    // the public-profile module's loader (CTL-056); same expectation, new file.
+    // Was: [SRC.slugPage, SRC.searchPage, SRC.sitemap, SRC.slugRoute, SRC.v2SlugRoute]
+    const sites = [SRC.loadPublicProfile, SRC.searchPage, SRC.sitemap, SRC.slugRoute, SRC.v2SlugRoute];
     // Assert the corpus before iterating it — catalogue failure mode 4, where a
     // parameterised test over an empty list registers zero cases and is green.
     expect(sites.filter(Boolean)).toHaveLength(5);

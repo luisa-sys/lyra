@@ -110,6 +110,12 @@ REPO = Path(__file__).resolve().parents[1]
 
 MAX_EXCEPTIONS = 5
 
+# Severities (KAN-474). "blocking" and "advisory" are tree assertions that differ
+# only in loudness. "external" is a different KIND of registration — see the
+# SEVERITY note above resolve().
+SEV_BLOCKING = "blocking"
+SEV_EXTERNAL = "external"
+
 EXIT_OK = 0
 EXIT_DRIFT = 1
 EXIT_FAIL_CLOSED = 2
@@ -389,6 +395,74 @@ def ex_routine_ownership() -> list[Pattern]:
     return out
 
 
+def _bash_array(rel: str, name: str) -> list[Pattern]:
+    """Read a literal bash array out of a shell script.
+
+    Terminator is `)` at column 0, matching how check-extraction-dod.sh locates
+    its own ROUTINE_COUPLED block — the two must agree on where the array ends
+    or they would disagree about which lines are in it.
+
+    Only quoted entries are collected. The arrays this reads are documented as
+    LITERAL PATHS ONLY, so an unquoted token would be a shape change, and the
+    continuation-comment lines between entries carry no quotes and are skipped.
+    """
+    return _parse_bash_array(_read(rel), rel, name)
+
+
+def _parse_bash_array(src: str, rel: str, name: str) -> list[Pattern]:
+    """The pure half of _bash_array, so the self-test can drive it on a fixture
+    rather than on a real file it would then have to keep in sync."""
+    lines = src.splitlines()
+    start = None
+    for n, raw in enumerate(lines, 1):
+        if re.match(rf"^{re.escape(name)}=\(", raw):
+            start = n
+            break
+    if start is None:
+        raise Unparseable(f"{rel}: array {name} not found — it was renamed or removed")
+
+    out: list[Pattern] = []
+    for n in range(start + 1, len(lines) + 1):
+        raw = lines[n - 1]
+        if raw.startswith(")"):
+            break
+        key, reason, present = _hatch(raw)
+        body = _strip_comment(raw)
+        m = re.search(r'"([^"]+)"', body)
+        if m:
+            out.append(Pattern(m.group(1), rel, n, key if present else None, reason, present))
+    else:
+        raise Unparseable(f"{rel}: array {name} is unterminated")
+
+    if not out:
+        raise Unparseable(
+            f"{rel}: array {name} declared no entries — an empty carve-out list read as "
+            f"success is the vacuous pass this guard exists to prevent")
+    return out
+
+
+def ex_dod_archive() -> list[Pattern]:
+    """check-extraction-dod.sh's archival carve-out (KAN-474).
+
+    ARCHIVE_FILES + ARCHIVE_DIRS name the dated records the KAN-428 stale-refs
+    sweep prints rather than enforces. Their correctness condition is the ORDINARY
+    one — each must match a tracked file — because a dead entry means the archived
+    record was deleted or renamed, and the sweep then silently stops exempting it.
+    """
+    rel = "scripts/check-extraction-dod.sh"
+    return _bash_array(rel, "ARCHIVE_FILES") + _bash_array(rel, "ARCHIVE_DIRS")
+
+
+def ex_dod_routine() -> list[Pattern]:
+    """check-extraction-dod.sh's ROUTINE_COUPLED mirror (KAN-474).
+
+    Registered with severity="external". See the SEVERITIES note above resolve()
+    for why a dead entry here is not a finding — and for the honest statement of
+    what registration does and does not buy.
+    """
+    return _bash_array("scripts/check-extraction-dod.sh", "ROUTINE_COUPLED")
+
+
 def ex_doc_manifest() -> list[Pattern]:
     rel = "docs/DOC_SOURCE_OF_TRUTH.md"
     src = _read(rel)
@@ -456,7 +530,7 @@ class Artefact(NamedTuple):
     syntax: str
     extract: Callable[[], list[Pattern]]
     note: str
-    severity: str = "blocking"
+    severity: str = SEV_BLOCKING
 
 
 REGISTRY: list[Artefact] = [
@@ -483,6 +557,12 @@ REGISTRY: list[Artefact] = [
                     [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"]),
              "SEC-3; 2 of the 3 candidates are EXPECTED absent — the guard's job is "
              "to prove there is exactly one CODEOWNERS, so those two are excepted"),
+    Artefact("scripts/check-extraction-dod.sh (ARCHIVE_FILES)", "literal", ex_dod_archive,
+             "KAN-428 DoD archival carve-out — a dead entry means the dated record it "
+             "exempts was deleted or renamed (KAN-474)"),
+    Artefact("scripts/check-extraction-dod.sh (ROUTINE_COUPLED)", "literal", ex_dod_routine,
+             "mirror of out-of-repo claude.ai routine prompts (KAN-474)",
+             severity=SEV_EXTERNAL),
     Artefact("docs/DOC_SOURCE_OF_TRUTH.md", "literal", ex_doc_manifest,
              "doc mirror manifest (KAN-363)"),
     Artefact(".github/workflows/*.yml", "literal", ex_workflow_script_refs,
@@ -538,11 +618,47 @@ DECLARED_EXCEPTIONS: dict[tuple[str, str], tuple[str, str]] = {
 }
 
 
-def resolve(files: list[str]) -> tuple[list[dict], list[dict], list[dict]]:
-    """Returns (dead, excepted, live). Raises Unparseable -> exit 2."""
+def resolve(files: list[str]) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    """Returns (dead, excepted, live, external). Raises Unparseable -> exit 2.
+
+    SEVERITY `external` — WHY A FOURTH BUCKET, AND WHAT IT DOES NOT BUY (KAN-474)
+    ----------------------------------------------------------------------------
+    Every other registered pattern makes a claim ABOUT THE TREE, so "matches
+    nothing" decides it. check-extraction-dod.sh's ROUTINE_COUPLED does not: its
+    entries mirror paths as claude.ai routine PROMPTS spell them, and a prompt
+    lives outside every repository CI can read. After a move and before Luisa
+    edits the prompt, the correct value there is the OLD path — the mismatch IS
+    the signal. Before the move, the same entry legitimately matches. So the tree
+    cannot decide this list in either direction, and both available verdicts are
+    wrong some of the time:
+
+      * blocking  -> reddens the build for the deliberate act of NOT rewriting the
+                     mirror, which is the failure #771 fixed;
+      * advisory  -> emits a ::warning:: in the normal steady state, and a warning
+                     that fires when nothing is wrong is one people learn to skip.
+
+    Hence a third class. It is enumerated and printed on every run, and it is
+    never a failure in either direction.
+
+    ⚠️ STATE THE GAP. Registration here buys exactly two things, and it is worth
+    being precise because "registered with CTL-035" reads like more than it is:
+
+      1. The block cannot silently VANISH. The extractor parses the array out of
+         the live script, so renaming, deleting or emptying ROUTINE_COUPLED raises
+         Unparseable -> exit 2. That is the half that was genuinely missing: the
+         defect #771 fixed was a blanket path rewrite quietly disabling the
+         attestation, and nothing was watching this file at all.
+      2. Every entry is printed with its current tree state on every run, so the
+         mirror is auditable rather than invisible.
+
+    It does NOT verify that an entry matches what any prompt actually says. No
+    control in this repo can — that is a human check, and it is what the
+    `routine-prompts` attestation exists to demand.
+    """
     dead: list[dict] = []
     excepted: list[dict] = []
     live: list[dict] = []
+    external: list[dict] = []
 
     for art in REGISTRY:
         matcher = MATCHERS[art.syntax]
@@ -558,6 +674,12 @@ def resolve(files: list[str]) -> tuple[list[dict], list[dict], list[dict]]:
                 "matches": len(hits),
                 "note": art.note,
             }
+
+            if art.severity == SEV_EXTERNAL:
+                # Neither verdict is a failure — but which one it is today is
+                # recorded, because that is the only auditable thing here.
+                external.append(row)
+                continue
 
             if hits:
                 live.append(row)
@@ -580,7 +702,7 @@ def resolve(files: list[str]) -> tuple[list[dict], list[dict], list[dict]]:
             else:
                 dead.append(row)
 
-    return dead, excepted, live
+    return dead, excepted, live, external
 
 
 def stale_exceptions(excepted: list[dict]) -> list[tuple[str, str]]:
@@ -595,9 +717,10 @@ def stale_exceptions(excepted: list[dict]) -> list[tuple[str, str]]:
     return [k for k in DECLARED_EXCEPTIONS if k not in used]
 
 
-def report(dead: list[dict], excepted: list[dict], live: list[dict]) -> int:
+def report(dead: list[dict], excepted: list[dict], live: list[dict],
+           external: list[dict]) -> int:
     by_artefact: dict[str, list[dict]] = {}
-    for row in live + excepted + dead:
+    for row in live + excepted + dead + external:
         by_artefact.setdefault(row["artefact"], []).append(row)
 
     for name in [a.name for a in REGISTRY]:
@@ -605,8 +728,28 @@ def report(dead: list[dict], excepted: list[dict], live: list[dict]) -> int:
         if rows is None:
             continue
         n_live = sum(1 for r in rows if r["matches"])
-        print(f"OK  {name} — {n_live}/{len(rows)} live")
+        if rows[0]["severity"] == SEV_EXTERNAL:
+            # NOT "n live out of m" — that phrasing would read the absent ones as
+            # a shortfall, and here they are the expected state after a move.
+            print(f"NOTE {name} — {len(rows)} mirrored patterns "
+                  f"({n_live} currently match the tree, {len(rows) - n_live} do not; "
+                  f"neither is a failure)")
+        else:
+            print(f"OK  {name} — {n_live}/{len(rows)} live")
         by_artefact.pop(name, None)
+
+    # Every external entry, every run — the same loudness standard as §7.7 rule 3,
+    # and the only auditable output this class produces.
+    if external:
+        absent = [r for r in external if not r["matches"]]
+        print(f"\nExternal (out-of-repo referent) patterns ({len(external)}):")
+        for r in external:
+            state = "matches tree" if r["matches"] else "absent from tree (expected)"
+            print(f"  - {r['artefact']}: {r['pattern']}  [{state}]")
+        if absent:
+            print(f"  {len(absent)} of these name a path that no longer exists. That is not "
+                  f"drift: it is the mirror holding the spelling an out-of-repo routine "
+                  f"prompt still uses, which is what the attestation exists to raise.")
 
     # §7.7 rule 3 — every active exception, every run.
     if excepted:
@@ -646,6 +789,9 @@ def report(dead: list[dict], excepted: list[dict], live: list[dict]) -> int:
     total = len(live) + len(excepted) + len(dead)
     print(f"\n{total} registered patterns — {len(live)} live, "
           f"{len(excepted)} excepted, {len(dead)} dead.")
+    if external:
+        print(f"{len(external)} further patterns registered as external — enumerated above, "
+              f"never failed in either direction.")
 
     if blocking:
         print(f"::error::{len(blocking)} path pattern(s) match nothing. Each one is a "
@@ -665,7 +811,7 @@ def main() -> int:
 
     try:
         files = tracked_files()
-        dead, excepted, live = resolve(files)
+        dead, excepted, live, external = resolve(files)
     except Unparseable as exc:
         # §7.5 — fail closed. Never 0, never 1.
         print(f"::error::guard-path-drift cannot verify the estate: {exc}")
@@ -674,12 +820,16 @@ def main() -> int:
         return EXIT_FAIL_CLOSED
 
     if args.list:
-        for r in sorted(live + excepted + dead, key=lambda x: (x["artefact"], x["pattern"])):
-            state = "LIVE" if r["matches"] else ("EXCEPT" if r.get("key") else "DEAD")
-            print(f"{state:7} {r['matches']:5}  {r['artefact']}  ->  {r['pattern']}")
+        rows = live + excepted + dead + external
+        for r in sorted(rows, key=lambda x: (x["artefact"], x["pattern"])):
+            if r["severity"] == SEV_EXTERNAL:
+                state = "EXTERNAL"
+            else:
+                state = "LIVE" if r["matches"] else ("EXCEPT" if r.get("key") else "DEAD")
+            print(f"{state:8} {r['matches']:5}  {r['artefact']}  ->  {r['pattern']}")
         return EXIT_OK
 
-    return report(dead, excepted, live)
+    return report(dead, excepted, live, external)
 
 
 def self_test() -> int:
@@ -744,6 +894,63 @@ def self_test() -> int:
     cases.append(("no hatch", _hatch("plain line")[2] is False))
     # the trailing-punctuation strip that fixed two false DEADs.
     cases.append(("trailing dot stripped", "scripts/x.py." .rstrip(".,;:)\"'") == "scripts/x.py"))
+
+    # --- KAN-474: the bash-array extractor behind check-extraction-dod.sh ----
+    # Synthetic, for the same reason as the corpus above: this asserts the
+    # PARSER's shape, not the contents of any real list.
+    fixture = "\n".join([
+        'PRELUDE=(',
+        '  "src/__fixture__/never/a.ts"',
+        ')',
+        'ARCHIVE_FILES=(',
+        '  "src/__fixture__/one.ts"     # a trailing comment',
+        '                               # a continuation comment, no entry here',
+        '  "src/__fixture__/two.ts"   # guard-path-ok: KAN-474 fixture',
+        ')',
+        'AFTERWARDS=(',
+        '  "src/__fixture__/never/b.ts"',
+        ')',
+    ])
+    got = _parse_bash_array(fixture, "fixture.sh", "ARCHIVE_FILES")
+    # Terminating at `)` in column 0 is what keeps a later array out. Without it
+    # the extractor would silently adopt entries nobody registered.
+    cases.append(("bash-array stops at its own terminator",
+                  [p.pattern for p in got]
+                  == ["src/__fixture__/one.ts", "src/__fixture__/two.ts"]))
+    cases.append(("bash-array reports real line numbers", [p.line for p in got] == [5, 7]))
+    cases.append(("bash-array reads an inline hatch", got[1].hatch_key == "KAN-474"))
+
+    def _raises(src: str, name: str) -> bool:
+        try:
+            _parse_bash_array(src, "fixture.sh", name)
+        except Unparseable:
+            return True
+        return False
+
+    # A renamed or deleted array must fail closed, never return []. This is the
+    # half of the KAN-474 registration that is genuine enforcement: it is what
+    # stops the ROUTINE_COUPLED block from silently vanishing.
+    cases.append(("bash-array missing array is unparseable", _raises(fixture, "NO_SUCH_LIST")))
+    cases.append(("bash-array empty array is unparseable",
+                  _raises('ARCHIVE_FILES=(\n  # everything commented out\n)\n', "ARCHIVE_FILES")))
+    cases.append(("bash-array unterminated array is unparseable",
+                  _raises('ARCHIVE_FILES=(\n  "src/__fixture__/one.ts"\n', "ARCHIVE_FILES")))
+
+    # An external-severity artefact never contributes to the failing set, in
+    # EITHER direction — the property the whole fourth bucket exists to hold.
+    ext_art = Artefact("fixture (mirror)", "literal",
+                       lambda: [Pattern("src/__fixture__/gone.ts", "fixture.sh", 1),
+                                Pattern("src/__fixture__/lib/env.ts", "fixture.sh", 2)],
+                       "", severity=SEV_EXTERNAL)
+    saved = REGISTRY[:]
+    try:
+        REGISTRY[:] = [ext_art]
+        d, e, lv, ext = resolve(files)
+    finally:
+        REGISTRY[:] = saved
+    cases.append(("external severity never fails, absent or present",
+                  (d, e, lv) == ([], [], []) and len(ext) == 2
+                  and [r["matches"] for r in ext] == [0, 1]))
 
     failed = [n for n, ok in cases if not ok]
     for n, ok in cases:

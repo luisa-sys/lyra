@@ -39,9 +39,6 @@
     "src/app/dashboard/page.tsx": [
       "NEXT_PUBLIC_SITE_URL"
     ],
-    "src/app/dashboard/profile/steps/preview-step.tsx": [
-      "NEXT_PUBLIC_SITE_URL"
-    ],
     "src/app/dashboard/settings/discoverability-helpers.ts": [
       "CONTACT_SEARCH_HMAC_KEY",
       "LYRA_SEARCH_PEPPER"

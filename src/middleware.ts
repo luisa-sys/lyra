@@ -31,9 +31,11 @@
  */
 import { createAccessMiddleware } from '@/modules/access/pipeline';
 import type { MiddlewareEnvRaw } from '@/modules/access/context';
+import { env } from '@/modules/platform/env';
 
 /**
- * The seven env reads, in one place, as data.
+ * The seven direct env reads, in one place, as data, plus SEC-201's secret
+ * through the platform resolver.
  *
  * They stay in THIS file deliberately. CTL-037's baseline
  * (env-access-baseline.json) records `src/middleware.ts` with exactly these
@@ -51,6 +53,8 @@ function readMiddlewareEnv(): MiddlewareEnvRaw {
     ADMIN_HOST_ENFORCED: process.env.ADMIN_HOST_ENFORCED,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    // SEC-201. Through the platform resolver, not a direct read (CTL-037 ratchet).
+    E2E_HOST_GATE_SECRET: env.e2eHostGateSecret(),
   };
 }
 

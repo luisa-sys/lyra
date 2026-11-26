@@ -39,7 +39,7 @@ Real-user beta testing happens on `beta.checklyra.com` with prod credentials, so
 
 ## Release Procedure
 
-Promotions follow develop → staging → beta → main with manual triggers (and one weekly auto-promote to staging — see `docs/RELEASE_POLICY.md`). The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
+Promotions follow develop → staging → beta → main with manual triggers. ⚠️ **Corrected 2026-10-19 (KAN-359 second pass):** this line previously said "(and one weekly auto-promote to staging)" — `auto-promote-to-staging.yml` has been `disabled_manually` since 2026-08-09 (SEC-98; see `.github/scheduled-workflow-exceptions.json`), so every promotion, including `develop → staging`, is currently manual. The weekly `develop → staging` exercise is instead done by hand by the Weekly Health+Regression routine. The full policy + cadence + when-NOT-to-release rules live in `docs/RELEASE_POLICY.md`; this section covers the operational mechanics.
 
 ### Promote develop → staging
 
@@ -191,135 +191,54 @@ Only these three rules live here. The other six from the modularisation plan
 `modules.json` and land in KAN-415 C2. `tests/scripts/check-dependency-rules.test.js`
 asserts they are absent, so they cannot creep in early.
 
-### Gotcha — `dependency-cruiser` is pinned to 17.x by CI's Node version
+### CI runs on Node 24 (SEC-174, 2026-11-23)
 
-The `PR Quality Gate` job runs on **Node 20** (`node-version: '20'` in
-`pr-checks.yml`). `dependency-cruiser` 18 dropped Node 20 (`engines.node:
-^22||^24||>=26`) and refuses to start on it, so the pin is `^17.4.3`
-(`^20.12||^22||>=24`). Local dev on Node 22 runs either happily, which is exactly
-how this got missed until CI — the first run of this gate failed for that reason,
-and correctly failed *closed* rather than skipping.
+Every workflow's `actions/setup-node` step now pins `node-version: '24'`
+(was a mix of `'20'` and `'22'`). Node 20 left support in April 2026, and
+`@lhci/cli` 0.16, required by the dependency-freshness policy (SEC-197) to
+clear the last HIGH advisories, refuses to start below Node 22
+(`engines.node: >=22.19.0`). Node 24 is an LTS line supported by the Vercel
+runtime; 26 is newer, and is the next step once the Vercel runtime and the
+toolchain are confirmed on it.
 
-**Do not bump to 18+ without moving the CI job to Node 22 first**, and treat that
-as its own change: every step in the job (lint, type-check, unit tests, build,
-audit) shares that runtime.
+### Gotcha — `dependency-cruiser` is held at 17.x (waived major, SEC-198)
 
-### Gotcha — segment names contain regex metacharacters
+`dependency-cruiser` 18 declares `engines.node: ^22||^24||>=26`, which **skips
+Node 25** (an odd, non-LTS line that Homebrew installs by default). 17.4.3
+declares `^20.12||^22||>=24`, so it runs on CI's Node 24 *and* on a local
+Node 25. Bumping to 18 was tried on the SEC-174 branch and reverted: on Node 25
+the gate fails closed with `Your node version (25.x) is not supported`, ten
+cases across four suites of `npm run test:unit` go red
+(`tests/scripts/check-dependency-rules.test.js`, `check-edge-safe.test.js`,
+`check-module-api.test.js`, `check-module-layering.test.js` — CTL-051, CTL-053,
+CTL-054, KAN-425), and `scripts/check-dependency-rules.sh`,
+`check-edge-safe.py`, `check-module-api.py` and `check-module-layering.py` exit
+non-zero. The 18.x major is therefore a dependency-freshness waiver tracked in
+**SEC-198** (with jose 6, `@sentry/nextjs` 11, eslint 10 and TypeScript 7).
+**Do not bump to 18+ until local dev is off Node 25** (Node 26 is in 18's range)
+or 18 adds 25 to its range.
 
-The rule set is **generated**, one rule per `src/app` segment, rather than written
-as a single rule with a `$1` backreference. dependency-cruiser interpolates a
-capture group into `to.pathNot` as raw regex source without escaping it, and
-Next.js segment directories are named `[slug]`, `(auth)`, `(legal)` — so `$1`
-expands to a character class or a capture group that cannot match its own
-directory, and every same-segment import is reported as a cross-segment violation.
-The first run produced 20 "violations" of which 15 were false. A gate that cries
-wolf gets switched off; `tests/scripts/check-dependency-rules.test.js` keeps a
-fixture for exactly that blind spot.
+History: before SEC-174 the pin was 17.x because the `PR Quality Gate` job ran
+on Node 20, which 18 also refuses; the first run of this gate failed for that
+reason, and correctly failed *closed* rather than skipping.
 
-## Extraction Definition-of-Done gate (KAN-428)
+**Local Node.** `.nvmrc` says `24` (`nvm use` / `fnm use`), every workflow's
+`setup-node` uses `'24'`, and `package.json` declares
+`"engines": {"node": "24.x"}`, so `npm ci` on any other major (including 25)
+prints an `EBADENGINE` warning naming the mismatch (a warning only — no
+`engine-strict`). The full unit suite and repo check scripts are green on
+Node 25 as well as 24, with no shims. There is deliberately **no jest-level
+Node preflight**: a `globalSetup` guard was tried on the SEC-174 branch and
+removed, because changing `jest.config.js` in a way that affects how tests run
+needs founder sign-off under the Test Integrity Policy. `engines.node` `24.x`
+matches the Vercel project's existing Node setting (already 24.x, checked
+read-only 2026-11-23), so it changes nothing at deploy time. **The lesson
+stands: a dev-tool major can carry an engines bump, and every step in a job
+(lint, type-check, unit tests, build, audit) shares that runtime** — move the
+CI Node version first, as its own change, and check the new range against the
+Node majors developers actually run, not just CI's.
 
-`scripts/check-extraction-dod.sh` — guard #13, blocking in `pr-checks.yml`,
-registered as `CTL-033`. Full checklist: `docs/MODULARISATION_EXTRACTION_DOD.md`.
-
-**It is inert unless a PR deletes or renames a file under `src/`.** Ordinary PRs
-see one line of output and pass. When it does fire, it enforces the rule that an
-**extraction carries its own estate rework in the same PR**: every artefact that
-classifies a file by its PATH must have moved with it.
-
-Machine-checked (`stale-refs`, `doc-manifest`, `module-manifest`, `test-estate`):
-no literal reference to a moved-from path may remain in `.github/`, `scripts/`,
-`docs/`, `docs/DOC_SOURCE_OF_TRUTH.md`, `modules.json` or `tests/`.
-
-Attested in the PR body, because CI can never check them (`out-of-repo`,
-`coverage`, `routine-prompts`): the design-system generator and the claude.ai
-routine prompts live outside every repository this CI can read, and the covering
-Playwright project + soak clause must be named or `no coverage` recorded as a
-finding. The PR template supplies the three `EXTRACTION-DOD-*` lines, shipped
-with a `FILL-IN` placeholder that fails the gate until it is replaced.
-
-> ⚠️ **Corrected 2026-08-04 (KAN-441).** The design-system half of that
-> attestation used to read *"lives outside every repository"*. The design system
-> **is** now in git — `github.com/luisa-sys/lyra-design-system` — but it is a
-> **different repo, which this repo's CI still cannot read**, so the attestation
-> is unchanged and only its reason is narrower. Process:
-> `docs/DESIGN_CHANGE_WORKFLOW.md`. Whether the two repos should merge, which
-> would let CI check this mechanically, is open (KAN-427 / KAN-457).
-
-**Why the estate needs a gate at all:** KAN-419 measured `docs/**/*.md` at 110
-path literals, **20 of them (18%) matching nothing**, before a single file was
-moved on purpose. `.github/signup-surface.paths` is 100% path globs and every
-entry moves in the first two extractions — and the signup E2E gate is the only
-thing proving account creation works before staging.
-
-**Exit codes: 0 pass · 1 violation · 2 cannot verify.** It fails *closed* on an
-unresolvable diff base, a missing artefact, or an extraction PR with no readable
-body — deliberately stricter than the KAN-411 UI/copy guard, which can fail open
-because CODEOWNERS still hard-gates its paths. Nothing sits underneath this one.
-
-**Escape hatch:** `EXTRACTION-DOD-OK: <JIRA-KEY> <check-id>` on a commit in the
-PR suppresses exactly one named check. A Jira key is required, every active
-exception is printed on every run, and more than three in one PR emits a
-`::warning::`. Check ids: `stale-refs`, `doc-manifest`, `module-manifest`,
-`test-estate`, `out-of-repo`, `coverage`, `routine-prompts`.
-
-**What it does not catch** (stated so it is not trusted past its limits): dead
-*globs* — it matches literal paths only, so `src/lib/age/**` surviving a move of
-`src/lib/age/gate.ts` is `check-guard-path-drift.sh`'s job (F1); test *floors*,
-which are not in `modules.json` until F5 lands; the two out-of-repo couplings, by
-construction; and Confluence, which the KAN-359 DoD covers.
-
-## Self-Healing Flows (KAN-233)
-
-The KAN-63 epic established a tiered self-healing automation. As of KAN-233 the **smoke-failure auto-rollback** and **abuse-log foundation** are in place; auto-restart and auto-block at the network edge are tracked under KAN-246 / KAN-247 and require user-provisioned secrets.
-
-### Smoke-failure auto-rollback (Part A — shipped)
-
-**What fires it:** `promote-to-production.yml` `smoke-tests` job fails (post-deploy smoke against `checklyra.com` or `mcp.checklyra.com` returned an unexpected response).
-
-**What happens:**
-
-1. `auto-rollback` job runs (lives at the bottom of `promote-to-production.yml`).
-2. `scripts/rollback-to-sha.py` promotes the **pre-merge** SHA back to production on Vercel using the captured `verify-source.outputs.main_sha_before_merge`.
-3. An alert email is sent via Resend to `luisa@santos-stephens.com` with the SHA, the rollback step's outcome, and a link to the workflow run.
-
-**What you do when it fires:**
-
-1. Read the email. If status was `success`, production is back on the previous green SHA — proceed to step 2.
-2. Investigate the failing smoke test in the workflow run (linked from the email).
-3. Fix on `develop` → promote `develop → staging → beta` and verify the smoke test passes locally / on beta.
-4. Re-run `promote-to-production.yml` once you're confident.
-
-**If the rollback itself fails** (`status: failure` in the email): production is in an inconsistent state. Follow "Deployment Rollback → Via Vercel Dashboard" below to roll back manually, then file a Highest-priority BUGS ticket so the root-cause of the failed auto-rollback is fixed.
-
-**Reference:** BUGS-9 captured the original auto-rollback, KAN-233 added the alerting layer.
-
-### Tier-2 abuse-detection logging (Part of KAN-232, shipped)
-
-Every MCP request now writes a row to `public.mcp_tool_call_log` on the Supabase project the MCP server points at. Aggregated as `mcp_per_ip_recent_count` (rolling 1-hour count per IP). The MCP server gates this behind `MCP_TOOL_CALL_LOG_ENABLED=true` — default OFF; flip the env var on Railway per environment after the migration is promoted.
-
-To inspect:
-
-```sql
--- Top noisy IPs in the last hour (on the relevant Supabase project)
-select ip, request_count, last_seen
-from public.mcp_per_ip_recent_count
-order by request_count desc limit 20;
-```
-
-### MCP restart on health-check failure (Part B — deferred, KAN-246)
-
-Not yet shipped. The current `health-check.yml` cron creates a GitHub issue on failure but does not auto-restart the Railway service. Tracked under KAN-246; needs a `RAILWAY_API_TOKEN` secret scoped to restart on the `lyra-mcp-server` project.
-
-### Cloudflare auto-block on abuse threshold (Part C — deferred, KAN-247)
-
-Not yet shipped. KAN-232 built the logging foundation; KAN-247 will consume `mcp_per_ip_recent_count` and add Cloudflare WAF rules for IPs over the threshold. Needs a `CLOUDFLARE_API_TOKEN` with `Zone WAF:Edit` on `checklyra.com`.
-
-### CI workflow auto-triage and self-heal (Tier 4 — shipped)
-
-`.github/workflows/auto-fix-known-failures.yml` reacts to `workflow_run.completed` events from the recurring failure-prone workflows (Anomaly detect, Beta gate smoke, Staging Tests, Affiliate link smoke, Auto-promote develop→staging) and runs `scripts/auto-fix-known-failures.py` to classify the failure against `scripts/auto-fix-patterns.json` and apply one of four remediations:
-
-| Remediation kind | What it does | Idempotent? |
-|---|---|---|
+---|---|---|
 | `create_label` | Creates a missing GitHub label; re-runs the failed workflow | Yes (label_exists check) |
 | `alert_secret_rotation` | Files (or updates) a deduped issue labeled `autoheal-tracked` + `autoheal/needs-human` listing the rotation steps | Yes (issue_upsert) |
 | `pr_pending` | Finds the open PR carrying the fix (by branch substring) and posts a one-time marker comment so the daily failure surfaces on the PR | Yes (marker dedup) |
@@ -636,7 +555,7 @@ see SEC-131, because there all three databases agreed perfectly.
 
 ## Scheduled Workflows (GitHub Actions)
 
-DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns found
+DayTime (UTC)WorkflowDescriptionSunday02:00backup-database.ymlDatabase backup to GitHub Artifacts (90-day retention)Sunday02:30backup-platform.ymlFull platform backup (repos, DNS, schema) to Cloudflare R2Sunday04:00mutation-testing.ymlStryker mutation testingSunday05:00backup-restore-test.ymlAutomated backup restore verificationMonday07:00weekly-report.ymlWeekly status report emailed via ResendMonday—DependabotDependency update PRs (npm + GitHub Actions)Wednesday07:00security-audit.ymlnpm audit scan; emails alert if high/critical vulns foundDaily05:40dependency-freshness.ymlDependency freshness (SEC-197 / CTL-081): vulnerable or >90-day-old dependencies → one tracking GitHub issue
 
 All scheduled workflows also support `workflow_dispatch` for manual runs.
 
@@ -710,6 +629,102 @@ by a job in `.github/workflows/`. That is the case in this ticket's title —
 id** (the job carries no `name:`), so a one-character rename would leave SEC-98
 production change control gated by a check nothing reports.
 
+### Workflow lint — actionlint + zizmor (every PR) — SEC-106 / CTL-073
+
+`pr-checks.yml` runs `scripts/check-workflow-lint.py`, which drives two
+third-party linters over `.github/workflows/**` and compares their findings
+against the committed ratchet `.github/workflow-lint-baseline.json`.
+
+**It is a ratchet, not "zero findings".** At landing the 43 workflows carried
+**7 actionlint + 109 zizmor** findings. A gate that reddens dozens of files on
+day one is a gate someone turns off, so the past is grandfathered per
+`(tool, rule, file)` with a count. It fails **both ways**: a NEW key, or MORE
+findings under an existing key, is a regression — and a key that has been fixed
+but is still listed fails as **STALE**. Regenerate with
+`python3 scripts/check-workflow-lint.py --write-baseline` and read the diff.
+
+**What it covers, and what it does not.** SEC-106 §1 lists six false-green
+primitives. These tools cover exactly one — an `if:` guard referencing
+`secrets.*`, which actionlint rejects because the `secrets` context is not
+available in `jobs.<id>.steps.if`. `continue-on-error`, `|| true`, `set +e`, a
+multi-line `run:` with no `set -euo pipefail`, and a missing
+`defaults.run.shell` are covered by **neither tool and by nothing else**; the
+remaining three primitives belong to `check-workflow-integrity.sh`. The gap
+table lives in the script header so "wired in" is never read as "covered".
+
+⚠️ **It found a live defect on the day it was written.** All 7 actionlint
+findings are the same step-level `if: ${{ secrets.X != '' }}` in
+`absent-secrets-probe.yml` — which is CTL-068, the control asserting every
+deliberately-absent secret is still absent. That control therefore cannot be
+trusted to fire. Tracked as **SEC-165**; grandfathered in the baseline with the
+ticket named, not waved through.
+
+**Both linter versions are pinned** (`ACTIONLINT_VERSION`, `ZIZMOR_VERSION` in
+`pr-checks.yml`) and recorded in the baseline. This is the second control in the
+estate whose subject is a third-party feed, and SEC-105 is the lesson: a rule
+set that moves on its own schedule goes red overnight on an unchanged repo. A
+version bump must regenerate the baseline in the **same commit**; running a
+different version reports **UNVERIFIED (exit 2)**, never a silent comparison of
+one tool's findings against another tool's baseline. actionlint's
+shellcheck/pyflakes integration is disabled for the same reason — it would lint
+with whichever shellcheck happens to be installed, so the finding set would
+differ per machine. Shell-body linting of `run:` blocks is therefore a stated
+gap, not a covered case.
+
+**Silencing one finding** is `# zizmor: ignore[rule]` or `# actionlint-ok:` on
+the offending line, and is honoured **only when that line cites a Jira key with
+digits** — a bare ignore, or a placeholder like `SEC-xxx`, fails the gate.
+### Watched scheduled workflows have actually run (daily 06:20 UTC) — SEC-106 / CTL-072
+
+A second, independent job in the same `required-checks.yml` runs
+`scripts/check-workflow-run-freshness.py`, which asserts that every workflow
+named in `.github/workflow-freshness.json` has a run concluding **`success`**
+inside its declared window.
+
+**A cron is a request, not a fact.** `db-invariants.yml` has declared a daily
+schedule since it was written, and until now nothing asserted it fired. CTL-042
+(`check-scheduled-workflows-active.py`) answers the adjacent question — is the
+workflow `disabled_manually`? — and is correctly green for every state in which
+a workflow is enabled and silent: a schedule GitHub suspends after 60 days of
+repository inactivity, a cron that parses and never matches, a `schedule`
+trigger never registered on the default branch. The two controls are
+complements; this is the half that can see a control nobody has heard from.
+
+**Only `success` counts, and that is the whole point.** GitHub's successful
+status set is `{success, skipped, neutral}`, so a freshness check keyed on "a
+run exists" is satisfied by a job skipped because a `needs:` dependency failed —
+the `needs:`-skip trap named in SEC-106 §1, and most of the
+promote-reports-success cluster. `skipped`, `cancelled`, `neutral`, `failure`,
+`timed_out`, `action_required`, `startup_failure` and an in-flight run are each
+reported with their own wording so the reader is not sent after the wrong cause.
+
+Same three-valued contract as CTL-066 — 0 fresh, 1 measured-and-stale, 2
+UNVERIFIED — and **being unable to list runs is 2, never "stale" and certainly
+never "fresh"**. Unlike the drift job above, this one needs only `actions:read`,
+which `GITHUB_TOKEN` can hold, so it gives a real measured answer today rather
+than a standing UNVERIFIED. The two jobs are deliberately **not** chained with
+`needs:` — chaining freshness behind a job expected to exit 2 would make it
+report SKIPPED every day, which is the exact trap it exists to detect.
+
+**Reading a failure.** Exit 1 names the workflow, its window, and what the newest
+run actually concluded and when. Resolve it by fixing the workflow — not by
+widening the window, and not by removing the entry. The config is a **two-way**
+ratchet: an entry naming a workflow file that no longer exists fails as STALE, so
+it cannot decay into a list that only grows.
+
+**Two stated gaps.** It measures at *run* granularity, so a workflow of three
+jobs in which one fails reads as stale even though two did their work — the
+conservative direction, deliberately. And it asserts a run *succeeded*, not that
+it did anything useful; a workflow whose every step is a no-op still concludes
+`success` (that class is CTL-062 and the workflow-integrity guards).
+
+⚠️ **`required-checks.yml` is deliberately not watched**, despite SEC-106 §4f
+saying to point this at it. Its drift job exits 2 UNVERIFIED on every run until
+`BRANCH_PROTECTION_READ_TOKEN` is provisioned, so watching it would install a
+permanent red — a red you have learned to expect is a control you have switched
+off. **Add it the same day that token lands**; a test asserts its absence, so
+doing so is a deliberate act rather than a thing someone must remember.
+
 ### Staging testing program (KAN-176)
 
 Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E suite that runs inline in `deploy-staging.yml` (KAN-114).
@@ -748,6 +763,14 @@ Defined in `.github/workflows/staging-tests.yml`. Additive to the Playwright E2E
 - Workflow fails (red status) when high/critical vulns detected — visible in GitHub UI
 - Manual trigger: GitHub → Actions → "Weekly Security Audit" → Run workflow
 
+### Dependency freshness (daily 05:40 UTC) — SEC-197 / CTL-081
+
+- Its own workflow, `.github/workflows/dependency-freshness.yml` (manual trigger: GitHub → Actions → "Dependency Freshness" → Run workflow). Deliberately NOT a job in `security-audit.yml`: CTL-072 counts any successful run, so a daily job there would mask a weekly audit that stopped succeeding. Watched by CTL-072 at 36h.
+- Runs `python3 scripts/check-dependency-freshness.py --report --report-only`: every npm advisory at any severity (full tree), every direct dependency >90 days old with a newer release, and every Node major pinned by `node-version:`.
+- Opens / updates / closes ONE issue, *"Dependency freshness — out-of-policy dependencies (SEC-197)"*, label `dependencies`. Green on findings — the issue is the work item. The issue is also updated when a waiver has expired or is malformed (the run is red then too); it is left untouched only when the measurement itself failed.
+- **Red means act:** exit 1 = a waiver in `security/dependency-freshness-waivers.json` expired or is malformed (upgrade, or renew with a fresh reason); exit 2 = the measurement failed (npm audit / registry / nodejs.org unreachable after retries) — re-run, and investigate if it persists.
+- The blocking half is the `pr-checks.yml` step, which fires only on PRs changing `package.json` / `package-lock.json` / the waiver file. Policy: `docs/DEPENDENCY_POLICY.md`.
+
 ## Incident Response
 
 **Primary signal:** UptimeRobot (5-minute interval, KAN-163). Email alerts to luisa@santos-stephens.com and ben@santos-stephens.com when any monitored endpoint goes down or an SSL cert is within 30 days of expiry.
@@ -764,6 +787,47 @@ When an alert fires:
 5. Roll back the deploy if a recent promotion looks responsible — see "Deployment Rollback" above.
 
 UptimeRobot setup, monitor list, and bootstrap procedure: [`docs/UPTIMEROBOT_SETUP.md`](./UPTIMEROBOT_SETUP.md).
+
+## Moderation — suspending a user (SEC-57)
+
+**Suspension is retroactive, and it is one-way.** Setting `profiles.is_suspended`
+from false to true fires the `profiles_revoke_credentials_on_suspend` trigger
+(migration `20260819210000_sec57_revoke_credentials_on_suspend.sql`), which for
+that user alone stamps:
+
+| table | column written | effect |
+|---|---|---|
+| `api_keys` | `revoked_at` | every `lyra_…` key stops authenticating at the MCP server immediately |
+| `oauth_access_tokens` | `revoked_at` | inert until SEC-46 leg 1 sets `OAUTH_REVOCATION_CHECK=1` on the resource servers; until then the live token dies at its ~1h TTL |
+| `oauth_refresh_tokens` | `used_at` | the refresh family is dead, so no new access token can be minted |
+| `oauth_consents` | `revoked_at` | the client must pass a fresh consent screen |
+
+It fires wherever the transition happens — the admin console bulk action, the
+admin-MCP `admin_suspend_user` tool, or SQL applied by hand — because the check
+lives on the column, not in the application paths. That is deliberate: this
+defect family (a guard added to one call site but not its siblings) has recurred
+eight times.
+
+**Unsuspending restores nothing.** The user must generate a new API key from
+Settings and re-authorise every OAuth client. Tell them that when you unsuspend
+them, or they will report working integrations as broken with no explanation.
+Re-minting is correctly gated — a still-suspended account cannot obtain a new
+credential (PR #448).
+
+Re-suspending an already-suspended user, or editing any other column on their
+profile, is a no-op and does not re-stamp the original revocation timestamps.
+
+**If the trigger errors, the suspension itself fails.** That is intended: a
+recorded suspension whose credentials are still live is the worse outcome. Do
+not add an exception handler to make the suspend "succeed anyway".
+
+Rollback (removes future revocation; does not un-revoke anything already
+revoked):
+
+```sql
+drop trigger if exists profiles_revoke_credentials_on_suspend on public.profiles;
+drop function if exists public.sec57_revoke_credentials_on_suspend();
+```
 
 ## Emergency Contacts
 

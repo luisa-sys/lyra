@@ -100,6 +100,10 @@
     ".github/workflows/auto-promote-to-staging.yml": {
       "key": "SEC-98",
       "reason": "Weekly develop->staging auto-promote. SEC-98 made production change control manual-only and withdrew the fix-only auto-promote exception on 2026-07-23; an unattended promote sits awkwardly beside that even though staging is not production. Decided 2026-08-09 (Luisa): stay off. NOTE: CLAUDE.md's Deployment Pipeline section still describes this as auto-running Sunday 23:00 UTC — that line is now wrong and is corrected in this commit."
+    },
+    ".github/workflows/dependency-freshness.yml": {
+      "key": "SEC-197",
+      "reason": "NOT YET REGISTERED (BUGS-102 kind): new daily CTL-081 workflow added in this PR; GitHub only registers scheduled workflows from the default branch (main), so it cannot be active until promoted through develop->staging->beta->main. DELETE this entry as soon as main carries the workflow - it then goes STALE and fails the build by design."
     }
   }
 }

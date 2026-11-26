@@ -9,6 +9,7 @@ import {
   getServerConsentSnapshot,
   subscribeConsent,
 } from './consent-state';
+import { redactSearchTermFromAnalyticsEvent } from '@/modules/observability/analytics-redaction';
 
 /**
  * SEC-72 — gate Vercel Analytics + Speed Insights behind the cookie-consent
@@ -27,10 +28,11 @@ export function ConsentedAnalytics() {
 
   if (!analyticsAllowed(consent)) return null;
 
+  // KAN-482 (DPIA §2a AD-6): strip the /search ?q= term from every URL sent.
   return (
     <>
-      <Analytics />
-      <SpeedInsights />
+      <Analytics beforeSend={redactSearchTermFromAnalyticsEvent} />
+      <SpeedInsights beforeSend={redactSearchTermFromAnalyticsEvent} />
     </>
   );
 }

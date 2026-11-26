@@ -47,6 +47,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before the imports they intercept (jest hoists jest.mock).
@@ -366,16 +367,6 @@ describe('restoreGiftSuggestion', () => {
 // ===========================================================================
 const ROOT = path.resolve(__dirname, '../..');
 
-/** Remove /* … *​/ blocks (which is also how JSX `{/* … *​/}` is written) and
- *  trailing `//` line comments, without eating `https://` inside a string. */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split('\n')
-    .map((line) => line.replace(/(^|[^:'"`\\])\/\/.*$/, '$1'))
-    .join('\n');
-}
-
 describe('the comment stripper used below actually strips', () => {
   test('removes a trailing line comment', () => {
     expect(stripComments('const a = 1; // withoutDismissedV2(x)')).not.toContain(
@@ -392,36 +383,62 @@ describe('the comment stripper used below actually strips', () => {
   });
 });
 
-describe('the public profile filters its recommendations by the dismissals', () => {
+// KAN-488 (spec v0.8 §03, §3): the public profile no longer shows the
+// recommender's suggestions at all — v0.8 publishes only gifts the member
+// wrote or approved, so the whole dismissal pipeline left the page.
+// (founder standing approval 2026-11-23: v0.8 contradicts.) The four
+// assertions below are inverted; each records its old expected value.
+// Titles renamed to match (KAN-488 review minor 4); old title kept above each.
+// Was: describe('the public profile filters its recommendations by the dismissals', ...
+describe('the public profile shows no recommender suggestions, so needs no dismissal filter (v0.8)', () => {
   const page = stripComments(fs.readFileSync(path.join(ROOT, SRC.slugPage), 'utf-8'));
 
-  test('it reads the member’s dismissals', () => {
-    expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
-    expect(page).toMatch(/dismissedKeys/);
+  // Was: test('it reads the member’s dismissals', ...
+  test('it no longer reads the member’s dismissals', () => {
+    // Old: expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
+    //      expect(page).toMatch(/dismissedKeys/);
+    expect(page).not.toMatch(/gift_suggestion_dismissals/);
+    expect(page).not.toMatch(/dismissedKeys/);
   });
 
-  test('the V1 concept list is filtered BEFORE the pipeline runs', () => {
-    // Filtering before the pipeline is what lets the next-best concept take the
-    // freed slot instead of the member simply losing a suggestion.
-    expect(page).toMatch(/withoutDismissedRecommendations\(\s*getRecommendations\(/);
+  // Was: test('the V1 concept list is filtered BEFORE the pipeline runs', ...
+  test('the V1 concept list is no longer computed on the page', () => {
+    // Old: expect(page).toMatch(/withoutDismissedRecommendations\(\s*getRecommendations\(/);
+    expect(page).not.toMatch(/getRecommendations/);
   });
 
-  test('the pipeline OUTPUT is filtered too, for the evergreen fallbacks', () => {
-    expect(page).toMatch(/withoutDismissedV2\(v2Result\.recommendations, dismissedKeys\)/);
+  // Was: test('the pipeline OUTPUT is filtered too, for the evergreen fallbacks', ...
+  test('the V2 pipeline no longer runs on the page', () => {
+    // Old: expect(page).toMatch(/withoutDismissedV2\(v2Result\.recommendations, dismissedKeys\)/);
+    expect(page).not.toMatch(/buildV2Recommendations/);
   });
 
   test('the voucher hint is rendered', () => {
-    expect(page).toMatch(/gift_voucher_hint/);
+    // KAN-488: the hint is now §03's general preference, read by the loader
+    // and rendered from the view model (asserted with its line break in
+    // kan488-public-profile-page.test.tsx). Was: expect(page).toMatch(/gift_voucher_hint/);
+    expect(stripComments(fs.readFileSync(path.join(ROOT, SRC.loadPublicProfile), 'utf-8'))).toMatch(
+      /gift_voucher_hint/,
+    );
   });
 });
 
 describe('the editor offers the suggestions with their dismissed state', () => {
   const page = stripComments(fs.readFileSync(path.join(ROOT, SRC.profilePage), 'utf-8'));
 
+  // KAN-487 (spec v0.8 §03; plan §A "Loader changes"): the v0.8 editor has
+  // no auto-generated suggestion list — §03's AI slot (step 6) replaces the
+  // KAN-443 editor block, so the editor page no longer reads dismissals.
+  // The dismissal actions and the public-page filtering above are unchanged.
+  // Old expected values:
+  //   expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/)
+  //   expect(page).toMatch(/keyForRecommendation\(/)
+  //   expect(page).toMatch(/dismissed: dismissedKeys\.has\(key\)/)
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
   test('it reads the dismissals and marks each suggestion', () => {
-    expect(page).toMatch(/\.from\('gift_suggestion_dismissals'\)/);
-    expect(page).toMatch(/keyForRecommendation\(/);
-    expect(page).toMatch(/dismissed: dismissedKeys\.has\(key\)/);
+    expect(page).not.toMatch(/gift_suggestion_dismissals/);
+    expect(page).not.toMatch(/getRecommendations\(/);
+    expect(page).toMatch(/<EditProfileForm/);
   });
 });
 

@@ -48,6 +48,17 @@ jest.mock('@/modules/platform/supabase-server', () => ({
           },
         };
       }
+      // KAN-484: addConversationStarter now reads the preset's answer limit
+      // before writing. Additive read-only branch — no assertion changes.
+      if (tableName === 'conversation_starter_prompts') {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: { answer_max: 500 }, error: null }),
+            }),
+          }),
+        };
+      }
       // All write tables: capture inserts + upserts + updates
       return {
         insert: (data: unknown) => {

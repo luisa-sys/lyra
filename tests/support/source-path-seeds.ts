@@ -79,6 +79,12 @@
  * paths directly.
  */
 export const SEEDED_PATHS = [
+  // CTL-073 (SEC-106 §3 item 2). The checker and its ratchet baseline are both
+  // read via SRC by tests/scripts/check-workflow-lint.test.js and by no literal
+  // that survives a regeneration, so without these seeds the two keys vanish and
+  // every assertion against them turns into a path.join(root, undefined).
+  'scripts/check-workflow-lint.py',
+  '.github/workflow-lint-baseline.json',
   // The 18+ self-declaration (KAN-407) — the age half of the signup contract.
   'src/modules/age/self-declaration.ts',
   // Where D4 moved the gating that decides where a new user lands.
@@ -116,6 +122,11 @@ export const SEEDED_PATHS = [
   // infer it from. Two suites reach it by path; seeded so neither needs a raw
   // literal, which the F4 ratchet correctly refuses to let rise.
   'scripts/depcruise-severity.cjs',
+  // CTL-026's own implementation. SEC-119 gave the meta-control its first
+  // test; that suite reaches the checker by path and nothing else names it as
+  // a literal, so without this seed the key would not come back on the next
+  // regeneration and SRC.checkControlRegistry would go `undefined`.
+  'scripts/check-control-registry.py',
   // D8 moved the profile domain core out of the editor's app tree. All three
   // keys were DROPPED by the regeneration — read only via SRC, hard-coded
   // nowhere that counts — which is the self-sustaining loop breaking exactly as
@@ -169,6 +180,14 @@ export const SEEDED_PATHS = [
   // IS the path and a literal in the test would let a rename read as a pass
   // against a control nobody runs. SEC-104 step 3.
   'scripts/check-suspension-guard-coverage.py',
+  // CTL-070's implementation (KAN-475). source-path-identity.test.js runs the
+  // checker as a subprocess and asserts the registry's `implementation` field
+  // and pr-checks.yml both name this exact path — the assertion IS the path, so
+  // a literal in the test would let a rename read as a pass against a control
+  // nobody runs. Seeded rather than hard-coded for the usual reason: the test
+  // reaches it only as `SRC.checkSourcePathIdentity`, so the key would not come
+  // back on the next regeneration.
+  'scripts/check-source-path-identity.py',
   // The snapshot gen-db-types.sh must leave untouched when it fails closed.
   // `prod.ts` and `staging.ts` keys survive on other tests' literals; `dev.ts`
   // had none, so it is the one that would silently vanish.
@@ -189,6 +208,19 @@ export const SEEDED_PATHS = [
   'src/modules/public-profile/v2-recommendations-section.tsx',
   'src/modules/public-profile/slug-utils.ts',
   'src/modules/public-profile/v2-recommendations-helpers.ts',
+  // KAN-488: the public page's data access, metadata and section renderer
+  // moved out of src/app/[slug]/page.tsx. Tests that pin the loader's query
+  // shape reach these only via SRC, so they are seeded here.
+  'src/modules/public-profile/load-public-profile.ts',
+  'src/modules/public-profile/public-profile-meta.ts',
+  'src/modules/public-profile/public-profile-sections.tsx',
+  // ...and the two profile-module files the public page now renders through.
+  'src/modules/profile/editor/editor-state.ts',
+  'src/modules/profile/editor/public-view-model.ts',
+  // KAN-487 part 3: profile-item-url.test.ts was repointed from the deleted
+  // legacy items step to the v0.8 save-payload validator, which it reaches
+  // only via SRC — seeded so the key survives a regeneration (gotcha #31).
+  'src/modules/profile/editor/validate-save-payload.ts',
   // CTL-049 / SEC-137. Both are reached ONLY through `SRC` — the test routes
   // every path through the manifest so the F4 raw-literal ratchet (shrink-only)
   // is not raised by a new file, which would have been the easy wrong move.
@@ -263,6 +295,19 @@ export const SEEDED_PATHS = [
   // `SRC` in tests/scripts/check-route-thinness.test.js, and the baseline is
   // seeded too because the test asserts positive facts about its shape (the
   // computed totals, and that every baselined path is still tracked).
+  // CTL-076 / KAN-459. Reached only via `SRC` in
+  // tests/scripts/check-pooled-eq-mock.test.js, so without seeding it does not
+  // survive a regeneration (gotcha #31). The checker path is also the registry's
+  // `implementation` value and the string pr-checks.yml must name, so the
+  // assertion IS the path - a literal in the test would let a rename read as a
+  // pass against a control nobody runs.
+  //
+  // Its BASELINE is deliberately not seeded: the generator harvests only src,
+  // supabase, scripts, public, design and .github literals, so no tests/ key can
+  // exist, and seeding one would fail source-path-manifest-integrity's "every
+  // seed is in the manifest" assertion. The test carries that one literal
+  // directly, which the F4 raw-literal ratchet also does not count.
+  'scripts/check-pooled-eq-mock.py',
   'scripts/check-route-thinness.py',
   'supabase/route-thinness-baseline.json',
   // The directory CTL-056 scans. A DIRECTORY rather than a file, and seeded
@@ -299,6 +344,13 @@ export const SEEDED_PATHS = [
   '.github/expected-protection.json',
   '.github/workflows/required-checks.yml',
   '.github/workflows/main-chain-guard.yml',
+  // CTL-072 / SEC-106 §3 item 3. Same reasoning, and the config file carries the
+  // same sharp edge as the expectation file above: the test asserts positive
+  // facts about its CONTENT (that db-invariants.yml is watched, and that
+  // required-checks.yml deliberately is NOT), so a lost key would turn those
+  // into `resolve(root, undefined)` rather than a quiet vacuous pass.
+  'scripts/check-workflow-run-freshness.py',
+  '.github/workflow-freshness.json',
   // CTL-061 (BUGS-81). Reached only via `SRC` in
   // tests/scripts/check-heartbeat-page-id.test.js, so gotcha #31 would turn a
   // lost key into `resolve(root, undefined)`. The guard's anchor doc
@@ -321,6 +373,14 @@ export const SEEDED_PATHS = [
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-production-deploy-drift.py',
 
+  // KAN-474 — the ROUTINE_COUPLED entry that tests/scripts/check-guard-path-drift.test.js
+  // moves to prove an expected-absent mirror entry does NOT redden the build.
+  // Seeded rather than hard-coded because `scripts/` IS one of the roots
+  // LITERAL_RE admits, so naming it in the test would raise the shrink-only F4
+  // ratchet — and raising a shrink-only baseline to fit one new line is how a
+  // ratchet decays into the suppression list it replaced.
+  'scripts/staging-soak.sh',
+
   // CTL-068 / SEC-158 — a recorded secret ABSENCE is still real. Seeded for
   // the same reason as the four above: the test reaches the checker only
   // through `SRC`, so without a literal here the key would vanish on the next
@@ -341,4 +401,17 @@ export const SEEDED_PATHS = [
   // the key would vanish on the next regeneration and `execFileSync(undefined)`
   // would read as a broken harness rather than a lost control (gotcha #31).
   'scripts/check-snapshot-regeneration.py',
+
+  // CTL-081 / SEC-197 — dependency freshness (vulnerable or >90 days old means
+  // upgrade). tests/scripts/check-dependency-freshness.test.js reaches the
+  // checker only through `SRC`, so without this literal the key would vanish on
+  // the next regeneration (gotcha #31).
+  'scripts/check-dependency-freshness.py',
+  // ...and its daily workflow, read by the same suite's wiring tests.
+  '.github/workflows/dependency-freshness.yml',
+
+  // BUGS-134 — the liveness smoke checks. tests/scripts/smoke-tests-access-gate.test.js
+  // reaches the script only through `SRC`, so without this literal the key
+  // would vanish on the next regeneration (gotcha #31).
+  'scripts/smoke-tests.sh',
 ] as const;

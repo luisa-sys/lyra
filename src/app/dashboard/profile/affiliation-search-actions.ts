@@ -1,23 +1,28 @@
 'use server';
 
 /**
- * KAN-451 — type-ahead suggestions for the schools / organisations /
+ * KAN-451 / KAN-487 — type-ahead suggestions for the schools / organisations /
  * communities picker.
  *
- * Same shape as the KAN-341 town/city lookup (`city-actions.ts`): a thin
- * authenticated wrapper around a pure Places client that lives in
- * `src/modules/profile/geo/places-schools.ts`. Constants and types stay in that module —
- * a `'use server'` file may export only async functions (BUGS-12 / gotcha #18).
+ * KAN-487 (spec v0.8 §02, founder decision): suggestions now come from Lyra's
+ * own entries via `public.suggest_affiliation_names` (SECURITY INVOKER — RLS
+ * limits it to affiliations the member can already see), through
+ * `src/modules/profile/affiliation-suggest.ts`. The KAN-451 Google Places
+ * lookup is no longer called, and `places-schools-lookup.ts` was deleted in
+ * KAN-487 part 3. The export name, its arguments and its result shape are
+ * unchanged, so the picker keeps working: a suggestion is a name only
+ * (`address` / `postcode` are null — the member types the postcode).
  *
- * This is a SUGGESTION service, not a gate. When it returns nothing — no key
- * configured, provider down, nothing matched — the picker falls back to a plain
- * text input and the member types their school in themselves. That is why an
- * empty list is a success and not an error.
+ * This is a SUGGESTION service, not a gate. When it returns nothing — RPC
+ * failure, nothing matched — the picker falls back to a plain text input and
+ * the member types the name in themselves. That is why an empty list is a
+ * success and not an error. A `'use server'` file may export only async
+ * functions (BUGS-12 / gotcha #18).
  */
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { shouldSuggest, type PlaceSuggestion } from '@/modules/profile/geo/places-schools';
-import { lookupPlaceSuggestions } from '@/modules/profile/geo/places-schools-lookup';
+import { suggestAffiliationNamesRpc } from '@/modules/profile/affiliation-suggest';
 import { coerceAffiliationType } from './affiliation-fields';
 
 export type SuggestAffiliationsResult =
@@ -38,9 +43,9 @@ export async function suggestAffiliations(
   // just shows nothing until there is enough to match on.
   if (!shouldSuggest(query)) return { success: true, suggestions: [] };
 
-  const suggestions = await lookupPlaceSuggestions(
-    query,
-    coerceAffiliationType(affiliationType),
-  );
-  return { success: true, suggestions };
+  const names = await suggestAffiliationNamesRpc(supabase, coerceAffiliationType(affiliationType), query);
+  return {
+    success: true,
+    suggestions: names.map((name) => ({ name, address: null, postcode: null })),
+  };
 }

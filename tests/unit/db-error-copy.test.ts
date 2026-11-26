@@ -37,7 +37,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('BUGS-87: memberFacingDbError', () => {
   it('maps the custom-question cap to its own copy', () => {
     expect(memberFacingDbError({ message: TRIGGER_MESSAGES.customQuestion })).toMatch(
-      /up to 3 of your own questions/,
+      /up to 10 of your own questions/,
     );
   });
 
@@ -125,7 +125,7 @@ describe('BUGS-87: dbErrorFor also preserves the diagnostic', () => {
     const copy = dbErrorFor('conversation-starters', {
       message: TRIGGER_MESSAGES.customQuestion,
     });
-    expect(copy).toMatch(/up to 3 of your own questions/);
+    expect(copy).toMatch(/up to 10 of your own questions/);
     expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 

@@ -84,6 +84,35 @@ processing). Founder is the accountable data-protection lead.
 - **Lawful basis:** Art. 6(1)(b) contract (service emails); consent for any marketing.
 - **Recipients/processors:** Resend.
 
+### P9 — AI gift suggestions (KAN-489) — FOUNDER-APPROVED 2026-11-23, NOT YET ACTIVE
+> Drafted with the feature; consent copy and this entry approved by the
+> founder in chat on 2026-11-23. It stays OFF, and Anthropic is NOT YET
+> ACTIVE as a processor, in every environment until, in order, a spend limit
+> is set, Anthropic's DPA / transfer terms are accepted and recorded in
+> SUBPROCESSORS.md, the privacy page names Anthropic, and then
+> `ANTHROPIC_API_KEY` and `LYRA_AI_GIFTS_ENABLED=1` are set there (see
+> FOUNDER_CHECKLIST.md §B).
+
+- **Personal data:** the member's saved, self-authored profile text (headline, about, gift preferences, Billboard, list items in public or members-only sections, "To understand me a little better", question answers) disclosed to the AI provider per request; the returned suggestions (`profile_items` rows, `origin='ai'`); a claim log (`ai_gift_generations`: timestamp, random editor-session id, consent-note version). Not sent: name, CheckLyra ID, location, photo, affiliations, email.
+- **Purpose:** suggest gift ideas the member can approve onto their own profile.
+- **Lawful basis:** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
+- **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (the last 30 days are read since KAN-492).
+- **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
+- **Decided 2026-11-23 (founder):** consent copy approved (version `v1-2026-11-23`). Sending members-only items, and the browser-generated session, were approved as part of the FOUNDER_CHECKLIST.md list as a whole (one "approved"), not as separately stated choices. **Still to do, before the key is set:** accept and record the provider's data-retention / no-training terms and the transfer mechanism (SUBPROCESSORS.md), and add Anthropic to the privacy page.
+
+### P10 — Affiliation-based discovery (search) (KAN-482, added 2026-11-23)
+> Recorded in the main privacy specification by founder decision 2026-11-23
+> (spec v0.8 §02 had asked for a separate one). Full assessment and the
+> binding rules AD-1…AD-8: DPIA.md §2a; risks R8–R11 in DPIA.md §5.
+
+- **Personal data:** the name of a school / organisation the member chose to show on their profile (`school_affiliations.school_name` where `show_on_profile = true`), used as a search key; the public profile card returned (name, CheckLyra ID, headline, city, country, photo). No new data is collected. Hidden affiliations are never used. The search term typed by a visitor is not stored by Lyra and is stripped before error monitoring (Sentry) and analytics; but because `/search` is a GET form, the term is in the request URL and **Vercel's platform request logs record it with the visitor's IP address** for Vercel's log retention period (DPIA §2a AD-6, FD-AD1).
+- **Data subjects:** DS1 (registered users with a published, non-suspended profile); visitors who search, only through the hosting request log above (IP + URL) — Lyra does not otherwise identify them.
+- **Purpose:** let people who already know a member offline find their profile by a shared school or organisation.
+- **Lawful basis:** Art. 6(1)(a) **consent / publication by the member** — per affiliation, by ticking "Show on my profile" (same basis as publishing P2); withdrawn by unticking, unpublishing or deleting. _(Founder to confirm.)_
+- **Surfaces:** web `/search` (anyone, signed in or not — founder decision FD-AD1 open; school + organisation names; capped); MCP `lyra_search_profiles` `school` filter and `lyra_list_schools` (public; being retired, KAN-483; known gaps in DPIA §2a); the PostgREST read of shown affiliations (RLS) — signed-in members only once `20261123140000_kan482_affiliations_read_authenticated_only.sql` is applied (until then, also the anon key).
+- **Retention:** none beyond P2 — the affiliation stops being searchable as soon as it is hidden, deleted or the profile is unpublished, suspended or deleted.
+- **Recipients/processors:** Supabase, Vercel, Cloudflare (as P2); Railway (MCP server).
+
 ### P8 — Security, abuse-prevention & audit
 - **Personal data:** IP/user-agent, moderation logs, admin actions, OAuth token registry (jti), backups.
 - **Purpose:** secure the platform, detect abuse, maintain an audit trail, disaster recovery.
@@ -147,6 +176,9 @@ recording it here is a red build.
 | `relationship_signals` | P4 | `user_id` | exported — **inferred** data; Art.15 covers inferences |
 | `venue_ratings` | P4 | `user_id` | exported |
 | `gift_suggestion_dismissals` | P4 | `profile_id` | exported — the member's own editorial decisions about their profile (KAN-443) |
+| `ai_gift_generations` | P2 | `profile_id` | exported — AI gift suggestion requests: timestamps and random editor-session ids only, no content (KAN-489; the suggestions themselves are `profile_items` rows) |
+| `profile_slug_history` | P2 | `profile_id` | exported — the member's pre-v0.8 profile addresses (old slugs), kept so old links redirect to the current CheckLyra ID (KAN-490, ADR-011) |
+| `profile_items_legacy_archive` | P2 | `profile_id` | exported — full copy of the member's pre-v0.8 list items, taken before the v0.8 data migration mapped them (KAN-490) |
 | `venue_visits` | P4 | via `gathering_id` | exported (join) |
 | `oauth_connections` | P4 | `owner_user_id` | exported (token refs redacted) |
 | `oauth_consents` | P4 | `user_id` | exported |
@@ -161,6 +193,7 @@ recording it here is a red build.
 | `oauth_refresh_tokens` | P8 | `user_id` | **withheld** — live credential (SEC-71) |
 | `oauth_authorization_codes` | P8 | `user_id` | **withheld** — short-lived credential (SEC-71) |
 | `oauth_connect_state` | P8 | `user_id` | **withheld** — transient CSRF state, not personal data |
+| `retired_lyra_ids` | P8 | none — no link to any person | **withheld** — holds no link to a person (Art. 11): the bare CheckLyra ID of a deleted, once-published account and its old addresses, written after the Art. 17 erasure has run and kept forever so no one can take them; Art. 6(1)(f) legitimate interests, preventing impersonation (KAN-497) |
 | `public_profiles` | P1 | `user_id` | **withheld** — redundant: a view over `profiles`, already exported in full (SEC-132) |
 
 ### On the withheld rows
