@@ -118,4 +118,10 @@ export const DELIBERATELY_EXCLUDED: Record<string, string> = {
   // from the response. Art.15 is satisfied by the `profiles` row itself.
   public_profiles: 'SEC-132 — view over profiles; every column already exported via the profiles row',
 
+  // KAN-497: the bare CheckLyra ID of a deleted, once-published account, kept
+  // forever so no one can take it and old links never reach a stranger. It has
+  // no user_id or profile_id: nothing ties it to a person, so there is nothing
+  // to return to a subject, and it is written only AFTER their account is gone.
+  retired_lyra_ids: 'Art.11 — KAN-497 retired IDs of deleted accounts; no link to any person',
+
 };

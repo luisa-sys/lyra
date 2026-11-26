@@ -161,6 +161,7 @@ export default async function PrivacyPolicyPage() {
         <ul>
           <li><strong>Active accounts:</strong> Data retained while your account is active</li>
           <li><strong>Deleted accounts:</strong> All data permanently deleted within 30 days of account deletion</li>
+          <li><strong>Your CheckLyra ID after deletion:</strong> We keep only the ID itself (for example, checklyra.com/your_id), with nothing that links it to you, so no one else can ever take it and old links never point to a stranger. We do this to protect you from impersonation (legitimate interests).</li>
           <li><strong>Security logs:</strong> Retained for 90 days, then automatically deleted</li>
         </ul>
 

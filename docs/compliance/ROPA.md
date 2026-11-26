@@ -193,6 +193,7 @@ recording it here is a red build.
 | `oauth_refresh_tokens` | P8 | `user_id` | **withheld** — live credential (SEC-71) |
 | `oauth_authorization_codes` | P8 | `user_id` | **withheld** — short-lived credential (SEC-71) |
 | `oauth_connect_state` | P8 | `user_id` | **withheld** — transient CSRF state, not personal data |
+| `retired_lyra_ids` | P8 | none — no link to any person | **withheld** — holds no link to a person (Art. 11): the bare CheckLyra ID of a deleted, once-published account and its old addresses, written after the Art. 17 erasure has run and kept forever so no one can take them; Art. 6(1)(f) legitimate interests, preventing impersonation (KAN-497) |
 | `public_profiles` | P1 | `user_id` | **withheld** — redundant: a view over `profiles`, already exported in full (SEC-132) |
 
 ### On the withheld rows

@@ -203,6 +203,16 @@
           "line": "function:lyra_id_availability",
           "ticket": "KAN-496",
           "note": "CheckLyra ID 'Check availability' (epic KAN-482): migration 20261126181000_kan496_lyra_id_availability.sql, applied on dev only. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:retired_lyra_ids.id_key",
+          "ticket": "KAN-497",
+          "note": "Retired CheckLyra IDs of deleted accounts (epic KAN-482): migration 20261126220000_kan497_retire_deleted_lyra_ids.sql, applied on dev only. Remove when it reaches staging/prod through the normal chain."
+        },
+        {
+          "line": "column:retired_lyra_ids.retired_at",
+          "ticket": "KAN-497",
+          "note": "Retired CheckLyra IDs of deleted accounts (epic KAN-482): migration 20261126220000_kan497_retire_deleted_lyra_ids.sql, applied on dev only. Remove when it reaches staging/prod through the normal chain."
         }
       ],
       "only_in_second": [
