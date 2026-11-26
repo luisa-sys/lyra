@@ -6,7 +6,7 @@
     "control": "CTL-077 (KAN-356 web-tests-06)"
   },
   "_totals": {
-    "files": 148,
+    "files": 147,
     "blocks": 328
   },
   "files": {
@@ -119,10 +119,9 @@
     "tests/unit/oauth/dcr-anti-phishing.test.ts": 2,
     "tests/unit/oauth/metadata.test.ts": 2,
     "tests/unit/oauth/revoke-route.test.ts": 1,
-    "tests/unit/partners-page.test.js": 1,
     "tests/unit/phase3-ui-integration.test.ts": 2,
     "tests/unit/photo-upload.test.js": 4,
-    "tests/unit/privacy-affiliate-disclosure.test.js": 1,
+    "tests/unit/privacy-affiliate-disclosure.test.js": 2,
     "tests/unit/privacy-complaints.test.js": 4,
     "tests/unit/privacy-places-disclosure.test.js": 1,
     "tests/unit/privacy-subprocessors.test.js": 3,

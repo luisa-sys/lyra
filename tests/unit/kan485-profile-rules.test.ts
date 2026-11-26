@@ -165,7 +165,9 @@ describe('KAN-485 CheckLyra ID', () => {
     }
     // `_name` folders are Next.js private folders — never routed.
     const collidable = names.filter((n) => !n.startsWith('_') && /^[a-z0-9_]{3,30}$/.test(n));
-    expect(collidable.length).toBeGreaterThan(20);
+    // KAN-493 removed seven legal routes (17 remain); the floor only guards
+    // against the directory scan silently finding nothing.
+    expect(collidable.length).toBeGreaterThan(15);
     const sqlList = new Set([...sql.matchAll(/'([a-z0-9_-]+)'/g)].map((m) => m[1]));
     for (const name of collidable) {
       expect({ name, inApp: RESERVED_LYRA_IDS.has(name) }).toEqual({ name, inApp: true });
