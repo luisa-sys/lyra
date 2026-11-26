@@ -121,7 +121,9 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   expect(giftErr, giftErr?.message).toBeNull();
   const { error: affErr } = await admin
     .from('school_affiliations')
-    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary' });
+    // KAN-485: a school needs a postcode (≤12 chars) on insert — the
+    // enforce_affiliation_rules trigger. Same value as seed-user.ts.
+    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary', school_location: 'AB1 2CD' });
   expect(affErr, affErr?.message).toBeNull();
 
   await assertDashboardHardLoad(page);
@@ -138,6 +140,10 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   // founder-signed-off 2026-07-25). Assertion unchanged.
   const marker = `Soak note ref-${Date.now().toString(36)}`;
   await page.goto('/dashboard/profile', { waitUntil: 'load' });
+  // The cookie banner (fixed, z-50) sits on top of the v0.8 editor's fixed
+  // action bar until the visitor chooses, so answer it as a visitor would.
+  const essentialOnly = page.getByRole('button', { name: 'Essential only' });
+  if (await essentialOnly.isVisible()) await essentialOnly.click();
   // KAN-487 (spec v0.8 §1, §05): edits stay private until Save Changes, then
   // exactly "Changes saved successfully". Old flow: placeholder
   // /I'm a slow texter/, blur, autosave label /Saved|Saving/, then the marker
