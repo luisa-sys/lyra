@@ -14,7 +14,8 @@ const SCRIPT = path.join(REPO_ROOT, 'scripts/smoke-tests.sh');
  *
  * curl is replaced by a fake on PATH that answers from env vars, so the test
  * never touches the network. FAKE_CODE/FAKE_LOCATION drive the staging/dev
- * URL; every other URL (the MCP checks) answers healthy.
+ * URL, FAKE_PROD_CODE the production landing page; every other URL answers
+ * healthy.
  */
 
 const ACCESS_LOGIN = 'https://checklyra.cloudflareaccess.com/cdn-cgi/access/login';
@@ -35,6 +36,7 @@ while [ $# -gt 0 ]; do
 done
 case "$URL" in
   https://stage.checklyra.com*|https://dev.checklyra.com*) CODE="$FAKE_CODE"; LOC="\${FAKE_LOCATION:-}" ;;
+  https://checklyra.com) CODE="\${FAKE_PROD_CODE:-200}"; LOC="" ;;
   *) CODE=200; LOC="" ;;
 esac
 if [ -n "$FMT" ]; then
@@ -52,13 +54,15 @@ afterAll(() => {
   fs.rmSync(binDir, { recursive: true, force: true });
 });
 
-function runEnv(env, code, location) {
+function runEnv(env, code, location, prodCode = 200) {
   const r = spawnSync('bash', [SCRIPT, env], {
     env: {
       ...process.env,
       PATH: `${binDir}:${process.env.PATH}`,
       FAKE_CODE: String(code),
       FAKE_LOCATION: location || '',
+      FAKE_PROD_CODE: String(prodCode),
+      ADMIN_MCP_HEALTHCHECK_ENABLED: '',
     },
     encoding: 'utf8',
   });
@@ -102,6 +106,26 @@ describe.each([
 
   test('curl failing outright (000) FAILS', () => {
     const r = runEnv(env, '000');
+    expect(r.line).toContain('✗');
+    expect(r.status).toBe(1);
+  });
+});
+
+describe('production landing-page check (BUGS-134)', () => {
+  const landing = (code) => {
+    const r = runEnv('production', 0, '', code);
+    const line = r.out.split('\n').find((l) => l.includes('Landing page')) || '';
+    return { ...r, line };
+  };
+
+  test.each([200, 503, 403])('%i PASSES (live / maintenance / bot-blocked)', (code) => {
+    const r = landing(code);
+    expect(r.line).toContain('✓');
+    expect(r.status).toBe(0);
+  });
+
+  test.each([500, 404, '000'])('%s FAILS', (code) => {
+    const r = landing(code);
     expect(r.line).toContain('✗');
     expect(r.status).toBe(1);
   });

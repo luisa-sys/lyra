@@ -102,8 +102,11 @@ check_access_gated() {
 
 run_production() {
   echo -e "${YELLOW}=== Production (checklyra.com) ===${NC}"
-  # Landing page returns 503 (maintenance worker) or 403 (Cloudflare bot block)
-  check_any "https://checklyra.com" "Landing page" "503" "403"
+  # Landing page: 200 (live site — the normal state since launch), 503
+  # (maintenance worker), or 403 (Cloudflare bot-blocking the CI runner).
+  # BUGS-134: 200 was missing, so the one time the runner reached the healthy
+  # live site it reported FAIL.
+  check_any "https://checklyra.com" "Landing page" "200" "503" "403"
   check_any "https://checklyra.com/privacy" "Privacy policy" "200" "403"
   check_any "https://checklyra.com/terms" "Terms of service" "200" "403"
   check_any "https://checklyra.com/cookies" "Cookie policy" "200" "403"
