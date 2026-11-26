@@ -2423,6 +2423,7 @@ export type Database = {
       }
       insert_ai_gift_suggestions: { Args: { p_items: Json }; Returns: Json }
       is_reserved_lyra_id: { Args: { p_id: string }; Returns: boolean }
+      lyra_id_availability: { Args: { p_id: string }; Returns: string }
       lyra_id_from_legacy: {
         Args: { p_profile_id: string; p_slug: string }
         Returns: string

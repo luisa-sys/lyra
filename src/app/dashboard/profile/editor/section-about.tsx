@@ -57,6 +57,7 @@ export function SectionAbout({ state, dispatch, errors, readOnly, open, onToggle
         <LyraIdField
           value={state.lyraId}
           locked={state.lyraIdLocked}
+          firstPublishedAt={state.firstPublishedAt}
           dispatch={dispatch}
           error={errors['profile.lyra_id']}
           readOnly={readOnly}

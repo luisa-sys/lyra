@@ -8,6 +8,7 @@
  *   publishProfileFromEditor(payload, snapshot?) Publish
  *   saveProfileChanges(payload)                  Save Changes (published)
  *   stageProfilePhoto(formData)                  stage a new photo (not live)
+ *   checkLyraIdAvailable(raw)                    KAN-496 "Check availability"
  *
  * Flow per save: auth → rate limit (once) → validate the DIFF → moderate the
  * changed text → resolve the photo (staged path → URL; remove → null) →
@@ -30,6 +31,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/modules/platform/supabase-server';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
+import { rateLimit, RATE_LIMITS } from '@/modules/guards/rate-limit';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { parseCrop } from '@/modules/profile/photo-processing';
 import {
@@ -48,6 +50,7 @@ import type {
 } from '@/modules/profile/editor/editor-state';
 import {
   PUBLISH_BLOCKER_FIELD,
+  checkLyraIdAvailability,
   loadEditorProfileSnapshot,
   loadPresetAnswerMax,
   moderationTargets,
@@ -56,6 +59,7 @@ import {
   saveProfileRpc,
   type EditorProfileSnapshot,
   type EditorPublishResult,
+  type LyraIdAvailability,
   type SavedResult,
 } from '@/modules/profile/save-profile';
 import {
@@ -308,4 +312,20 @@ export async function stageProfilePhoto(formData: FormData): Promise<StagePhotoR
   const entry = formData.get('avatar');
   const file = typeof File !== 'undefined' && entry instanceof File ? entry : null;
   return stagePhotoFile(supabase, user.id, file, parseCrop(formData));
+}
+
+/**
+ * KAN-496: "Check availability" next to the CheckLyra ID field. Members only,
+ * rate-limited per user (RATE_LIMITS.lyraIdCheck) so the button cannot be used
+ * to list IDs quickly. Read-only: nothing is saved or reserved.
+ */
+export async function checkLyraIdAvailable(raw: string): Promise<LyraIdAvailability | { status: 'limited'; error: string }> {
+  const { user, supabase } = await getAuthenticatedUser();
+  if (!user) return { status: 'error' };
+  const rl = rateLimit(`lyra-id-check:user:${user.id}`, RATE_LIMITS.lyraIdCheck);
+  if (rl.limited) {
+    const wait = rl.retryAfter ?? RATE_LIMITS.lyraIdCheck.windowSeconds;
+    return { status: 'limited', error: `You've checked a lot of IDs. Please wait ${wait}s and try again.` };
+  }
+  return checkLyraIdAvailability(supabase, typeof raw === 'string' ? raw : '');
 }

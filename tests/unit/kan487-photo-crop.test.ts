@@ -4,6 +4,9 @@
  * §D copy, founder-approved 2026-11-23). Expected values are literals from the spec / plan.
  */
 import {
+  PHOTO_PICK_MAX_BYTES,
+  needsReencode,
+  decodeFailureError,
   DOWNSCALE_MAX_SIDE,
   PHOTO_ACCEPT,
   PHOTO_HINT,
@@ -35,7 +38,13 @@ const MB = 1024 * 1024;
 
 describe('KAN-487 photo limits and copy', () => {
   test('limits are the spec values', () => {
-    expect(PHOTO_ACCEPT).toBe('image/jpeg,image/png,image/webp');
+    // KAN-496 (founder feedback 2026-11-26): extensions and HEIC are listed so
+    // a JPG the system reports oddly is not greyed out. Old expected value:
+    //   expect(PHOTO_ACCEPT).toBe('image/jpeg,image/png,image/webp');
+    expect(PHOTO_ACCEPT).toBe(
+      'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif',
+    );
+    expect(PHOTO_PICK_MAX_BYTES).toBe(26214400);
     expect(PHOTO_MIN_PX).toBe(400);
     expect(PHOTO_MAX_BYTES).toBe(5242880);
     expect(PHOTO_UPLOAD_MAX_BYTES).toBe(4194304);
@@ -43,7 +52,9 @@ describe('KAN-487 photo limits and copy', () => {
   });
 
   test('hint and published-photo note are the plan copy', () => {
-    expect(PHOTO_HINT).toBe('JPG, PNG or WebP, at least 400 × 400 pixels, up to 5 MB');
+    // KAN-496. Old expected value:
+    //   expect(PHOTO_HINT).toBe('JPG, PNG or WebP, at least 400 × 400 pixels, up to 5 MB');
+    expect(PHOTO_HINT).toBe('JPG, PNG or WebP, at least 400 × 400 pixels. Large photos are made smaller for you.');
     expect(PHOTO_PUBLISHED_BLOCK_NOTE).toBe(
       'Add a new photo to save your changes — a published profile needs a photo.',
     );
@@ -57,18 +68,58 @@ describe('KAN-487 preCheckPhotoFile — type and size before cropping', () => {
     expect(preCheckPhotoFile({ type, size: 5 * MB })).toBeNull();
   });
 
-  const refused = ['image/gif', 'image/svg+xml', 'image/heic', 'application/pdf', ''];
+  // KAN-496 (founder feedback 2026-11-26): a normal phone JPG over 5 MB was
+  // refused before the editor tried to shrink it. Old expected values:
+  //   refused types: 'image/gif', 'image/svg+xml', 'image/heic', 'application/pdf', ''
+  //     → 'Photos must be JPG, PNG or WebP.'
+  //   5 MB + 1 byte → 'Photos must be 5 MB or smaller.'
+  //   empty file → "We couldn't read that image. Please try another."
+  const refused = ['image/gif', 'image/svg+xml', 'application/pdf', ''];
   test.each(refused)('%p is refused with the type error', (type) => {
-    expect(refused.length).toBe(5);
-    expect(preCheckPhotoFile({ type, size: 1000 })).toBe('Photos must be JPG, PNG or WebP.');
+    expect(refused.length).toBe(4);
+    expect(preCheckPhotoFile({ type, size: 1000 })).toBe(
+      "This file isn't a JPG, PNG or WebP photo. Please choose a photo in one of those formats.",
+    );
   });
 
-  test('one byte over 5 MB is refused with the size error', () => {
-    expect(preCheckPhotoFile({ type: 'image/png', size: 5242881 })).toBe('Photos must be 5 MB or smaller.');
+  test('HEIC, and a JPG the system reported with no type, are let through to the browser to open', () => {
+    expect(preCheckPhotoFile({ type: 'image/heic', size: 1000, name: 'IMG_1.HEIC' })).toBeNull();
+    expect(preCheckPhotoFile({ type: '', size: 1000, name: 'IMG_1.HEIC' })).toBeNull();
+    expect(preCheckPhotoFile({ type: '', size: 1000, name: 'holiday.JPG' })).toBeNull();
+    expect(preCheckPhotoFile({ type: '', size: 1000, name: 'notes.pdf' })).not.toBeNull();
   });
 
-  test('an empty file is unreadable', () => {
-    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 0 })).toBe("We couldn't read that image. Please try another.");
+  test('a phone photo over 5 MB passes (it is shrunk before upload); over 25 MB is refused', () => {
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 12 * MB })).toBeNull();
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 25 * MB })).toBeNull();
+    expect(preCheckPhotoFile({ type: 'image/png', size: 25 * MB + 1 })).toBe(
+      'This photo is larger than 25 MB. Please choose a smaller one.',
+    );
+  });
+
+  test('an empty file cannot be opened', () => {
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 0 })).toBe(
+      "We couldn't open this photo. The file may be damaged or in a format we don't support. Please try another photo.",
+    );
+  });
+
+  test('a file the browser cannot open gets a HEIC-specific or general message', () => {
+    expect(decodeFailureError({ type: 'image/heic', name: 'a.heic' })).toBe(
+      "This is an iPhone HEIC photo, which this browser can't open. Please choose a JPG or PNG, or try again in Safari.",
+    );
+    expect(decodeFailureError({ type: 'image/jpeg', name: 'a.jpg' })).toMatch(/^We couldn't open this photo\./);
+  });
+});
+
+describe('KAN-496 needsReencode — what is redrawn as JPEG before upload', () => {
+  test('a small JPG within the pixel limit is sent as is', () => {
+    expect(needsReencode({ type: 'image/jpeg', size: 3 * MB }, 4032, 3024)).toBe(false);
+  });
+  test('over 4 MB, over 40 MP, HEIC or untyped is redrawn', () => {
+    expect(needsReencode({ type: 'image/jpeg', size: 4 * MB + 1 }, 4032, 3024)).toBe(true);
+    expect(needsReencode({ type: 'image/jpeg', size: 3 * MB }, 8064, 6048)).toBe(true);
+    expect(needsReencode({ type: 'image/heic', size: 1 * MB }, 4032, 3024)).toBe(true);
+    expect(needsReencode({ type: '', size: 1 * MB }, 4032, 3024)).toBe(true);
   });
 });
 
@@ -76,11 +127,17 @@ describe('KAN-487 checkPhotoDimensions — at least 400 × 400', () => {
   test('exactly 400 × 400 passes', () => {
     expect(checkPhotoDimensions(400, 400)).toBeNull();
   });
+  // KAN-496: the message now gives the photo's size. Old expected value:
+  //   'Photos must be at least 400 × 400 pixels.'
   test('399 wide is refused', () => {
-    expect(checkPhotoDimensions(399, 1000)).toBe('Photos must be at least 400 × 400 pixels.');
+    expect(checkPhotoDimensions(399, 1000)).toBe(
+      'This photo is 399 × 1000 pixels. Photos must be at least 400 × 400 pixels, so please choose a larger one.',
+    );
   });
   test('399 high is refused', () => {
-    expect(checkPhotoDimensions(1000, 399)).toBe('Photos must be at least 400 × 400 pixels.');
+    expect(checkPhotoDimensions(1000, 399)).toBe(
+      'This photo is 1000 × 399 pixels. Photos must be at least 400 × 400 pixels, so please choose a larger one.',
+    );
   });
   test('zero size is unreadable', () => {
     expect(checkPhotoDimensions(0, 0)).toBe("We couldn't read that image. Please try another.");
