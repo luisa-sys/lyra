@@ -39,6 +39,10 @@ export const env = {
   // SEC-120: enforcement is a SECOND switch so the secret can be rolled out in
   // monitor mode first. See the rollout order in src/modules/guards/client-ip.ts.
   cfProxyEnforce: () => optionalEnv('CF_PROXY_ENFORCE', '').trim() === '1',
+  // SEC-201: shared secret the E2E harness sends as `x-lyra-e2e-gate` on the
+  // grey-cloud e2e-* aliases (which Cloudflare Access cannot cover). Empty means
+  // those hosts answer 404 to everyone — see src/modules/access/gates/e2e-host.ts.
+  e2eHostGateSecret: () => optionalEnv('E2E_HOST_GATE_SECRET', '').trim(),
 
   /**
    * SEC-46 / RFC 8707 — comma-separated canonical resource URIs this

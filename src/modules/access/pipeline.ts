@@ -37,6 +37,7 @@ import { establishSession } from './session';
 import { runGates, type Gate } from './gate';
 import { authRateLimit } from './gates/auth-rate-limit';
 import { betaOauth404 } from './gates/beta-oauth-404';
+import { e2eHost } from './gates/e2e-host';
 import { pkceCodeRedirect } from './gates/pkce-code-redirect';
 import { adminHost } from './gates/admin-host';
 import { authPageRedirect } from './gates/auth-page-redirect';
@@ -46,6 +47,7 @@ import { suspension } from './gates/suspension';
 
 /** Every pre-auth gate that exists, keyed by id. Not an order. */
 export const PRE_AUTH_GATES: Readonly<Record<string, Gate<EdgeContext>>> = {
+  [e2eHost.id]: e2eHost,
   [betaOauth404.id]: betaOauth404,
   [pkceCodeRedirect.id]: pkceCodeRedirect,
   [authRateLimit.id]: authRateLimit,
@@ -56,11 +58,16 @@ export const PRE_AUTH_GATES: Readonly<Record<string, Gate<EdgeContext>>> = {
  * gates exist" and "in what sequence" are two reviewable facts rather than one
  * array where a reordering hides among additions.
  *
- * beta-oauth-404 is FIRST, and that is the ordering with security consequences:
- * it must not be reachable by staying under a rate limit, and it must not
- * depend on auth state. See gates/beta-oauth-404.ts.
+ * e2e-host is FIRST (SEC-201): on the grey-cloud e2e-* aliases nothing at all,
+ * not even a redirect, is served without the harness secret. It returns null
+ * on every other host, so the order of the rest is unchanged.
+ *
+ * beta-oauth-404 comes next, and that is the ordering with security
+ * consequences for the real hosts: it must not be reachable by staying under a
+ * rate limit, and it must not depend on auth state. See gates/beta-oauth-404.ts.
  */
 export const PRE_AUTH_ORDER: readonly string[] = [
+  'e2e-host',
   'beta-oauth-404',
   'pkce-code-redirect',
   'auth-rate-limit',
@@ -143,6 +150,15 @@ export interface OrderConstraint {
 }
 
 export const ORDER_CONSTRAINTS: readonly OrderConstraint[] = [
+  {
+    pipeline: 'pre-auth',
+    before: 'e2e-host',
+    after: 'pkce-code-redirect',
+    ticket: 'SEC-201',
+    why:
+      'The grey-cloud e2e-* aliases bypass Cloudflare Access. A redirect served ' +
+      'there before the secret check would answer an unauthenticated caller.',
+  },
   {
     pipeline: 'pre-auth',
     before: 'beta-oauth-404',

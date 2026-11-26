@@ -118,6 +118,11 @@ export async function resetSoakUserToInitial(user: SoakUser): Promise<void> {
       display_name: SOAK_DISPLAY_NAME,
       bio_short: null,
       is_published: false,
+      // C3.4 publishes with a photo (KAN-485). Clear it in the SAME update that
+      // unpublishes, so every run starts photo-less like the first one did. The
+      // "a published profile cannot lose its photo" rule checks the NEW row,
+      // which is unpublished here, so this is allowed.
+      avatar_url: null,
       user_status: 'live', // staging middleware lets a live/beta user reach /dashboard
       access_tier: 'beta',
       // 18+ self-declaration is the login gate (KAN-407) — set so the user can

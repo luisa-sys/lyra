@@ -43,11 +43,17 @@ describe('the registry and the order describe the same set', () => {
     expect(PRE_AUTH_PIPELINE.map((g) => g.id)).toEqual([...PRE_AUTH_ORDER]);
   });
 
-  test('SEC-36 is first — it must not be reachable by staying under a rate limit', () => {
-    // The one ordering in this pipeline with a security consequence, asserted
-    // here as well as behaviourally, because this failure is cheap to catch and
-    // expensive to discover.
-    expect(PRE_AUTH_ORDER[0]).toBe('beta-oauth-404');
+  test('SEC-36 runs before every non-host gate — it must not be reachable by staying under a rate limit', () => {
+    // The ordering in this pipeline with a security consequence for the real
+    // hosts, asserted here as well as behaviourally, because this failure is
+    // cheap to catch and expensive to discover. SEC-201: only the e2e-host gate
+    // (which returns null on every non-e2e host) may precede it.
+    const nonHost = PRE_AUTH_ORDER.filter((id) => id !== 'e2e-host');
+    expect(nonHost[0]).toBe('beta-oauth-404');
+  });
+
+  test('SEC-201: e2e-host is first — nothing on the grey-cloud aliases is served before the secret check', () => {
+    expect(PRE_AUTH_ORDER[0]).toBe('e2e-host');
   });
 
   test('every gate carries an id, a ticket and a reason', () => {
@@ -154,6 +160,7 @@ describe('ORDER is an exact, checked artefact (CTL-045)', () => {
    */
   test('PRE_AUTH_ORDER is exactly this, in this sequence', () => {
     expect([...PRE_AUTH_ORDER]).toEqual([
+      'e2e-host',          // SEC-201: grey-cloud e2e-* aliases need the harness secret
       'beta-oauth-404',    // SEC-36: before auth, before rate limiting, before any read
       'pkce-code-redirect',// a login exchange must complete before anything can gate it
       'auth-rate-limit',   // credential stuffing, POST only

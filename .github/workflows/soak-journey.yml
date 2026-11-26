@@ -69,6 +69,8 @@ jobs:
       # the STAGING project (uobmlkzrjkptwhttzmmi), NEVER prod.
       E2E_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
       E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      # SEC-201: e2e-stage answers 404 without the harness secret.
+      E2E_HOST_GATE_SECRET: ${{ secrets.E2E_HOST_GATE_SECRET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
