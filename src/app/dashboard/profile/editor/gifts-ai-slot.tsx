@@ -15,10 +15,11 @@
  *     approved by the founder on 2026-11-23 (spec v0.8 §03). Every Generate
  *     sends AI_CONSENT_VERSION; the server refuses any other version and
  *     records it on the claim row.
- *   - "Generate suggestions" with "n of 5 left this session". The server
- *     enforces the limits (claim_ai_gift_generation); the counter shows the
- *     server's figure after each request (never more than the daily
- *     allowance). Disabled while a request runs, at 0 left, at 10
+ *   - "Generate suggestions" with "n of 10 left this session" and a note
+ *     stating the limits (10 per editing session, 30 in any 30 days; KAN-492).
+ *     The server enforces the limits (claim_ai_gift_generation); the counter
+ *     shows the server's figure after each request (never more than the
+ *     30-day allowance). Disabled while a request runs, at 0 left, at 10
  *     suggestions held, and while saving. While a request runs the button
  *     reads "Generating…" and the slot is `aria-busy`.
  *   - Pending suggestions: "AI suggestion" badge, Approve (committed by Save;
@@ -46,6 +47,7 @@ import {
   AI_FAILED_COPY,
   AI_GENERATE_LABEL,
   AI_GENERATING_LABEL,
+  AI_LIMITS_NOTE,
   AI_NOT_CONFIGURED_COPY,
   AI_SESSION_GENERATIONS,
   AI_SUGGESTION_BADGE,
@@ -197,6 +199,9 @@ export function GiftsAiSlot({ aiItems, dispatch, readOnly = false }: GiftsAiSlot
                 {aiCounterText(remaining)}
               </p>
               {capReached && <p className="text-xs text-[var(--color-muted)] w-full">{AI_CAP_FULL_COPY}</p>}
+              <p data-testid="gifts-ai-limits-note" className="text-xs text-[var(--color-muted)] w-full">
+                {AI_LIMITS_NOTE}
+              </p>
             </div>
           )}
         </div>

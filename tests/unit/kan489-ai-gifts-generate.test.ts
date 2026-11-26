@@ -61,7 +61,7 @@ function setup(opts: {
     void _consent;
     calls.push('claim');
     if (opts.claim instanceof Error) throw opts.claim;
-    return opts.claim ?? { ok: true as const, sessionRemaining: 3, dailyRemaining: 17 };
+    return opts.claim ?? { ok: true as const, sessionRemaining: 3, monthlyRemaining: 17 };
   });
   const insert = jest.fn(async (_s: unknown, kept: readonly AiSuggestion[]) => {
     calls.push('insert');
@@ -158,7 +158,7 @@ describe('generateAiGiftSuggestions — refusals that spend nothing', () => {
 describe('generateAiGiftSuggestions — the server-side claim gates the model', () => {
   it.each([
     ['session_limit', 0],
-    ['daily_limit', 2],
+    ['monthly_limit', 2],
     ['cooldown', 4],
   ] as const)('claim refused (%s) → returned with the server count, model NOT called', async (reason, left) => {
     const t = setup({ claim: { ok: false, reason, sessionRemaining: left } });
@@ -226,7 +226,7 @@ describe('generateAiGiftSuggestions — model outcome and storage', () => {
       droppedForCap: 0,
       droppedByFilter: 2,
       sessionRemaining: 3,
-      dailyRemaining: 17,
+      monthlyRemaining: 17,
     });
   });
 

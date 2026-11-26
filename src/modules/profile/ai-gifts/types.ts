@@ -59,7 +59,7 @@ export type GenerateFailureReason =
   | 'no_content'
   | 'cap_full'
   | 'session_limit'
-  | 'daily_limit'
+  | 'monthly_limit'
   | 'cooldown'
   | 'refused'
   | 'busy'
@@ -74,7 +74,7 @@ export type GenerateResult =
       /** Suggestions removed by the limits, URL, contact, duplicate or moderation checks. */
       droppedByFilter: number;
       sessionRemaining: number;
-      dailyRemaining: number;
+      monthlyRemaining: number;
     }
   | {
       ok: false;

@@ -19,16 +19,16 @@ function ok(inserted: number, droppedForCap = 0, droppedByFilter = 0): GenerateR
     droppedForCap,
     droppedByFilter,
     sessionRemaining: 2,
-    dailyRemaining: 9,
+    monthlyRemaining: 9,
   };
 }
 
 describe('aiCounterText', () => {
-  it('"n of 5 left this session", clamped to 0..5', () => {
-    expect(aiCounterText(5)).toBe('5 of 5 left this session');
-    expect(aiCounterText(0)).toBe('0 of 5 left this session');
-    expect(aiCounterText(-2)).toBe('0 of 5 left this session');
-    expect(aiCounterText(9)).toBe('5 of 5 left this session');
+  it('"n of 10 left this session", clamped to 0..10 (KAN-492)', () => {
+    expect(aiCounterText(10)).toBe('10 of 10 left this session');
+    expect(aiCounterText(0)).toBe('0 of 10 left this session');
+    expect(aiCounterText(-2)).toBe('0 of 10 left this session');
+    expect(aiCounterText(14)).toBe('10 of 10 left this session');
   });
 });
 
@@ -68,8 +68,8 @@ describe('aiResultMessage', () => {
     [{ ok: false, reason: 'no_content' }, 'Add a few things about yourself first.'],
     [{ ok: false, reason: 'cap_full' }, 'Remove a suggestion to generate more'],
     [{ ok: false, reason: 'not_configured' }, 'AI gift suggestions aren’t available yet.'],
-    [{ ok: false, reason: 'session_limit' }, 'You’ve used all 5 generations for this session.'],
-    [{ ok: false, reason: 'daily_limit' }, 'You’ve reached today’s limit for AI suggestions. Please try again tomorrow.'],
+    [{ ok: false, reason: 'session_limit' }, 'You’ve used all 10 generations for this session.'],
+    [{ ok: false, reason: 'monthly_limit' }, 'You’ve used all 30 generations for the last 30 days. Please try again later.'],
     [{ ok: false, reason: 'cooldown' }, 'Please wait a few seconds before generating again.'],
     [{ ok: false, reason: 'rate_limited' }, 'You’re going a little fast. Please wait a moment and try again.'],
     [{ ok: false, reason: 'unauthenticated' }, 'Please sign in again to generate suggestions.'],
@@ -88,23 +88,23 @@ describe('aiRemainingAfter', () => {
     expect(aiRemainingAfter(4, { ok: false, reason: 'session_limit' })).toBe(0);
   });
 
-  it('review fix — after a success the counter is the SMALLER of the session and daily allowance', () => {
-    const r = (sessionRemaining: number, dailyRemaining: number): GenerateResult => ({
+  it('review fix — after a success the counter is the SMALLER of the session and 30-day allowance', () => {
+    const r = (sessionRemaining: number, monthlyRemaining: number): GenerateResult => ({
       ok: true,
       inserted: [],
       droppedForCap: 0,
       droppedByFilter: 0,
       sessionRemaining,
-      dailyRemaining,
+      monthlyRemaining,
     });
     expect(aiRemainingAfter(5, r(4, 1))).toBe(1);
     expect(aiRemainingAfter(5, r(2, 9))).toBe(2);
   });
 
-  it('review fix — daily_limit sets the counter to 0 even when the session count is higher', () => {
+  it('review fix — monthly_limit sets the counter to 0 even when the session count is higher', () => {
     // Was 3 (the session figure) before the review fix: the counter then
     // promised generations the server would refuse.
-    expect(aiRemainingAfter(4, { ok: false, reason: 'daily_limit', sessionRemaining: 3 })).toBe(0);
+    expect(aiRemainingAfter(4, { ok: false, reason: 'monthly_limit', sessionRemaining: 3 })).toBe(0);
   });
 });
 

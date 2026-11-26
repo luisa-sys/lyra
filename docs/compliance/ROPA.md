@@ -96,7 +96,7 @@ processing). Founder is the accountable data-protection lead.
 - **Personal data:** the member's saved, self-authored profile text (headline, about, gift preferences, Billboard, list items in public or members-only sections, "To understand me a little better", question answers) disclosed to the AI provider per request; the returned suggestions (`profile_items` rows, `origin='ai'`); a claim log (`ai_gift_generations`: timestamp, random editor-session id, consent-note version). Not sent: name, CheckLyra ID, location, photo, affiliations, email.
 - **Purpose:** suggest gift ideas the member can approve onto their own profile.
 - **Lawful basis:** Art. 6(1)(a) **consent** — the member switches the feature on and accepts a data-sharing note (versioned, recorded per request) before any disclosure; nothing is published until they approve each suggestion.
-- **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (only the last 24 h is read).
+- **Retention:** suggestions while held on the profile; claim log — a 30-day prune is a follow-up (the last 30 days are read since KAN-492).
 - **Recipients/processors:** Anthropic (Claude API) — add to SUBPROCESSORS.md and the privacy page before enabling; Supabase, Vercel.
 - **Decided 2026-11-23 (founder):** consent copy approved (version `v1-2026-11-23`). Sending members-only items, and the browser-generated session, were approved as part of the FOUNDER_CHECKLIST.md list as a whole (one "approved"), not as separately stated choices. **Still to do, before the key is set:** accept and record the provider's data-retention / no-training terms and the transfer mechanism (SUBPROCESSORS.md), and add Anthropic to the privacy page.
 
