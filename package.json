@@ -27,7 +27,7 @@
     "qa:coverage": "python3 qa-sweep/coverage.py"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.12.0",
+    "@anthropic-ai/sdk": "1.13.0",
     "@sentry/nextjs": "^10.76.2",
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.119.2",
