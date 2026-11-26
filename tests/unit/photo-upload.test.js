@@ -112,13 +112,24 @@ describe('KAN-135: Editor has photo upload UI', () => {
   test('validates file type client-side', () => {
     expect(content).toContain('const typeOrSize = preCheckPhotoFile(file);');
     expect(content).toContain('setLocalError(typeOrSize);');
-    expect(preCheckPhotoFile({ type: 'image/gif', size: 1024 })).toBe(PHOTO_TYPE_ERROR);
+    // KAN-496: the picker's own message names what to do. Old expected value:
+    //   expect(preCheckPhotoFile({ type: 'image/gif', size: 1024 })).toBe(PHOTO_TYPE_ERROR);
+    // (PHOTO_TYPE_ERROR is still the server's message, pinned below.)
+    expect(preCheckPhotoFile({ type: 'image/gif', size: 1024 })).toBe(
+      "This file isn't a JPG, PNG or WebP photo. Please choose a photo in one of those formats.",
+    );
     expect(PHOTO_TYPE_ERROR).toBe('Photos must be JPG, PNG or WebP.');
   });
 
   test('validates file size client-side', () => {
     expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 })).toBeNull();
-    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 })).toBe(PHOTO_SIZE_ERROR);
+    // KAN-496: phone photos over 5 MB are shrunk in the browser; the server
+    // still refuses an upload over 5 MB. Old expected value:
+    //   expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 })).toBe(PHOTO_SIZE_ERROR);
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 + 1 })).toBeNull();
+    expect(preCheckPhotoFile({ type: 'image/jpeg', size: 25 * 1024 * 1024 + 1 })).toBe(
+      'This photo is larger than 25 MB. Please choose a smaller one.',
+    );
     expect(PHOTO_SIZE_ERROR).toBe('Photos must be 5 MB or smaller.');
   });
 });

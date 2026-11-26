@@ -2045,7 +2045,7 @@
           "profile_manual_of_me",
           "school_affiliations"
         ],
-        "rpcs": ["claim_ai_gift_generation", "insert_ai_gift_suggestions", "save_profile", "suggest_affiliation_names"],
+        "rpcs": ["claim_ai_gift_generation", "insert_ai_gift_suggestions", "lyra_id_availability", "save_profile", "suggest_affiliation_names"],
         "profilesColumns": [
           "display_name",
           "slug",

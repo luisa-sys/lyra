@@ -17,6 +17,7 @@
  *                                            the client gets the fresh
  *                                            updated_at / first_published_at
  *   loadPresetAnswerMax(supabase, ids)       per-preset answer limits (§09)
+ *   checkLyraIdAvailability(supabase, raw)   KAN-496 "Check availability"
  *
  * plus pure helpers the action composes:
  *   publishRequirementsMissing(snapshot)     all missing identity items
@@ -326,4 +327,32 @@ export function moderationTargets(payload: SavePayload): ModerationTarget[] {
     add(u.answer, 'profile_conversation_starters.answer', `${u.client_key}.answer`);
   }
   return out;
+}
+
+// ── KAN-496: CheckLyra ID availability ───────────────────────────────────
+
+export type LyraIdAvailability =
+  | { status: 'available'; id: string }
+  | { status: 'taken'; id: string }
+  | { status: 'invalid'; error: string }
+  | { status: 'error' };
+
+/**
+ * KAN-496 (founder feedback 2026-11-26): is this CheckLyra ID free? Format and
+ * reserved words are checked here first (checkLyraId); then the
+ * `lyra_id_availability` function (SECURITY DEFINER, members only) checks
+ * other profiles' IDs and retired old addresses. The caller's own current ID
+ * counts as available. Not a reservation: the save still decides.
+ */
+export async function checkLyraIdAvailability(
+  supabase: SupabaseClient,
+  raw: unknown,
+): Promise<LyraIdAvailability> {
+  const check = checkLyraId(raw);
+  if (!check.ok) return { status: 'invalid', error: check.error };
+  const { data, error } = await supabase.rpc('lyra_id_availability', { p_id: check.id });
+  if (error) return { status: 'error' };
+  if (data === 'available') return { status: 'available', id: check.id };
+  if (data === 'taken') return { status: 'taken', id: check.id };
+  return { status: 'error' };
 }

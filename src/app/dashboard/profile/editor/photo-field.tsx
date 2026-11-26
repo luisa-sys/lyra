@@ -13,7 +13,8 @@
  *      (photo-crop.ts). No drag: arrow keys move it, + / − resize it
  *      (Shift = bigger steps); a click on the image centres it there; the
  *      + / − buttons resize it for pointer users.
- *   3. Use this photo: a file over 4 MB is drawn to a canvas (crop square
+ *   3. Use this photo: a file over 4 MB (KAN-496: or over 40 MP, or HEIC /
+ *      untyped) is drawn to a canvas (crop square
  *      only, ≤ 2048 px, ≥ 400 px) and re-encoded as JPEG so the request stays
  *      under Vercel's body cap; then `stageProfilePhoto` uploads it to a
  *      unique staged path and the state becomes `{kind:'staged'}`. Nothing
@@ -28,19 +29,22 @@ import {
   PHOTO_ACCEPT,
   PHOTO_HINT,
   PHOTO_PUBLISHED_BLOCK_NOTE,
+  PHOTO_DECODE_ERROR,
   PHOTO_SIZE_ERROR,
-  PHOTO_UNREADABLE_ERROR,
+  PHOTO_UPLOAD_FAILED_ERROR,
   DOWNSCALE_JPEG_QUALITY,
   applyCropKey,
   centreCropAt,
   checkPhotoDimensions,
   cropOverlayPercent,
   cropStep,
+  decodeFailureError,
   displayToNatural,
   downscaleSide,
   downscaledUploadCrop,
   initialCrop,
   needsDownscale,
+  needsReencode,
   preCheckPhotoFile,
   resizeCrop,
   safeObjectUrl,
@@ -108,14 +112,18 @@ function canvasCrop(img: HTMLImageElement, crop: CropBox, side: number): Promise
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', DOWNSCALE_JPEG_QUALITY));
 }
 
-/** The file + crop to send: the original when small enough, else a downscaled crop. */
+/**
+ * The file + crop to send: the original when the server can take it as is,
+ * else the crop square redrawn as a JPEG (KAN-496: also for photos over the
+ * server's pixel limit and for HEIC / untyped files the browser could open).
+ */
 async function prepareUpload(p: Pending, crop: CropBox): Promise<{ file: File; crop: CropBox } | { error: string }> {
-  if (!needsDownscale(p.file.size)) return { file: p.file, crop };
+  if (!needsReencode(p.file, p.width, p.height)) return { file: p.file, crop };
   for (let attempt = 0; ; attempt += 1) {
     const side = downscaleSide(crop.size, attempt);
     if (side === null) return { error: PHOTO_SIZE_ERROR };
     const blob = await canvasCrop(p.img, crop, side);
-    if (!blob) return { error: PHOTO_UNREADABLE_ERROR };
+    if (!blob) return { error: PHOTO_DECODE_ERROR };
     if (!needsDownscale(blob.size)) {
       return { file: new File([blob], 'avatar.jpg', { type: 'image/jpeg' }), crop: downscaledUploadCrop(side) };
     }
@@ -172,10 +180,10 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
     const url = safeObjectUrl(URL.createObjectURL(file));
     if (!url) return;
     const img = await loadImage(url);
-    const dims = img ? checkPhotoDimensions(img.naturalWidth, img.naturalHeight) : PHOTO_UNREADABLE_ERROR;
+    const dims = img ? checkPhotoDimensions(img.naturalWidth, img.naturalHeight) : decodeFailureError(file);
     if (!img || dims) {
       URL.revokeObjectURL(url);
-      setLocalError(dims ?? PHOTO_UNREADABLE_ERROR);
+      setLocalError(dims ?? decodeFailureError(file));
       return;
     }
     clearPending();
@@ -236,7 +244,9 @@ export function PhotoField({ photo, isPublished, dispatch, error, readOnly = fal
       clearPending();
       inputRef.current?.focus();
     } catch {
-      setLocalError(PHOTO_UNREADABLE_ERROR);
+      // KAN-496: the request itself failed (network, or the server refused
+      // the body) — not a problem with the photo.
+      setLocalError(PHOTO_UPLOAD_FAILED_ERROR);
     } finally {
       setBusy(false);
     }
