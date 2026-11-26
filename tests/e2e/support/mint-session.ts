@@ -50,6 +50,10 @@ export async function mintSession(
   const extraHTTPHeaders: Record<string, string> = {
     ...(bypass ? { 'x-vercel-protection-bypass': bypass } : {}),
     ...(cfName && cfSecret ? { [cfName]: cfSecret } : {}),
+    // SEC-201: the e2e-* aliases 404 without the harness secret.
+    ...(process.env.E2E_HOST_GATE_SECRET
+      ? { 'x-lyra-e2e-gate': process.env.E2E_HOST_GATE_SECRET }
+      : {}),
   };
   const browser = await chromium.launch();
   try {

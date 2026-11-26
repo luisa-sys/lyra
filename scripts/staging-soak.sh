@@ -43,6 +43,9 @@ CF_SECRET="${E2E_CF_BYPASS_SECRET:-}"
 CURL_HDRS=(-A "$UA")
 [ -n "$BYPASS" ] && CURL_HDRS+=(-H "x-vercel-protection-bypass: $BYPASS")
 [ -n "$CF_HEADER" ] && [ -n "$CF_SECRET" ] && CURL_HDRS+=(-H "$CF_HEADER: $CF_SECRET")
+# SEC-201: the grey-cloud e2e-* aliases answer 404 without the harness secret.
+E2E_GATE="${E2E_HOST_GATE_SECRET:-}"
+[ -n "$E2E_GATE" ] && CURL_HDRS+=(-H "x-lyra-e2e-gate: $E2E_GATE")
 
 PASS=0; FAIL=0; UNV=0
 record() { # $1=STATUS $2=id $3..=description

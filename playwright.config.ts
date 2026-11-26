@@ -26,6 +26,17 @@ export function buildCfBypassHeader(
 }
 Object.assign(extraHTTPHeaders, buildCfBypassHeader());
 
+// SEC-201: the grey-cloud e2e-* aliases answer 404 unless the request carries
+// the harness secret (src/modules/access/gates/e2e-host.ts). Unset → no header,
+// so localhost and the anon PR gate are unaffected.
+export function buildE2eGateHeader(
+  e: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const secret = e.E2E_HOST_GATE_SECRET;
+  return secret ? { 'x-lyra-e2e-gate': secret } : {};
+}
+Object.assign(extraHTTPHeaders, buildE2eGateHeader());
+
 // KAN-271: webServer resolution across the three ways this suite runs:
 //
 //   1. PR gate (e2e-tests.yml): E2E_LOCAL_SERVER=1 — Playwright builds-then-

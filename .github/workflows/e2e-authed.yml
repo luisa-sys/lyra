@@ -82,6 +82,7 @@ jobs:
       # the authed suite stays dispatch-only. See docs/E2E_AUTHED_CF_BYPASS.md.
       E2E_CF_BYPASS_HEADER: ${{ secrets.E2E_CF_BYPASS_HEADER }}
       E2E_CF_BYPASS_SECRET: ${{ secrets.E2E_CF_BYPASS_SECRET }}
+      E2E_HOST_GATE_SECRET: ${{ secrets.E2E_HOST_GATE_SECRET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

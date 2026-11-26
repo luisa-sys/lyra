@@ -120,11 +120,22 @@ run_production() {
 run_staging() {
   echo -e "${YELLOW}=== Staging (stage.checklyra.com) ===${NC}"
   check_access_gated "https://stage.checklyra.com" "Staging site (protected)"
+  check_e2e_alias_gated "https://e2e-stage.checklyra.com" "Staging E2E alias (gated, SEC-201)"
 }
 
 run_dev() {
   echo -e "${YELLOW}=== Development (dev.checklyra.com) ===${NC}"
   check_access_gated "https://dev.checklyra.com" "Dev site (protected)"
+  check_e2e_alias_gated "https://e2e-dev.checklyra.com" "Dev E2E alias (gated, SEC-201)"
+}
+
+# SEC-201 — the grey-cloud E2E aliases skip Cloudflare entirely (DNS-only, so
+# CI avoids Bot Fight Mode), which means Cloudflare Access cannot gate them.
+# The app's e2e-host gate answers 404 unless the harness secret header is
+# present. This runner sends no secret, so 404 is the only healthy answer; a
+# 200 means the develop/staging app is public on the alias again.
+check_e2e_alias_gated() {
+  check_any "$1" "$2" "404"
 }
 
 run_mcp() {
