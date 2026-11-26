@@ -1990,6 +1990,21 @@ export type Database = {
           },
         ]
       }
+      retired_lyra_ids: {
+        Row: {
+          id_key: string
+          retired_at: string
+        }
+        Insert: {
+          id_key: string
+          retired_at?: string
+        }
+        Update: {
+          id_key?: string
+          retired_at?: string
+        }
+        Relationships: []
+      }
       school_affiliations: {
         Row: {
           affiliation_type: string
