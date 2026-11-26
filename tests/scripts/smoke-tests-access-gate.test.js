@@ -3,8 +3,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const { SRC } = require('../support/source-paths.json');
+
 const REPO_ROOT = path.resolve(__dirname, '../../');
-const SCRIPT = path.join(REPO_ROOT, 'scripts/smoke-tests.sh');
+// Via SRC (seeded in source-path-seeds.ts) so the raw-literal ratchet holds.
+const SCRIPT = path.join(REPO_ROOT, SRC.smokeTests);
 
 /**
  * BUGS-134 — the staging/dev "protected" checks must accept what Cloudflare
