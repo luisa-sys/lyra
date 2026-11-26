@@ -61,7 +61,7 @@ describe('KAN-496 lyra_id_availability migration', () => {
   });
   test('members only: refuses no session, revoked from anon, granted to authenticated', () => {
     expect(sql).toMatch(/v_uid is null then\s+raise exception/i);
-    expect(sql).toMatch(/revoke all on function public\.lyra_id_availability\(text\) from public, anon;/i);
+    expect(sql).toMatch(/revoke all on function public\.lyra_id_availability\(text\) from public, anon, authenticated;/i);
     expect(sql).toMatch(/grant execute on function public\.lyra_id_availability\(text\) to authenticated;/i);
   });
   test('checks other profiles and their retired old addresses, never the caller', () => {

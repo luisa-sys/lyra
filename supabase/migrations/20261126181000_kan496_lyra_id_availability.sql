@@ -60,5 +60,5 @@ begin
   return 'available';
 end$$;
 
-revoke all on function public.lyra_id_availability(text) from public, anon;
+revoke all on function public.lyra_id_availability(text) from public, anon, authenticated;
 grant execute on function public.lyra_id_availability(text) to authenticated;
