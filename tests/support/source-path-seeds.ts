@@ -409,4 +409,9 @@ export const SEEDED_PATHS = [
   'scripts/check-dependency-freshness.py',
   // ...and its daily workflow, read by the same suite's wiring tests.
   '.github/workflows/dependency-freshness.yml',
+
+  // BUGS-134 — the liveness smoke checks. tests/scripts/smoke-tests-access-gate.test.js
+  // reaches the script only through `SRC`, so without this literal the key
+  // would vanish on the next regeneration (gotcha #31).
+  'scripts/smoke-tests.sh',
 ] as const;

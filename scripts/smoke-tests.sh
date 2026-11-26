@@ -57,10 +57,56 @@ check_any() {
   fi
 }
 
+# BUGS-134 — an environment that must sit behind Cloudflare Access.
+# Access answers an unauthenticated browser-shaped request with a 302 to its
+# login page, not a bare 401/403, so a gated site used to false-FAIL here.
+# A redirect counts as gated ONLY when it points at Lyra's own Access team
+# login for THIS host: a 302 anywhere else (a misrouted domain, an app-level
+# redirect, a different Access team) is still a failure, and a bare 200 is
+# still the "site is public" failure (SEC-192).
+ACCESS_TEAM_DOMAIN="checklyra.cloudflareaccess.com"
+check_access_gated() {
+  local URL="$1"
+  local LABEL="$2"
+  local HOST="${URL#https://}"
+  HOST="${HOST%%/*}"
+  TOTAL=$((TOTAL + 1))
+  local RESULT
+  RESULT=$(curl -so /dev/null -w "%{http_code} %{redirect_url}" --max-time 15 \
+    -A "Mozilla/5.0 (compatible; LyraSmokeTest/1.0; +https://checklyra.com)" \
+    "$URL" 2>/dev/null || echo "000")
+  local CODE="${RESULT%% *}"
+  local LOCATION=""
+  [ "$RESULT" != "$CODE" ] && LOCATION="${RESULT#* }"
+  local LOGIN_PREFIX="https://${ACCESS_TEAM_DOMAIN}/cdn-cgi/access/login/${HOST}"
+  case "$CODE" in
+    401|403)
+      echo -e "  ${GREEN}✓${NC} $LABEL: $CODE"
+      return
+      ;;
+    302|303)
+      case "$LOCATION" in
+        "$LOGIN_PREFIX"|"$LOGIN_PREFIX"\?*|"$LOGIN_PREFIX"/*)
+          echo -e "  ${GREEN}✓${NC} $LABEL: $CODE → Cloudflare Access login"
+          return
+          ;;
+      esac
+      echo -e "  ${RED}✗${NC} $LABEL: $CODE to ${LOCATION:-<no location>} (expected 401/403, or a redirect to $LOGIN_PREFIX)"
+      ;;
+    *)
+      echo -e "  ${RED}✗${NC} $LABEL: $CODE (expected 401/403, or a redirect to $LOGIN_PREFIX)"
+      ;;
+  esac
+  FAILURES=$((FAILURES + 1))
+}
+
 run_production() {
   echo -e "${YELLOW}=== Production (checklyra.com) ===${NC}"
-  # Landing page returns 503 (maintenance worker) or 403 (Cloudflare bot block)
-  check_any "https://checklyra.com" "Landing page" "503" "403"
+  # Landing page: 200 (live site — the normal state since launch), 503
+  # (maintenance worker), or 403 (Cloudflare bot-blocking the CI runner).
+  # BUGS-134: 200 was missing, so the one time the runner reached the healthy
+  # live site it reported FAIL.
+  check_any "https://checklyra.com" "Landing page" "200" "503" "403"
   check_any "https://checklyra.com/privacy" "Privacy policy" "200" "403"
   check_any "https://checklyra.com/terms" "Terms of service" "200" "403"
   check_any "https://checklyra.com/cookies" "Cookie policy" "200" "403"
@@ -73,12 +119,12 @@ run_production() {
 
 run_staging() {
   echo -e "${YELLOW}=== Staging (stage.checklyra.com) ===${NC}"
-  check_any "https://stage.checklyra.com" "Staging site (protected)" "401" "403"
+  check_access_gated "https://stage.checklyra.com" "Staging site (protected)"
 }
 
 run_dev() {
   echo -e "${YELLOW}=== Development (dev.checklyra.com) ===${NC}"
-  check_any "https://dev.checklyra.com" "Dev site (protected)" "401" "403"
+  check_access_gated "https://dev.checklyra.com" "Dev site (protected)"
 }
 
 run_mcp() {
