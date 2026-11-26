@@ -65,7 +65,7 @@ const nextConfig: NextConfig = {
             // (EU region) so Sentry's browser SDK can POST events. The two
             // wildcards cover both `o<id>.ingest.sentry.io` and the `.de.`
             // EU equivalent.
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.sentry.io https://*.de.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.sentry.io https://*.de.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
           },
           {
             key: "Cross-Origin-Opener-Policy",
