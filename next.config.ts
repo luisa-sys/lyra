@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // "Keeping people safe" was folded into /guidelines (Nov 2026); keep old
+  // links working.
+  async redirects() {
+    return [{ source: '/safe', destination: '/guidelines', permanent: true }];
+  },
   async headers() {
     return [
       {

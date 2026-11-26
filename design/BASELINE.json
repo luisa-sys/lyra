@@ -17,10 +17,10 @@
     "section 2.2 and the CTL-040 registry entry."
   ],
   "design_repo": "https://github.com/luisa-sys/lyra-design-system",
-  "baseline_ref": "86b094b8f84db6d0bb3ed71f7c0dbac1f78aaba5",
-  "reconciled_on": "2026-11-23",
-  "reconciled_for": "KAN-487",
-  "note": "KAN-487 part 3 deleted the legacy profile wizard/editor estate (src/app/dashboard/profile/legacy/page.tsx, wizard.tsx, steps/*, sections/*). CTL-040 flagged the deletions as design-bearing, and it was RIGHT: in the design repo, rebuild/sync-manifest.json globbed only deleted files (legacy/**, wizard.tsx) in the dev_paths of KAN-453, and rebuild/cards/github.md mapped the Profile Editor card to deleted sections/* and steps/* files. dev_paths is what the G3 promote-verified gate reads, so it would have kept passing over an empty set. Re-pointed there (KAN-453 dev_paths now src/app/dashboard/profile/page.tsx and edit-profile-form.tsx; the Profile Editor card row now lists edit-profile-form.tsx, editor/** and favourites.ts) rather than waved through here with a Design-Baseline-Ok trailer, since the coupling was real.",
-  "previous_baseline_ref": "3c3ac22106f91d9734fa7029dd0e84fcbd01de92",
-  "merged_as": "86b094b is the head of luisa-sys/lyra-design-system main after merging #7 (the KAN-487 re-point of KAN-453 dev_paths and the github card row), so this ref is reachable from the design system's default branch rather than only from a PR branch. Previous baseline 3c3ac22 was the squash of #2 (KAN-473)."
+  "baseline_ref": "2349fb4a5b7f03c370c29fe75611d1635a02d307",
+  "reconciled_on": "2026-11-26",
+  "reconciled_for": "KAN-495",
+  "note": "KAN-495 deleted src/app/(legal)/safe/page.tsx and removed the \"Keeping people safe\" footer link (folded into /guidelines). CTL-040 flagged it and the coupling was real: the design system's Footer README and every Page* preview listed the link. Re-pointed there in luisa-sys/lyra-design-system#9 (Footer README, Footer + Page* previews, legacy build.py FOOTER_LINKS).",
+  "previous_baseline_ref": "86b094b8f84db6d0bb3ed71f7c0dbac1f78aaba5",
+  "merged_as": "2349fb4 is the head of luisa-sys/lyra-design-system main after squash-merging #9, so it is reachable from the default branch."
 }

@@ -7,7 +7,7 @@ import Link from "next/link";
  * exactly why this lives in the root layout rather than per-page.
  *
  * Content + ordering mirror the June-2026 mock-up footer:
- *   About · Privacy · Cookies · Terms · Guidelines · Keeping people safe ·
+ *   About · Privacy · Cookies · Terms · Guidelines ·
  *   Accessibility · Help · Contact
  *
  * Styling: warm paper background, muted body text, sage links — using the
@@ -15,13 +15,13 @@ import Link from "next/link";
  */
 
 const LINKS: { href: string; label: string }[] = [
-  // The nine mock-up footer links, in order.
+  // The mock-up footer links, in order ("Keeping people safe" was folded
+  // into /guidelines in Nov 2026; /safe now redirects there).
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/cookies", label: "Cookies" },
   { href: "/terms", label: "Terms" },
   { href: "/guidelines", label: "Guidelines" },
-  { href: "/safe", label: "Keeping people safe" },
   { href: "/accessibility", label: "Accessibility" },
   { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },

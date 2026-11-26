@@ -5,7 +5,7 @@
  *   A) design tokens (sage/ink/muted retune + new tint tokens) — AA-safe
  *   B) typography — single Inter face mapped to both font variables
  *   D) site-wide footer
- *   E) six support pages (About/Guidelines/Safe/Accessibility/Help/Contact)
+ *   E) support pages (About/Guidelines/Safe/Accessibility/Help/Contact)
  *      + Turnstile human-check that activates only when both keys are set
  *   F) Terms 18+
  */
@@ -114,14 +114,13 @@ describe('KAN-272 D: site-wide footer', () => {
     footer = read(SRC.footer);
   });
 
-  test('renders all nine footer links', () => {
+  test('renders all eight mock-up footer links', () => {
     for (const href of [
       '/about',
       '/privacy',
       '/cookies',
       '/terms',
       '/guidelines',
-      '/safe',
       '/accessibility',
       '/help',
       '/contact',
@@ -143,11 +142,10 @@ describe('KAN-272 D: site-wide footer', () => {
   });
 });
 
-describe('KAN-272 E: six support pages', () => {
+describe('KAN-272 E: support pages', () => {
   const pages = {
     about: { file: SRC.aboutPage, h1: 'About Lyra' },
     guidelines: { file: SRC.guidelinesPage, h1: 'Guidelines' },
-    safe: { file: SRC.safePage, h1: 'Keeping people safe' },
     accessibility: { file: SRC.accessibilityPage, h1: 'Accessibility' },
     help: { file: SRC.helpPage, h1: 'Help' },
     contact: { file: SRC.contactPage, h1: 'Contact' },
