@@ -35,9 +35,9 @@ import type { NextRequest, NextResponse } from 'next/server';
 /**
  * The raw env slice, read ONCE per request and passed as data.
  *
- * The seven direct env member expressions stay in src/middleware.ts, which
+ * The direct env member expressions stay in src/middleware.ts, which
  * is what CTL-037's baseline records — it lists this file with exactly these
- * seven variables, and moving the reads would change that baseline without
+ * variables, and moving the reads would change that baseline without
  * changing what is read. Passing the values as data keeps the ratchet honest
  * and makes every consumer below testable without touching process.env.
  */
@@ -49,6 +49,8 @@ export interface MiddlewareEnvRaw {
   readonly ADMIN_HOST_ENFORCED?: string;
   readonly NEXT_PUBLIC_SUPABASE_URL?: string;
   readonly NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+  /** SEC-201. Shared secret the harness presents on the grey-cloud e2e-* aliases. */
+  readonly E2E_HOST_GATE_SECRET?: string;
 }
 
 /** The derived deployment facts, computed once. */
@@ -64,6 +66,8 @@ export interface DeployContext {
   readonly adminHostEnforced: boolean;
   readonly supabaseUrl?: string;
   readonly supabaseAnonKey?: string;
+  /** SEC-201. Empty or unset means the e2e-* hosts answer 404 to everyone. */
+  readonly e2eHostGateSecret?: string;
 }
 
 export const DEFAULT_ADMIN_HOST = 'admin.checklyra.com';
@@ -84,6 +88,7 @@ export function buildDeployContext(env: MiddlewareEnvRaw): DeployContext {
     adminHostEnforced: env.ADMIN_HOST_ENFORCED === 'true',
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    e2eHostGateSecret: env.E2E_HOST_GATE_SECRET || undefined,
   };
 }
 

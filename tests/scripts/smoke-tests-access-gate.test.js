@@ -40,6 +40,7 @@ done
 case "$URL" in
   https://stage.checklyra.com*|https://dev.checklyra.com*) CODE="$FAKE_CODE"; LOC="\${FAKE_LOCATION:-}" ;;
   https://checklyra.com) CODE="\${FAKE_PROD_CODE:-200}"; LOC="" ;;
+  https://e2e-*) CODE="\${FAKE_E2E_CODE:-404}"; LOC="" ;;
   *) CODE=200; LOC="" ;;
 esac
 if [ -n "$FMT" ]; then
@@ -129,6 +130,40 @@ describe('production landing-page check (BUGS-134)', () => {
 
   test.each([500, 404, '000'])('%s FAILS', (code) => {
     const r = landing(code);
+    expect(r.line).toContain('✗');
+    expect(r.status).toBe(1);
+  });
+});
+
+describe.each([
+  ['staging', 'Staging E2E alias'],
+  ['dev', 'Dev E2E alias'],
+])('%s grey-cloud E2E alias check (SEC-201)', (env, label) => {
+  const ACCESS_OK = `${ACCESS_LOGIN}/${env === 'dev' ? 'dev' : 'stage'}.checklyra.com?kid=x`;
+  const alias = (e2eCode) => {
+    const r = spawnSync('bash', [SCRIPT, env], {
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH}`,
+        FAKE_CODE: '302',
+        FAKE_LOCATION: ACCESS_OK,
+        FAKE_E2E_CODE: String(e2eCode),
+        ADMIN_MCP_HEALTHCHECK_ENABLED: '',
+      },
+      encoding: 'utf8',
+    });
+    const line = (r.stdout + r.stderr).split('\n').find((l) => l.includes(label)) || '';
+    return { status: r.status, line };
+  };
+
+  test('404 without the harness secret PASSES', () => {
+    const r = alias(404);
+    expect(r.line).toContain('✓');
+    expect(r.status).toBe(0);
+  });
+
+  test.each([200, 302, 403, '000'])('%s FAILS — only the gate\'s 404 counts', (code) => {
+    const r = alias(code);
     expect(r.line).toContain('✗');
     expect(r.status).toBe(1);
   });
