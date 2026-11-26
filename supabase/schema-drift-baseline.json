@@ -198,6 +198,11 @@
           "line": "function:lyra_slugify",
           "ticket": "KAN-490",
           "note": "Same migration as profile_items_legacy_archive.approved above; same removal condition."
+        },
+        {
+          "line": "function:lyra_id_availability",
+          "ticket": "KAN-496",
+          "note": "CheckLyra ID 'Check availability' (epic KAN-482): migration 20261126181000_kan496_lyra_id_availability.sql, applied on dev only. Remove when it reaches staging/prod through the normal chain."
         }
       ],
       "only_in_second": [
