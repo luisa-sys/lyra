@@ -59,6 +59,19 @@ export const PERSON_KEYED_TABLES = {
   // response. Added 2026-08-09, at the same time as its migration, precisely
   // so it never exists in the schema without a SAR decision attached.
   gift_suggestion_dismissals: 'profile_id',
+  // KAN-489. The AI gift suggestion claim log: one row per paid generation,
+  // holding a timestamp and the random session id of the editor that asked.
+  // Members cannot read it in the app (RLS on, no policies — the abuse limit
+  // must not be inspectable or editable), but it is personal data about them,
+  // so the service-role export returns it. Added with its migration.
+  ai_gift_generations: 'profile_id',
+  // KAN-490. The member's pre-v0.8 profile addresses (old slugs, which hold
+  // their name), kept so old links redirect; and the full archive copy of
+  // their pre-v0.8 list items taken before the v0.8 data migration moved
+  // them. RLS on, no policies; personal data, so the export returns both.
+  // Added with their migration.
+  profile_slug_history: 'profile_id',
+  profile_items_legacy_archive: 'profile_id',
 } as const;
 
 /**
@@ -104,4 +117,11 @@ export const DELIBERATELY_EXCLUDED: Record<string, string> = {
   // REDUNDANT, not withheld — unlike the entries above, nothing here is absent
   // from the response. Art.15 is satisfied by the `profiles` row itself.
   public_profiles: 'SEC-132 — view over profiles; every column already exported via the profiles row',
+
+  // KAN-497: the bare CheckLyra ID of a deleted, once-published account, kept
+  // forever so no one can take it and old links never reach a stranger. It has
+  // no user_id or profile_id: nothing ties it to a person, so there is nothing
+  // to return to a subject, and it is written only AFTER their account is gone.
+  retired_lyra_ids: 'Art.11 — KAN-497 retired IDs of deleted accounts; no link to any person',
+
 };

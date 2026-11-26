@@ -16,6 +16,7 @@
  *   1. Action-level persistence — upsert (not a plain update) + a real DB error
  *      is surfaced (the "Saved" toast reflects persistence, it is not optimistic).
  *   2. The fix — every Manual-of-Me field flushes the pending save on blur.
+ *      (Deleted in KAN-487 part 3 with the autosave editor; see section 2.)
  */
 
 // --- Mocks --------------------------------------------------------------
@@ -54,8 +55,6 @@ jest.mock('@/modules/platform/supabase-server', () => ({
   })),
 }));
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { updateManualOfMe } from '@/app/dashboard/profile/manual-of-me-actions';
 
 beforeEach(() => {
@@ -139,28 +138,12 @@ describe('BUGS-70: updateManualOfMe persistence', () => {
 });
 
 // --- 2. The fix: flush the pending save on blur ------------------------
-
-describe('BUGS-70: Manual-of-Me fields flush the pending autosave on blur', () => {
-  const SECTION = resolve(
-    __dirname,
-    '../../src/app/dashboard/profile/sections/manual-of-me-section.tsx',
-  );
-  const src = readFileSync(SECTION, 'utf-8');
-
-  test('flush is sourced from useAutoSave', () => {
-    expect(src).toMatch(/const\s*\{\s*status,\s*flush\s*\}\s*=\s*useAutoSave/);
-  });
-
-  test('every one of the six Manual-of-Me fields wires onBlur={flush}', () => {
-    // Rendering the hook needs a DOM env the repo's node jest config doesn't
-    // provide (see auto-save-flush.test.ts), so assert the wiring at source —
-    // one onBlur={flush} per MoMField so blurring ANY box flushes the save.
-    const count = (src.match(/onBlur=\{flush\}/g) || []).length;
-    expect(count).toBe(6);
-  });
-
-  test('MoMField forwards its onBlur prop to the underlying <textarea>', () => {
-    expect(src).toMatch(/onBlur\?:\s*\(\)\s*=>\s*void/);
-    expect(src).toMatch(/<textarea[\s\S]*?onBlur=\{onBlur\}/);
-  });
-});
+//
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): "BUGS-70: Manual-of-Me
+// fields flush the pending autosave on blur" stood here (3 tests: flush is
+// sourced from useAutoSave; all six fields wire onBlur={flush}; MoMField
+// forwards onBlur to its <textarea>). It read
+// `sections/manual-of-me-section.tsx`, which is deleted with the autosave
+// editor. The v0.8 editor has no autosave (spec v0.8 §1) — the Manual-of-Me
+// fields save with everything else on Save Draft / Save Changes — so there is
+// no pending save left to flush on blur.

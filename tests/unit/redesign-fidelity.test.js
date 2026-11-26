@@ -5,7 +5,8 @@
  *   A) design tokens (sage/ink/muted retune + new tint tokens) — AA-safe
  *   B) typography — single Inter face mapped to both font variables
  *   D) site-wide footer
- *   E) six support pages (About/Guidelines/Safe/Accessibility/Help/Contact)
+ *   E) support pages (About/Contact; KAN-493 folded Guidelines, Safe and Help
+ *      into About and removed Accessibility)
  *      + Turnstile human-check that activates only when both keys are set
  *   F) Terms 18+
  */
@@ -114,19 +115,12 @@ describe('KAN-272 D: site-wide footer', () => {
     footer = read(SRC.footer);
   });
 
-  test('renders all nine footer links', () => {
-    for (const href of [
-      '/about',
-      '/privacy',
-      '/cookies',
-      '/terms',
-      '/guidelines',
-      '/safe',
-      '/accessibility',
-      '/help',
-      '/contact',
-    ]) {
-      expect(footer).toContain(href);
+  test('renders the four footer links (KAN-493) and none of the removed ones', () => {
+    for (const href of ['/about', '/privacy', '/terms', '/contact']) {
+      expect(footer).toContain(`href: "${href}"`);
+    }
+    for (const href of ['/cookies', '/guidelines', '/safe', '/accessibility', '/help', '/complaints', '/partners']) {
+      expect(footer).not.toContain(`href: "${href}"`);
     }
   });
 
@@ -143,15 +137,24 @@ describe('KAN-272 D: site-wide footer', () => {
   });
 });
 
-describe('KAN-272 E: six support pages', () => {
+describe('KAN-272 E: support pages', () => {
   const pages = {
     about: { file: SRC.aboutPage, h1: 'About Lyra' },
-    guidelines: { file: SRC.guidelinesPage, h1: 'Guidelines' },
-    safe: { file: SRC.safePage, h1: 'Keeping people safe' },
-    accessibility: { file: SRC.accessibilityPage, h1: 'Accessibility' },
-    help: { file: SRC.helpPage, h1: 'Help' },
     contact: { file: SRC.contactPage, h1: 'Contact' },
   };
+
+  // KAN-493: Guidelines, Keeping people safe and Help are sections of About.
+  for (const [id, heading] of [
+    ['guidelines', 'Guidelines'],
+    ['safety', 'How Lyra keeps you safe'],
+    ['help', 'Help'],
+  ]) {
+    test(`about page has the ${heading} section (#${id})`, () => {
+      const c = read(SRC.aboutPage);
+      expect(c).toContain(`id="${id}"`);
+      expect(c).toContain(`>${heading}</h2>`);
+    });
+  }
 
   for (const [name, { file, h1 }] of Object.entries(pages)) {
     test(`${name} page exists with a stable <h1>`, () => {
@@ -169,8 +172,8 @@ describe('KAN-272 E: six support pages', () => {
     expect(c).toContain('🕊️');
   });
 
-  test('help page mirrors the mock-up FAQ copy', () => {
-    const c = read(SRC.helpPage);
+  test('help section (on About) mirrors the mock-up FAQ copy', () => {
+    const c = read(SRC.aboutPage);
     expect(c).toContain('Who can see my profile?');
     expect(c).toContain('Can I write about my friend, or a celebrity?');
   });

@@ -2,10 +2,12 @@
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
+import { type ActionResult } from '@/modules/guards/sanitise';
+import { validateFreeText } from '@/modules/profile/free-text';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
-import { ANSWER_MAX, CUSTOM_PROMPT_MAX } from './conversation-starters-fields';
+import { CUSTOM_PROMPT_MAX, answerLimitFor } from './conversation-starters-fields';
+import { fetchPresetAnswerMax } from '@/modules/profile/question-limits';
 import { dbErrorFor } from '@/modules/profile/db-error-copy';
 
 /**
@@ -17,12 +19,15 @@ import { dbErrorFor } from '@/modules/profile/db-error-copy';
  *  2. **Own profile only.** Each action joins `profiles` on
  *     `user_id = auth.uid()`. RLS enforces the same at the DB layer
  *     but the application checks too so error messages are useful.
- *  3. **Answer sanitised + length-capped.** `sanitiseText` strips HTML;
- *     length cap mirrors the DB CHECK (≤500 chars). Empty / whitespace-
- *     only answers rejected client- and server-side.
+ *  3. **Answer validated.** `validateFreeText` (KAN-486) strips HTML, keeps
+ *     line breaks, refuses contact details, and REJECTS an answer over the
+ *     preset's own `answer_max` (KAN-484, v0.8 §09) — or 500 for a
+ *     member-written question — mirroring the DB trigger
+ *     `enforce_pcs_answer_max()`. Empty / whitespace-only answers rejected
+ *     client- and server-side.
  *
- * The answer cap is enforced by the DB trigger `pcs_cap`; we surface
- * it as a user-facing error instead of a raw Postgres exception.
+ * KAN-484 removed the total-answer cap (`pcs_cap`); the custom-question cap
+ * (10) is enforced by `pcs_custom_cap` and surfaced as friendly copy.
  *
  * KAN-445 — a row is now EITHER a seeded prompt (`prompt_id`) OR a question
  * the member wrote themselves (`custom_prompt`), never both and never
@@ -30,7 +35,7 @@ import { dbErrorFor } from '@/modules/profile/db-error-copy';
  * actions enforce it first so the member gets a sentence rather than a 23514.
  *
  * A member-written question renders on the PUBLIC profile exactly like a
- * seeded one, so it goes through the same `sanitiseText` + `moderateAndAudit`
+ * seeded one, so it goes through the same `validateFreeText` + `moderateAndAudit`
  * pipeline as the answer. Sanitising only the answer would leave the question
  * as an unmoderated public text field.
  *
@@ -79,11 +84,23 @@ async function getAuthedRequest(): Promise<AuthedRequest | { error: string }> {
  * shape that BUGS-74 and the eight suspension-guard tickets all share.
  */
 function cleanCustomPrompt(raw: string): { text: string } | { error: string } {
-  const cleaned = sanitiseText(raw ?? '').slice(0, CUSTOM_PROMPT_MAX);
-  if (cleaned.trim().length === 0) {
-    return { error: 'Your question cannot be empty' };
-  }
-  return { text: cleaned };
+  // KAN-486 — v0.8 §09: ≤ 180, rejected rather than cut; contact filter.
+  const checked = validateFreeText(raw, { label: 'Your question', max: CUSTOM_PROMPT_MAX });
+  if (!checked.ok) return { error: checked.error };
+  if (checked.value === null) return { error: 'Your question cannot be empty' };
+  return { text: checked.value };
+}
+
+/**
+ * KAN-486 — an answer keeps its line breaks, must fit the question's own limit
+ * (rejected rather than cut) and may not carry contact details. Shared by the
+ * add and update paths.
+ */
+function checkAnswer(raw: string | undefined, limit: number): { text: string } | { error: string } {
+  const checked = validateFreeText(raw, { label: 'Your answer', max: limit, multiline: true });
+  if (!checked.ok) return { error: checked.error };
+  if (checked.value === null) return { error: 'Answer cannot be empty' };
+  return { text: checked.value };
 }
 
 export async function addConversationStarter(input: {
@@ -120,10 +137,20 @@ export async function addConversationStarter(input: {
     customPrompt = res.text;
   }
 
-  const cleaned = sanitiseText(input.answer ?? '').slice(0, ANSWER_MAX);
-  if (cleaned.trim().length === 0) {
-    return { success: false, error: 'Answer cannot be empty' };
+  // KAN-484 — each preset carries its own answer limit (v0.8 §09); a
+  // member-written question's answer is capped at CUSTOM_ANSWER_MAX.
+  let limit = answerLimitFor(null, true);
+  if (hasPromptId) {
+    const preset = await fetchPresetAnswerMax(supabase, input.promptId as string);
+    if (!preset.found) {
+      return { success: false, error: 'That question is no longer available' };
+    }
+    limit = answerLimitFor(preset.answerMax, false);
   }
+
+  const answerCheck = checkAnswer(input.answer, limit);
+  if ('error' in answerCheck) return { success: false, error: answerCheck.error };
+  const cleaned = answerCheck.text;
 
   // KAN-241 + KAN-244 — content moderation + audit log. A member-written
   // question is public text too, so it is moderated alongside the answer.
@@ -164,6 +191,7 @@ export async function updateConversationStarter(
   id: string,
   answer: string,
   customPrompt?: string,
+  promptId?: string | null,
 ): Promise<ActionResult> {
   const authed = await getAuthedRequest();
   if ('error' in authed) return { success: false, error: authed.error };
@@ -184,10 +212,22 @@ export async function updateConversationStarter(
     cleanedPrompt = res.text;
   }
 
-  const cleaned = sanitiseText(answer ?? '').slice(0, ANSWER_MAX);
-  if (cleaned.trim().length === 0) {
-    return { success: false, error: 'Answer cannot be empty' };
+  // KAN-484 — the preset's own limit when the caller names the preset; a
+  // member-written question (no promptId) uses CUSTOM_ANSWER_MAX. The DB
+  // trigger enforces the true limit either way, so a wrong promptId from the
+  // client can only make this courtesy cap stricter or looser, never bypass
+  // the database. The limit is read from the prompts table, NOT a pre-read of
+  // profile_conversation_starters, so the ownership filter on the UPDATE
+  // stays the only `.eq('profile_id', …)` on that table (pooled-eq hazard).
+  let limit = answerLimitFor(null, true);
+  if (typeof promptId === 'string' && /^[0-9a-f-]{36}$/i.test(promptId)) {
+    const preset = await fetchPresetAnswerMax(supabase, promptId);
+    if (preset.found) limit = answerLimitFor(preset.answerMax, false);
   }
+
+  const answerCheck = checkAnswer(answer, limit);
+  if ('error' in answerCheck) return { success: false, error: answerCheck.error };
+  const cleaned = answerCheck.text;
 
   // KAN-241 + KAN-244 — content moderation + audit, same as the add path.
   const mod = await moderateAndAudit(supabase, {

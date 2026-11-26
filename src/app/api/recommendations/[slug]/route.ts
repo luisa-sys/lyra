@@ -26,10 +26,14 @@
  *   }
  *
  * Returns 404 if the slug doesn't match a published profile.
+ *
+ * KAN-488: OFF (404 for every slug) unless LYRA_PUBLIC_RECOMMENDATIONS_API=1.
+ * Spec v0.8 forbids publishing unapproved suggestions in unauthenticated APIs.
  */
 
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/modules/platform/supabase-service';
+import { env } from '@/modules/platform/env';
 import { getRecommendations, getProfileInsights } from '@/modules/recommendations/recommend';
 
 interface ProfileRow {
@@ -55,6 +59,14 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
+  // KAN-488: these suggestions were never approved by the member, and spec
+  // v0.8 forbids unapproved suggestions in unauthenticated APIs. Off unless
+  // LYRA_PUBLIC_RECOMMENDATIONS_API=1; checked before any database read so a
+  // gated request learns nothing, not even whether the slug exists.
+  if (!env.publicRecommendationsApiEnabled()) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+
   const { slug } = await context.params;
   const url = new URL(request.url);
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? '8') || 8, 1), 30);
@@ -82,7 +94,9 @@ export async function GET(
     .from('profile_items')
     .select('category, title, description')
     .eq('profile_id', profile.id)
-    .eq('visibility', 'public');
+    .eq('visibility', 'public')
+    // KAN-488: an unapproved AI gift suggestion is never public (spec v0.8 §3).
+    .eq('approved', true);
 
   if (itemsError) {
     return NextResponse.json({ error: 'items_lookup_failed' }, { status: 500 });

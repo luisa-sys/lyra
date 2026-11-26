@@ -68,7 +68,7 @@ Confluence API access in CI and is tracked as a follow-up leg on KAN-363 — see
 | `docs/DISASTER_RECOVERY.md` | wiki | Disaster Recovery & Backup/Restore Runbook (27131914) | Backup layers, restore/recovery test plan, compromise recovery (SEC-5/SEC-23). |
 | `docs/OPS_ROUTINES_CONTROL_ROOM.md` | wiki | Ops Routines Control Room (34275370) | Routine index, heartbeat contract, one-concern-one-owner map (KAN-362). |
 | `docs/PROJECT_INSTRUCTIONS.md` | Claude Project `lyra.md` | — | Lyra Project knowledge instructions Claude reads each chat. |
-| `docs/DESIGN_CHANGE_WORKFLOW.md` | lyra-design-system repo, BUILD-LOOP.md | — | Design-change loop: the two Claude Design projects, the ticket state machine, gates G0–G5 (KAN-441). |
+| `docs/DESIGN_CHANGE_WORKFLOW.md` | lyra-design-system repo, BUILD-LOOP.md (+ CLAUDE.md handoff) | — | Design-change loop: where the design system lives (git, published to two Claude artifacts since 2026-11-22), the ticket state machine, gates G0–G6 (KAN-441). |
 | `docs/compliance/DPIA.md` | repo | (retires Confluence drafts 27000875 / 27033667) | Data Protection Impact Assessment (SEC-70). |
 | `docs/compliance/ROPA.md` | repo | — | Record of Processing Activities (Art. 30). |
 | `docs/compliance/SUBPROCESSORS.md` | repo | — | Sub-processor register + DPAs/TRAs. |

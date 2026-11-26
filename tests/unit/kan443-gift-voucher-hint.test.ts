@@ -79,6 +79,7 @@ import { giftVoucherHintPayload } from '@/modules/profile/profile-fields';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
 
 beforeEach(() => {
   mockUpdateCapture.mockClear();
@@ -221,32 +222,39 @@ describe('updateProfileFields — the voucher hint is treated as public text', (
 // exactly that wiring; comments are stripped so none can satisfy them (KAN-459).
 describe('KAN-443: the gift surfaces are wired to the guarded helpers', () => {
   const ROOT = resolve(__dirname, '../..');
-  const stripComments = (src: string): string =>
-    src
-      .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, ' ')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const read = (rel: string) => stripComments(readFileSync(resolve(ROOT, rel), 'utf-8'));
 
-  const section = read(`${SRC.profile}/sections/gift-extras-section.tsx`);
   const editor = read(SRC.editProfileForm);
-  const itemsStep = read(SRC.itemsStep);
   const publicPage = read(SRC.slugPage);
 
-  // The whole point of giftVoucherHintPayload is that the key never reaches a
-  // payload when there is nothing to write. Bypassing it reintroduces PGRST204.
-  test('the voucher hint is written through giftVoucherHintPayload, never a raw object', () => {
-    expect(section).toContain('giftVoucherHintPayload(');
-    expect(section).not.toMatch(/\{\s*gift_voucher_hint\s*:\s*value\s*\}/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): a test stood here —
+  // "the voucher hint is written through giftVoucherHintPayload, never a raw
+  // object" — reading `sections/gift-extras-section.tsx`, the only call site
+  // of that PGRST204 guard. The section is deleted with the autosave editor:
+  // the v0.8 editor writes the hint through the `save_profile` RPC (an RPC
+  // argument, not a PostgREST column list, so PGRST204 cannot arise there).
+  // `giftVoucherHintPayload` itself keeps its behavioural tests above.
 
+  // KAN-487 (spec v0.8 §1 "compact list summaries", §03): the live editor's
+  // gifts are §03's compact summary rows, not an ItemsStep with a row layout.
+  // Old expected values:
+  //   expect(editor).toMatch(/rowLayout:\s*'inline'/)
+  //   expect(editor).toMatch(/rowLayout=\{s\.rowLayout\}/)
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): ItemsStep is deleted,
+  // so the assertion that it kept its inline layout is removed. Was:
+  //   expect(itemsStep).toMatch(/rowLayout\s*===\s*'inline'/)
   test('the gifts section renders one-line rows, not the old stacked label', () => {
-    expect(editor).toMatch(/rowLayout:\s*'inline'/);
-    expect(editor).toMatch(/rowLayout=\{s\.rowLayout\}/);
-    expect(itemsStep).toMatch(/rowLayout\s*===\s*'inline'/);
+    expect(editor).not.toMatch(/rowLayout/);
+    expect(editor).toContain('<SectionGifts');
   });
 
   test('the public profile still renders the gift list', () => {
-    expect(publicPage).toContain('<GiftLines');
+    // KAN-488: the page renders the v0.8 view model through the public-profile
+    // module's section renderer, which draws the member's gifts. The rendered
+    // gift list is asserted behaviourally in kan488-public-profile-page.test.tsx.
+    // Was: expect(publicPage).toContain('<GiftLines');
+    expect(publicPage).toContain('<PublicProfileSections');
+    expect(read(SRC.publicProfileSections)).toContain('<EntryList entries={section.userGifts} />');
   });
 });

@@ -25,6 +25,8 @@
  * Kept as a pure, env-injectable function so it is unit-testable without
  * rendering the server component.
  */
+import { env } from '@/modules/platform/env';
+
 export type MonitoringIntegration = {
   name: string;
   href: string;
@@ -56,5 +58,26 @@ export function getMonitoringIntegrations(
     },
     // Our own public status page — not a "configurable" integration; link only.
     { name: 'Public status page', href: 'https://checklyra.com/status' },
+  ];
+}
+
+/**
+ * KAN-489: the AI provider behind §03 gift suggestions. "Configured" means
+ * members can actually use it in THIS deployment: ANTHROPIC_API_KEY is set
+ * AND the LYRA_AI_GIFTS_ENABLED switch is '1' (`env.aiGiftsConfigured()`, the
+ * same predicate the editor and the server action use). Only that boolean is
+ * passed in, so the key's value cannot be rendered or logged from here, and
+ * process.env is read only through env.ts (CTL-037).
+ *
+ * A separate list (appended by the page) so the SEC-96 monitoring list and its
+ * pinned order stay exactly as they were.
+ */
+export function getAiIntegrations(configured: boolean = env.aiGiftsConfigured()): MonitoringIntegration[] {
+  return [
+    {
+      name: 'Anthropic (AI gift suggestions)',
+      href: 'https://console.anthropic.com',
+      configured,
+    },
   ];
 }

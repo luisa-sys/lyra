@@ -25,9 +25,13 @@
  *     moving one here would drag `uiApprovalGated: always` into a module whose
  *     whole purpose is to be safely depended upon.
  *
- * `steps/types.tsx` re-exports these so the 14 existing editor imports keep
- * working unchanged — this commit moves the boundary, it does not rewrite the
- * wizard. New code should import from here directly.
+ * KAN-487 part 3 (2026-11-23): the legacy wizard (`steps/`, `sections/`,
+ * `wizard.tsx`, `/dashboard/profile/legacy`) is deleted, and with it the
+ * `steps/types.tsx` re-export shim and the `Field` / `SaveButton` components.
+ * `actions.ts` now imports `WizardItem` from here directly. The `Wizard*`
+ * names are kept as they are: they are the historical names of the domain
+ * shapes, several are pinned field-by-field by tests, and renaming the set is
+ * a separate change.
  */
 export interface WizardProfile {
   id: string;
@@ -96,7 +100,7 @@ export interface WizardLink {
   description: string | null;
 }
 
-// KAN-142: profile_files row, shaped for the wizard FilesStep.
+// KAN-142: profile_files row (once shaped for the deleted wizard's FilesStep).
 export interface WizardFile {
   id: string;
   storage_path: string;
@@ -112,6 +116,9 @@ export interface ConversationPrompt {
   id: string;
   prompt: string;
   sort_order: number;
+  /** KAN-484 — this question's own answer limit (v0.8 §09). Absent on a
+   *  database that predates 20261122120000, where the default (500) applies. */
+  answer_max?: number | null;
 }
 
 export interface ConversationAnswer {
@@ -122,5 +129,8 @@ export interface ConversationAnswer {
   prompt: string; // the seeded prompt joined for display, or the member's own
   /** The member's own question text; null for a seeded prompt. */
   custom_prompt: string | null;
+  /** KAN-484 — the joined preset's answer limit; null for a member-written
+   *  question (CUSTOM_ANSWER_MAX applies) or a pre-migration database. */
+  answer_max?: number | null;
 }
 

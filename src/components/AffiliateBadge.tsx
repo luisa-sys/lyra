@@ -64,10 +64,10 @@ export default function AffiliateBadge({
     >
       {label}
       <Link
-        href="/partners"
+        href="/privacy#affiliate-partners"
         rel="noopener"
         className="text-[var(--color-lyra-sage,#5a7a5e)] hover:underline focus:underline outline-none focus:ring-1 focus:ring-[var(--color-lyra-sage,#5a7a5e)] rounded"
-        aria-label="What this means — affiliate partners page"
+        aria-label="What this means — affiliate partners section of the Privacy Policy"
       >
         ?
       </Link>

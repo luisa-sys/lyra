@@ -1,6 +1,9 @@
 /**
  * KAN-444 — favourites as five fixed groups plus add-your-own.
  * KAN-458 — causes as its own section (regression guard).
+ * KAN-487 — spec v0.8 §06 regrouping: Quotes · Movies / Theatre / TV · Books ·
+ *   Places · Others. Assertions the v0.8 groups directly contradict were
+ *   updated in place, each with its old expected value in a comment beside it.
  *
  * WHAT THIS SUITE IS FOR
  * ----------------------
@@ -50,16 +53,19 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
+import { stripComments } from '../support/strip-comments';
+import { LIST_CATEGORIES, LIST_KEYS, listKeyForCategory } from '@/modules/profile/editor/editor-state';
+import { NO_URL_CATEGORIES } from '@/modules/profile/editor/validate-save-payload';
 
 import {
   FAVOURITE_GROUPS,
   FAVOURITE_CATEGORIES,
   FAVOURITE_CATEGORY_OPTIONS,
   CUSTOM_FAVOURITE_CATEGORY,
-  CUSTOM_FAVOURITE_FALLBACK_LABEL,
   groupFavourites,
   favouriteLabelForItem,
   isFavouriteCategory,
+  legacyGroupLabel,
   primaryCategory,
 } from '@/modules/profile/favourites';
 
@@ -72,10 +78,6 @@ const ROOT = resolve(__dirname, '../..');
  * and once in the comment explaining the query — so deleting the query left
  * the scan matching the comment.
  */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
 function readSource(relPath: string): string {
   return stripComments(readFileSync(resolve(ROOT, relPath), 'utf-8'));
 }
@@ -96,13 +98,16 @@ function item(category: string, title: string, groupLabel?: string | null): Row 
 // ───────────── The five fixed groups ─────────────
 
 describe('KAN-444: five fixed favourites groups', () => {
-  test('are exactly Books · Movies, plays & TV · Quotes · Music · Places, in that order', () => {
+  // KAN-487 (spec v0.8 §06). Old expected value:
+  //   ['Books', 'Movies, plays & TV', 'Quotes', 'Music', 'Places']
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('are exactly Quotes · Movies / Theatre / TV · Books · Places · Others, in that order', () => {
     expect(FAVOURITE_GROUPS.map((g) => g.label)).toEqual([
-      'Books',
-      'Movies, plays & TV',
       'Quotes',
-      'Music',
+      'Movies / Theatre / TV',
+      'Books',
       'Places',
+      'Others',
     ]);
   });
 
@@ -115,7 +120,8 @@ describe('KAN-444: five fixed favourites groups', () => {
 
     // One card, not three — and every one of the three items inside it.
     expect(cards).toHaveLength(1);
-    expect(cards[0].label).toBe('Movies, plays & TV');
+    // Old expected value: 'Movies, plays & TV' (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(cards[0].label).toBe('Movies / Theatre / TV');
     expect(cards[0].items.map((i) => i.title)).toEqual(['Amélie', 'Hamlet', 'Detectorists']);
   });
 
@@ -153,6 +159,9 @@ describe('KAN-444: five fixed favourites groups', () => {
 // member's items in it VANISH from the editor — invisible, un-editable,
 // un-deletable — while still rendering on their public profile.
 describe('KAN-444: the favourites category list is pinned', () => {
+  // Old expected value: the same list WITHOUT 'favourite_venues' (8 categories).
+  // v0.8 §06 Places covers "countries, venues, restaurants", so
+  // favourite_venues joins it (9 categories). (founder standing approval 2026-11-23: v0.8 contradicts)
   test('FAVOURITE_CATEGORIES is exactly the expected set', () => {
     expect([...FAVOURITE_CATEGORIES].sort()).toEqual([
       'favourite_books',
@@ -161,24 +170,58 @@ describe('KAN-444: the favourites category list is pinned', () => {
       'favourite_music',
       'favourite_places',
       'favourite_tv',
+      'favourite_venues',
       'plays',
       'quotes',
     ]);
   });
 
-  // Every category belongs to exactly one FIXED group — except the custom one,
-  // which is deliberately outside FAVOURITE_GROUPS because it renders as
-  // member-named cards rather than a fixed heading. Pinning that asymmetry
-  // stops a category being silently claimed twice (it would render in two
-  // cards) or by none (it would render nowhere while still being editable).
+  // Every category belongs to exactly one fixed group, so it can neither
+  // render in two cards nor in none.
+  // Old expected value: owners === 0 for favourite_custom (it rendered as
+  // member-named cards outside FAVOURITE_GROUPS), 1 for every other category.
+  // v0.8 has no named groups: Others owns favourite_custom, so every category
+  // now has exactly one owner. (founder standing approval 2026-11-23: v0.8 contradicts)
   test('every pinned category is claimed by exactly one fixed group', () => {
     for (const category of FAVOURITE_CATEGORIES) {
       const owners = FAVOURITE_GROUPS.filter((g) => g.categories.includes(category));
-      expect({ category, owners: owners.length }).toEqual({
-        category,
-        owners: category === CUSTOM_FAVOURITE_CATEGORY ? 0 : 1,
-      });
+      expect({ category, owners: owners.length }).toEqual({ category, owners: 1 });
     }
+  });
+
+  // New in v0.8: Others owns favourite_custom + favourite_music (old: custom had
+  // no owner and Music was its own group); Places owns favourite_venues (old:
+  // not a favourites category). (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('Others owns favourite_custom + favourite_music; Places owns favourite_places + favourite_venues', () => {
+    const owner = (category: string) =>
+      FAVOURITE_GROUPS.find((g) => g.categories.includes(category))?.label;
+    expect(owner('favourite_custom')).toBe('Others');
+    expect(owner('favourite_music')).toBe('Others');
+    expect(owner('favourite_places')).toBe('Places');
+    expect(owner('favourite_venues')).toBe('Places');
+
+    const cards = groupFavourites([
+      item('favourite_music', 'Nina Simone'),
+      item('favourite_venues', 'The Barbican'),
+      item(CUSTOM_FAVOURITE_CATEGORY, 'Wingspan'),
+      item('favourite_places', 'Lisbon'),
+    ]);
+    expect(cards.map((c) => [c.label, c.items.map((i) => i.title)])).toEqual([
+      ['Places', ['The Barbican', 'Lisbon']],
+      ['Others', ['Nina Simone', 'Wingspan']],
+    ]);
+  });
+
+  // New entries are written under each group's FIRST category (spec v0.8 §06
+  // write mapping; plan §C row 06).
+  test('primary (write) categories are quotes, favourite_media, favourite_books, favourite_places, favourite_custom', () => {
+    expect(FAVOURITE_GROUPS.map(primaryCategory)).toEqual([
+      'quotes',
+      'favourite_media',
+      'favourite_books',
+      'favourite_places',
+      'favourite_custom',
+    ]);
   });
 });
 
@@ -196,30 +239,36 @@ describe('KAN-444: the favourites category list is pinned', () => {
 describe('KAN-444: the editor is wired to the shared grouping', () => {
   // Via the manifest, not raw literals — raw paths feed the KAN-414 F4
   // shrink-only ratchet, and a path that moves must move in one place.
-  const itemsStep = readSource(SRC.itemsStep);
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): four tests stood
+  // here, all reading `steps/items-step.tsx`, which is deleted with the legacy
+  // wizard: "the group-name input is gated only on needsGroupLabel", "a group
+  // name is required before a custom item can be added", "the picker prefers
+  // the shared group options over raw categories" and "row labels go through
+  // labelForItem, so the editor names match the public cards". v0.8 §06 has
+  // five fixed sub-lists — no group picker, no member-named groups — so none
+  // of these has a live counterpart; the §06 wiring is pinned below.
   const editor = readSource(SRC.editProfileForm);
 
-  test('the group-name input is gated only on needsGroupLabel', () => {
-    expect(itemsStep).toMatch(/\{\s*needsGroupLabel\s*&&\s*\(/);
-    expect(itemsStep).not.toMatch(/\{\s*false\s*&&\s*needsGroupLabel/);
-  });
-
-  test('a group name is required before a custom item can be added', () => {
-    expect(itemsStep).toMatch(/canAdd[\s\S]{0,120}needsGroupLabel[\s\S]{0,60}groupLabel\.trim\(\)\s*!==\s*''/);
-  });
-
-  test('the picker prefers the shared group options over raw categories', () => {
-    expect(itemsStep).toMatch(/pickerOptions\s*=\s*categoryOptions\s*\?\?/);
-  });
-
-  test('row labels go through labelForItem, so the editor names match the public cards', () => {
-    expect(itemsStep).toContain('labelForItem?.(item)');
-  });
-
+  // KAN-487 (spec v0.8 §06: five fixed sub-lists, no group picker, no
+  // member-named groups). Old expected values:
+  //   editor contains 'categoryOptions: FAVOURITE_CATEGORY_OPTIONS'
+  //   editor contains 'labelForItem: favouriteLabelForItem'
+  //   editor matches /categoryOptions=\{s\.categoryOptions\}/
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // New: the editor renders the §06 section, and its five sub-lists write
+  // under the same five groups, in the same order, as the public grouping.
   test('the favourites section passes both the group options and the label fn', () => {
-    expect(editor).toContain('categoryOptions: FAVOURITE_CATEGORY_OPTIONS');
-    expect(editor).toContain('labelForItem: favouriteLabelForItem');
-    expect(editor).toMatch(/categoryOptions=\{s\.categoryOptions\}/);
+    expect(editor).toMatch(/id:\s*'favourites'/);
+    expect(editor).toContain('<SectionFavourites');
+    const favLists = LIST_KEYS.filter((k) => k.startsWith('fav_'));
+    expect(favLists).toEqual(['fav_quotes', 'fav_screen', 'fav_books', 'fav_places', 'fav_others']);
+    expect(favLists.map((k) => LIST_CATEGORIES[k].newCategory)).toEqual([
+      'quotes',
+      'favourite_media',
+      'favourite_books',
+      'favourite_places',
+      'favourite_custom',
+    ]);
   });
 });
 
@@ -250,20 +299,35 @@ describe('KAN-458: causes is its own section, never a favourites group', () => {
     expect(FAVOURITE_CATEGORY_OPTIONS.map((o) => o.value)).not.toContain('causes');
   });
 
-  test('causes is its own editor section, with name + note + link fields', () => {
+  // KAN-487 (spec v0.8 §01): "Causes close to my heart" is a list inside
+  // 01 About Me, title only (250), no link. Old expected values:
+  //   editor matches /id:\s*'causes'[\s\S]{0,400}?categories:\s*\['causes'\]/
+  //   editor contains 'Causes close to my heart'
+  //   editor matches /kind:\s*'items'/  (name + note + link ItemsStep rows)
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // New: still its own list (never a favourites group), now in §01, link refused.
+  test('causes is its own list in About Me, title only, with no link', () => {
     const editor = readSource(SRC.editProfileForm);
-    // A standalone SECTIONS entry keyed 'causes' whose only category is 'causes'.
-    expect(editor).toMatch(/id:\s*'causes'[\s\S]{0,400}?categories:\s*\['causes'\]/);
-    expect(editor).toContain('Causes close to my heart');
-    // Its rows are ItemsStep rows, which is where title / description / url
-    // (name / note / link) come from.
-    expect(editor).toMatch(/kind:\s*'items'/);
+    expect(editor).toMatch(/id:\s*'about'/);
+    expect(editor).toContain('<SectionAbout');
+    expect(LIST_CATEGORIES.causes).toEqual({ categories: ['causes'], newCategory: 'causes' });
+    expect(NO_URL_CATEGORIES.has('causes')).toBe(true);
   });
 
   test('causes renders under its own heading on the public profile', () => {
-    const page = readSource(SRC.slugPage);
-    expect(page).toContain("groupedItems['causes']");
-    expect(page).toContain('Causes close to my heart');
+    // KAN-488: the public page renders the v0.8 view model, where causes is
+    // About Me's own list (never a favourites group), drawn by the section
+    // renderer under its own heading. Behaviour asserted in
+    // kan488-public-profile-page.test.tsx. Old expected values:
+    //   expect(readSource(SRC.slugPage)).toContain("groupedItems['causes']");
+    //   expect(readSource(SRC.slugPage)).toContain('Causes close to my heart');
+    expect(readSource(SRC.publicViewModel)).toContain("causes: titles(state, 'causes')");
+    const sections = readSource(SRC.publicProfileSections);
+    expect(sections).toContain('Causes close to my heart');
+    // Calm layout (founder design, 2026-11-23): causes render as quiet sage
+    // tags under their own label. Old expected value:
+    //   expect(sections).toContain('<TitleList titles={section.causes} />');
+    expect(sections).toContain('<Chips titles={section.causes} />');
   });
 });
 
@@ -314,13 +378,18 @@ describe('KAN-444: the editor and the public profile group identically', () => {
   });
 });
 
-// ───────────── Add your own ─────────────
+// ───────────── Legacy member-named groups (was: Add your own) ─────────────
 
-describe('KAN-444: add-your-own — a group the member names', () => {
-  test('a named group becomes a card carrying the member’s own words', () => {
+// KAN-487 / spec v0.8 §06: there is no "Add your own" named group any more.
+// Legacy favourite_custom rows with a group_label render under Others; the
+// label survives only as a muted tag in the editor (legacyGroupLabel).
+describe('KAN-444 → v0.8: legacy member-named groups render under Others', () => {
+  // Old expected value: card label 'Board games' (the member's own words).
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('a legacy named group renders under Others', () => {
     const cards = groupFavourites([item(CUSTOM_FAVOURITE_CATEGORY, 'Wingspan', 'Board games')]);
     expect(cards).toHaveLength(1);
-    expect(cards[0].label).toBe('Board games');
+    expect(cards[0].label).toBe('Others');
     expect(cards[0].items.map((i) => i.title)).toEqual(['Wingspan']);
   });
 
@@ -333,22 +402,25 @@ describe('KAN-444: add-your-own — a group the member names', () => {
     expect(cards[0].items.map((i) => i.title)).toEqual(['Wingspan', 'Azul']);
   });
 
-  test('two different names stay two groups, in the order first used', () => {
+  // Old expected value: two cards ['Board games', 'Baking'], first holding
+  // ['Wingspan', 'Azul']. (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('different legacy names collapse into one Others card, in input order', () => {
     const cards = groupFavourites([
       item(CUSTOM_FAVOURITE_CATEGORY, 'Wingspan', 'Board games'),
       item(CUSTOM_FAVOURITE_CATEGORY, 'Sourdough', 'Baking'),
       item(CUSTOM_FAVOURITE_CATEGORY, 'Azul', 'Board games'),
     ]);
-    expect(cards.map((c) => c.label)).toEqual(['Board games', 'Baking']);
-    expect(cards[0].items.map((i) => i.title)).toEqual(['Wingspan', 'Azul']);
+    expect(cards.map((c) => c.label)).toEqual(['Others']);
+    expect(cards[0].items.map((i) => i.title)).toEqual(['Wingspan', 'Sourdough', 'Azul']);
   });
 
-  test('custom groups come after the five fixed ones', () => {
+  // Old expected value: ['Books', 'Board games']. (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('Others comes after the other fixed groups', () => {
     const cards = groupFavourites([
       item(CUSTOM_FAVOURITE_CATEGORY, 'Wingspan', 'Board games'),
       item('favourite_books', 'Piranesi'),
     ]);
-    expect(cards.map((c) => c.label)).toEqual(['Books', 'Board games']);
+    expect(cards.map((c) => c.label)).toEqual(['Books', 'Others']);
   });
 
   test('a missing or blank name still gets a heading, never an unlabelled card', () => {
@@ -359,15 +431,30 @@ describe('KAN-444: add-your-own — a group the member names', () => {
       item(CUSTOM_FAVOURITE_CATEGORY, 'Carcassonne', null),
     ]);
     expect(cards).toHaveLength(1);
-    expect(cards[0].label).toBe(CUSTOM_FAVOURITE_FALLBACK_LABEL);
-    expect(cards[0].label.trim()).not.toBe('');
+    // Old expected value: CUSTOM_FAVOURITE_FALLBACK_LABEL ('A few more
+    // favourites'), an export v0.8 removes. (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(cards[0].label).toBe('Others');
     expect(cards[0].items).toHaveLength(3);
   });
 
-  test('"Add your own" is offered last in the editor, after the five groups', () => {
-    const values = FAVOURITE_CATEGORY_OPTIONS.map((o) => o.value);
-    expect(values[values.length - 1]).toBe(CUSTOM_FAVOURITE_CATEGORY);
-    expect(FAVOURITE_CATEGORY_OPTIONS[FAVOURITE_CATEGORY_OPTIONS.length - 1].label).toBe('Add your own');
+  // Old expected value: last option {value: 'favourite_custom', label: 'Add your own'}.
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  test('Others (favourite_custom) is offered last in the editor, after the four other groups', () => {
+    expect(FAVOURITE_CATEGORY_OPTIONS).toEqual([
+      { value: 'quotes', label: 'Quotes' },
+      { value: 'favourite_media', label: 'Movies / Theatre / TV' },
+      { value: 'favourite_books', label: 'Books' },
+      { value: 'favourite_places', label: 'Places' },
+      { value: 'favourite_custom', label: 'Others' },
+    ]);
+  });
+
+  test('legacyGroupLabel returns the trimmed legacy name, only for favourite_custom rows', () => {
+    expect(legacyGroupLabel(item(CUSTOM_FAVOURITE_CATEGORY, 'Wingspan', '  Board games '))).toBe('Board games');
+    expect(legacyGroupLabel(item(CUSTOM_FAVOURITE_CATEGORY, 'Azul', '   '))).toBeNull();
+    expect(legacyGroupLabel(item(CUSTOM_FAVOURITE_CATEGORY, 'Azul', null))).toBeNull();
+    expect(legacyGroupLabel(item(CUSTOM_FAVOURITE_CATEGORY, 'Azul'))).toBeNull();
+    expect(legacyGroupLabel(item('favourite_music', 'Nina Simone', 'Jazz'))).toBeNull();
   });
 });
 
@@ -376,8 +463,12 @@ describe('KAN-444: add-your-own — a group the member names', () => {
 describe('KAN-444: both surfaces render from the shared grouping', () => {
   test('the public profile groups via groupFavourites and keeps no list of its own', () => {
     const page = readSource(SRC.slugPage);
-    expect(page).toContain("from '@/modules/profile/favourites'");
-    expect(page).toContain('groupFavourites(typedItems)');
+    // KAN-488: the public page now renders through the v0.8 view model (the
+    // editor's Preview draws the same one), not groupFavourites. Old values:
+    //   expect(page).toContain("from '@/modules/profile/favourites'");
+    //   expect(page).toContain('groupFavourites(typedItems)');
+    expect(page).toContain("from '@/modules/profile/editor/public-view-model'");
+    expect(page).toContain("buildPublicProfileView(initialEditorState(loaded), { audience: 'public' })");
     // The old per-surface table is gone; if a future change re-hardcodes the
     // categories here, the two surfaces can drift again.
     expect(page).not.toContain('FAV_DEFS');
@@ -385,18 +476,35 @@ describe('KAN-444: both surfaces render from the shared grouping', () => {
     expect(page).not.toContain("'favourite_music'");
   });
 
+  // KAN-487 (spec v0.8 §06: the editor's five fixed sub-lists replace the
+  // picker). Old expected values:
+  //   editor contains '@/modules/profile/favourites'
+  //   editor matches /id:\s*'favourites'[\s\S]{0,500}?categories:\s*FAVOURITE_CATEGORIES/
+  //   editor matches /categoryOptions:\s*FAVOURITE_CATEGORY_OPTIONS/
+  //   editor matches /groupLabelCategory:\s*CUSTOM_FAVOURITE_CATEGORY/
+  // (founder standing approval 2026-11-23: v0.8 contradicts)
+  // New: every category the public grouping renders is shown in exactly one
+  // editor sub-list, so no favourite is ever un-editable.
   test('the editor favourites section takes its categories and picker from the module', () => {
     const editor = readSource(SRC.editProfileForm);
-    expect(editor).toContain('@/modules/profile/favourites');
-    expect(editor).toMatch(/id:\s*'favourites'[\s\S]{0,500}?categories:\s*FAVOURITE_CATEGORIES/);
-    expect(editor).toMatch(/categoryOptions:\s*FAVOURITE_CATEGORY_OPTIONS/);
-    expect(editor).toMatch(/groupLabelCategory:\s*CUSTOM_FAVOURITE_CATEGORY/);
+    expect(editor).toMatch(/id:\s*'favourites'/);
+    expect(editor).toContain('<SectionFavourites');
+    expect(FAVOURITE_CATEGORIES.length).toBeGreaterThan(0);
+    const owner = Object.fromEntries([...FAVOURITE_CATEGORIES].sort().map((c) => [c, listKeyForCategory(c)]));
+    expect(owner).toEqual({
+      favourite_books: 'fav_books',
+      favourite_custom: 'fav_others',
+      favourite_media: 'fav_screen',
+      favourite_music: 'fav_others',
+      favourite_places: 'fav_places',
+      favourite_tv: 'fav_screen',
+      favourite_venues: 'fav_places',
+      plays: 'fav_screen',
+      quotes: 'fav_quotes',
+    });
   });
 
-  test('ItemsStep hands the member’s group name to onAdd', () => {
-    const step = readSource(SRC.itemsStep);
-    expect(step).toMatch(/needsGroupLabel\s*\?\s*\{\s*groupLabel:\s*groupLabel\.trim\(\)\s*\}/);
-    // And will not let them create an unnamed group.
-    expect(step).toMatch(/canAdd\s*=[\s\S]{0,120}groupLabel\.trim\(\)\s*!==\s*''/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): "ItemsStep hands
+  // the member’s group name to onAdd" stood here, reading the deleted
+  // `steps/items-step.tsx`. v0.8 has no member-named groups to hand on.
 });

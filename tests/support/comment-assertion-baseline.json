@@ -196,12 +196,6 @@
     },
     {
       "test": "tests/unit/conversation-starters.test.ts",
-      "subject": "src/app/dashboard/profile/conversation-starters-actions.ts",
-      "assertion": "/sanitiseText/",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/conversation-starters.test.ts",
       "subject": "src/app/dashboard/profile/page.tsx",
       "assertion": "/conversation_starter_prompts/",
       "severity": "comment-shadowed"
@@ -297,12 +291,6 @@
       "severity": "comment-shadowed"
     },
     {
-      "test": "tests/unit/kan351-public-profile-data-integrity.test.ts",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "/sectionReadErrors/",
-      "severity": "comment-shadowed"
-    },
-    {
       "test": "tests/unit/mcp-discoverability.test.js",
       "subject": "src/app/page.tsx",
       "assertion": "checklyra.com",
@@ -328,12 +316,6 @@
     },
     {
       "test": "tests/unit/photo-upload.test.js",
-      "subject": "src/app/dashboard/profile/steps/identity-step.tsx",
-      "assertion": "preview",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/photo-upload.test.js",
       "subject": "supabase/migrations/20260330120000_add_avatar_url_and_storage.sql",
       "assertion": "avatar_url",
       "severity": "comment-shadowed"
@@ -348,12 +330,6 @@
       "test": "tests/unit/profile-items-visibility-migration.test.js",
       "subject": "src/app/dashboard/profile/actions.ts",
       "assertion": "coerceVisibility",
-      "severity": "comment-shadowed"
-    },
-    {
-      "test": "tests/unit/public-profile.test.js",
-      "subject": "src/app/[slug]/page.tsx",
-      "assertion": "notFound",
       "severity": "comment-shadowed"
     },
     {

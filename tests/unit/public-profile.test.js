@@ -24,18 +24,35 @@ describe('Public Profile', () => {
     expect(content).toContain('openGraph');
   });
 
+  // KAN-488: the page's reads moved into the public-profile loader (CTL-056),
+  // which hands them to the editor's state builder. Retargeted; expected
+  // values unchanged except external_links (v0.8 retires the Links section —
+  // founder standing approval 2026-11-23: v0.8 contradicts).
   test('public profile page only shows published profiles', () => {
     const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
-    expect(content).toContain("is_published");
+    const loader = fs.readFileSync(path.join(root, SRC.loadPublicProfile), 'utf8');
+    // Was: expect(content).toContain("is_published");
+    expect(loader).toContain("is_published");
+    // KAN-488 review (minor 3): the `is_published` match above is now satisfied
+    // by the loader's hard-coded `is_published: true`, not by a filter. The
+    // filter lives in the `public_profiles` view body (SEC-104), so assert the
+    // profile row is read from that view and never from the raw table.
+    expect(loader).toMatch(/\.from\(\s*['"]public_profiles['"]\s*\)/);
+    expect(loader).not.toMatch(/\.from\(\s*['"]profiles['"]\s*\)/);
     expect(content).toContain("notFound");
   });
 
   test('public profile page displays all profile sections', () => {
-    const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
+    const page = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
+    // Was: const content = fs.readFileSync(path.join(root, SRC.slugPage), 'utf8');
+    const content =
+      fs.readFileSync(path.join(root, SRC.loadPublicProfile), 'utf8') +
+      fs.readFileSync(path.join(root, SRC.editorState), 'utf8');
     expect(content).toContain('bio_short');
     expect(content).toContain('school_affiliations');
     expect(content).toContain('profile_items');
-    expect(content).toContain('external_links');
+    // Was: expect(content).toContain('external_links');
+    expect(page + content).not.toContain('external_links');
     expect(content).toContain('gift_ideas');
     expect(content).toContain('boundaries');
   });

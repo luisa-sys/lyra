@@ -23,6 +23,12 @@ function runOverCommits(commits, { baseRef = 'develop' } = {}) {
     git('config user.email test@example.com');
     git('config user.name tester');
     git('config commit.gpgsign false');
+    // BUGS-118: a background `gc --auto` can still be writing/compacting
+    // .git/objects when the teardown below tries to rmSync the sandbox,
+    // producing an intermittent ENOTEMPTY that has nothing to do with the
+    // guard under test. Disabling auto-gc on this throwaway repo removes
+    // the race at its source rather than merely retrying around it.
+    git('config gc.auto 0');
     git('commit -q --allow-empty -m "chore: repo base"');
     git('branch -M develop');
     git('checkout -q -b feature');
@@ -53,7 +59,13 @@ function runOverCommits(commits, { baseRef = 'develop' } = {}) {
     }
     return { status, output };
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    // BUGS-118: backstop for the same race — Node's own retry on
+    // ENOTEMPTY/EBUSY, in case something other than auto-gc (an OS-level
+    // antivirus/indexer scan, a slow NFS-backed /tmp, etc.) still holds a
+    // handle open momentarily. This does not swallow the error outright:
+    // after the retries are exhausted it still throws, so a genuine leak
+    // or permissions failure is not hidden by this change.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 

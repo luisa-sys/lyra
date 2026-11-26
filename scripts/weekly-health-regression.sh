@@ -18,9 +18,25 @@
 #               needs a reachable target).
 #   PHASES="…"  override the phase list (default: lint type-check unit scripts
 #               build audit). The `audit` phase runs `npm audit --audit-level=high`
-#               — the SAME gate as pr-checks.yml + every deploy-*.yml — so a RED
-#               dependency gate that blocks all PRs + the deploy chain is surfaced
-#               by the runner itself, not discovered by hand (SEC-91, 2026-07-22).
+#               full-tree (prod+dev deps), which is BROADER than the real PR/deploy
+#               gate — `scripts/check-npm-audit-gate.py --scope prod` (production
+#               tree only, waiver-aware), run from `pr-checks.yml` (SEC-105/CTL-052,
+#               2026-08-13). A FAIL here can be dev-tree-only noise; cross-check with
+#               `check-npm-audit-gate.py --scope prod` before treating it as blocking.
+#               This phase still surfaces a real prod-tree regression (SEC-91,
+#               2026-07-22), just not by being literally the same gate (BUGS-123).
+#
+# The `e2e` phase defaults CI, E2E_LOCAL_SERVER and four dummy Supabase vars
+# (only when unset) to the exact values .github/workflows/e2e-tests.yml sets
+# for its "Playwright E2E (local build)" gate. Without them, `playwright.config.ts`
+# falls back to `npm run dev` and any route that calls `requireEnv()`
+# (src/modules/platform/env.ts) 500s with "Missing required environment
+# variable" — a local-environment gap, not a product regression, but one that
+# reads exactly like a real E2E FAIL until you notice the missing env vars.
+# Found the hard way during the 2026-08-19 weekly run: public-pages.spec.ts's
+# waitlist test failed locally on both browsers and passed 12/12 once these
+# were exported to match CI. Real secrets, if already exported, are never
+# overridden — these are non-secret CI dummies, safe to inline.
 #
 # Exit: 2 if any phase FAILs; 1 if any UNVERIFIED and no FAIL; 0 if all PASS.
 #
@@ -49,7 +65,16 @@ cmd_for() {
   scripts)     echo "npm run test:scripts" ;;
   audit)       echo "npm audit --audit-level=high" ;;
   integration) echo "npm run test:integration" ;;
-  e2e)         echo "npm run test:e2e" ;;
+  # NB: no quotes around these values — $c is executed unquoted below ($c, not
+  # "$c"), so word-splitting is what tokenises this into argv for `env`. A
+  # quoted "${VAR:-default}" here would pass its literal quote characters
+  # through as PART OF THE VALUE (env sees NEXT_PUBLIC_SUPABASE_URL=`"https:...`"`,
+  # an invalid URL) rather than stripping them — quote-stripping only happens
+  # when a variable is *expanded*, not when it is merely word-split. Found by
+  # a webServer timeout that reproduced 100% via this script and 0% calling
+  # `npx playwright test` directly with the same values exported normally.
+  # Safe here because none of the six defaults contain whitespace.
+  e2e)         echo "env CI=${CI:-true} E2E_LOCAL_SERVER=${E2E_LOCAL_SERVER:-1} NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://e2e-dummy.supabase.co} NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-e2e-dummy-anon-key} SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-e2e-dummy-service-role-key} NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} npm run test:e2e" ;;
   build)       echo "npm run build" ;;
   *)           echo "" ;;
 esac; }
@@ -91,6 +116,14 @@ run_phase() { # $1 label
     # failure that merely mentions "install" still FAILs.
     if grep -qE "Executable doesn'?t exist|Looks like Playwright was just installed|Please run.*playwright install|Failed to download (WebKit|Chromium|Firefox)" "$log"; then
       record UNVERIFIED "$label" "Playwright browsers unavailable — run 'npx playwright install' (env gap, not a test failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
+    elif grep -qE "Host system is missing dependencies" "$log"; then
+      # BUGS-131: distinct from the binary-missing case above — the browser
+      # binary exists but the host OS lacks shared libraries it needs to
+      # launch (e.g. webkit's libgtk-4/libgraphene on a fresh sandbox).
+      # Anchored to Playwright's own box-message wording so a genuine
+      # assertion failure that happens to mention "dependencies"/"libraries"
+      # still FAILs.
+      record UNVERIFIED "$label" "Playwright OS-level dependencies missing — run 'npx playwright install-deps' (env gap, not a test failure; BUGS-131): $(grep -m1 -E 'Host system is missing dependencies' "$log" | cut -c1-160)"
     elif grep -qE "No tests found" "$log"; then
       record UNVERIFIED "$label" "no tests matched this phase's path (env/layout gap, not a failure; BUGS-51): $(tail -n 1 "$log" | cut -c1-160)"
     elif [ "$label" = "audit" ] && grep -qE "ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|Unable to reach|registry error|EAI_AGAIN" "$log"; then

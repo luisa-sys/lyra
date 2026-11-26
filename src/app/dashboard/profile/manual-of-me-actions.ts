@@ -10,16 +10,18 @@
  *   - Allowlist of writable fields (MANUAL_OF_ME_FIELDS) enforced before any
  *     DB call, same pattern as updateProfileFields → prevents remote property
  *     injection. (KAN-167 / CodeQL alert #2.)
- *   - Every string field is run through sanitiseText (strips HTML, normalises
- *     whitespace) with a per-field max length — defends in depth against
- *     stored XSS even though React JSX auto-escapes. See KAN-171.
+ *   - Every string field is run through validateFreeText (KAN-486): strips
+ *     HTML (stored-XSS defence in depth, KAN-171), keeps line breaks, and
+ *     REJECTS over-limit text and contact details rather than cutting them.
  *   - The owning profile is resolved server-side from auth.uid() — caller
  *     cannot supply a profile_id.
  */
 
 import { createClient } from '@/modules/platform/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { sanitiseText, type ActionResult } from '@/modules/guards/sanitise';
+import { type ActionResult } from '@/modules/guards/sanitise';
+import { validateFreeText } from '@/modules/profile/free-text';
+import { MANUAL_OF_ME_LABELS } from '@/modules/profile/field-validation';
 import { moderateAndAudit } from '@/modules/audit/moderation-audit';
 import { checkProfileWriteRateLimit } from '@/modules/guards/profile-rate-limit';
 import { dbErrorFor } from '@/modules/profile/db-error-copy';
@@ -75,14 +77,21 @@ export async function updateManualOfMe(
     if (typeof val !== 'string') {
       // Defensive: this should not happen given the action signature, but
       // a buggy caller passing a number/object would otherwise blow up
-      // sanitiseText. Reject explicitly.
+      // validation. Reject explicitly.
       rejected.push(key);
       continue;
     }
-    const maxLen = MANUAL_OF_ME_MAX_LENGTHS[key];
-    const cleaned = sanitiseText(val, maxLen);
-    // Treat post-sanitisation empty string as null so isManualOfMeEmpty works.
-    sanitised[key] = cleaned === '' ? null : cleaned;
+    // KAN-486 — v0.8 §05: multiline (line breaks kept), the limit is
+    // enforced by rejection rather than cut, and contact details (email,
+    // phone, postal address) are refused with a correction message.
+    const checked = validateFreeText(val, {
+      label: MANUAL_OF_ME_LABELS[key],
+      max: MANUAL_OF_ME_MAX_LENGTHS[key],
+      multiline: true,
+    });
+    if (!checked.ok) return { success: false, error: checked.error };
+    // Empty after cleaning is stored as null so isManualOfMeEmpty works.
+    sanitised[key] = checked.value;
   }
 
   if (rejected.length > 0) {

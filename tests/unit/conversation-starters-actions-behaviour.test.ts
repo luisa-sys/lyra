@@ -136,17 +136,35 @@ describe('conversation-starter actions — sanitising and capping on BOTH paths'
     expect(String(payload('update').answer)).not.toContain('<i>');
   });
 
-  it('caps at 500 characters on ADD', async () => {
-    await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(600) });
+  // KAN-486 (spec v0.8 §3, founder-approved 2026-11-23): an over-limit answer
+  // is REJECTED with a message and nothing is written. These two cases used to
+  // assert a 600-character answer was cut to exactly 500.
+  it('rejects an over-limit answer on ADD, writing nothing', async () => {
+    const res = await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(600) });
 
-    // Mirrors the DB CHECK; an un-capped path fails with a raw 22001 instead.
-    expect(String(payload('insert').answer)).toHaveLength(500);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your answer is too long: 600 characters (limit 500, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'insert')).toBe(false);
   });
 
-  it('caps at 500 characters on UPDATE', async () => {
-    await updateConversationStarter('answer-1', 'b'.repeat(600));
+  it('rejects an over-limit answer on UPDATE, writing nothing', async () => {
+    const res = await updateConversationStarter('answer-1', 'b'.repeat(600));
 
-    expect(String(payload('update').answer)).toHaveLength(500);
+    expect(res).toEqual({
+      success: false,
+      error: 'Your answer is too long: 600 characters (limit 500, including spaces).',
+    });
+    expect(calls.some((c) => c.op === 'update')).toBe(false);
+  });
+
+  it('stores an answer at exactly the limit whole, on both paths', async () => {
+    await addConversationStarter({ promptId: PROMPT_ID, answer: 'a'.repeat(500) });
+    await updateConversationStarter('answer-1', 'b'.repeat(500));
+
+    expect(payload('insert').answer).toBe('a'.repeat(500));
+    expect(payload('update').answer).toBe('b'.repeat(500));
   });
 
   it('refuses an empty or whitespace-only answer, writing nothing', async () => {

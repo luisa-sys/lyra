@@ -13,12 +13,23 @@ Lyra is a calm, structured public profile platform where users share preferences
 - **Hosting**: Vercel Pro (3 custom environments: production, staging, development)
 - **Repository**: https://github.com/luisa-sys/lyra (branches: main, staging, develop)
 
-#### Code layout — `src/lib/` and `src/modules/` (KAN-415, IN FLIGHT)
+#### Code layout — `src/lib/` and `src/modules/` (KAN-415, COMPLETE)
 
 **Both directories exist and both hold live code. That is expected, not drift.**
-The KAN-415 modularisation programme is extracting `src/lib/**` into bounded
-modules under `src/modules/**`, one domain at a time, so the tree is mixed until
-it completes.
+⚠️ **Corrected 2026-10-26 (KAN-359 second pass) — this line said "IN FLIGHT" and
+"the tree is mixed until it completes."** The KAN-415 modularisation programme
+is **done**: D1–D9 plus the TAIL (`dashboard`, `contracts`, `audit`, `admin`,
+`marketing-legal`, `account`, `affiliate`, `recommendations`) are all on
+`develop` (see `CLAUDE.md` → "The modularisation programme — KAN-415"). The
+"complete" declaration landed in PR [#771](https://github.com/luisa-sys/lyra/pull/771)
+(2026-08-13) — over two months before this correction, and this page's own most
+recent prior edit (2026-09-14) still didn't catch it. `src/lib/` now holds
+**27 tracked files, all Convene** — verified this run via `git ls-files
+src/lib`, matching `CLAUDE.md`'s count exactly — and Convene is **permanently**
+out of scope (routes 404, `CONVENE_ENABLED` false everywhere) unless Convene
+itself is turned back on. So the mixed tree is not a transitional state "until
+it completes" — it is the **permanent** end state. `modules.json` is the
+authoritative manifest; check it, not this paragraph, for current ownership.
 
 | module | what it owns |
 |---|---|
@@ -37,6 +48,19 @@ it completes.
 belong to which module, their layer, and the boundary policy. Read it rather
 than inferring ownership from the directory tree, and update it in the same
 commit as any move (CTL-041).
+
+#### Public legal pages and the site footer (KAN-493, 2026-11-26)
+
+The site footer (`src/app/footer.tsx`, rendered once in the root layout) links to
+four pages only: **About · Privacy · Terms · Contact**, plus the Companies Act
+company line. The other legal pages were folded in: the cookie policy is the
+`#cookies` section of `/privacy`; Guidelines, Keeping people safe and Help are
+the `#guidelines`, `#safety` and `#help` sections of `/about`; data-protection
+and general complaints are the `#complaints` section of `/contact`. The
+Accessibility and Partners pages were removed. The seven old URLs answer with a
+permanent **308** to their new section, from `LEGAL_PAGE_REDIRECTS`
+(`src/modules/marketing-legal/legal-redirects.ts`) via `redirects()` in
+`next.config.ts`. The words stay in `RESERVED_LYRA_IDS`.
 
 ### `oauth-as` — what a token is bound to (SEC-46 Phase C)
 
@@ -117,8 +141,46 @@ where both the editor and `public-profile` (D9) can depend on it legitimately.
 The **UI** — `Field`, `SaveButton` — stayed in the app tree: they carry design
 tokens and are founder-owned under KAN-411 (`uiApprovalGated: always`), and a
 domain module that everything is meant to depend on freely is the wrong home for
-a button. `steps/types.tsx` re-exports the types so the 14 existing editor
-imports still work; **new code should import from `@/modules/profile/types`.**
+a button. `steps/types.tsx` re-exported the types so the 14 existing editor
+imports still worked; **new code should import from `@/modules/profile/types`.**
+
+**KAN-487 part 3 (2026-11-23) deleted the legacy profile wizard/editor estate**
+— the `/dashboard/profile/legacy` route, `wizard.tsx`, every `steps/*` file
+(including the `steps/types.tsx` shim and the `Field` / `SaveButton`
+components), the autosave `sections/*` files (`use-auto-save.tsx`,
+`auto-save-core.ts`, `section-save-bar.tsx`, the five section components,
+`affiliation-name-picker.tsx`) and the no-longer-called Google Places lookup
+`geo/places-schools-lookup.ts` in the profile module. `/dashboard/profile` (the
+v0.8 editor) is the only profile editing route; nothing links, redirects or
+rewrites to the old path, so it now 404s. `actions.ts` imports `WizardItem`
+from `@/modules/profile/types`. The postcode-to-city server action
+`city-actions.ts` was deleted too (its only caller was `basic-info-section.tsx`,
+it had no tests, and it called the billed Google Places API), as was the
+unread `env.placesApiKey()` accessor.
+
+⚠️ **Server actions with no client importer are NOT endpoints.** Next.js
+registers a `'use server'` export as a POST-callable action only when a client
+bundle imports it (see `.next/server/server-reference-manifest.json`). After
+part 3 the only registered profile actions are in `editor-actions.ts`,
+`ai-gifts-actions.ts` and `affiliation-search-actions.ts`. The remaining
+profile action files are kept for these reasons, not because they are
+reachable:
+- `actions.ts`: **live** server-side — `editor-actions.ts` calls
+  `publishProfile()` from it (service role, age gate). Its other exports
+  (`updateProfileFields`, `addProfileItem`, `uploadAvatar`,
+  `addSchoolAffiliation`, `updateSectionVisibility`, gift-suggestion
+  dismissals, …) have no app caller now, but carry ownership, moderation,
+  rate-limit and partial-write tests (about 20 test files import them), so
+  removing them is a test deletion outside the part 3 sign-off.
+- `manual-of-me-actions.ts`, `conversation-starters-actions.ts`,
+  `files-actions.ts`, `delivery-country-actions.ts`: no app importer; kept for
+  the same reason (their moderation, rate-limit, media-gate and
+  partial-write tests pin them). They are dead code until a founder decision
+  removes them with their tests or the editor reuses them.
+- `src/modules/profile/geo/places-city.ts` (the Places client behind the
+  deleted city action) and `giftVoucherHintPayload` in `profile-fields.ts`
+  (its only caller was `gift-extras-section.tsx`) are likewise unreferenced
+  by app code and kept only because their own behavioural tests pin them.
 
 ⚠️ **A `'use server'` file holds no logic — it delegates to a module.** This is
 the D7 shape and it applies to every server action in `src/app/**`:
@@ -164,6 +226,21 @@ reachable only through a denylisted action.
 - **Endpoint**: https://mcp.checklyra.com/mcp
 - **Dev Endpoint**: https://mcp-dev.checklyra.com/mcp (points to dev Supabase)
 
+### Admin MCP Server (lyra-admin-mcp-server)
+- **Framework**: TypeScript, Express, @modelcontextprotocol/sdk
+- **Hosting**: Railway — its **own service**, separate from the user-facing MCP for blast-radius isolation (KAN-323)
+- **Repository**: https://github.com/luisa-sys/lyra-admin-mcp-server (**private**, branch `main`)
+- **Endpoint**: https://admin-mcp.checklyra.com/mcp — points at **prod** Supabase
+- **Purpose**: the high-privilege admin surface — suspend/unpublish users, per-user feature entitlements, beta approval, access stage, age-status override. Every mutation is audited to `moderation_logs` **before** it is applied; if the audit write fails, the action aborts.
+- **Access control**, four layers deep, because the server holds the Supabase service-role key and so bypasses RLS:
+  1. **Cloudflare Access + IP allow-list** at the edge. Verified live: an unauthenticated `GET /health` returns `401` with `WWW-Authenticate: Bearer realm="OAuth" … resource_metadata=…/cloudflare-access-protected-resource/health`.
+  2. **App-layer Access verification** (`src/cf-access.ts`) — the origin re-verifies the `Cf-Access-Jwt-Assertion` JWT against the team JWKS, so a request that reaches Railway directly is still refused. In production the server **refuses to boot** with this off unless `ALLOW_CF_ACCESS_OFF=true` is set (first deploy only).
+  3. **Admin gate** (`src/admin-auth.ts`) — a live DB read requiring `is_admin = true` and not suspended, mirroring the web `getCurrentAdmin()`.
+  4. **Audit-first wrapper**, asserted by a positive registry test: a new mutating tool that forgets the wrapper fails that repo's CI.
+- **Deploy**: push to `main` → Railway auto-deploys (same model as `lyra-mcp-server`; "Wait for CI" must stay **OFF** — BUGS-18/BUGS-54). Its Railway project is `resilient-commitment`.
+- **Lockdown scope**: covered under **Railway** in `docs/CYBER_LOCKDOWN.md`, not as a separate inventory entry — see "Service inventory for security lockdown" below.
+- ⚠️ **The repo's own `README.md` still says "It is not deployed yet"**. That is stale as of 2026-08-16: the endpoint is live behind Cloudflare Access (evidence above). Fixing that line is a change in the admin repo, tracked separately (KAN-466).
+
 ### Database
 - **Provider**: Supabase Pro (PostgreSQL 17)
 - **Region**: EU West (Ireland)
@@ -183,7 +260,7 @@ reachable only through a denylisted action.
 ### DNS & CDN
 - **Provider**: Cloudflare
 - **Domain**: checklyra.com
-- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**
+- **Subdomains**: dev.checklyra.com, stage.checklyra.com, mcp.checklyra.com, mcp-dev.checklyra.com, **admin.checklyra.com**, **admin-mcp.checklyra.com** (Cloudflare Access in front — see "Admin MCP Server")
 
 ## Environments
 
@@ -194,15 +271,15 @@ reachable only through a denylisted action.
 | Development | dev.checklyra.com | develop | custom (develop) | ilprytcrnqyrsbsrfujj | Vercel SSO |
 | MCP Server | mcp.checklyra.com | main | Railway | llzkgprqewuwkiwclowi (prod) | Public |
 | MCP Dev | mcp-dev.checklyra.com | main | Railway | ilprytcrnqyrsbsrfujj (dev) | Public |
-| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` |
+| Admin (KAN-309) | admin.checklyra.com | main (prod deploy) | production | llzkgprqewuwkiwclowi (prod) | Cloudflare Access + `is_admin` AND NOT `is_suspended` (SEC-121) |
 
 **Vercel Pro plan** — full environment separation. Each branch has its own custom environment with isolated env vars. No cross-environment contamination.
 
 ### Admin back-office (`admin.checklyra.com`, KAN-309)
 
-The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Two gates: **Cloudflare Access** (allow-list of admin emails) in front, plus the existing `is_admin` DB check (`getCurrentAdmin`).
+The admin tools (`/admin/*`) are served on a private subdomain that points at the **same Production Vercel deployment** as `checklyra.com` (so it uses prod Supabase + prod env, and the shared `.checklyra.com` session cookie from KAN-274 works). Three conditions must hold: **Cloudflare Access** (allow-list of admin emails) in front, plus the `is_admin` DB check AND `is_suspended = false` in `getCurrentAdmin()` (SEC-121: suspension is the incident-response kill-switch for a compromised admin account, so a suspended admin is refused even on `admin.checklyra.com`).
 
-Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod** Vercel scope):
+Host routing lives in `src/modules/access/gates/admin-host.ts`, ordered inside `AUTHED_ORDER` in `src/modules/access/pipeline.ts` (post-KAN-415 D4 — the middleware composition root has no function body left). The `admin-host` gate returns early on the admin host so the beta gate below never runs, and — currently, until SEC-121's ordering fix lands — the middleware `suspension` gate positioned after it also does not run for admin-host requests. Containment is therefore provided by `getCurrentAdmin()` refusing a suspended admin at the layout, not by the middleware gate. Two env vars (set on the **prod** Vercel scope):
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
@@ -210,6 +287,9 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 | `ADMIN_HOST_ENFORCED` | _(unset = off)_ | `true` rewrites the admin host → `/admin/*` and blocks `/admin` on other hosts. Leave **off** until the DNS record + Cloudflare Access app are live, then flip on (non-breaking rollout). |
 | `SENTRY_READ_TOKEN` | _(optional)_ | Reserved for live Sentry panels on `/admin/monitoring` |
 | `UPTIMEROBOT_API_KEY` | _(optional)_ | Lights up the UptimeRobot status on `/admin/monitoring` |
+| `LYRA_PUBLIC_RECOMMENDATIONS_API` | _(unset = off)_ | KAN-488: `1` re-enables the unauthenticated `/api/recommendations/[slug]` and `/v2/[slug]` routes; anything else returns 404 before any DB read. Spec v0.8 forbids unapproved suggestions in unauthenticated APIs, so enabling it needs founder sign-off. |
+| `ANTHROPIC_API_KEY` | _(optional, server-only; unset = AI gifts off)_ | KAN-489: the Anthropic key behind §03 AI gift suggestions. Read only through `env.anthropicApiKey()` (CTL-037), passed explicitly to the SDK in `src/modules/profile/ai-gifts/client.ts`, never logged or rendered. Absent or blank → the editor shows "AI gift suggestions aren’t available yet." and no model call is made; `/admin/monitoring` shows configured / not configured only. Set per environment in Vercel (ops step). |
+| `LYRA_AI_GIFTS_ENABLED` | _(unset = off)_ | KAN-489 review: the SECOND switch for AI gift suggestions. Members see the feature only when `ANTHROPIC_API_KEY` is set **and** this is exactly `1` (`env.aiGiftsConfigured()`), so adding the key alone never starts sending member text to Anthropic. **Do not set it in any environment holding real member data until the founder has signed off** the consent copy, the members-only inclusion and the privacy-page sub-processor listing (`docs/compliance/FOUNDER_CHECKLIST.md` §B). |
 | `PAID_LINKS_COMPLIANCE_READY` | _(unset = off)_ | KAN-309: gates the `paid_gift_links` per-user entitlement. Monetised affiliate links are produced only when this is `true` (FTC/ASA/CMA disclosure KAN-192 + cookie/GDPR consent KAN-193 shipped) **and** the recipient is entitled **and** `SOVRN_API_KEY` is set. |
 | `AGE_VERIFICATION_REQUIRED` | _(retired 2026-07-20)_ | **Unused.** The age publish-gate was removed; nothing reads this. Unset it. |
 | `AGE_GATE_PAUSED` | _(retired 2026-07-20)_ | **Unused.** Paused a gate that no longer exists. Unset it. |
@@ -220,7 +300,7 @@ Host routing lives in `src/middleware.ts` behind two env vars (set on the **prod
 
 ### Per-user feature entitlements (KAN-309 follow-on)
 
-`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
+`feature_entitlements` (per `profile_id` × `feature_key`) lets the admin console switch beta features on/off per user. Keys: `mcp`, `convene`, `paid_gift_links`, `convene_paid_channels`, `media_uploads`, `discovery`. Effective gate everywhere is **per-env flag AND per-user entitlement** (env flag stays the master kill-switch). Defaults live in `src/modules/features/registry.ts` (`mcp`/`convene`/`paid_*` default off; `media_uploads`/`discovery` default on). Since KAN-486 `media_uploads` gates profile files only, not the profile photo. Writes are service-role only (RLS + self-grant trigger). **MCP-server enforcement of `mcp`/`convene` ships as a follow-up** — until then the `mcp` toggle is recorded but not enforced over `mcp.checklyra.com`.
 
 **One-time setup (ops):** add `admin.checklyra.com` to the Lyra Vercel project (Production env) → Cloudflare DNS `CNAME admin → cname.vercel-dns.com` (proxied) → Cloudflare Access self-hosted app over `admin.checklyra.com/*` (admin allow-list) → set `ADMIN_HOST_ENFORCED=true` on prod and redeploy.
 
@@ -348,22 +428,57 @@ All operations run via GitHub Actions — no local machine needed:
 - Cloud workflows: fail the job and do not proceed; manual intervention required
 
 ### MCP Server Deployment
-- Railway auto-deploys on push to lyra-mcp-server main branch
-- No staging environment for MCP server (single environment)
-- Health check: GET https://mcp.checklyra.com/health
+There are **three** Railway services deploying MCP code, not one:
+
+| Service | Repo | Supabase | Health check |
+|---|---|---|---|
+| `lyra-mcp-server` (prod) | `luisa-sys/lyra-mcp-server` `main` | prod-lyra | `GET https://mcp.checklyra.com/health` → 200 |
+| `lyra-mcp-dev` | `luisa-sys/lyra-mcp-server` `main` | dev-lyra | `GET https://mcp-dev.checklyra.com/health` → 200 |
+| `lyra-admin-mcp-server` | `luisa-sys/lyra-admin-mcp-server` `main` | prod-lyra | `GET https://admin-mcp.checklyra.com/health` → **401** (Cloudflare Access) |
+
+- All three auto-deploy on push to `main`. **"Wait for CI" must stay OFF on every one of them** — turning it on wedges the deploy on unresolved third-party check suites (BUGS-18, recurred as BUGS-54).
+- No staging environment for any MCP service (single environment each).
+- ⚠️ The admin service's health check is **401 by design**, not a failure: Cloudflare Access refuses the unauthenticated request before it reaches the origin. A monitor that treats non-200 as down will report it permanently red.
 
 ## Database Schema
 
 ### Tables
 - **profiles**: User profiles (display_name, slug, headline, bio, location, is_published, gift_voucher_hint)
-- **profile_items**: Items on profiles (category: likes, dislikes, gift_ideas, boundaries, etc.)
+- **profile_items**: Items on profiles (category: likes, dislikes, gift_ideas, boundaries, etc. — the pre-v0.8 categories are mapped or archived by KAN-490, see below)
 - **external_links**: Links attached to profiles (website, social, etc.)
 - **school_affiliations**: School connections (school_name, location, relationship)
-- **gift_suggestion_dismissals**: _(KAN-443)_ gift suggestions a member has said "not for me" to — `(profile_id, suggestion_key)`, owner-scoped by RLS. `suggestion_key` identifies a recommender CONCEPT, not a product, so a dismissal survives the catalogue resolving a different product for the same idea. Filters both the V1 concept list and the V2 pipeline output on the public profile.
+- **conversation_starter_prompts** — the Random Questions bank _(KAN-484, spec v0.8 §09)_. Each preset has a permanent `id`, `prompt` wording, `answer_max` (per-question answer limit, 50–2000), `is_active` and `sort_order`. Managed by admins at `/admin/questions` (add, edit wording/limit, switch on/off, reorder) via `src/modules/admin/question-bank-store.ts`; **there is no delete**, because answers reference the permanent id and deactivating must never remove them. Owned by the `admin` module in `modules.json`; the `profile` module only reads it. Seeded with the 16 v0.8 presets by `20261122120000_kan484_question_bank.sql`, which also deactivated (not deleted) the earlier prompts.
+- **profile_conversation_starters** — member answers. A row is either a preset answer (`prompt_id`) or a member-written question (`custom_prompt`). Limits are enforced in the database: the preset's `answer_max` (`enforce_pcs_answer_max()`), 500 for a member-written answer, 180 for a member-written question, and at most 10 member-written questions (`enforce_pcs_custom_cap()`). There is no total-answer cap (v0.8: every active preset plus 10 custom, and previously answered inactive presets stay on the profile).
+- **Profile rules (spec v0.8)** _(KAN-485, `20261123090000_kan485_profile_model_v08.sql`)_. Per-section caps and field limits are enforced **on write by triggers**, so a legacy row that predates a limit is never made unwritable: `enforce_profile_item_rules()` (rule table in `profile_item_rule(category, origin)` — e.g. 25 member gifts + 10 AI gifts, 6 causes, 15 per favourites group, 10 problems; title/description limits; links must be http(s), ≤2048) and `enforce_affiliation_rules()` (7 per group; name/location 120, description 250; a school needs a postcode ≤12). Fixed-length `profiles` and `profile_manual_of_me` columns use CHECK constraints. The app copy of the same rules is `src/modules/profile/profile-rules.ts`; a test pins both to the spec. Categories v0.8 dropped have no rule until KAN-490 migrates them.
+- **Server validation (spec v0.8)** _(KAN-486)_. Every member-written profile text field goes through `validateFreeText` (`src/modules/profile/free-text.ts`) with a per-field spec from `field-validation.ts`: HTML stripped, limits **enforced by rejection** (never truncated; counted in code points like Postgres `length()`), line breaks kept on the v0.8 multiline fields (short intro, billboard, section 05, Q&A answers, gift preference), and a **contact-detail filter** (`contact-details.ts`: email incl. obfuscated forms, UK/international phone incl. spaced digits, UK postcode, street address with a house number). City, country and organisation/community location are places, so only email/phone are blocked there; a school's location is its postcode, so the filter is off. Known gaps (numbers written as words, social handles, addresses without a house number, non-UK postcodes, images) are documented in the module header — the report route is the backstop. Links use `parseMemberUrl` (`member-url.ts`): http/https only, no credentials, ≤2,048 as typed, rejected rather than cut. The item **edit** path checks against the highest limit any category allows and leaves the exact per-category limit to `enforce_profile_item_rules()` (no extra read, to keep the UPDATE's ownership filter the only `.eq('profile_id')` on `profile_items`). `sanitiseText`/`sanitiseUrl` are unchanged for other modules. `containsPII` in `src/modules/contracts/` still runs after (and must stay byte-identical to the MCP copy, CTL-043). **Gap:** RLS `FOR ALL` policies on `profile_items`/`external_links` still allow direct PostgREST writes that skip this layer; the DB enforces limits but not the contact filter.
+- **Profile photo pipeline** _(KAN-486, `photo-processing.ts`, Node only)_: `uploadAvatar` → SEC-52 preflight (MIME + magic bytes, JPG/PNG/WebP, ≤5 MB) → `sharp` decode (real type), EXIF orientation applied, ≥400×400, square crop (member's `cropX/cropY/cropSize` if valid, else centre), resized to ≤1024², re-encoded as JPEG **without metadata** (EXIF/GPS dropped, transparency flattened to white) → `profile-photos/<user_id>/avatar.jpg` with a `?v=` cache-buster on `avatar_url`. `avatar_url` is no longer in the `updateProfileFields` allowlist. The `media_uploads` entitlement no longer gates the photo (a photo is required to publish). Server-action body limit raised to 5 MB in `next.config.ts`; Vercel's 4.5 MB request cap still applies, so the editor downscales in the browser.
+- **Profile editor save path (spec v0.8)** _(KAN-487, ADR-010, `20261123100000_kan487_profile_editor.sql`)_. The editor holds one client-side `EditorState` (`src/modules/profile/editor/editor-state.ts`, reducer `editor-reducer.ts`) and sends a **diff** (`editor-diff.ts`: absent section = untouched; deletes are explicit id lists; new rows carry a `client_key`) through `src/app/dashboard/profile/editor-actions.ts` (`saveProfileDraft`, `publishProfileFromEditor`, `saveProfileChanges`, `stageProfilePhoto`; zero direct DB calls). The action re-validates and CLEANS the payload (`validate-save-payload.ts`, the same validator the browser runs), moderates changed text, resolves a staged photo (`photo-staging.ts`: `<uid>/avatar-<uuid>.jpg`, processed by `photo-processing.ts`), and calls **`save_profile(p_payload jsonb, p_mode text)`** (SECURITY INVOKER; modes `draft` / `publish` / `published`), which applies everything in one transaction under the member's own RLS and every v0.8 trigger, with an optimistic `base_updated_at` check (required in `published` mode). It never writes `is_published`; Publish still goes through `publishProfile()` (service role, age gate). Returns `{updated_at, ids, warnings, slug, slug_confirmed, avatar_url, is_published, first_published_at}`. Affiliation autocomplete = `suggest_affiliation_names(type, prefix, limit)` (SECURITY INVOKER: RLS limits it to visible affiliations on published profiles plus the member's own), replacing the Google Places lookup in `affiliation-search-actions.ts` (the lookup module itself was deleted in KAN-487 part 3). Country is an ISO alpha-2 code from `src/modules/profile/countries.ts`. The preview / public view model is `editor/public-view-model.ts` (hidden affiliations and unapproved AI gifts never included).
+- **CheckLyra ID** = `profiles.slug`. `enforce_profile_identity_rules()` stores it lower-case, requires `^[a-z0-9_]{3,30}$`, refuses reserved words (`is_reserved_lyra_id()`, which includes every single-word top-level route), and refuses a change once `first_published_at` is set (a one-time conversion of a pre-v0.8 slug is allowed). Uniqueness ignores case (`profiles_slug_lower_key`). New accounts get an unconfirmed placeholder `user_<10 hex>` (`slug_confirmed = false`).
+- **Publishing** (`is_published` false → true) requires a photo, a display name and a confirmed ID, and stamps `first_published_at`. A published profile cannot lose its photo. `profiles.billboard` (≤200) is the v0.8 Billboard; `gift_voucher_hint` (≤350) holds the gift-preference answer.
+- **profile_items.origin / approved** — `origin` is `user` or `ai` (AI only for `gift_ideas`); a member's own entry is always `approved`. Both public read policies require `approved`, so an unapproved AI suggestion never reaches an anonymous or member reader. Draft vs published: after first publication the editor holds edits client-side until "Save Changes" (KAN-487), so stored rows are the published snapshot.
+- **Public profile `/[slug]` (spec v0.8)** _(KAN-488, ADR-010, `20261123110000_kan488_public_profiles_billboard.sql`)_. `src/app/[slug]/page.tsx` makes **no** DB call (CTL-056). `src/modules/public-profile/load-public-profile.ts` reads the `public_profiles` view by slug (`loadPublicProfileRow`, React `cache`, shared with `generateMetadata`) and then, in one `Promise.all`, `profile_items` filtered **in the query** to `approved = true`, `origin in (user, ai)` and the v0.8 categories only (`PUBLIC_ITEM_CATEGORIES` in `editor-state.ts` — legacy categories such as `dislikes` / `questions` are never fetched; KAN-490 maps the public ones that fit into v0.8 categories and archives the rest), `school_affiliations` filtered to `show_on_profile = true`, `profile_manual_of_me` and `profile_conversation_starters` (preset wording via the join); the legacy hybrid item visibility (KAN-221) is applied after the read. Any read error goes to Sentry and throws (KAN-351). The rows are turned into the editor's `initialEditorState` and rendered through `buildPublicProfileView(state, { audience: 'public' })` by `public-profile-sections.tsx` — the same view model the editor's Preview draws, so empty fields/sections, hidden affiliations and unapproved AI gifts are dropped twice (query and view model). Ten sections in spec order with spec labels, approved AI gifts under "AI suggested", line breaks kept, links http(s) only with `rel="noopener noreferrer"`, no messaging/like/comment/contact controls. Metadata and JSON-LD (`public-profile-meta.ts`) carry only name, ID URL, headline and photo (no intro, no address). The V1/V2 recommendations block, the `external_links` Links section and the dismissal read were removed from the public page (the component files stay on disk). The view gained one column, `billboard` (public by spec §10); the code tolerates its absence before the migration runs. The two unauthenticated `/api/recommendations` routes also filter `profile_items` to `approved = true`, and are **off (404, no DB read) unless `LYRA_PUBLIC_RECOMMENDATIONS_API=1`** — their output is suggestions the member never approved, which v0.8 forbids in unauthenticated APIs. While off, the lyra-mcp-server's gift-recommendation fetch gets a 404. V2 no longer echoes `recipientCountry` (it came from the hidden `delivery_country_code`).
+- **AI gift suggestions (spec v0.8 §03)** _(KAN-489, `20261123120000_kan489_ai_gift_generations.sql`)_. Toggle OFF by default; when ON (after a data-sharing note — copy approved by the founder 2026-11-23, consent version `v1-2026-11-23`) the member presses Generate. `generateAiGifts` (`src/app/dashboard/profile/ai-gifts-actions.ts`, no DB calls) → `src/modules/profile/ai-gifts/`: the source is the member's SAVED, member-authored text only (`source.ts`; never AI rows, affiliations, name, ID, location or photo), placed as escaped DATA inside `<recipient_profile>` (`prompt.ts`); `claim_ai_gift_generation(session)` (SECURITY DEFINER, locks the profile row) enforces **10 per editing session, 30 per rolling 30 days, 10 s cooldown** (KAN-492, founder 2026-11-25, `20261125130000_kan492_ai_gift_limits.sql`; was 5 / 20 per 24 h; refusal `monthly_limit`, payload `monthly_remaining`; the editor shows the limits in a note beside Generate) against **`ai_gift_generations`** (append-only claim log, RLS on with **no** policies; session ids are browser-generated so the 30-day cap is the real bound; no refund path — a provider failure consumes a claim); then one `claude-opus-5-5` call (`effort: low`, JSON-schema output, server-side `fallbacks: "default"`, `stop_reason` checked first); every suggestion is re-checked (limits 100/250, KAN-486 contact filter, no URL/domain/@handle, dedupe, moderation + audit) and stored by `insert_ai_gift_suggestions` (INVOKER) as `origin='ai'`, `approved=false`, `visibility='private'`, `url=null`, taking at most the free slots under the cap of 10 (pending rows count). Approve is committed by Save (`save_profile` `ai_gifts.approve`, which makes it public); Delete on a pending row deletes it at once (`dismissAiGift`). Switching the toggle off never deletes anything. No URLs in V1 (founder decision). Review fixes: the feature needs `LYRA_AI_GIFTS_ENABLED=1` as well as the key; every Generate sends `AI_CONSENT_VERSION` (refused server-side otherwise) and the claim row records it (`ai_gift_generations.consent_version`); suspended accounts are refused by the claim; the trigger `enforce_ai_gift_integrity()` forces AI inserts to unapproved/private/link-free and blocks edits to AI text or origin, so "AI suggested" rows cannot be forged over PostgREST; the avoid list is enforced on output (`filter.ts`), not only in the prompt; the legacy editor no longer lists AI rows. Founder approvals 2026-11-23 (chat): the consent copy, and the `docs/compliance/FOUNDER_CHECKLIST.md` list as a whole — sending `members_only` items to the model and the browser-generated session id (a reload starts a new session; the 30-day cap of 30 is the hard bound) are approved as part of that list. Still to do before it runs anywhere, in order, per environment: set a workspace spend limit in the Anthropic console, accept Anthropic's DPA / transfer terms and record them in SUBPROCESSORS.md, add Anthropic to the privacy page, set `ANTHROPIC_API_KEY`, then `LYRA_AI_GIFTS_ENABLED=1`. Until the key is set Anthropic is NOT YET ACTIVE as a processor (ROPA P9, SUBPROCESSORS.md).
+  - **KAN-489 dev-apply checks** (SQL is never executed by CI or the build; run these on the lead's dev apply, as two test members A and B, before promotion): (1) six `claim_ai_gift_generation(<same uuid>, 'v1-2026-11-23')` calls ≥10 s apart as A → five `ok:true`, the sixth `{ok:false, reason:'session_limit'}`; (2) two concurrent claims as A in separate sessions → exactly one `ok:true`, the other `cooldown`; (3) A holding 3 approved AI rows calls `insert_ai_gift_suggestions` with 10 items → 7 inserted, `dropped_for_cap: 3`; (4) A's pending AI rows are invisible to anon (`public_profiles` / `profile_items` read) and to B; (5) the INVOKER `FOR UPDATE` in `insert_ai_gift_suggestions` succeeds for A under RLS (owner UPDATE policy); (6) as A, a direct insert of `origin='ai', approved=true, visibility='public'` stores `approved=false, visibility='private'`, and an update of an AI row's `title` raises; (7) `save_profile` `ai_gifts.approve` still publishes a pending AI row; (8) a claim as a suspended member returns `reason:'suspended'` and writes no claim row; (9) `claim_ai_gift_generation(uuid)` (the old one-argument signature) does not exist.
+- **v0.8 data migration — CheckLyra ID conversion, slug history, redirects** _(KAN-490, ADR-011, `20261123130000_kan490_v08_data_migration.sql`)_. Every pre-v0.8 slug that fails `^[a-z0-9_]{3,30}$` (on dev: all 33) is converted once by `lyra_id_from_legacy` (built on `lyra_slugify`: lower-case, `unaccent` — installed in the `extensions` schema — apostrophes dropped, other runs → `_`; keep the `_<8 hex>` suffix; over 30 → name part cut to 21; under 3 / reserved → `_` + 8 hex of the profile id; clashes → `_2`, `_3`…, profiles processed oldest first). Both helpers are INVOKER, `search_path ''`, service-role only; the TypeScript mirror is `src/modules/profile/lyra-id-convert.ts` and the full dev mapping is a literal table in `tests/unit/kan490-lyra-id-convert.test.ts`. Converted profiles that are published or were ever published (`first_published_at` set) get `slug_confirmed = true` (never-published drafts keep `false`); the five published profiles without a photo stay published (grandfathered — the photo rule bites only on the next publish). **`profile_slug_history`** `(old_slug, old_slug_key = lower(old_slug) UNIQUE, profile_id → profiles ON DELETE CASCADE, created_at)` keeps every old slug: RLS on, **no** policies, revoked from anon/authenticated. The trigger **`profiles_v08_lyra_id_not_retired`** (`enforce_lyra_id_not_retired()`, SECURITY DEFINER because members cannot read the history; fires after `profiles_v08_identity`) refuses any profile taking another profile's old slug (`Retired CheckLyra ID`, SQLSTATE 23505 so `save_profile` draft mode returns the "taken" warning → "That CheckLyra ID is already taken."). **Redirect:** on a miss, `/[slug]` calls `resolveLegacySlug` (service role, `load-public-profile.ts`; a failed read is reported to Sentry and ends in a 404): a mixed-case request whose lower-case form is live, or a history hit (by `old_slug_key`) whose profile is in the `public_profiles` view (published, not suspended) → `permanentRedirect` (308) to the current ID; a target equal to the request is refused (no loops); otherwise 404. The same migration **copies** `external_links` into the member's own gift ideas (title + URL, within the 25 cap and the gift limits; `external_links` rows are kept) and handles **legacy item categories** (public items only, within caps/limits): dislikes/allergies/dietary → `gifts_to_avoid`, likes → `gift_ideas`, questions → `current_problems` (moved in place, same id), billboard → `profiles.billboard` (only if empty, ≤200), helpful_to_know / boundaries → manual-of-me `good_to_know` / `boundaries` (only if the total stays ≤500); every legacy row is first copied in full to **`profile_items_legacy_archive`** (RLS on, no policies, `kan490_action` records what happened); nothing is deleted, and legacy categories are not yet closed in the KAN-485 trigger (the MCP server still writes them; the legacy wizard that also did was deleted in KAN-487 part 3 — follow-up). Both new tables are person-keyed: in the SAR export and the ROPA inventory, and they cascade on account deletion. Dry-run probes and rollback are in the migration header; post-checks RAISE (0 invalid IDs, 0 published or once-published unconfirmed, history rows = conversions, no old slug is another profile's ID, every legacy row archived, gift / manual-of-me / billboard limits, every eligible link copied unless the cap stopped it). Apply at a quiet time: each conversion bumps `updated_at`, so an open editor gets "saved somewhere else". `scripts/seed-dev-data.sql` (dev only, run by hand) writes v0.8-valid sample content **only to dedicated seed accounts** `seed.dev.<name>@seed.checklyra.com` — spec §3 "do not seed illustrative sample content into real accounts", founder decision 2026-11-23. A single DO block RAISEs before any write unless every target's auth email matches `^seed\.dev\.[a-z0-9_-]+@seed\.checklyra\.com$` and none is a homepage example; it never publishes and holds no profile UUIDs. The seed accounts do not exist on dev yet (create them as the script header says). Sample rows written by earlier runs into two real dev accounts were left in place for the founder to decide. Pinned by `tests/unit/kan490-seed-dev-data-guard.test.ts`.
+- **gift_suggestion_dismissals**: _(KAN-443)_ gift suggestions a member has said "not for me" to — `(profile_id, suggestion_key)`, owner-scoped by RLS. `suggestion_key` identifies a recommender CONCEPT, not a product, so a dismissal survives the catalogue resolving a different product for the same idea. Filtered the V1 concept list and the V2 pipeline output on the public profile until KAN-488 removed that block from the page.
+- **mcp_tool_call_log**: _(KAN-232)_ per-request audit log for the MCP server — `(ip, tool, method, ts, api_key_prefix, status_code)`. **RLS enabled with ZERO policies, and that is the protection**: with RLS on and no policy, `anon` and `authenticated` are denied every row regardless of their table grants, so only `service_role` (which bypasses RLS) can touch it. Do not "complete the set" by adding a policy. Holds IP addresses, so it is personal data; 30-day retention via `pg_cron` (KAN-245).
+- **content_moderation_flags**: _(KAN-244)_ moderation hits on user-authored text — `(profile_id, field, severity, flags[], content_snippet, source, created_at)`. `severity ∈ {warn, block}`, `source ∈ {web_app, mcp_server}`, `content_snippet` capped at 200 chars (a data-protection bound, not a display one). One RLS policy, `own_flags_select`, lets a member read their own flags at `/dashboard/settings`; there are deliberately **no** write policies, so the only writer is `service_role` via `src/modules/audit/moderation-audit.ts`. 30-day retention via `pg_cron`.
+
+> ⚠️ **SEC-160**: both tables above existed on dev, staging and production for months with **no `CREATE TABLE` anywhere in `supabase/migrations/`**, so the repo could not rebuild any of the three databases. Reconciliation migrations landed 2026-08-17 (`20260817100000`, `20260817100100`, `20260817100200`) and are idempotent — applying them to an environment that already has the objects is a no-op. CTL-049 reported "ledger parity holds ✓" throughout, because the entries were *baselined* rather than absent.
+
+### Scheduled database jobs (pg_cron)
+
+Recorded here because they are schema, not application code, and a rebuild without them retains personal data indefinitely — a compliance failure nothing in CI would report, since the tables themselves would look correct.
+
+- **mcp_tool_call_log_retention** — `0 3 * * *` — deletes `mcp_tool_call_log` rows older than 30 days.
+- **content_moderation_flags_retention** — `15 3 * * *` — deletes `content_moderation_flags` rows older than 30 days. ⚠️ This job appears in **no migration-ledger row at all**, which is why CTL-049's count of out-of-band objects understates reality: it counts out-of-band *ledger rows*, and an object created without one is invisible to it by construction.
 
 ### Custom Types
-- item_category: likes, dislikes, gift_ideas, gifts_to_avoid, boundaries, helpful_to_know, hobbies, allergies
-- visibility_level: public, friends, private
+
+⚠️ The two enums below were **corrected 2026-08-17** against a live `pg_enum` catalogue query on all three databases (dev, staging, production — identical membership on each). The previous text named two labels that exist in none of them (`hobbies`, `friends`) and omitted 19 that do. Read the catalogue, not this list, if a decision depends on it.
+
+- item_category _(26 labels)_: gift_ideas, gifts_to_avoid, likes, dislikes, helpful_to_know, boundaries, favourite_books, favourite_media, causes, quotes, proud_of, life_hacks, questions, billboard, current_problems, dietary, mobility, transport, availability_pattern, favourite_venues, allergies, favourite_tv, favourite_places, favourite_music, plays, favourite_custom
+- visibility_level: public, members_only, private, tribe_only, draft _(`draft` is `src/modules/profile/visibility.ts`'s default and fail-closed value; production accepts it — see CLAUDE.md, the CTL-036 stale-baseline note)_
 - link_type: website, twitter, instagram, linkedin, tiktok, youtube, other
 - school_relationship: student, alumni, parent, staff
 - access_stage: waitlist, beta, live _(KAN-273 — the user's access tier; see "User Access Lifecycle")_
@@ -377,6 +492,8 @@ All operations run via GitHub Actions — no local machine needed:
 ### Row Level Security
 - Owners can CRUD their own data
 - Public can read published profiles only
+- **Affiliation-based discovery (search)** is specified in the main privacy specification, `docs/compliance/DPIA.md` §2a (binding rules AD-1…AD-8; ROPA P10) — founder decision 2026-11-23, replacing spec v0.8 §02's call for a separate privacy specification (KAN-482). Web "Find someone" (`src/app/search/page.tsx`, public, no sign-in) matches only `show_on_profile = true` school/organisation names, returns only public card fields and caps at 100 affiliation rows / 30 profiles; pinned by `tests/unit/kan450-search-affiliations.test.ts` and `tests/unit/kan482-affiliation-discovery-rules.test.ts`. The search term is stripped before Sentry (`WEB_SCRUB_OPTIONS` in `src/modules/observability/sentry-scrub.ts`: `/search` query redacted in events (incl. the `Referer` header), breadcrumbs and transactions via `beforeSendTransaction`; `/search` also sends `Referrer-Policy: strict-origin` from `next.config.ts` so the next page's referrer holds no term) and before Vercel Analytics / Speed Insights (`src/modules/observability/analytics-redaction.ts`, wired in `src/app/consented-analytics.tsx`); Vercel's own request logs still record `/search?q=…` with the IP (DPIA AD-6 limit). Whether affiliation search should need sign-in, be `noindex` or have a minimum term length is open founder decision **FD-AD1** (DPIA §2a). Known gaps (MCP `lyra_search_profiles` `school` filter, MCP `lyra_list_schools`, signed-in PostgREST reads) are DPIA risk R10.
+- **Hidden affiliations are never public.** The only public read policy on `school_affiliations` ("Anyone can read visible affiliations from published profiles", `20261113120000_hidden_affiliations_public_read_rls.sql`) requires `show_on_profile = true` plus a published, non-suspended profile. Until that migration, two policies (one created out-of-band) omitted `show_on_profile`, so every hidden affiliation of every published profile was readable with the public anon key. Guarded by `tests/unit/hidden-affiliations-public-read-rls.test.js`, which replays every migration and fails if any anon-reachable read policy on the table omits the predicate. **KAN-482:** `20261123140000_kan482_affiliations_read_authenticated_only.sql` recreates that policy `to authenticated` (same predicate, same name), so shown affiliations are no longer readable with the anon key at all — public pages, `/search` and the MCP server read through the service role; the signed-in autocomplete (`suggest_affiliation_names`, INVOKER) still needs the policy. Pinned by `tests/unit/kan482-affiliations-no-anon-read.test.ts`. Effective on each database only once applied.
 
 ## Backup Strategy
 
@@ -418,9 +535,10 @@ All operations run via GitHub Actions — no local machine needed:
 | Vercel | Web hosting, CDN, serverless | luisa-sys-projects |
 | Supabase | Database, auth | ilprytcrnqyrsbsrfujj |
 | Cloudflare | DNS, SSL, CDN proxy | checklyra.com zone |
-| Railway | MCP server hosting | lyra-mcp-server |
+| Railway | MCP server hosting — **three** services: `lyra-mcp-server` (prod), `lyra-mcp-dev`, `lyra-admin-mcp-server` (admin surface, project `resilient-commitment`) | luisa-sys |
 | GitHub | Source code, CI/CD, secrets | luisa-sys |
 | Atlassian/Jira | Project management | checklyra.atlassian.net |
+| Anthropic | AI gift suggestions (KAN-489) — Claude API, key `ANTHROPIC_API_KEY`; receives member-authored profile text only (sub-processor listing on the privacy page is a founder follow-up) | per environment |
 | Claude Design | Design source of truth for UI changes — tokens + per-ticket before/after cards (KAN-441) | Projects `e4682889-…` (Lyra Design System) and `c179aa52-…` (Lyra Web Design) |
 
 
@@ -451,7 +569,7 @@ Until it lands, treat a green `/status` as evidence about the MCP API only.
 ### Application Security — implemented
 - **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy, COOP, CORP, Permissions-Policy, X-XSS-Protection (next.config.ts)
 - **Auth rate limiting**: 10 attempts per 15 minutes per IP on login/signup (middleware.ts + rate-limit.ts)
-- **Input sanitisation**: stripHtml, sanitiseText (length-limited), sanitiseUrl (protocol validation) on both web app and MCP server
+- **Input sanitisation**: stripHtml, sanitiseText (length-limited), sanitiseUrl (protocol validation) on both web app and MCP server. Profile text on the web app uses `validateFreeText` + the contact-detail filter and `parseMemberUrl` instead (KAN-486, see Data Model → Server validation); the MCP server still uses the older helpers (follow-up).
 - **PKCE auth flow**: Middleware uses getUser() with JWT revalidation, not getSession()
 - **Per-request Supabase client**: No module-scope client leaks in Vercel's Fluid Compute environment
 - **Centralised env validation**: env.ts fails fast on missing vars
@@ -499,6 +617,25 @@ gap recorded above.
 > projects) and record any credential it holds in `docs/SECURITY_ROTATION.md`;
 > then add it here and move the KAN-24 count to 8. **No ticket tracks this yet —
 > one needs raising.**
+
+**`lyra-admin-mcp-server` is covered by the `Railway` entry, and the count stays
+7 (KAN-466).** The decision, recorded so it is not re-litigated: this inventory
+enumerates **providers** — the accounts whose console holds a 2FA setting, an
+access list and an API token — not individual deployed services. Supabase is one
+entry for three projects; Railway is one entry for three services. The admin MCP
+adds no new provider, so adding a row would inflate the KAN-24 count without
+adding a console to audit.
+
+That is only honest if the Railway checklist actually covers all three services,
+which is the gap this ticket found: `docs/CYBER_LOCKDOWN.md` §Railway named
+`lyra-mcp-server` as *the* service and scoped its auto-deploy check to that repo
+alone, so the **highest-privilege surface on the platform** sat outside the
+checklist behind the inventory entry that claimed to cover it. §Railway now
+enumerates all three and carries the admin-specific items (sealed prod
+service-role key, Cloudflare Access + IP allow-list, `ALLOW_CF_ACCESS_OFF`
+removed after first deploy). Coverage-by-provider is the rule; a provider entry
+whose checklist names one of its services is the same presence badge in a
+different shape.
 
 
 ### Token rotation

@@ -191,29 +191,17 @@ describe('KAN-234: updateProfileItemVisibility writes NULL for inherit', () => {
 // ───────────── 3. Static regression guards ─────────────
 
 describe('KAN-234: surface-area regression guards', () => {
-  test('items-step.tsx has the "Use section default" option (empty value)', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    // The option's value is the empty string — distinctive label too.
-    expect(src).toMatch(/Use section default/);
-    // New-item form defaults to '' (inherit), not 'public'.
-    expect(src).toMatch(/setItemVisibility\(['"]['"]\)/);
-  });
-
-  test('items-step.tsx handles null/undefined item.visibility in the per-item selector', () => {
-    const src = readFileSync(
-      resolve(ROOT, SRC.itemsStep),
-      'utf-8',
-    );
-    // The select value derives '' from a null/undefined item.visibility.
-    expect(src).toMatch(/item\.visibility == null/);
-  });
+  // KAN-487 part 3 (founder sign-off 2026-11-23, chat): two guards stood
+  // here reading the deleted `steps/items-step.tsx` — "items-step.tsx has the
+  // \"Use section default\" option (empty value)" and "items-step.tsx handles
+  // null/undefined item.visibility in the per-item selector". The v0.8 editor
+  // has no per-item visibility control (KAN-266: the profile is simply
+  // public), so neither has a live counterpart. The server-side coercion they
+  // relied on keeps its behavioural tests above.
 
   test('WizardProfile and WizardItem types declare section_visibility / nullable visibility', () => {
     const src = readFileSync(
-      resolve(ROOT, SRC.profileTypes),
+      resolve(ROOT, SRC.types),
       'utf-8',
     );
     expect(src).toMatch(/section_visibility:\s*Record<string,\s*string>\s*\|\s*null/);
@@ -233,15 +221,22 @@ describe('KAN-234: surface-area regression guards', () => {
     // surfaces per-section public/members/draft selects.
     expect(src).not.toMatch(/updateSectionVisibility/);
     expect(src).not.toMatch(/<option value="members_only">/);
-    // Item sections now pass hideVisibility to ItemsStep, and the editor shows
-    // a single "everything optional" note instead of per-section controls.
-    expect(src).toMatch(/hideVisibility/);
-    expect(src).toMatch(/Everything here is optional/);
+    // KAN-487 (spec v0.8): the ItemsStep lists and the intro note are gone
+    // from the live editor (v0.8 sections have no visibility control at all).
+    // Old expected values:
+    //   expect(src).toMatch(/hideVisibility/)
+    //   expect(src).toMatch(/Everything here is optional/)
+    // (founder standing approval 2026-11-23: v0.8 contradicts)
+    expect(src).not.toMatch(/hideVisibility/);
+    expect(src).not.toMatch(/Everything here is optional/);
   });
 
   test('[slug]/page.tsx uses the hybrid filter (isItemVisibleUnderHybridModel)', () => {
+    // KAN-488: the page's item read and its hybrid filter moved into the
+    // public-profile loader (CTL-056). Same expected values, new location.
+    // Was: readFileSync(resolve(ROOT, SRC.slugPage), 'utf-8')
     const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
+      resolve(ROOT, SRC.loadPublicProfile),
       'utf-8',
     );
     expect(src).toMatch(/isItemVisibleUnderHybridModel/);
@@ -253,8 +248,9 @@ describe('KAN-234: surface-area regression guards', () => {
   });
 
   test('[slug]/page.tsx removes the .in("visibility", [...]) query filter (hybrid model needs NULL rows too)', () => {
+    // KAN-488: retargeted to the loader, as above. Was: SRC.slugPage
     const src = readFileSync(
-      resolve(ROOT, SRC.slugPage),
+      resolve(ROOT, SRC.loadPublicProfile),
       'utf-8',
     );
     // The previous query had `.in('visibility', allowedVisibility)` — that

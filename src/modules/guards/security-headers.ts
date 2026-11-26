@@ -30,7 +30,7 @@ export function buildCspReportOnly(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: blob: https:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.sentry.io https://*.de.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
     "font-src 'self'",
     "frame-ancestors 'none'",

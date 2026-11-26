@@ -21,7 +21,10 @@ import { resolve } from 'node:path';
 import { SRC } from '../support/source-paths';
 
 const ROOT = resolve(__dirname, '../..');
-const PAGE = SRC.slugPage;
+// KAN-488: the public page's reads moved from src/app/[slug]/page.tsx into the
+// public-profile module's loader (CTL-056: the route makes no DB call). Same
+// expected values, new location. Was: const PAGE = SRC.slugPage;
+const PAGE = SRC.loadPublicProfile;
 
 describe('KAN-351: public profile reads are batched and errors surfaced', () => {
   const src = readFileSync(resolve(ROOT, PAGE), 'utf8');
@@ -37,10 +40,12 @@ describe('KAN-351: public profile reads are batched and errors surfaced', () => 
     expect(batchStart).toBeGreaterThan(-1);
     const batchBlock = src.slice(batchStart, src.indexOf('];', batchStart));
 
+    // KAN-488: v0.8 retires the Links section, so the batch no longer reads
+    // external_links (founder standing approval 2026-11-23 — v0.8 contradicts).
+    // Was: [..., 'school_affiliations', 'external_links', 'profile_manual_of_me', ...]
     for (const table of [
       'profile_items',
       'school_affiliations',
-      'external_links',
       'profile_manual_of_me',
       'profile_conversation_starters',
     ]) {

@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { LEGAL_PAGE_REDIRECTS } from "./src/modules/marketing-legal/legal-redirects";
 
 const nextConfig: NextConfig = {
+  // KAN-486: profile photos may be up to 5 MB (spec v0.8 §01) and are sent to
+  // the uploadAvatar server action; Next's default action body limit is 1 MB.
+  // Vercel's platform request cap (4.5 MB) still applies on top of this, so
+  // the step-4 editor downscales large photos in the browser before upload.
+  experimental: {
+    serverActions: { bodySizeLimit: '5mb' },
+  },
+  // KAN-493: the folded-in legal pages (Cookies, Guidelines, Keeping people
+  // safe, Help, Complaints, Partners, Accessibility) redirect permanently
+  // (308) to the section that now holds their content.
+  async redirects() {
+    return LEGAL_PAGE_REDIRECTS.map((r) => ({ ...r, permanent: true }));
+  },
   // KAN-88: OAuth 2.1 well-known discovery endpoints. Next.js doesn't route
   // folder names starting with '.' reliably, so we serve the canonical
   // /.well-known/* paths via internal /api/well-known/* routes.
@@ -53,7 +67,7 @@ const nextConfig: NextConfig = {
             // (EU region) so Sentry's browser SDK can POST events. The two
             // wildcards cover both `o<id>.ingest.sentry.io` and the `.de.`
             // EU equivalent.
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.sentry.io https://*.de.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.sentry.io https://*.de.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
           },
           {
             key: "Cross-Origin-Opener-Policy",
@@ -66,6 +80,22 @@ const nextConfig: NextConfig = {
           {
             key: "X-XSS-Protection",
             value: "1; mode=block",
+          },
+        ],
+      },
+      {
+        // KAN-482 (DPIA §2a AD-6): /search is a GET form, so its URL carries
+        // the term (?q=). With the site-wide policy the NEXT page's
+        // document.referrer (same origin) would be that full URL, which the
+        // Sentry browser SDK copies into events and third-party analytics
+        // scripts can read. Pages navigated to from /search get the origin
+        // only. Must stay AFTER the catch-all: for the same key the last
+        // matching entry wins.
+        source: "/search",
+        headers: [
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin",
           },
         ],
       },

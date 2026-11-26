@@ -9,7 +9,7 @@
  * The invariants:
  *   - Disclosure sentence contains the word "commission" (FTC required).
  *   - "no extra cost" appears so users know there's no surcharge.
- *   - Badge links to /partners for the long-form disclosure.
+ *   - Badge links to the Privacy affiliate-partners section (KAN-493; was /partners).
  *   - Anchor uses noopener (security + good Anchor hygiene).
  *   - role="img" so screen readers announce it as a single unit.
  *   - sr-only span exists for screen-reader-only disclosure.
@@ -39,8 +39,8 @@ describe('KAN-192 AffiliateBadge — file content invariants', () => {
     expect(content).toMatch(/no extra cost/i);
   });
 
-  test('links to /partners for the long-form disclosure', () => {
-    expect(content).toMatch(/href=\{?["']\/partners["']\}?/);
+  test('links to the Privacy affiliate-partners section for the long-form disclosure (KAN-493)', () => {
+    expect(content).toMatch(/href=\{?["']\/privacy#affiliate-partners["']\}?/);
   });
 
   test('uses rel="noopener" on the partners link', () => {

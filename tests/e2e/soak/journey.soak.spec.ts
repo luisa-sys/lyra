@@ -95,7 +95,14 @@ test('C3.3 drafted — publish widget appears', async ({ page }) => {
 
 test('C3.4 publish — profile publishes and the public page renders', async ({ page }) => {
   const admin = adminClient();
-  const { error } = await admin.from('profiles').update({ is_published: true }).eq('id', soak.profileId);
+  // KAN-485: the profiles_v08_identity trigger requires a photo, a display name
+  // and a CONFIRMED CheckLyra ID to publish, even for service-role writes. Same
+  // fields as seed-user.ts's published states: the photo is a static asset of
+  // the app itself (no upload), and the placeholder ID is confirmed as-is.
+  const { error } = await admin
+    .from('profiles')
+    .update({ is_published: true, avatar_url: '/lyra-icon-512.png', slug_confirmed: true })
+    .eq('id', soak.profileId);
   expect(error, error?.message).toBeNull();
 
   await assertDashboardHardLoad(page);
@@ -114,7 +121,9 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   expect(giftErr, giftErr?.message).toBeNull();
   const { error: affErr } = await admin
     .from('school_affiliations')
-    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary' });
+    // KAN-485: a school needs a postcode (≤12 chars) on insert — the
+    // enforce_affiliation_rules trigger. Same value as seed-user.ts.
+    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary', school_location: 'AB1 2CD' });
   expect(affErr, affErr?.message).toBeNull();
 
   await assertDashboardHardLoad(page);
@@ -131,14 +140,31 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   // founder-signed-off 2026-07-25). Assertion unchanged.
   const marker = `Soak note ref-${Date.now().toString(36)}`;
   await page.goto('/dashboard/profile', { waitUntil: 'load' });
-  const goodToKnow = page.getByPlaceholder(/I'm a slow texter/);
+  // The cookie banner (fixed, z-50) sits on top of the v0.8 editor's fixed
+  // action bar until the visitor chooses, so answer it as a visitor would.
+  const essentialOnly = page.getByRole('button', { name: 'Essential only' });
+  if (await essentialOnly.isVisible()) await essentialOnly.click();
+  // KAN-487 (spec v0.8 §1, §05): edits stay private until Save Changes, then
+  // exactly "Changes saved successfully". Old flow: placeholder
+  // /I'm a slow texter/, blur, autosave label /Saved|Saving/, then the marker
+  // on /<slug>. (founder standing approval 2026-11-23: v0.8 contradicts)
+  const goodToKnow = page.getByLabel('Good to know about me / Things I’m into');
   await expect(goodToKnow).toBeVisible();
   await goodToKnow.fill(marker);
   await goodToKnow.blur();
-  await expect(page.getByText(/Saved|Saving/).first()).toBeVisible();
+
+  // Not public before Save Changes (checked in a second tab so the editor's
+  // unsaved edit stays open).
+  const publicPage = await page.context().newPage();
+  await publicPage.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+  await expect(publicPage.getByText(marker)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
 
   await expect(async () => {
-    await page.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
-    await expect(page.getByText(marker)).toBeVisible();
+    await publicPage.goto(`/${soak.slug}?cb=${Date.now()}`, { waitUntil: 'load' });
+    await expect(publicPage.getByText(marker)).toBeVisible();
   }).toPass({ timeout: 20_000 });
+  await publicPage.close();
 });

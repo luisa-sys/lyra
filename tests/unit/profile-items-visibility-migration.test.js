@@ -76,6 +76,11 @@ describe('KAN-143 — profile_items visibility migration', () => {
 describe('KAN-143 — public profile page filters by visibility', () => {
   const pagePath = path.join(root, SRC.slugPage);
   const content = fs.readFileSync(pagePath, 'utf8');
+  // KAN-488: the item read and its hybrid filter moved into the public-profile
+  // loader (CTL-056); the viewer's auth check stays in the page. The three
+  // hybrid-filter assertions read the loader, expected values unchanged.
+  // Was: all four read `content` (SRC.slugPage).
+  const loaderContent = fs.readFileSync(path.join(root, SRC.loadPublicProfile), 'utf8');
 
   // KAN-234: filter helper switched to `isItemVisibleUnderHybridModel`
   // (resolves item.visibility against the section default before applying
@@ -85,7 +90,7 @@ describe('KAN-143 — public profile page filters by visibility', () => {
   // the hybrid model needs to fetch NULL-visibility rows too (they inherit
   // from the section default).
   test('imports the hybrid visibility filter (KAN-234 replaces KAN-143 filter)', () => {
-    expect(content).toMatch(/import\s*{[^}]*isItemVisibleUnderHybridModel[^}]*}/);
+    expect(loaderContent).toMatch(/import\s*{[^}]*isItemVisibleUnderHybridModel[^}]*}/);
   });
 
   test('checks viewer auth state before fetching items', () => {
@@ -99,46 +104,22 @@ describe('KAN-143 — public profile page filters by visibility', () => {
     // exclusively through isItemVisibleUnderHybridModel, which resolves each
     // item's visibility (incl. NULL → section default) against the viewer's
     // auth state. Guard that the enforcement helper is present.
-    expect(content).toContain('isItemVisibleUnderHybridModel');
+    expect(loaderContent).toContain('isItemVisibleUnderHybridModel');
   });
 
   test('applies application-level filter via the hybrid helper (defence in depth, KAN-234)', () => {
-    expect(content).toMatch(/isItemVisibleUnderHybridModel\(/);
+    expect(loaderContent).toMatch(/isItemVisibleUnderHybridModel\(/);
   });
 });
 
-describe('KAN-143 — items step UI exposes visibility selector', () => {
-  const stepPath = path.join(root, SRC.itemsStep);
-  const content = fs.readFileSync(stepPath, 'utf8');
-
-  test('renders a <select> for visibility on the add-item form', () => {
-    expect(content).toMatch(/id=["']new-item-visibility["']/);
-  });
-
-  test('offers all three visibility levels in the UI', () => {
-    expect(content).toContain("value: 'public'");
-    expect(content).toContain("value: 'members_only'");
-    expect(content).toContain("value: 'draft'");
-  });
-
-  test('does NOT offer the legacy "private" value as a write target', () => {
-    // The wizard must not let new items be created as 'private'. Existing
-    // rows with that value still render (coerced to draft on display), but
-    // it's not a selectable option.
-    expect(content).not.toMatch(/value:\s*['"]private['"]/);
-  });
-
-  test('default visibility for new items is "" (inherit from section default — KAN-234)', () => {
-    // KAN-234: new items default to '' (inherit) so they pick up whatever
-    // the user has set as the section visibility default. Existing items
-    // keep their stored value. Pre-KAN-234 this defaulted to 'public'.
-    expect(content).toMatch(/useState<string>\(['"]['"]\)/);
-  });
-
-  test('exposes an onUpdateVisibility callback so existing items can be re-classified', () => {
-    expect(content).toContain('onUpdateVisibility');
-  });
-});
+// KAN-487 part 3 (founder sign-off 2026-11-23, chat): "KAN-143 — items step
+// UI exposes visibility selector" stood here (5 tests) and read the legacy
+// wizard's `steps/items-step.tsx`, which is deleted: the add-item visibility
+// <select>, its three levels, no 'private' write target, the '' (inherit)
+// default, and the onUpdateVisibility callback. The v0.8 editor has no
+// per-item visibility control (KAN-266: the profile is simply public), so
+// none has a live counterpart. The server-side coercion is still pinned by
+// the "actions.ts wiring" describe below.
 
 describe('KAN-143 — actions.ts wiring', () => {
   const actionsPath = path.join(root, SRC.profileActions);
