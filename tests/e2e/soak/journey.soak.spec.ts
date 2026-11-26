@@ -121,7 +121,9 @@ test('C3.5 grow — gift + affiliation, and a Manual-of-Me edit round-trips', as
   expect(giftErr, giftErr?.message).toBeNull();
   const { error: affErr } = await admin
     .from('school_affiliations')
-    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary' });
+    // KAN-485: a school needs a postcode (≤12 chars) on insert — the
+    // enforce_affiliation_rules trigger. Same value as seed-user.ts.
+    .insert({ profile_id: soak.profileId, school_name: 'Greenfield Primary', school_location: 'AB1 2CD' });
   expect(affErr, affErr?.message).toBeNull();
 
   await assertDashboardHardLoad(page);
