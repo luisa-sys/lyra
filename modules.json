@@ -3215,7 +3215,7 @@
         "src/modules/marketing-legal/"
       ],
       "owns": {
-        "files": 28,
+        "files": 23,
         "tables": [
           "consent_log"
         ],

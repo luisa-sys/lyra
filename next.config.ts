@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { LEGAL_PAGE_REDIRECTS } from "./src/modules/marketing-legal/legal-redirects";
 
 const nextConfig: NextConfig = {
   // KAN-486: profile photos may be up to 5 MB (spec v0.8 §01) and are sent to
@@ -8,6 +9,12 @@ const nextConfig: NextConfig = {
   // the step-4 editor downscales large photos in the browser before upload.
   experimental: {
     serverActions: { bodySizeLimit: '5mb' },
+  },
+  // KAN-493: the folded-in legal pages (Cookies, Guidelines, Keeping people
+  // safe, Help, Complaints, Partners, Accessibility) redirect permanently
+  // (308) to the section that now holds their content.
+  async redirects() {
+    return LEGAL_PAGE_REDIRECTS.map((r) => ({ ...r, permanent: true }));
   },
   // KAN-88: OAuth 2.1 well-known discovery endpoints. Next.js doesn't route
   // folder names starting with '.' reliably, so we serve the canonical
@@ -25,11 +32,6 @@ const nextConfig: NextConfig = {
         destination: '/api/well-known/jwks',
       },
     ];
-  },
-  // "Keeping people safe" was folded into /guidelines (Nov 2026); keep old
-  // links working.
-  async redirects() {
-    return [{ source: '/safe', destination: '/guidelines', permanent: true }];
   },
   async headers() {
     return [

@@ -49,6 +49,19 @@ belong to which module, their layer, and the boundary policy. Read it rather
 than inferring ownership from the directory tree, and update it in the same
 commit as any move (CTL-041).
 
+#### Public legal pages and the site footer (KAN-493, 2026-11-26)
+
+The site footer (`src/app/footer.tsx`, rendered once in the root layout) links to
+four pages only: **About · Privacy · Terms · Contact**, plus the Companies Act
+company line. The other legal pages were folded in: the cookie policy is the
+`#cookies` section of `/privacy`; Guidelines, Keeping people safe and Help are
+the `#guidelines`, `#safety` and `#help` sections of `/about`; data-protection
+and general complaints are the `#complaints` section of `/contact`. The
+Accessibility and Partners pages were removed. The seven old URLs answer with a
+permanent **308** to their new section, from `LEGAL_PAGE_REDIRECTS`
+(`src/modules/marketing-legal/legal-redirects.ts`) via `redirects()` in
+`next.config.ts`. The words stay in `RESERVED_LYRA_IDS`.
+
 ### `oauth-as` — what a token is bound to (SEC-46 Phase C)
 
 An access token's `aud` claim is the **resource server URI**, not the
