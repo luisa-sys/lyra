@@ -33,7 +33,7 @@ export default function AboutPage() {
         <p className="mb-8">
           Think of it as a small encyclopedia entry for an ordinary person. It covers what you love
           and what you&rsquo;d rather skip, your sizes and favourite colours, the books on your list,
-          how you like to be thanked, and the things people would never guess about yourself.
+          how you like to be thanked, and the things people would never guess about you.
         </p>
 
         <h2 className="text-lg font-semibold mb-2">What Lyra isn&rsquo;t</h2>
