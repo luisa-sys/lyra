@@ -33,22 +33,23 @@ export default function AboutPage() {
         <p className="mb-8">
           Think of it as a small encyclopedia entry for an ordinary person. It covers what you love
           and what you&rsquo;d rather skip, your sizes and favourite colours, the books on your list,
-          how you like to be thanked, and the things you&rsquo;d never guess about yourself.
+          how you like to be thanked, and the things people would never guess about you.
         </p>
 
         <h2 className="text-lg font-semibold mb-2">What Lyra isn&rsquo;t</h2>
         <p className="mb-8">
           It isn&rsquo;t social media. There are no messages, no feeds, no groups, no likes and no
           followers. Nothing to keep up with and nothing to perform. You fill in your page when you
-          feel like it, and the people who care about you can read it when they need it.
+          feel like it, and the people who care about you can read it when they need it. There are
+          no posts &ndash; once you update something, people can only see the latest version.
         </p>
 
         <h2 className="text-lg font-semibold mb-2">Why it exists</h2>
         <p className="mb-4">
           Most of us know the people around us less well than we&rsquo;d like. A colleague, a
           teacher, a neighbour, sometimes even family. Not because we don&rsquo;t care, but because
-          nobody ever told us. So we play it safe: another bottle of wine, another box of
-          chocolates, a bunch of flowers for someone who never liked flowers.
+          nobody ever told us. So we play it safe: another bouquet of flowers, another box of
+          chocolates, or a bottle of wine for someone who doesn&rsquo;t drink.
         </p>
         <p className="mb-8">
           Lyra fixes the &ldquo;nobody told us&rdquo; part. Then it gets out of the way, so the real
@@ -102,8 +103,10 @@ export default function AboutPage() {
           </p>
           <h3 className="font-semibold mb-1">Keep your private details private</h3>
           <p className="mb-5">
-            Please don&rsquo;t add phone numbers, home addresses or email addresses. Lyra isn&rsquo;t
-            a place for being contacted, and leaving them off keeps you safe.
+            Please don&rsquo;t add phone numbers, home addresses or email addresses for your own
+            safety &ndash; remember all pages are public (like Wikipedia) so that information can be
+            read by anyone. Lyra isn&rsquo;t a place for being contacted and leaving them off keeps
+            you safe.
           </p>
           <h3 className="font-semibold mb-1">What happens if something breaks these guidelines</h3>
           <p className="mb-5">
