@@ -1,290 +1,404 @@
-# Design-change workflow (KAN-441)
+# Design-change workflow (KAN-441) — repo mirror of `BUILD-LOOP.md`
 
-> **Source of truth.** The canonical spec is **`BUILD-LOOP.md`** in the separate
-> repository **github.com/luisa-sys/lyra-design-system**. This file is the
-> **repo mirror**, so the process is readable from the app repo, in CI and
-> offline. **If the two differ, `BUILD-LOOP.md` wins and this mirror is
-> regenerated.** Registered in `docs/DOC_SOURCE_OF_TRUTH.md`. Epic **KAN-441**;
-> loop enforcement **KAN-456**; the canonical-home question is **open but no
-> longer blocking** — see "Still open" below and the CTL-040 note beneath it.
+> **This is a mirror.** The canonical process is **`BUILD-LOOP.md`** in the
+> private repository **github.com/luisa-sys/lyra-design-system**. This copy
+> exists so the process is readable from the app repo, in CI and offline. **If
+> the two differ, `BUILD-LOOP.md` wins and this file is regenerated from it**
+> (registered in `docs/DOC_SOURCE_OF_TRUTH.md`). Regenerated 2026-11-23 from the
+> rewrite of `BUILD-LOOP.md` (luisa-sys/lyra-design-system#6, `main@7a3ee42`).
+>
+> **Read "this repo" below as `lyra-design-system`**, and "`lyra`" as this
+> repository. Section numbers match the canonical file.
 
-Lyra's UI changes go through **Claude Design** before they reach code. A change
-is designed, approved by Luisa, then implemented, promoted, re-imported and
-baselined. The ticket closes last, not first.
+**Owner:** Luisa · **Status:** in force. Enforcement is partial: see §8.
+**Rewritten:** 2026-11-23, for the design system's move into git and Claude artifacts (2026-11-22).
+**Epic:** KAN-441 · **Enforcement:** KAN-456, KAN-457
 
-## Why the loop exists
+**The rule: design first, close last.** No change to the look or wording of a
+Lyra page ships unless Luisa approved it as a design first. No ticket closes
+until the change is live on every environment **and** the design system
+describes what shipped.
 
-Design and code drift apart in **both** directions, and each direction fails
-silently:
+---
 
-- **Code ahead of design.** An engineer edits `src/app/globals.css` or a page's
-  copy. The design system still shows the old fonts, colours and wording, so the
-  next design decision is made against a picture of a site that no longer
-  exists.
-- **Design ahead of code.** An approved design sits in Claude Design and never
-  lands, or lands only on `develop`. Nobody can tell by looking at either
-  surface, because both look finished.
-- **Unsynced design work can be lost outright.** Design work that was never
-  committed to `lyra-design-system` exists only in a chat surface. Losing it
-  costs the rebuild, not just the diff — which is why **G0 (version control)** is
-  blocking rather than advisory.
+## 1. Where everything lives
 
-The loop makes each of those states detectable: a single ticket state, one
-manifest, and a checker that refuses to let a ticket close while the two sides
-disagree.
+| What | Where | Role |
+|---|---|---|
+| **Design system (canonical)** | this repo, `main`, `claude-design/project/` | Brand book (`README.md`), tokens (`tokens.json`), component and page previews (`components/<Name>/`). Changed **only by PR**. |
+| Published design system | Claude artifact **Lyra Design System**, <https://claude.ai/artifact/7RRnLnaTnWaELbDzTXnVmV> (slug `33fff469-5304-4b22-b3c0-be2672158b6c`, Design System type) | What designers and Claude see. Published **from** `main`, never edited directly. |
+| Record of the last publish | `claude-design/SNAPSHOT.json` | Artifact version, plus the sha256 of every published file. Checked by `claude-design/verify.py`. |
+| Before/after review cards | Claude artifact **Lyra Web Design**, <https://claude.ai/artifact/FSRSD8jvTmi4SSr2r2esQS> (slug `74ec9808-08e7-4394-a336-507b43a3ae8f`, Migrated Design type). One page per card: `project/<name>.dc.html` | Route A proposals (§3). Backup in `rebuild/cards/`. |
+| **Ticket state** | `rebuild/sync-manifest.json` | One entry per Jira ticket: state, approval, PR, baseline. |
+| Gate runner | `rebuild/check-design-sync.py` | Gates G0–G6 (§7). |
+| Token drift check | `rebuild/check-token-drift.py` | `tokens.json` against the app's `globals.css`. |
+| App-side record | `luisa-sys/lyra` `design/BASELINE.json` + `scripts/check-design-baseline.py` (CTL-040) | Which design-repo commit the app was last reconciled against (§9). |
+| Training | `academy/lyra-academy.html`, published as **Lyra Academy — Engineering Onboarding** | Module "The design-change loop" teaches this file. Update it when this file changes. |
+| **Retired, do not use** | claude.ai/design projects `e4682889…` and `c179aa52…`, the `DesignSync` tool, `claude.ai/design/p/…` links, `build.py`, `validate.py`, top-level `foundations/` `components/` `pages/` | Standalone Claude Design closes by 14 December 2026. The projects no longer accept writes. |
 
-## Where the design lives (moved into Claude, 2026-11-22)
+This repo is **private** and the `lyra` app is public, so the app never imports
+it at build time. Agents clone it beside `lyra` (or attach it in a cloud
+session) and `git pull --ff-only` its `main` before UI work.
 
-Standalone Claude Design (claude.ai/design) closes by 14 December 2026. Both
-projects have moved into Claude as artifacts; the old `claude.ai/design/p/…`
-links and the `DesignSync` tool no longer write to them.
+## 2. Direction of truth
 
-| Was (claude.ai/design) | Now (Claude artifact) | What it holds | In git |
-|---|---|---|---|
-| `e4682889…` Lyra Design System | **Lyra Design System**, <https://claude.ai/artifact/7RRnLnaTnWaELbDzTXnVmV> | Tokens, brand book, component and page previews | `lyra-design-system` → `claude-design/project/` (**canonical**) |
-| `c179aa52…` Lyra Web Design | **Lyra Web Design**, <https://claude.ai/artifact/FSRSD8jvTmi4SSr2r2esQS> | One before/after card per change, `project/<TICKET>.dc.html` | `lyra-design-system` → `rebuild/cards/` (backup) |
+**App code → this repo → the artifact.** (Decided by Luisa, 2026-11-22.)
 
-**Direction of truth (Luisa, 2026-11-22): app code → `lyra-design-system` → the
-artifact.** Token values follow this repo's `src/app/globals.css` and the
-Tailwind classes in `src/`. The design-system repo holds everything else, by PR.
-The artifact is published from it by a merge re-sync, and the page stays editable.
+- **Token values follow the app.** The source is `luisa-sys/lyra`
+  `src/app/globals.css`, the Tailwind classes in `src/`, and the fonts in
+  `src/app/layout.tsx`. `tokens.json` → `meta` records which commit they came from.
+  **Drift is fixed here, never by editing `globals.css` to match.**
+- **Everything else is authored here, by PR:** brand-book rules, component
+  guidelines, previews.
+- **The artifact is published from `main`** by a *merge re-sync* (§6). The page
+  is technically still editable, but policy forbids editing it. Any page edit
+  found at re-sync time is merged back into this repo by PR before anything is
+  published.
 
-**How a coding agent uses it** (full handoff: `CLAUDE.md` in `lyra-design-system`):
-attach or clone `luisa-sys/lyra-design-system` (private), `git pull --ff-only`
-its `main` at the start of every session, read `claude-design/project/README.md`,
-`tokens.json` and `components/<Name>/`, and run the token-drift check below.
-Previews are specs, not code to copy. Drift means the **design system** needs
-re-syncing. Never edit `globals.css` to match it.
+**One sanctioned exception: an approved proposal may lead the app.** On
+Route B (§3) the approved design is written into `claude-design/project/`
+before the code exists. That preview's `README.md` must name the ticket and say
+plainly which parts are **approved but not yet live**. The exception ends at
+`BASELINED`, when the preview is reconciled with what actually shipped.
 
-`card_url` in `rebuild/sync-manifest.json` still holds the old
-`claude.ai/design/p/{projectId}?file=<TICKET>.dc.html` links. The card is now the
-file `project/<TICKET>.dc.html` in the Lyra Web Design artifact. (`KAN-454`, the
-pilot, is `PR665 KAN-454 Waitlist.dc.html`.)
+## 3. Two routes to approval
 
-## Where the tooling lives
+Both routes are valid. Both end in the same manifest state, `DESIGN_APPROVED`,
+and **G1 blocks code before it**.
 
-Everything below is in the **`lyra-design-system`** repo, not this one.
+| | **Route A: review card** | **Route B: spec + design-system preview** |
+|---|---|---|
+| Use for | A small or one-off change to existing UI (copy, a section, a layout tweak) | A larger feature with a founder-written spec (e.g. KAN-487, spec v0.8) |
+| The proposal | A before/after page `project/<TICKET>.dc.html` in the **Lyra Web Design** artifact. The "before" is what makes it reviewable. | The spec, plus a PR here changing `claude-design/project/components/<Name>/` (preview and `README.md`). Exact spec copy is kept apart from proposed copy. Open decisions are listed, not guessed. |
+| Luisa approves | The card (she may choose an option, or "keep what we have", which closes the ticket with no work) | The spec version. Any copy that is not in the spec needs separate, recorded approval. |
+| Recorded in the manifest | `approved_by_founder: true`, `approved_date`, `card_file` (the page name in the artifact), approval detail in `note` | `approved_by_founder: true`, `approved_date`, and the spec title + version and the component folder in `note` |
+| Backup | Commit the card to `rebuild/cards/` (§6.3) | The PR itself |
 
-| Path | What it is |
-|---|---|
-| `BUILD-LOOP.md` | The canonical spec this file mirrors. |
-| `rebuild/sync-manifest.json` | **Where ticket state lives** — one entry per Jira ticket. |
-| `rebuild/cards/` | Git mirror of the `<TICKET>.dc.html` cards. |
-| `CLAUDE.md` | **The coding-agent handoff**: where the design system is, how to use it to build this app, how to pull updates and how to change it. |
-| `claude-design/project/` | **The design system** (tokens.json, brand-book README, component and page previews). `claude-design/SNAPSHOT.json` records the last publish to the artifact; `claude-design/verify.py` checks it. |
-| `rebuild/check-design-sync.py` | The gate runner — G0 to G6 below. |
-| `rebuild/check-token-drift.py` | Diffs `claude-design/project/tokens.json` against `src/app/globals.css`. Drift is fixed in the **design system**, never in `globals.css`. Takes `--design` and `--repo`; exits 2 without both. |
-| `foundations/tokens.css` | Legacy pre-migration token file (superseded by `claude-design/project/tokens.json`). |
+The manifest has no approver-name field: `approved_by_founder` means Luisa.
+Approval given after the first entry (e.g. extra copy) is recorded by updating
+that ticket's `note` and the repo copy it applies to (`claude-design/project/`
+or `rebuild/cards/`) in the same PR, then publishing (§6).
 
-Run the gate runner from the `lyra-design-system` checkout root:
+**"Keep what we have"** is a valid outcome on either route. The ticket closes
+with no code and no baseline change; record it in `note`.
 
-```bash
-python3 rebuild/check-design-sync.py --design-repo . --app-repo <lyra>   # G0–G6
-```
+## 4. The state machine
 
-The token-drift checker takes two file arguments. Since 2026-11-22 the design
-side is a file in git, so nothing has to be fetched live. From this repo's root:
-
-```bash
-python3 ../lyra-design-system/rebuild/check-token-drift.py \
-  --design ../lyra-design-system/claude-design/project/tokens.json \
-  --repo src/app/globals.css
-```
-
-> **This repo's CI cannot run either checker** — they are in a different
-> repository. That is the substance of the canonical-home question below, and it
-> is why the PR-template `EXTRACTION-DOD-DESIGN-SYSTEM` line is still a **human
-> attestation**.
-
-## The state machine
-
-One state per Jira ticket, held in `rebuild/sync-manifest.json`:
+One state per ticket, held in `rebuild/sync-manifest.json`, in this order:
 
 ```
 TODO → DESIGN → DESIGN_APPROVED → DEV_IMPL → PROMOTED → REIMPORT_VERIFIED → BASELINED → DONE
 ```
 
-| State | Means |
-|---|---|
-| `TODO` | Ticket exists; no design work started. |
-| `DESIGN` | A before/after card is being built in the **Lyra Web Design** project. |
-| `DESIGN_APPROVED` | Luisa has approved the card. This is the approval the KAN-411 trailer asserts. |
-| `DEV_IMPL` | Code is being written against the approved card, on a branch off `develop`. |
-| `PROMOTED` | The change is live on all four environments — `develop → staging → beta → main`. |
-| `REIMPORT_VERIFIED` | The shipped result has been re-imported and checked against the card. |
-| `BASELINED` | The Claude Design baseline has been updated to match what actually shipped. |
-| `DONE` | Jira ticket closed. |
-
-**The rule of the loop: design first, close last.** A ticket cannot be closed
-until it is `BASELINED` — meaning the change is live on all four environments
-**and** the Claude Design baseline matches it. Closing at "merged to develop" is
-exactly the drift the loop exists to prevent.
-
-## The gates
-
-Enforced by `rebuild/check-design-sync.py`:
-
-| Gate | Name | Blocks |
+| State | Means | To leave it |
 |---|---|---|
-| **G0** | Version control | Design source not in git. **Blocking** — unsynced design work is work that can be lost. |
-| **G1** | Design-first | Entering `DEV_IMPL` from `DESIGN` without passing through `DESIGN_APPROVED`. Code cannot precede the approval. |
-| **G2** | No-close | `DONE` unless the ticket is `BASELINED`. |
-| **G3** | Promote-verified | `PROMOTED` unless `main` = `beta` = `staging` **by TREE SHA**, and the ticket's `dev_paths` change is present on `main`. |
-| **G4** | Baseline current | `DONE` when a ticket is `PROMOTED` / `REIMPORT_VERIFIED` but its `baseline_ref` has not been updated. |
-| **G5** | No lost work | Raises alerts on uncommitted design changes, or design ahead of dev. |
-| **G6** | Published | Alerts when `claude-design/project/` differs from `claude-design/SNAPSHOT.json`, i.e. a design-system change merged but not yet published to the artifact. |
+| `TODO` | Ticket exists. No design work yet. | — |
+| `DESIGN` | A proposal is being built: a card (Route A) or a design-system PR (Route B). | The proposal is in git: card backed up, or PR open. |
+| `DESIGN_APPROVED` | Luisa approved it (§3). | Approval recorded in the manifest. |
+| `DEV_IMPL` | Code, **and any DB work**, on a branch off `lyra` `develop`. Commits carry `UI-Change-Approved: <KEY>`. `dev_pr` set. | PR green (Quality Gate, CodeQL, E2E) and merged. |
+| `PROMOTED` | Live on all four environments, `develop → staging → beta → main`. | **G3:** `staging` = `beta` = `main` by **tree SHA**. Separately, a human confirms the change is on `main` (G3 does not check that). |
+| `REIMPORT_VERIFIED` | A human compared the live site with the approved card or preview and found them matching. Differences are listed in `note`. | Parity recorded in `note` (who, date, environment checked). |
+| `BASELINED` | This repo describes what shipped: `claude-design/project/` updated by PR (tokens re-synced if they changed), **published** to the artifact, `SNAPSHOT.json` refreshed, `verify.py` exits 0. `baseline_ref` set. | `baseline_ref` recorded. |
+| `DONE` | Jira ticket closed. | **Reachable only from `BASELINED`.** |
 
-> **G3 uses tree SHA, never ahead/behind counts — and this is a rule the design
-> loop introduces, not one it inherits.** The 2026-06-20 re-root leaves `main`
-> hundreds of prod-promote merge commits ahead of `develop` with an identical
-> tree, so ahead/behind reads as a huge gap at the exact moment the environments
-> are identical. Tree SHA compares the content, so it tells the truth.
->
-> **Do not assume an existing gate already carries this.** Nothing in the release
-> chain checked alignment by tree SHA before G3 —
-> `scripts/check-release-drift.sh` does the opposite: it counts commits ahead
-> (`git rev-list --count "$MAIN_REF..$DEVELOP_REF"`) and thresholds
-> green/yellow/red on that count, which the re-root makes meaningless as an
-> alignment signal. G3 is the first place the rule is enforced.
+**`baseline_ref` format:** `ds:<design-repo main sha> app:main@<lyra sha> <YYYY-MM-DD>`.
+`ds:` is the merge commit of the baseline PR (§5 step 7); `app:` is the
+production commit it describes. Entries written before 2026-11-23 use free text (e.g. KAN-454's
+`main d255ddd2 @2026-08-02`, which is an app commit).
 
-## How a change flows, end to end
+"Re-import" is a leftover name from Claude Design, which imported the live
+site. It now means the human parity check above. Nothing is imported.
 
-1. **Ticket first.** A KAN ticket exists, with the six required sections
-   (`docs/JIRA_TICKET_STANDARD.md`). Its manifest entry starts at `TODO`.
-2. **Design.** Build the before/after card as `<TICKET>.dc.html` in the **Lyra
-   Web Design** artifact (`project/<TICKET>.dc.html`; until 2026-11-22 this was
-   the claude.ai/design project, written via `DesignSync`), and commit the backup
-   to `lyra-design-system/rebuild/cards/`. State → `DESIGN`.
-3. **Approval.** Luisa reviews the card and approves it. State →
-   `DESIGN_APPROVED`. **G1 blocks any code before this point.**
-4. **Implement.** Branch off `origin/develop`, write the code and its tests, and
-   carry the `UI-Change-Approved: <KEY>` commit trailer. State → `DEV_IMPL`.
-5. **Promote.** `develop → staging → beta → main`, unchanged — see SEC-98 in
-   `CLAUDE.md`. State → `PROMOTED` once **G3** agrees `staging`, `beta` and
-   `main` are flat by tree SHA and the change is present on `main`. (G3 compares
-   those three; `develop` is ahead by design while work is in flight.)
-6. **Re-import and verify.** Re-import the shipped result and check it against
-   the card. State → `REIMPORT_VERIFIED`.
-7. **Baseline.** Update `lyra-design-system/claude-design/project/` by PR (re-sync
-   the tokens from `globals.css` if the change touched them), publish it to the
-   Lyra Design System artifact, and refresh `SNAPSHOT.json`, so the design system
-   describes what is now live. State → `BASELINED`.
-8. **Close.** Only now may the ticket go to Done. **G2** enforces it.
+## 5. A change, end to end
 
-## How this connects to the existing controls
+1. **Ticket.** A KAN ticket with the six required sections (`lyra`
+   `docs/JIRA_TICKET_STANDARD.md`). Add a manifest entry at `TODO`: `key`,
+   `title`, `has_ui`, `dev_paths` (globs of the app files the change touches),
+   `has_db_work`.
+2. **Design** (`DESIGN`). Route A: publish `project/<TICKET>.dc.html` to the
+   Lyra Web Design artifact (`publish_files`, mode `patch`, `base_version` =
+   live version), and commit **the same local file** to `rebuild/cards/`.
+   Route B: open a PR here changing the component folder. **Do not merge it
+   yet:** anything merged gets published (§6.1), and an unapproved design must
+   never reach the Lyra Design System artifact.
+3. **Approval** (`DESIGN_APPROVED`). Record it as in §3. Route B: merge the
+   preview PR only now, with the approval in the same PR's manifest change, then
+   publish (§6). Nothing in `lyra` may start before this.
+4. **Implement** (`DEV_IMPL`). Branch off `origin/develop` in `lyra`. Pull this
+   repo first and run the token-drift check (§10). Tokens are synced from
+   `lyra` `main`, and `develop` may be ahead: if the only drift is a token change
+   that is on `develop` but not yet on `main`, note it in the ticket and re-sync
+   once it reaches `main` (§6.4). Never edit `globals.css` to clear drift. Build with the app's own
+   components and token classes: **previews are specs, not code to copy.**
+   Every commit touching founder-owned UI carries `UI-Change-Approved: <KEY>`.
+   Set `dev_pr`.
+5. **Promote** (`PROMOTED`). `develop → staging → beta → main` by the normal
+   workflow-dispatch promotions. SEC-98 applies unchanged: design approval is
+   never release approval. Migrations follow §11, which is **not** the same
+   order as the code.
+6. **Parity check** (`REIMPORT_VERIFIED`). Compare the live site with the card
+   or preview. Record the result.
+7. **Baseline** (`BASELINED`). PR here bringing `claude-design/project/` in
+   line with what shipped. Route B: remove the "not yet live" wording, and fix
+   anything that shipped differently. Merge it, then publish (§6). The
+   follow-up PR (§6.1 step 3) carries the refreshed `SNAPSHOT.json` **and** the
+   manifest change: state `BASELINED`, `baseline_ref` with `ds:` = the baseline
+   PR's merge commit. `verify.py` must exit 0. If the ticket touched a
+   design-bearing path in `lyra` (§9), also open a `lyra` PR to `develop`
+   updating `design/BASELINE.json`; the ticket closes only once that is merged.
+8. **Close** (`DONE`). Only now. **G2** fails a `DONE` ticket without a `baseline_ref`.
 
-| Control | Relationship to the loop |
-|---|---|
-| **KAN-411 quality gate** (`scripts/check-ui-copy-ownership.sh`, run from `pr-checks.yml`) | Any PR touching founder-owned UI paths must carry a `UI-Change-Approved: <KEY>`, `UI-Bugfix-Only: <KEY>` or `UI-No-Visual-Change: <KEY>` commit trailer. **The design loop is what produces the approval that trailer asserts** — the trailer is the claim, `DESIGN_APPROVED` is the evidence. `UI-No-Visual-Change` (SEC-152) exists because the guard matches on **path**, so a diff that alters no pixel and no word still trips it, and the other two would both be false statements for it. It carries **no** design-loop obligation — by definition there is nothing to approve — but it is checked no more than the others, so it is a truthful claim rather than evidence. |
-| **The founder-gated UI rule** (`CLAUDE.md` → "LOOK AND TEXT") | Anything **changing** the look or wording of a user-facing page is founder-approved-and-initiated. **Restoring** intended design, or fixing a plain text or rendering error, is not gated and does not need a card. |
-| **SEC-98 production change control** | Unchanged. Design approval is **not** a release approval and never bypasses `develop → staging → beta → main`. |
+## 6. Publishing
 
-The founder-owned surface is whatever `scripts/check-ui-copy-ownership.sh`
-(`is_protected`) says it is — that function is the authority. Broadly: every
-`.tsx` page/layout/component under `src/app`, all of `src/components/**`, any
-`.css` under `src/` (including `globals.css`), `postcss.config.*`, the named
-user-facing copy modules, and **five named paths under `public/`** — `public/`
-is not covered as a class. Not gated: `src/app/admin/**`, `src/app/api/**`, any
-`*/route.ts`, `src/middleware.ts`. The exact list, including which `public/`
-paths and why `tailwind.config.*` matches nothing, is in `CLAUDE.md` →
-"LOOK AND TEXT".
+Publishing needs a Claude session with the artifact tools
+(`list_files`, `read_file`, `publish_files`). A plain script or CI job cannot do it.
 
-## Database migrations — four deploy environments, three databases
+### 6.1 Order: merge, then publish (decided 2026-11-23)
 
-**DB work is not a separate track, but it does not travel the same chain the
-code does.** The deploy chain has **four** environments; the database has
-**three** Supabase projects, and they do not line up one-to-one:
+`main` is the source. The artifact only ever shows content that has been
+reviewed and merged.
 
-| Deploy environment | Reads/writes which Supabase project |
+1. PR here → merge to `main`. `verify.py` now exits 1 (UNPUBLISHED). That is
+   expected, and it is a debt until step 2 is done. (On an open design PR,
+   `verify.py` exiting 1 is normal too.)
+2. Publish from `main` (§6.2).
+3. Commit the refreshed `SNAPSHOT.json` by a second, small PR. `verify.py` must exit 0.
+
+**Do not move a ticket to `BASELINED` while `verify.py` exits 1.** Nothing enforces this: G6 is one repo-wide warning, and no gate compares a ticket's state with it.
+
+### 6.2 Design System artifact (slug `33fff469-…`)
+
+1. **Check the page hasn't moved.** `list_files`: its `version`, and the
+   sha256 of every file not marked `of_type`, must equal `SNAPSHOT.json`. If
+   not, someone edited in the page. Read those files and merge them into
+   `claude-design/project/` by PR **first**.
+2. **Send the changed files.** `publish_files`, mode `patch`, `base_version`
+   = the live version, changed files only, each under its `project/…` path.
+   Patch mode keeps files you don't name, so list deleted or renamed files in
+   `remove`.
+3. **Send `project/design-system.json` last**, in its own call, re-read right
+   before. Set `lastChange` (`by`, `at`, `via`: `"GitHub · luisa-sys/lyra-design-system@<sha>"`).
+4. **Confirm.** `list_files` again. The hashes must equal the files on `main`,
+   except `project/tokens.css`, which the page regenerates from `tokens.json`:
+   record whatever hash `list_files` reports for it. At the next publish, a
+   difference confined to `tokens.css` after a token change is that
+   regeneration, not a page edit.
+5. **Refresh `SNAPSHOT.json`:** `source.version`, the `files` hashes and sizes,
+   and `synced_from_code` if tokens changed. Run `python3 claude-design/verify.py`
+   (must exit 0) and commit (§6.1 step 3).
+6. **Never** write `project/tokens.css` (the page regenerates it from
+   `tokens.json`), anything outside `project/`, or the type's own files
+   (`index.html`, `SKILL.md`, `artifact-type/**`).
+
+### 6.3 Lyra Web Design artifact (slug `74ec9808-…`)
+
+- **Add a card:** `publish_files`, mode `patch`, `base_version` = live, one
+  file `project/<TICKET>.dc.html`. A new root-level `.html` file becomes a
+  page. Change `project/compat.json` only to rename or reorder pages, and keep
+  its `report` exactly as read.
+- **Back up a new card** by committing the same local file you published to
+  `rebuild/cards/`. No read-back is needed: the type's own instructions say not
+  to read back after publishing unless asked, and that applies to this artifact.
+  (The hash confirmation in §6.2 applies to the Design System artifact, because
+  `SNAPSHOT.json` depends on it.)
+- **Full backup** (only when asked, or to catch edits made in the page):
+  `list_files`, then `read_file` with `paths` (32 at most per call), then write
+  to `rebuild/cards/` and commit. `rebuild/cards/README.md` records the artifact
+  version last backed up. The KAN-454 page `PR665 KAN-454 Waitlist.dc.html` is
+  backed up as `KAN-454-waitlist.dc.html`, a whitespace-cleaned copy.
+- The page's `_ds/` folder is a frozen copy of the **old** Claude Design system.
+  Nothing keeps it current, so cards may render with pre-2026-11-22 tokens. Judge a
+  card against `claude-design/project/`, not against `_ds/`.
+- New cards go here. New design **projects** are made from the Design type,
+  never from Migrated Design.
+
+### 6.4 Re-syncing tokens from the app
+
+When `globals.css`, the token classes or the fonts change in `lyra`, or the
+drift check exits 1:
+
+1. Fetch `luisa-sys/lyra` on its default branch (`main`) and note the short sha.
+2. Diff `globals.css` `:root` and the class values against `tokens.json`.
+   **Show Luisa the table before changing anything.**
+3. Edit `tokens.json`, keeping every `usage` note. Colours not in
+   `globals.css` are not tokens. Update `meta.ref` and `meta.synced`.
+4. PR, merge, publish (§6.1).
+
+## 7. The gates (`rebuild/check-design-sync.py`)
+
+What the code checks today:
+
+| Gate | Result | Fires when |
+|---|---|---|
+| **G0** Version control | BLOCK, but the run ends UNVERIFIABLE (exit 2) | The design repo is not a git work tree. |
+| **G1** Design-first | BLOCK | A UI ticket is at `DEV_IMPL` or later and `approved_by_founder` is not true. |
+| **G2** No-close | BLOCK | A ticket is `DONE` with no `baseline_ref`. |
+| **G3** Promote-verified | BLOCK | A ticket is at `PROMOTED` or later and `staging`, `beta` and `main` are not identical **by tree SHA**. |
+| **G4** Baseline current | WARN | A ticket is `PROMOTED` or `REIMPORT_VERIFIED` with no `baseline_ref`. |
+| **G5** No lost work | WARN | The design repo has uncommitted changes, or a UI ticket is at `DESIGN` / `DESIGN_APPROVED` with no `dev_pr`. |
+| **G6** Published | WARN | `claude-design/project/` differs from `SNAPSHOT.json` (calls `verify.py`). |
+
+**Exit codes:** 0 CLEAN · 1 DRIFT (warnings only) · 2 BLOCKING *or*
+UNVERIFIABLE. The last line, `SYNC-CHECK-STATUS: CLEAN|DRIFT|BLOCKING|UNVERIFIABLE`,
+tells the two kinds of 2 apart. **This is the reverse of the `lyra` guards**,
+where 1 = violation and 2 = cannot verify.
+
+**It fails closed.** If either repo is unreadable, G3 cannot read the
+environment trees, or G6 cannot run `verify.py` or read `SNAPSHOT.json`, the
+result is UNVERIFIABLE (exit 2), never a pass. `--self-test` proves the
+unreadable-repo case only.
+
+**G3 is pipeline-wide.** While `staging`, `beta` and `main` differ, *every*
+run is BLOCKING if *any* ticket is at `PROMOTED` or later, whoever's it is. On
+2026-11-23 that is KAN-454, because production has not been promoted since
+August. Such a block does not stop you moving your own ticket up to
+`DEV_IMPL`. It does mean no ticket may be moved to `PROMOTED` or later.
+
+**What it does not check**, so do not read a clean run as covering these:
+- **Token drift.** Run `check-token-drift.py` separately.
+- **The live artifact.** G6 compares the repo with `SNAPSHOT.json`, not with the page.
+  An edit made in the page is caught only at the next publish (§6.2 step 1).
+- **Jira.** G2 reads the manifest. It cannot see a ticket closed in Jira while the manifest is behind.
+- **That `dev_paths` actually reached `main`.** G3 checks environment alignment only.
+- **That the manifest is true.** States and approvals are typed by people and agents.
+- **Fresh refs.** G3 reads the app repo's local `origin/*` refs. Run `git fetch` first.
+
+`--help` is not a flag: the script ignores unknown flags and runs the full check.
+
+## 8. How much of this is enforced
+
+Be exact about this. A control that only exists on paper reads as green.
+
+| Control | Enforced by | Reality on 2026-11-23 |
+|---|---|---|
+| G0–G6 | `check-design-sync.py` | **Manual.** No CI workflow in this repo and no schedule anywhere. Run it before moving any ticket state and before closing anything. |
+| G2 at Jira | A Jira automation rule blocking Done (proposed) | **Not built** (founder action, needs Jira admin; KAN-457). Until then, agents must refuse to close a ticket that is not `BASELINED`. |
+| PRs to `main` here | Policy | `main` has **no branch protection**. Branch + PR is a rule, not a gate. |
+| Founder approval in `lyra` | `check-ui-copy-ownership.sh` (KAN-411) | **CI-enforced** in `lyra`, but it checks for a trailer string, not for an approval (§9). |
+| Design-baseline pointer in `lyra` | CTL-040 | **CI-enforced** in `lyra`, but only when a design-bearing file is moved (§9). |
+
+Wiring `check-design-sync.py` into a CI workflow here, and a daily
+detect-and-log run, is outstanding on KAN-457.
+
+## 9. The controls on the app side (`luisa-sys/lyra`)
+
+- **UI trailers (KAN-411, `scripts/check-ui-copy-ownership.sh`, run by
+  `pr-checks.yml`).** Any PR touching founder-owned UI (every `.tsx` under
+  `src/app` or `src/modules`, `src/components/**`, `src/**/*.css`,
+  `postcss.config.*`, `tailwind.config.*` (matches nothing today), six named copy
+  modules and five `public/` paths; not `src/app/admin/**`, `src/app/api/**`,
+  `*/route.ts`, `src/middleware.ts`) needs one commit trailer:
+  - `UI-Change-Approved: <KEY>`: an approved design change. **This loop produces the approval.**
+  - `UI-Bugfix-Only: <KEY>`: restores intended design, or fixes a plain text or rendering error. No card needed.
+  - `UI-No-Visual-Change: <KEY>` (SEC-152): the diff changes no pixel and no word. No loop obligation.
+
+  The trailer is a claim, and the manifest entry is the evidence. A trailer
+  without an approved ticket turns a control into a rubber stamp. The exact
+  path list is `is_protected` in that script.
+- **CTL-040 (`scripts/check-design-baseline.py`) and `design/BASELINE.json`.**
+  When a PR **renames or deletes** a design-bearing file (`src/app/globals.css`,
+  anything under `src/components/`, any `.tsx` under `src/app/`), it must also
+  change `baseline_ref` in `design/BASELINE.json`: by policy, to the current
+  head of this repo's `main`. CI checks only that the value changed, not what it
+  is. Plain edits and additions do not trigger it. The escape hatch
+  is a `Design-Baseline-Ok: <KEY> <reason>` trailer. `BASELINE.json` is
+  app-wide ("last reconciled against"); the manifest's `baseline_ref` is per
+  ticket. They are different records. Update `BASELINE.json` at a ticket's
+  `BASELINED` step whenever the ticket touched those paths.
+- **PR template.** The "Design loop (KAN-441)" line asks for the ticket, its
+  approval route and the trailer. `EXTRACTION-DOD-DESIGN-SYSTEM` remains a
+  human attestation, because `lyra` CI cannot read this private repo.
+
+## 10. Running the checks
+
+From `lyra-design-system` (after `git fetch` in both repos; `lyra` needs
+`develop`, `staging`, `beta` and `main` fetched for G3):
+
+```bash
+python3 rebuild/check-design-sync.py --self-test                    # must print OK
+python3 rebuild/check-design-sync.py --design-repo . --app-repo ../lyra
+python3 claude-design/verify.py                                     # 0 published · 1 unpublished · 2 unreadable snapshot
+```
+
+From `lyra`:
+
+```bash
+python3 ../lyra-design-system/rebuild/check-token-drift.py \
+  --design ../lyra-design-system/claude-design/project/tokens.json \
+  --repo src/app/globals.css                                        # 0 in sync · 1 drift · 2 usage/read error
+```
+
+- `check-design-sync.py` takes the repo locations from `--design-repo` /
+  `--app-repo`, then the `DESIGN_REPO` / `APP_REPO` environment variables, then
+  `paths` in the manifest. The manifest holds Luisa's laptop paths, so pass the
+  flags anywhere else.
+- `check-token-drift.py` only compares tokens present on **both** sides. A token
+  added to `globals.css` but missing from `tokens.json` is **not** reported. When
+  `globals.css` gains a variable, add it by hand (§6.4).
+- Drift (exit 1) means the design system is behind the app. Re-sync it (§6.4).
+  **Never edit `globals.css` to match.**
+
+## 11. Database migrations: four deploy environments, three databases
+
+| Deploy environment | Supabase project |
 |---|---|
 | `develop` → dev.checklyra.com | `dev-lyra` |
 | `staging` → stage.checklyra.com | `stage-lyra` |
-| `beta` → beta.checklyra.com | **`prod-lyra` — the production database** |
+| `beta` → beta.checklyra.com | **`prod-lyra`, the production database** |
 | `main` → checklyra.com | `prod-lyra` |
 
-`beta` has no database of its own. It is the **production** Supabase behind the
-in-app beta gate — see `CLAUDE.md` → Deployment Pipeline and gotcha #19.
-Accordingly `CLAUDE.md`'s Supabase Migration Rules name three environments, in
-order: **dev first, then staging, then production.**
+`beta` has no database of its own. **A migration must reach production before
+the `staging → beta` promote**, not before `beta → main`. Scheduling it against
+`beta → main` is one promote too late: beta then runs the new code against a
+database without the column.
 
-> **The consequence a reader must not miss.** Because beta runs on the production
-> database, a migration has to be applied to **production Supabase before the
-> `staging → beta` promote** — *not* before `beta → main`. Scheduling it against
-> the `beta → main` step is **one promote too late**: the beta deploy then runs
-> new code against a production database that does not yet have the column.
+> **PGRST204.** PostgREST builds the INSERT column list from the payload's
+> keys. Sending a key for a column that is not migrated yet fails the **whole**
+> request, even when the value is `null`. `type-check` cannot catch it, because
+> the server Supabase client is untyped. So it breaks beta and production
+> together, while the code promote looks healthy.
 
-Migrations still ride inside `DEV_IMPL → PROMOTED`, there is no design-side
-migration gate and no separate promotion path for the code, and SEC-98 is
-unchanged. What differs is only the count and the ordering above.
+Migrations still ride inside `DEV_IMPL → PROMOTED`. There is no separate design
+gate for them.
 
-One trap this makes concrete:
+## 12. Traps already hit
 
-> **PGRST204.** PostgREST derives the INSERT column list from the payload's
-> **keys**, so sending a key for a not-yet-migrated column fails the **whole**
-> request — even when the value is `null`. `type-check` cannot catch it, because
-> `src/modules/platform/supabase-server.ts` builds an **untyped** client. So a UI change whose
-> migration has reached `dev-lyra` but not `prod-lyra` breaks at run time on
-> **beta and production alike** — both read the production database — even while
-> the code promote itself looks healthy. Promote the migration ahead of the
-> `staging → beta` step, and verify environment alignment by tree SHA (G3) rather
-> than by assumption.
+- **Verify environment alignment by tree SHA, never ahead/behind.** The
+  2026-06-20 re-root leaves `main` hundreds of merge commits ahead of
+  `develop` with an identical tree. `lyra` `scripts/check-release-drift.sh`
+  counts commits and is no alignment signal. G3 is the place this rule is enforced.
+- **Merged is not published.** The KAN-487 design PRs (#4, #5) merged on
+  2026-11-23 and were not published, so `verify.py` exited 1 and the artifact
+  showed the old editor. §6.1 makes the publish an explicit step.
+- **Merged is not promoted.** Tickets sat at `DEV_IMPL` with notes saying
+  "merged" long after their code reached all four branches. The manifest
+  describes the loop only if it is updated at each step.
+- **Mutation-verify every guard.** Nine vacuous assertions surfaced in one
+  day: satisfied by a pre-read, by a code comment, or by a list mapping over
+  itself. CTL-039, and the follow-ups under KAN-459 (done), exist because of it.
+  A control that has never been seen to fail is no control.
+- **A card can lie about tokens.** Lyra Web Design renders with its frozen `_ds/`
+  copy of the old system (§6.3).
 
-## Proven in practice
-
-- **KAN-454** was the pilot: design card → founder approval → dev → staging →
-  beta → production, verified live.
-- **2026-08-03:** nine approved changes shipped to `develop` across six PRs —
-  #673, #674, #681, #682, #683, #684.
-
-## Traps this loop has already hit
-
-- **Mutation-verify every guard.** Nine vacuous-test findings surfaced in a
-  single day: assertions satisfied by a pre-read, by a code **comment**, or by a
-  list mapping over itself. A control that has never been seen to fail is
-  indistinguishable from no control. **CTL-039** (`check-comment-only-assertions.py`) is built and live, but it
-  missed the comment-satisfied case above — that gap in the detector is
-  **KAN-459**.
-- **Verify environment alignment by TREE SHA, never ahead/behind** (G3, above).
-
-## Still open — Luisa decides
+## 13. Open questions (Luisa decides)
 
 | Question | Ticket | Status |
 |---|---|---|
-| **Canonical home.** Should `lyra-design-system` fold into the `lyra` monorepo, so CI can diff design against `src/` directly instead of relying on a human attestation? | **KAN-427** | **Open — but no longer blocking.** The two checkers still cannot run in this repo's CI, and that is unchanged. What changed (2026-08-08, KAN-457) is that it is no longer a prerequisite for having *any* control here: **CTL-040** gates the app side from inside this repo. Folding the repos would buy a genuinely stronger check; it is now an improvement rather than an unblock. |
-| **Documentation class.** This doc is registered in `docs/DOC_SOURCE_OF_TRUTH.md` as its own class (canonical = the `lyra-design-system` spec). The alternative is to treat it as an Ops/runbook narrative with a Confluence page as canonical — which would make `BUILD-LOOP.md` a *second* mirror, i.e. three surfaces for one process. | **Unspecified — needs a ticket.** Surfaced by epic KAN-441, but no ticket tracks the decision. | **Open.** The table currently records what is true today. |
-| **Which surface performs the `DesignSync` writes.** `docs/CLAUDE_SURFACE_POLICY.md` is a strict binary — Claude Code is the auditable surface, chat is the discussion surface — and its "What requires Claude Code" table has no row for Claude Design. Writing a card is a persisted state change. `DesignSync` **is** available in Claude Code, so routing writes through it would satisfy the policy, but the rule is not written down. | **Unspecified — needs a ticket.** KAN-456 tracks loop *enforcement*, not this question; `docs/ADR.md` (ADR-009) raises it with no key attached either. | **Open** — needs a row in that table. |
+| Fold this repo into the `lyra` monorepo, so `lyra` CI can diff design against `src/` and run the gates itself? | KAN-427 | **Open.** Which surface is canonical *was* decided on 2026-11-22 (this repo, following the app's code). Only the fold remains. Not blocking. |
+| CI for this repo, a daily drift run, and the Jira automation for G2 | KAN-457 (and KAN-456) | **Open.** §8. |
+| Which Claude surface may publish to the two artifacts and merge here, and which documentation class this process belongs to. `lyra` `docs/CLAUDE_SURFACE_POLICY.md` has no row for this repo or for artifact publishing. | KAN-465 (written for `DesignSync`, to be re-scoped) | **Open.** In practice, Claude Code sessions do the publishing. |
+| The design surfaces sit outside the security-lockdown and secret-rotation estate | SEC-124 | **Open.** |
 
-### CTL-040 — what shipped, and what it is not
+## Quick reference
 
-**Updated 2026-08-08 (KAN-457).** The paragraph that stood here said CTL-040 was
-pending, because registering `check-design-sync.py` is impossible from this repo:
-`scripts/check-control-registry.py` fails when a registered control's
-implementation file is missing, and that file lives in the other repo. **That
-constraint is real and has not gone away.**
+```
+TODO → DESIGN → DESIGN_APPROVED → DEV_IMPL → PROMOTED → REIMPORT_VERIFIED → BASELINED → DONE
+         │            │                │           │              │                │          ▲
+     card or DS    Luisa ✓ in       PR + trailer  staging=beta=  live = design   DS PR merged  close
+     PR in git     manifest (G1)    (KAN-411)     main by tree   (human check)   + published   allowed
+                                                  (G3)                           + SNAPSHOT    (G2)
+                                                                                 + baseline_ref
+```
 
-So **CTL-040 as shipped is a different control**, and the distinction matters
-enough to state rather than let the ID paper over:
-
-| | `check-design-sync.py` | **CTL-040** (`scripts/check-design-baseline.py`) |
-|---|---|---|
-| Repo | `lyra-design-system` | **this one** |
-| Checks | the loop's G0–G4 gates across both repos and all four envs | that a PR moving a design-bearing file also moves `design/BASELINE.json`'s `baseline_ref` |
-| Registered | no — cannot be | **yes** |
-| Runs in this CI | no | **yes, on every PR** |
-
-CTL-040 does **not** verify the design system was re-pointed or regenerated —
-this CI still cannot read that repo. It verifies that whoever moved the file
-opened it, took its head commit, and recorded it. That raises the cost of a
-false `EXTRACTION-DOD-DESIGN-SYSTEM: done` from *typing a word* to *going and
-looking*, which is the most an in-repo check can do across a boundary it cannot
-cross.
-
-The human attestation therefore **still stands**. CTL-040 backs it; it does not
-replace it, and it does not close the canonical-home question — it removes that
-question as a *blocker* for having any control at all. Registering
-`check-design-sync.py` itself remains available only if the repos ever fold
-together.
-
-> The `lyra-design-system` side of this — running `check-design-sync.py` in that
-> repo's own CI, which currently has **no workflows at all** — is the other half
-> and is not done. Tracked on KAN-457.
+**Never close before `BASELINED`. Never edit an artifact page directly. Never
+edit `globals.css` to match the design system. Merged is not published.**
